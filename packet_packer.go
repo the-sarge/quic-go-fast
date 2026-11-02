@@ -663,6 +663,11 @@ func (p *packetPacker) maybeGetAppDataPacket(
 	now monotime.Time,
 	v protocol.Version,
 ) payload {
+	// ACK selection consumes queued state. Reserve the periodic elicitation
+	// byte before either ordinary or path ACKs can fill the payload budget.
+	if ackAllowed && p.numNonAckElicitingAcks >= protocol.MaxNonAckElicitingAcks {
+		maxPayloadSize-- // PING is one byte; unused if application data elicits an ACK.
+	}
 	pl := p.composeNextPacket(maxPayloadSize, onlyAck, ackAllowed, now, v)
 
 	// check if we have anything to send

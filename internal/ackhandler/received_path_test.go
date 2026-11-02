@@ -27,6 +27,12 @@ func TestReceivePathHistories(t *testing.T) {
 	require.EqualValues(t, 1, path.ECT1)
 	require.Equal(t, protocol.PacketNumber(9), path.LargestAcked())
 	require.Error(t, h.ReceivedPacketOnPath(17, 9, protocol.ECT1, now, true))
+	require.NoError(t, h.ReceivedPacketOnPath(17, 8, protocol.ECNNon, now, true))
+	h.IgnorePacketsBelowOnPath(17, 10)
+	require.Nil(t, h.GetPathAckFrame(17, now, false))
+	require.True(t, h.GetAlarmTimeout().IsZero())
+	require.NoError(t, h.ReceivedPacketOnPath(17, 11, protocol.ECNNon, now, true))
+	require.Equal(t, protocol.PacketNumber(11), h.GetPathAckFrame(17, now, false).LargestAcked())
 }
 
 func TestBundledCarrierPrunesTargets(t *testing.T) {
@@ -126,7 +132,7 @@ func TestRetiredCarrierExpiresWithoutPruning(t *testing.T) {
 	rtt := utils.NewRTTStats()
 	sent := NewSentPacketHandler(0, 1200, rtt, &utils.ConnectionStats{}, true, false, h.IgnorePacketsBelowOnPath, protocol.PerspectiveClient, nil, utils.DefaultLogger)
 	sent.SentPacket(now, 0, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.AckFrame{HasPathID: true, PathID: 17, AckRanges: []wire.AckRange{{Smallest: 9, Largest: 9}}}}, {Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, protocol.ECNNon, 100, false, false)
-	require.True(t, sent.QueueProbePacket(protocol.Encryption1RTT))
+	require.True(t, sent.(*sentPacketHandler).QueueProbePacketAt(protocol.Encryption1RTT, now))
 	_, err := sent.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: 0, Largest: 0}}}, protocol.Encryption1RTT, now.Add(4*rtt.PTO(true)))
 	require.NoError(t, err)
 	require.False(t, h.IsPotentiallyDuplicateOnPath(17, 8))
