@@ -1,6 +1,7 @@
 package ackhandler
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newLocalECNTestHandler(t *testing.T, bbr bool) (*sentPacketHandler, *congestionRecorder) {
+func newLocalECNTestHandler(t *testing.T, bbr bool, capable ...*bool) (*sentPacketHandler, *congestionRecorder) {
 	t.Helper()
 	handler, err := NewLocalSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, true, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger)
 	require.NoError(t, err)
@@ -20,7 +21,12 @@ func newLocalECNTestHandler(t *testing.T, bbr bool) (*sentPacketHandler, *conges
 	if bbr {
 		b := EnableBBR(h, 1200, func() protocol.ByteCount { return 0 })
 		h.congestionEvents.sink = &localRichRecorder{recorder: r, controller: b}
-		EnableBBRECN(h, func(bool) (uint64, bool, bool) { return h.congestionEvents.pathGeneration, true, true })
+		EnableBBRECN(h, func(bool) (uint64, bool, bool) {
+			if len(capable) > 0 {
+				return h.congestionEvents.pathGeneration, true, *capable[0]
+			}
+			return h.congestionEvents.pathGeneration, true, true
+		})
 	}
 	return h, r
 }
@@ -35,6 +41,55 @@ func localECNPacket(t *testing.T, h *sentPacketHandler, now monotime.Time) (prot
 }
 
 func TestLocalECNOutcomes(t *testing.T) {
+	t.Run("uncertain loss degrades without claiming transmission", func(t *testing.T) {
+		for _, bbr := range []bool{false, true} {
+			h, _ := newLocalECNTestHandler(t, bbr)
+			now := monotime.Now()
+			a, ta := localECNPacket(t, h, now)
+			require.NoError(t, h.CompleteLocalPacket(ta, LocalPacketAccepted, now.Add(time.Millisecond)))
+			ackBBRECNAt(t, h, now.Add(2*time.Millisecond), ackRanges(a), 1, 0)
+			uncertain, token := localECNPacket(t, h, now.Add(3*time.Millisecond))
+			require.NoError(t, h.CompleteLocalPacket(token, LocalPacketUncertain, now.Add(4*time.Millisecond)))
+			var last protocol.PacketNumber
+			for range 4 {
+				pn, token := localECNPacket(t, h, now.Add(5*time.Millisecond))
+				last = pn
+				require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(6*time.Millisecond)))
+			}
+			ackBBRECNAt(t, h, now.Add(7*time.Millisecond), ackRanges(last), 2, 0)
+			require.Equal(t, protocol.ECNNon, h.ECNMode(true))
+			ackBBRECNAt(t, h, now.Add(8*time.Millisecond), ackRanges(uncertain, last), 3, 0)
+			require.Equal(t, protocol.ECNNon, h.ECNMode(true), "late evidence cannot resurrect failed validation")
+		}
+	})
+	t.Run("testing loss waits for relevant reservations", func(t *testing.T) {
+		for _, bbr := range []bool{false, true} {
+			h, _ := newLocalECNTestHandler(t, bbr)
+			now := monotime.Now()
+			var pns [numECNTestingPackets]protocol.PacketNumber
+			var tokens [numECNTestingPackets]LocalCompletionToken
+			for i := range tokens {
+				pns[i], tokens[i] = localECNPacket(t, h, now)
+			}
+			require.NoError(t, h.CompleteLocalPacket(tokens[0], LocalPacketAccepted, now.Add(time.Millisecond)))
+			var last protocol.PacketNumber
+			for range 4 {
+				pn, token := localECNPacket(t, h, now.Add(2*time.Millisecond))
+				last = pn
+				require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(3*time.Millisecond)))
+			}
+			ackBBRECNAt(t, h, now.Add(4*time.Millisecond), ackRanges(last), 0, 0)
+			fresh, token := localECNPacket(t, h, now.Add(5*time.Millisecond))
+			require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(6*time.Millisecond)))
+			ackBBRECNAt(t, h, now.Add(7*time.Millisecond), ackRanges(pns[1], fresh), 1, 0)
+			require.Equal(t, protocol.ECT0, h.ECNMode(true), "qualified ECT receipt remains usable while other tests are pending")
+			for _, token := range tokens[1:] {
+				require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(8*time.Millisecond)))
+			}
+			require.Equal(t, protocol.ECT0, h.ECNMode(true))
+		}
+	})
+
 	for _, bbr := range []bool{false, true} {
 		t.Run(map[bool]string{false: "Reno", true: "BBR"}[bbr], func(t *testing.T) {
 			h, _ := newLocalECNTestHandler(t, bbr)
@@ -56,15 +111,76 @@ func TestLocalECNOutcomes(t *testing.T) {
 				}
 				require.NoError(t, h.CompleteLocalPacket(tokens[i], LocalPacketAccepted, now.Add(time.Millisecond)))
 			}
-			ackBBRECNAt(t, h, now.Add(3*time.Millisecond), ackRanges(replacement), 1, 0)
-			require.Equal(t, protocol.ECNNon, h.ECNMode(true), "uncertain evidence cannot certify the path")
-			ackBBRECNAt(t, h, now.Add(4*time.Millisecond), ackRanges(pns[1], replacement), 2, 0)
+			ackBBRECNAt(t, h, now.Add(3*time.Millisecond), ackRanges(pns[0]), 1, 0)
+			require.Equal(t, protocol.ECT0, h.ECNMode(true), "qualified receipts suffice without treating uncertainty as transmission")
+			ackBBRECNAt(t, h, now.Add(4*time.Millisecond), ackRanges(pns[1], replacement), 3, 0)
 			require.Equal(t, protocol.ECT0, h.ECNMode(true), "authenticated receipt resolves possible transmission")
 		})
 	}
 }
 
 func TestLocalECNSnapshotSupersession(t *testing.T) {
+	t.Run("historical report limits survive later traffic", func(t *testing.T) {
+		for _, bbr := range []bool{false, true} {
+			for _, supersede := range []bool{false, true} {
+				h, _ := newLocalECNTestHandler(t, bbr)
+				now := monotime.Now()
+				a, _ := localECNPacket(t, h, now)
+				_, tb := localECNPacket(t, h, now)
+				_, tc := localECNPacket(t, h, now)
+				ackBBRECNAt(t, h, now.Add(time.Millisecond), ackRanges(a), 3, 0)
+				if supersede {
+					d, td := localECNPacket(t, h, now.Add(2*time.Millisecond))
+					require.NoError(t, h.CompleteLocalPacket(td, LocalPacketAccepted, now.Add(3*time.Millisecond)))
+					ackBBRECNAt(t, h, now.Add(4*time.Millisecond), ackRanges(d), 3, 0)
+				}
+				require.NoError(t, h.CompleteLocalPacket(tb, LocalPacketUnsubmitted, now.Add(5*time.Millisecond)))
+				d, td := localECNPacket(t, h, now.Add(6*time.Millisecond))
+				require.NoError(t, h.CompleteLocalPacket(td, LocalPacketAccepted, now.Add(7*time.Millisecond)))
+				require.NoError(t, h.CompleteLocalPacket(tc, LocalPacketAccepted, now.Add(8*time.Millisecond)))
+				ackBBRECNAt(t, h, now.Add(9*time.Millisecond), ackRanges(d), 3, 0)
+				require.Equal(t, protocol.ECNNon, h.ECNMode(true))
+			}
+		}
+	})
+	t.Run("completion supplies ECN without ACK authority", func(t *testing.T) {
+		h, r := newLocalECNTestHandler(t, true)
+		now := monotime.Now()
+		a, _ := localECNPacket(t, h, now)
+		_, tb := localECNPacket(t, h, now)
+		ackBBRECNAt(t, h, now.Add(time.Millisecond), ackRanges(a), 1, 1)
+		before := len(r.feedback)
+		require.NoError(t, h.CompleteLocalPacket(tb, LocalPacketAccepted, now.Add(2*time.Millisecond)))
+		var ce uint64
+		for _, e := range r.feedback[before:] {
+			require.False(t, e.HasAck)
+			require.Zero(t, e.PersistentCongestion.EndOrdinal)
+			ce += e.ECN.Delta.CE
+		}
+		require.Equal(t, uint64(1), ce)
+	})
+
+	t.Run("qualified CE progresses through a pipeline", func(t *testing.T) {
+		for _, bbr := range []bool{false, true} {
+			h, r := newLocalECNTestHandler(t, bbr)
+			now := monotime.Now()
+			a, ta := localECNPacket(t, h, now)
+			require.NoError(t, h.CompleteLocalPacket(ta, LocalPacketAccepted, now.Add(time.Millisecond)))
+			ackBBRECNAt(t, h, now.Add(2*time.Millisecond), ackRanges(a), 1, 0)
+			b, tb := localECNPacket(t, h, now.Add(3*time.Millisecond))
+			_, pending := localECNPacket(t, h, now.Add(3*time.Millisecond))
+			require.NoError(t, h.CompleteLocalPacket(tb, LocalPacketAccepted, now.Add(4*time.Millisecond)))
+			before := h.congestion.GetCongestionWindow()
+			ackBBRECNAt(t, h, now.Add(5*time.Millisecond), ackRanges(b), 1, 1)
+			if bbr {
+				require.Equal(t, uint64(1), r.feedback[len(r.feedback)-1].ECN.Delta.CE)
+			} else {
+				require.Less(t, h.congestion.GetCongestionWindow(), before)
+			}
+			require.NoError(t, h.CompleteLocalPacket(pending, LocalPacketAccepted, now.Add(6*time.Millisecond)))
+		}
+	})
+
 	for _, bbr := range []bool{false, true} {
 		t.Run(map[bool]string{false: "Reno", true: "BBR"}[bbr], func(t *testing.T) {
 			h, r := newLocalECNTestHandler(t, bbr)
@@ -123,6 +239,53 @@ func TestLocalECNSnapshotSupersession(t *testing.T) {
 }
 
 func TestLocalECNLifecycleAndExhaustion(t *testing.T) {
+	t.Run("discharged prefixes keep ECN usable", func(t *testing.T) {
+		for _, bbr := range []bool{false, true} {
+			for _, hole := range []string{"unsubmitted", "loss", "0-RTT drop", "ACK-only", "migration"} {
+				t.Run(fmt.Sprintf("%t/%s", bbr, hole), func(t *testing.T) {
+					h, _ := newLocalECNTestHandler(t, bbr)
+					now := monotime.Now()
+					var counts uint64
+					if hole == "0-RTT drop" {
+						_, token := registerLocalTestPacket(t, h, now, protocol.Encryption0RTT, []Frame{{Frame: &wire.PingFrame{}}})
+						h.DropPackets(protocol.Encryption0RTT, now.Add(time.Millisecond))
+						require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(time.Millisecond)))
+					} else {
+						var token LocalCompletionToken
+						if hole == "ACK-only" {
+							pn := h.PopPacketNumber(protocol.Encryption1RTT)
+							var err error
+							token, err = h.RegisterLocalPacket(PacketContext{}, now, pn, protocol.InvalidPacketNumber, nil, nil, protocol.Encryption1RTT, h.ECNMode(true), 1200)
+							require.NoError(t, err)
+						} else {
+							_, token = localECNPacket(t, h, now)
+						}
+						outcome := LocalPacketAccepted
+						if hole == "unsubmitted" {
+							outcome = LocalPacketUnsubmitted
+						}
+						require.NoError(t, h.CompleteLocalPacket(token, outcome, now.Add(time.Millisecond)))
+						if hole == "migration" && bbr {
+							h.MigratedPath(now.Add(time.Millisecond), 1200)
+							pn, token := localECNPacket(t, h, now.Add(time.Millisecond))
+							require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(time.Millisecond)))
+							counts = 1
+							ackBBRECNAt(t, h, now.Add(2*time.Millisecond), ackRanges(pn), counts, 0)
+						}
+					}
+					for i := range maxECNMarkRanges + 2 {
+						at := now.Add(time.Duration(i+3) * time.Millisecond)
+						pn, token := localECNPacket(t, h, at)
+						require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, at))
+						counts++
+						ackBBRECNAt(t, h, at.Add(time.Millisecond), ackRanges(pn), counts, 0)
+						require.Equal(t, protocol.ECT0, h.ECNMode(true), "resolved holes cannot force evidence exhaustion")
+					}
+				})
+			}
+		}
+	})
+
 	for _, bbr := range []bool{false, true} {
 		t.Run(map[bool]string{false: "Reno", true: "BBR"}[bbr], func(t *testing.T) {
 			now := monotime.Now()
@@ -149,7 +312,11 @@ func TestLocalECNLifecycleAndExhaustion(t *testing.T) {
 					require.Equal(t, protocol.ECT0, h.ECNMode(true), "fresh evidence remains usable after disposal")
 				})
 			}
-			h, _ := newLocalECNTestHandler(t, bbr)
+			capable := true
+			h, _ := newLocalECNTestHandler(t, bbr, &capable)
+			anchor, accepted := localECNPacket(t, h, now)
+			require.NoError(t, h.CompleteLocalPacket(accepted, LocalPacketAccepted, now.Add(time.Millisecond)))
+			ackBBRECNAt(t, h, now.Add(2*time.Millisecond), ackRanges(anchor), 1, 0)
 			var old LocalCompletionToken
 			for i := 0; i <= maxECNMarkRanges; i++ {
 				_, token := localECNPacket(t, h, now)
@@ -162,14 +329,24 @@ func TestLocalECNLifecycleAndExhaustion(t *testing.T) {
 			require.Equal(t, protocol.ECNNon, h.ECNMode(true), "unavailable bounded evidence cannot certify ECN")
 			require.NoError(t, h.CompleteLocalPacket(old, LocalPacketAccepted, now.Add(2*time.Millisecond)))
 			require.Equal(t, protocol.ECNNon, h.ECNMode(true))
+			if bbr {
+				capable = false
+				require.Equal(t, protocol.ECNUnsupported, h.ECNMode(true))
+				capable = true
+				require.Equal(t, protocol.ECNNon, h.ECNMode(true))
+			}
 			h.CloseLocal(now.Add(3 * time.Millisecond))
 			fresh, _ := newLocalECNTestHandler(t, bbr)
 			require.Equal(t, protocol.ECT0, fresh.ECNMode(true))
 			if bbr {
-				h, _ := newLocalECNTestHandler(t, true)
+				capable := true
+				h, _ := newLocalECNTestHandler(t, true, &capable)
 				oldPN, old := localECNPacket(t, h, now)
 				h.MigratedPath(now.Add(time.Millisecond), 1200)
 				require.Equal(t, protocol.ECNNon, h.ECNMode(true), "old unresolved transmissions hold the counter fence")
+				capable = false
+				require.Equal(t, protocol.ECNUnsupported, h.ECNMode(true))
+				capable = true
 				require.NoError(t, h.CompleteLocalPacket(old, LocalPacketAccepted, now.Add(2*time.Millisecond)))
 				ackBBRECNAt(t, h, now.Add(3*time.Millisecond), ackRanges(oldPN), 1, 0)
 				require.Equal(t, protocol.ECT0, h.ECNMode(true))

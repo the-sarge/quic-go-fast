@@ -1180,11 +1180,11 @@ func (h *sentPacketHandler) GetLossDetectionTimeout() monotime.Time {
 }
 
 func (h *sentPacketHandler) ECNMode(isShortHeaderPacket bool) protocol.ECN {
-	if h.local != nil && h.local.ecn != nil && (h.local.ecn.failed || h.local.ecn.closed || (h.bbrECN != nil && h.bbrECN.draining && h.local.ecn.unresolved != 0)) {
-		return protocol.ECNNon
-	}
 	if h.bbrECN != nil {
 		return h.bbrECN.mode(isShortHeaderPacket)
+	}
+	if h.local != nil && h.local.ecn != nil && (h.local.ecn.failed || h.local.ecn.closed) {
+		return protocol.ECNNon
 	}
 	if !h.enableECN {
 		return protocol.ECNUnsupported

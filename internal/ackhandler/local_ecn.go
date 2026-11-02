@@ -14,15 +14,61 @@ import (
 // share the existing ECN ledger ceiling; exhaustion fails validation explicitly.
 // A deferred report is summarized, never queued or replayed after a newer one.
 type localECNEvidence struct {
-	possible                congestion.ECNCounts
-	records                 []localECNRecord
-	receipts                []wire.AckRange
-	watermark               protocol.PacketNumber
-	reported                congestion.ECNCounts
-	newly                   congestion.ECNCounts
-	testingReceipt          bool
-	unresolved              int
-	pending, failed, closed bool
+	possible, confirmed        congestion.ECNCounts
+	constraints                []localECNConstraint
+	frontier                   protocol.PacketNumber
+	records                    []localECNRecord
+	receipts                   []wire.AckRange
+	watermark                  protocol.PacketNumber
+	reported                   congestion.ECNCounts
+	newly                      congestion.ECNCounts
+	testingReceipt             bool
+	unresolved, testingPending int
+	pending, failed, closed    bool
+}
+
+// A constraint contains only a cumulative counter bound and the last marked
+// registration that could have contributed. It is not an ACK snapshot. Later
+// registrations cannot repair it; native facts update it until it is discharged.
+type localECNConstraint struct {
+	frontier                    protocol.PacketNumber
+	counts, possible, confirmed congestion.ECNCounts
+}
+
+func ecnCountsFit(counts, sent congestion.ECNCounts) bool {
+	return counts.ECT0 <= sent.ECT0 && counts.ECT1 <= sent.ECT1 && counts.ECT0+counts.ECT1+counts.CE <= sent.ECT0+sent.ECT1
+}
+
+func (e *localECNEvidence) updateConstraints(h *sentPacketHandler, pn protocol.PacketNumber, mark protocol.ECN, submitted bool) {
+	for i := range e.constraints {
+		c := &e.constraints[i]
+		if pn > c.frontier {
+			continue
+		}
+		target := &c.possible
+		if submitted {
+			target = &c.confirmed
+		}
+		if mark == protocol.ECT0 {
+			if submitted {
+				target.ECT0++
+			} else {
+				target.ECT0--
+			}
+		}
+		if mark == protocol.ECT1 {
+			if submitted {
+				target.ECT1++
+			} else {
+				target.ECT1--
+			}
+		}
+		if !ecnCountsFit(c.counts, c.possible) {
+			e.fail(h)
+			return
+		}
+	}
+	e.constraints = slices.DeleteFunc(e.constraints, func(c localECNConstraint) bool { return ecnCountsFit(c.counts, c.confirmed) })
 }
 
 type localECNRecord struct {
@@ -52,9 +98,10 @@ func marked(mark protocol.ECN) bool { return mark == protocol.ECT0 || mark == pr
 
 func (h *sentPacketHandler) registerLocalECN(r *localRegistration, mark protocol.ECN) {
 	e := h.local.ecn
-	if e.failed || e.closed {
+	if e.failed || e.closed || !marked(mark) {
 		return
 	}
+	e.frontier = r.pn
 	if len(e.records) == maxECNMarkRanges {
 		e.fail(h)
 		return
@@ -79,12 +126,20 @@ func (h *sentPacketHandler) registerLocalECN(r *localRegistration, mark protocol
 			tracker.numSentECT1--
 		}
 	}
+	if len(e.records) == cap(e.records) {
+		records := make([]localECNRecord, len(e.records), min(maxECNMarkRanges, max(8, 2*cap(e.records))))
+		copy(records, e.records)
+		e.records = records
+	}
 	e.records = append(e.records, localECNRecord{registration: r, pn: r.pn, mark: mark, testing: testing})
 	if mark == protocol.ECT0 {
 		e.possible.ECT0++
 	}
 	if mark == protocol.ECT1 {
 		e.possible.ECT1++
+	}
+	if testing {
+		e.testingPending++
 	}
 	if marked(mark) {
 		e.unresolved++
@@ -97,6 +152,16 @@ func (e *localECNEvidence) qualify(h *sentPacketHandler, r *localECNRecord) {
 	}
 	r.qualified = true
 	e.unresolved--
+	if r.testing {
+		e.testingPending--
+	}
+	defer e.recheckTesting(h)
+	if r.mark == protocol.ECT0 {
+		e.confirmed.ECT0++
+	} else {
+		e.confirmed.ECT1++
+	}
+	e.updateConstraints(h, r.pn, r.mark, true)
 	if b := h.bbrECN; b != nil {
 		if r.mark == protocol.ECT0 {
 			b.sent.ECT0++
@@ -145,17 +210,20 @@ func (h *sentPacketHandler) completeLocalECN(reg *localRegistration, now monotim
 				e.possible.ECT1--
 			}
 			if r.testing {
+				e.testingPending--
 				e.releaseTest(h, r.pn)
 			}
 			if b := h.bbrECN; b != nil {
 				e.removeMark(b, r.pn)
 			}
+			e.updateConstraints(h, r.pn, r.mark, false)
 			r.mark = protocol.ECNNon
 			r.testing = false
 		}
 	}
-	if e.pending {
-		h.beginCongestionFeedback(now, protocol.Encryption1RTT, h.bytesInFlight, nil, e.watermark)
+	e.recheckTesting(h)
+	if e.pending && len(e.constraints) == 0 {
+		h.beginCongestionFeedback(now, protocol.Encryption1RTT, h.bytesInFlight, nil, protocol.InvalidPacketNumber)
 		e.apply(h, h.bytesInFlight)
 		h.finishCongestionFeedback()
 	}
@@ -223,6 +291,7 @@ func (e *localECNEvidence) fail(h *sentPacketHandler) {
 	}
 	e.records = nil
 	e.receipts = nil
+	e.constraints = nil
 	e.pending = false
 }
 
@@ -230,6 +299,7 @@ func (e *localECNEvidence) close() {
 	e.closed = true
 	e.records = nil
 	e.receipts = nil
+	e.constraints = nil
 	e.pending = false
 }
 
@@ -239,8 +309,25 @@ func (e *localECNEvidence) lost(h *sentPacketHandler, pn protocol.PacketNumber) 
 		return
 	}
 	r.lost = true
+	// Loss cannot establish native submission. Retire this unavailable proof
+	// through the existing failed-evidence policy without inventing test credit.
+	if !r.qualified && r.registration.outcome == LocalPacketUncertain {
+		e.fail(h)
+		return
+	}
 	if r.qualified {
 		e.reportLoss(h, pn)
+	}
+}
+
+func (e *localECNEvidence) recheckTesting(h *sentPacketHandler) {
+	if e.failed || e.closed || e.testingPending != 0 {
+		return
+	}
+	if b := h.bbrECN; b != nil {
+		b.failTesting()
+	} else if t, ok := h.ecnTracker.(*ecnTracker); ok && t.state == ecnStateUnknown {
+		t.failIfMangled()
 	}
 }
 
@@ -309,7 +396,7 @@ func (e *localECNEvidence) feedback(h *sentPacketHandler, ack *wire.AckFrame, pr
 	}
 	counts := congestion.ECNCounts{ECT0: ack.ECT0, ECT1: ack.ECT1, CE: ack.ECNCE}
 	previous := e.reported
-	if counts.ECT0 > e.possible.ECT0 || counts.ECT1 > e.possible.ECT1 || (h.bbrECN != nil && counts.ECT0+counts.ECT1+counts.CE > e.possible.ECT0+e.possible.ECT1) {
+	if !ecnCountsFit(counts, e.possible) {
 		e.fail(h)
 		return
 	}
@@ -324,6 +411,23 @@ func (e *localECNEvidence) feedback(h *sentPacketHandler, ack *wire.AckFrame, pr
 		e.fail(h)
 		return
 	}
+	if !ecnCountsFit(counts, e.confirmed) {
+		c := localECNConstraint{frontier: e.frontier, counts: counts, possible: e.possible, confirmed: e.confirmed}
+		if n := len(e.constraints); n > 0 && e.constraints[n-1].frontier == c.frontier {
+			e.constraints[n-1] = c
+		} else {
+			if n == maxECNMarkRanges {
+				e.fail(h)
+				return
+			}
+			if len(e.constraints) == cap(e.constraints) {
+				constraints := make([]localECNConstraint, len(e.constraints), min(maxECNMarkRanges, max(8, 2*cap(e.constraints))))
+				copy(constraints, e.constraints)
+				e.constraints = constraints
+			}
+			e.constraints = append(e.constraints, c)
+		}
+	}
 	e.reported, e.watermark = counts, ack.LargestAcked()
 	e.newly.ECT0 += newly.ECT0
 	e.newly.ECT1 += newly.ECT1
@@ -333,6 +437,11 @@ func (e *localECNEvidence) feedback(h *sentPacketHandler, ack *wire.AckFrame, pr
 	if len(ack.AckRanges) > maxECNMarkRanges-len(e.receipts) {
 		e.fail(h)
 		return
+	}
+	if needed := len(e.receipts) + len(ack.AckRanges); needed > cap(e.receipts) {
+		receipts := make([]wire.AckRange, len(e.receipts), min(maxECNMarkRanges, max(needed, 2*cap(e.receipts))))
+		copy(receipts, e.receipts)
+		e.receipts = receipts
 	}
 	e.receipts = append(e.receipts, ack.AckRanges...)
 	slices.SortFunc(e.receipts, func(a, b wire.AckRange) int {
@@ -363,8 +472,16 @@ func (e *localECNEvidence) feedback(h *sentPacketHandler, ack *wire.AckFrame, pr
 }
 
 func (e *localECNEvidence) apply(h *sentPacketHandler, priorInFlight protocol.ByteCount) {
-	if !e.pending || e.failed || e.closed || e.unresolved != 0 {
+	if !e.pending || e.failed || e.closed || len(e.constraints) != 0 {
 		return
+	}
+	retireBelow := protocol.InvalidPacketNumber
+	if b := h.bbrECN; b != nil {
+		if b.state == ecnStateCapable {
+			retireBelow = e.receipts[0].Smallest
+		}
+	} else if t, ok := h.ecnTracker.(*ecnTracker); ok && t.state == ecnStateCapable {
+		retireBelow = e.receipts[0].Smallest
 	}
 	if b := h.bbrECN; b != nil {
 		slices.Reverse(e.receipts)
@@ -385,10 +502,15 @@ func (e *localECNEvidence) apply(h *sentPacketHandler, priorInFlight protocol.By
 	e.newly = congestion.ECNCounts{}
 	e.testingReceipt = false
 	e.receipts = e.receipts[:0]
-	// Retain unresolved and unacknowledged identities, including testing holes.
-	// ACKed prefixes have discharged their per-packet marking obligation.
+	// Retire only discharged obligations. Qualified records below a capable
+	// report span follow the existing ECN ledger retirement rule; unresolved
+	// transmissions retain their identity regardless of the reported span.
 	n := 0
-	for n < len(e.records) && e.records[n].acked {
+	for n < len(e.records) {
+		r := &e.records[n]
+		if !r.acked && r.registration.outcome != LocalPacketUnsubmitted && (!r.qualified || r.pn >= retireBelow) {
+			break
+		}
 		n++
 	}
 	copy(e.records, e.records[n:])

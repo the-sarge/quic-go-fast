@@ -232,7 +232,8 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 	d.recovery.feedback(&d.event, h.rttStats.PTO(true))
 	// A timer scan may run early or against a stale loss deadline. Preserve
 	// MTU retirement flight changes even though they are not congestion loss.
-	if d.event.HasAck || len(d.event.Lost) > 0 || d.event.PriorInFlight != d.event.PostInFlight {
+	// A delayed local ECN result also reaches the sink without replaying an ACK.
+	if d.event.HasAck || d.event.ECNChecked || len(d.event.Lost) > 0 || d.event.PriorInFlight != d.event.PostInFlight {
 		d.sink.Feedback(d.event)
 		if b, ok := h.congestion.(*congestion.BBRSender); ok {
 			if d.event.PersistentCongestion.EndOrdinal != 0 {

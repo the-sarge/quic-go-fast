@@ -18,6 +18,9 @@ func EnableBBRECN(handler SentPacketHandler, path bbrECNPath) {
 		panic("invalid BBR ECN installation")
 	}
 	h.bbrECN = &bbrECNTracker{path: path, watermark: protocol.InvalidPacketNumber}
+	if h.local != nil {
+		h.bbrECN.local = h.local.ecn
+	}
 	h.ecnTracker = nil
 }
 
@@ -33,6 +36,7 @@ type ecnMarkRange struct {
 // The marking ledger is independent of recovery and sampler retirement. Only
 // sent facts enter it; packet-number interval membership never implies ECT.
 type bbrECNTracker struct {
+	local            *localECNEvidence
 	draining, closed bool
 	fence            uint64
 	testing          [numECNTestingPackets]struct {
@@ -78,6 +82,9 @@ func (e *bbrECNTracker) mode(shortHeader bool) protocol.ECN {
 		return protocol.ECNUnsupported
 	}
 	if !shortHeader {
+		return protocol.ECNNon
+	}
+	if e.local != nil && (e.local.failed || e.local.closed || (e.draining && e.local.unresolved != 0)) {
 		return protocol.ECNNon
 	}
 	if e.draining {
@@ -315,6 +322,9 @@ func (e *bbrECNTracker) failEvidence() {
 }
 
 func (e *bbrECNTracker) failTesting() {
+	if e.local != nil && e.local.testingPending != 0 {
+		return
+	}
 	if e.state == ecnStateUnknown && e.accepted.CE-e.offsets.CE+e.testingLost >= e.testingSent {
 		e.state = ecnStateFailed
 	}

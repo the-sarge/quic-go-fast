@@ -306,6 +306,9 @@ func (e *ecnTracker) handleCounts(ackedECT0, ackedECT1 int64, ackedTestingPacket
 
 // failIfMangled fails ECN validation if all testing packets are lost or CE-marked.
 func (e *ecnTracker) failIfMangled() {
+	if e.local != nil && e.local.testingPending != 0 {
+		return
+	}
 	numAckedECNCE := e.numAckedECNCE + int64(e.numLostTesting)
 	if e.numSentECT0+e.numSentECT1 > numAckedECNCE {
 		return
