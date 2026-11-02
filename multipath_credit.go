@@ -79,7 +79,7 @@ func (c *Conn) enableMultipathCredit(capacity int, peerMax protocol.PathID, peer
 }
 
 func (p *pathCreditRegistry) issueWindow() error {
-	if p.localMax == 0 || p.peerMax == 0 || len(p.paths) >= p.capacity {
+	if p.localMax == 0 || p.peerMax == 0 || len(p.paths) >= p.capacity || p.terminals[1] != nil {
 		return nil
 	}
 	p.paths[1] = false
@@ -127,7 +127,7 @@ func (p *pathCreditRegistry) consume(id protocol.PathID) bool {
 }
 
 func (p *pathCreditRegistry) validateID(id protocol.PathID) error {
-	if id > min(p.localMax, p.peerMax) {
+	if id > p.localMax {
 		return &qerr.TransportError{ErrorCode: qerr.ProtocolViolation, ErrorMessage: "path ID exceeds granted credit"}
 	}
 	return nil
@@ -163,7 +163,7 @@ func (p *pathCreditRegistry) abandon(id protocol.PathID, now monotime.Time) erro
 	}
 	if !terminal.expired && !terminal.received {
 		terminal.received = true
-		terminal.expiry = pathDeadline(now, threePathPTO(p.conn.observedRTT().PTO(false)))
+		terminal.expiry = pathDeadline(now, threePathPTO(p.conn.observedRTT().PTO(true)))
 		if set := p.conn.connIDManager.pathCIDs[id]; set != nil {
 			set.terminal = true
 		}
@@ -187,7 +187,7 @@ func (p *pathCreditRegistry) expire(now monotime.Time) error {
 		if !terminal.received {
 			if accepted := terminal.receipt.acceptedAt(); accepted != 0 && terminal.unanswered == 0 {
 				// Snapshot policy once, when acceptance first becomes known to Conn.
-				terminal.unanswered = pathDeadline(accepted, max(30*time.Second, threePathPTO(p.conn.observedRTT().PTO(false))))
+				terminal.unanswered = pathDeadline(accepted, max(30*time.Second, threePathPTO(p.conn.observedRTT().PTO(true))))
 			}
 			if terminal.unanswered != 0 && !terminal.unanswered.After(now) {
 				return &qerr.TransportError{ErrorCode: qerr.InternalError, ErrorMessage: "unanswered path abandonment"}
@@ -307,7 +307,7 @@ func (p *pathCreditRegistry) cidsBlocked(f *wire.PathCIDsBlockedFrame) error {
 		return &qerr.TransportError{ErrorCode: qerr.ProtocolViolation, ErrorMessage: "CID request exceeds issued sequence"}
 	}
 	if uint64(len(set.active)) >= min(p.peerCIDLimit, 4) {
-		return p.resourceResult(f.PathID, errPathCIDCapacity)
+		return nil // wait for retirement; peer credit is separate from local retention
 	}
 	return p.resourceResult(f.PathID, p.conn.connIDGenerator.issuePathCIDs(f.PathID, uint64(len(set.active))+1))
 }

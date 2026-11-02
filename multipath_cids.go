@@ -16,9 +16,12 @@ const maxPathCIDRecords = 16
 type receivedPathCID struct {
 	newConnID
 	hasToken bool
+	used     bool
 	retired  bool
 	expiry   monotime.Time
 }
+
+func (c receivedPathCID) detectsReset() bool { return c.hasToken && c.used && !c.retired }
 
 type receivedPathCIDs struct {
 	records     map[uint64]receivedPathCID
@@ -28,14 +31,13 @@ type receivedPathCIDs struct {
 }
 
 func (h *connIDManager) enablePathCIDs() {
-	initial := receivedPathCID{newConnID: newConnID{SequenceNumber: h.activeSequenceNumber, ConnectionID: h.activeConnectionID}}
+	initial := receivedPathCID{used: true, newConnID: newConnID{SequenceNumber: h.activeSequenceNumber, ConnectionID: h.activeConnectionID}}
 	if h.activeStatelessResetToken != nil {
 		initial.StatelessResetToken, initial.hasToken = *h.activeStatelessResetToken, true
 	}
-	set := &receivedPathCIDs{records: map[uint64]receivedPathCID{h.activeSequenceNumber: initial}, active: h.activeSequenceNumber}
+	set := &receivedPathCIDs{records: map[uint64]receivedPathCID{h.activeSequenceNumber: initial}, active: h.activeSequenceNumber, retirePrior: max(h.activeSequenceNumber, h.highestRetired, h.highestProbingID)}
 	for _, entry := range h.queue {
 		set.records[entry.SequenceNumber] = receivedPathCID{newConnID: entry, hasToken: true}
-		h.addStatelessResetToken(entry.StatelessResetToken)
 	}
 	h.queue = nil
 	h.activeStatelessResetToken = nil
@@ -81,14 +83,18 @@ func (h *connIDManager) addPathCID(f *wire.PathNewConnectionIDFrame, expiry mono
 			}
 		}
 		set.records[f.SequenceNumber] = receivedPathCID{newConnID: newConnID{SequenceNumber: f.SequenceNumber, ConnectionID: f.ConnectionID, StatelessResetToken: f.StatelessResetToken}, hasToken: true}
-		h.addStatelessResetToken(f.StatelessResetToken)
 	} else if exists && !old.hasToken {
 		old.hasToken, old.StatelessResetToken = true, f.StatelessResetToken
 		set.records[f.SequenceNumber] = old
-		h.addStatelessResetToken(f.StatelessResetToken)
+		if old.detectsReset() {
+			h.addStatelessResetToken(f.StatelessResetToken)
+		}
 	}
 	for seq, entry := range set.records {
 		if seq < floor && !entry.retired {
+			if entry.detectsReset() {
+				h.removeStatelessResetToken(entry.StatelessResetToken)
+			}
 			entry.retired, entry.expiry = true, expiry
 			set.records[seq] = entry
 			h.queueControlFrame(&wire.PathRetireConnectionIDFrame{PathID: f.PathID, SequenceNumber: seq})
@@ -112,7 +118,7 @@ func (h *connIDManager) addPathCID(f *wire.PathNewConnectionIDFrame, expiry mono
 func (h *connIDManager) releasePathCIDs(id protocol.PathID) {
 	if set := h.pathCIDs[id]; set != nil {
 		for _, entry := range set.records {
-			if entry.hasToken {
+			if entry.detectsReset() {
 				h.removeStatelessResetToken(entry.StatelessResetToken)
 			}
 		}
@@ -127,9 +133,6 @@ func (h *connIDManager) expirePathCIDs(now monotime.Time) {
 		}
 		for seq, entry := range set.records {
 			if entry.retired && !entry.expiry.After(now) {
-				if entry.hasToken {
-					h.removeStatelessResetToken(entry.StatelessResetToken)
-				}
 				delete(set.records, seq)
 			}
 		}

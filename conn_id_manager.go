@@ -199,7 +199,7 @@ func (h *connIDManager) Close() {
 	if h.pathCIDs != nil {
 		for _, set := range h.pathCIDs {
 			for _, entry := range set.records {
-				if entry.hasToken {
+				if entry.detectsReset() {
 					h.removeStatelessResetToken(entry.StatelessResetToken)
 				}
 			}
@@ -236,6 +236,17 @@ func (h *connIDManager) SetStatelessResetToken(token protocol.StatelessResetToke
 }
 
 func (h *connIDManager) SentPacket() {
+	if h.pathCIDs != nil {
+		set := h.pathCIDs[0]
+		entry := set.records[set.active]
+		if !entry.used && !entry.retired {
+			entry.used = true
+			set.records[set.active] = entry
+			if entry.detectsReset() {
+				h.addStatelessResetToken(entry.StatelessResetToken)
+			}
+		}
+	}
 	h.packetsSinceLastChange++
 }
 
@@ -327,7 +338,7 @@ func (h *connIDManager) IsActiveStatelessResetToken(token protocol.StatelessRese
 	if h.pathCIDs != nil {
 		for _, set := range h.pathCIDs {
 			for _, entry := range set.records {
-				if entry.hasToken && entry.StatelessResetToken == token {
+				if entry.detectsReset() && entry.StatelessResetToken == token {
 					return true
 				}
 			}

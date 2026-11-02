@@ -136,6 +136,10 @@ func TestMultipathCreditAsymmetricAndConsumed(t *testing.T) {
 	require.Equal(t, protocol.PathID(1), *params.InitialMaxPathID)
 	require.Len(t, packedCreditFrames(t, tc), 1)
 	require.Len(t, route.handlers, 2)
+	require.NoError(t, creditIngress(t, tc, monotime.Now(), receivedCreditCID(1, 0, 0)), "our grant admits peer metadata before their independent grant")
+	require.Empty(t, packedCreditFrames(t, tc))
+	require.Len(t, route.handlers, 2, "peer metadata does not authorize local issuance")
+	require.False(t, tc.conn.pathCredit.consume(1))
 	require.NoError(t, creditIngress(t, tc, monotime.Now(), &wire.MaxPathIDFrame{MaximumPathID: protocol.MaxPathID}))
 	require.Len(t, packedCreditFrames(t, tc), 2)
 	require.True(t, tc.conn.pathCredit.consume(1))
@@ -144,12 +148,25 @@ func TestMultipathCreditAsymmetricAndConsumed(t *testing.T) {
 	require.NoError(t, creditIngress(t, tc, monotime.Now(), &wire.MaxPathIDFrame{MaximumPathID: 0}, &wire.PathsBlockedFrame{MaximumPathID: 1}))
 	require.Empty(t, packedCreditFrames(t, tc), "charged slots, including pending retirement, do not replenish credit")
 	require.Len(t, route.handlers, 4)
+
+	abandoned, abandonedRoute, _ := newCreditTestConnection(t, 2, 0)
+	packedCreditFrames(t, abandoned)
+	require.NoError(t, creditIngress(t, abandoned, monotime.Now(), &wire.PathAbandonFrame{PathID: 1}, &wire.MaxPathIDFrame{MaximumPathID: 1}))
+	for _, frame := range packedCreditFrames(t, abandoned) {
+		_, issued := frame.(*wire.PathNewConnectionIDFrame)
+		require.False(t, issued, "a late peer grant cannot revive an abandoned ID")
+	}
+	require.Len(t, abandonedRoute.handlers, 2)
+	require.False(t, abandoned.conn.pathCredit.consume(1))
 }
 
 func TestMultipathCreditZeroAndSparse(t *testing.T) {
 	tc, route, params := newCreditTestConnection(t, 1, protocol.MaxPathID)
 	require.Zero(t, *params.InitialMaxPathID)
 	require.Len(t, packedCreditFrames(t, tc), 1)
+	require.NoError(t, creditIngress(t, tc, monotime.Now(), &wire.PathCIDsBlockedFrame{PathID: 0, NextSequenceNumber: 2}))
+	require.Empty(t, packedCreditFrames(t, tc), "saturated peer credit waits for retirement without a local-capacity error")
+	require.Nil(t, tc.conn.closeErr.Load())
 	err := creditIngress(t, tc, monotime.Now(), &wire.PathNewConnectionIDFrame{PathID: protocol.MaxPathID, ConnectionID: protocol.ParseConnectionID([]byte{1})})
 	var transportError *qerr.TransportError
 	require.ErrorAs(t, err, &transportError)
@@ -160,13 +177,15 @@ func TestMultipathCreditZeroAndSparse(t *testing.T) {
 func TestMultipathCreditUnusedAbandonRetention(t *testing.T) {
 	tc, route, _ := newCreditTestConnection(t, 2, 1)
 	packedCreditFrames(t, tc)
+	tc.conn.observedRTT().UpdateRTT(2*time.Second, 0)
+	tc.conn.observedRTT().SetMaxAckDelay(500 * time.Millisecond)
 	now := monotime.Now()
 	require.NoError(t, creditIngress(t, tc, now, &wire.PathAbandonFrame{PathID: 1}))
 	frames := packedCreditFrames(t, tc)
 	require.Len(t, frames, 1)
 	require.Equal(t, &wire.PathAbandonFrame{PathID: 1}, frames[0])
 	require.Len(t, route.handlers, 4)
-	delay := 3 * tc.conn.observedRTT().PTO(false)
+	delay := 3 * tc.conn.observedRTT().PTO(true)
 	require.NoError(t, tc.conn.pathCredit.expire(now.Add(delay-1)))
 	require.Len(t, route.handlers, 4)
 	require.NoError(t, creditIngress(t, tc, now.Add(delay-1), &wire.PathAbandonFrame{PathID: 1}))
@@ -193,7 +212,8 @@ func TestMultipathCreditPeerActiveCIDLimit(t *testing.T) {
 	var transportError *qerr.TransportError
 	require.ErrorAs(t, err, &transportError)
 	require.Equal(t, qerr.ConnectionIDLimitError, transportError.ErrorCode)
-	require.Len(t, route.resetTokens, 4, "reject a limit violation before registering a fifth CID")
+	require.Len(t, tc.conn.connIDManager.pathCIDs[1].records, 4, "reject a limit violation before storing a fifth CID")
+	require.Empty(t, route.resetTokens, "unused CIDs have no reset-detection authority")
 }
 
 func TestMultipathCreditReceivedCIDChurnDeclines(t *testing.T) {
@@ -203,7 +223,12 @@ func TestMultipathCreditReceivedCIDChurnDeclines(t *testing.T) {
 	for seq := range uint64(17) {
 		require.NoError(t, creditIngress(t, tc, now, receivedCreditCID(1, seq, seq)))
 	}
-	require.Len(t, route.resetTokens, 16, "retain every admitted token; refuse the new CID at the bounded store")
+	require.Len(t, tc.conn.connIDManager.pathCIDs[1].records, 16, "retain every admitted token; refuse the new CID at the bounded store")
+	for _, entry := range tc.conn.connIDManager.pathCIDs[1].records {
+		require.True(t, entry.hasToken)
+		require.False(t, tc.conn.connIDManager.IsActiveStatelessResetToken(entry.StatelessResetToken))
+	}
+	require.Empty(t, route.resetTokens, "stored unused and retired evidence cannot authorize reset detection")
 	var abandonment *wire.PathAbandonFrame
 	for _, f := range packedCreditFrames(t, tc) {
 		if a, ok := f.(*wire.PathAbandonFrame); ok {
@@ -213,7 +238,7 @@ func TestMultipathCreditReceivedCIDChurnDeclines(t *testing.T) {
 	require.Equal(t, &wire.PathAbandonFrame{PathID: 1, ErrorCode: 0x3e75}, abandonment)
 	require.Len(t, route.handlers, 4)
 	require.NoError(t, creditIngress(t, tc, now, &wire.PathAbandonFrame{PathID: 1}))
-	require.Len(t, route.resetTokens, 16)
+	require.Len(t, tc.conn.connIDManager.pathCIDs[1].records, 16)
 	require.NoError(t, tc.conn.pathCredit.expire(now.Add(3*tc.conn.observedRTT().PTO(false))))
 	require.Empty(t, route.resetTokens)
 	require.Len(t, route.handlers, 2)
@@ -255,7 +280,8 @@ func TestMultipathCreditLastPathResourceExhaustion(t *testing.T) {
 			require.Equal(t, qerr.InternalError, transportError.ErrorCode)
 		}
 	}
-	require.Len(t, route.resetTokens, 15, "retain admitted tokens when the last path exhausts local capacity")
+	require.Len(t, tc.conn.connIDManager.pathCIDs[0].records, 16, "retain admitted CID/token evidence when the last path exhausts local capacity")
+	require.Empty(t, route.resetTokens)
 }
 
 func TestMultipathCreditOrdinaryCIDAliasAndConflict(t *testing.T) {
@@ -264,6 +290,9 @@ func TestMultipathCreditOrdinaryCIDAliasAndConflict(t *testing.T) {
 	now := monotime.Now()
 	require.NoError(t, creditIngress(t, tc, now, &wire.NewConnectionIDFrame{SequenceNumber: 1, RetirePriorTo: 1, ConnectionID: f.ConnectionID, StatelessResetToken: f.StatelessResetToken}, f))
 	require.Equal(t, f.ConnectionID, tc.conn.connIDManager.Get())
+	require.Empty(t, route.resetTokens)
+	require.False(t, tc.conn.connIDManager.IsActiveStatelessResetToken(f.StatelessResetToken), "selection alone does not establish use")
+	tc.conn.connIDManager.SentPacket()
 	require.True(t, tc.conn.connIDManager.IsActiveStatelessResetToken(f.StatelessResetToken))
 	require.Len(t, route.resetTokens, 1)
 	f.StatelessResetToken[15] = 1
@@ -271,6 +300,15 @@ func TestMultipathCreditOrdinaryCIDAliasAndConflict(t *testing.T) {
 	require.ErrorAs(t, creditIngress(t, tc, now, f), &transportError)
 	require.Equal(t, qerr.ProtocolViolation, transportError.ErrorCode)
 	require.Len(t, route.resetTokens, 1)
+	f.StatelessResetToken[15] = 0
+	next := receivedCreditCID(0, 2, 2)
+	require.NoError(t, creditIngress(t, tc, now, next))
+	require.False(t, tc.conn.connIDManager.IsActiveStatelessResetToken(f.StatelessResetToken))
+	require.Empty(t, route.resetTokens, "retirement disarms both reset-detection consumers")
+	require.True(t, tc.conn.connIDManager.pathCIDs[0].records[1].hasToken, "retirement retains token evidence")
+	tc.conn.connIDManager.SentPacket()
+	require.True(t, tc.conn.connIDManager.IsActiveStatelessResetToken(next.StatelessResetToken))
+	require.Contains(t, route.resetTokens, next.StatelessResetToken)
 }
 
 func declineCreditPath(t *testing.T, tc *testConnection, now monotime.Time) {
@@ -285,6 +323,9 @@ func TestMultipathCreditAcceptedReceiptStartsTimeout(t *testing.T) {
 		tc, _, _ := newCreditTestConnection(t, 2, 1)
 		packedCreditFrames(t, tc)
 		c := tc.conn
+		c.observedRTT().UpdateRTT(10*time.Second, 0)
+		c.observedRTT().SetMaxAckDelay(2 * time.Second)
+		duration := 3 * c.observedRTT().PTO(true)
 		declineCreditPath(t, tc, monotime.Now())
 		require.NoError(t, c.triggerSending(monotime.Now()).err)
 		require.NoError(t, c.pathCredit.expire(monotime.Now().Add(time.Hour)), "registration and enqueue do not establish acceptance")
@@ -312,9 +353,15 @@ func TestMultipathCreditAcceptedReceiptStartsTimeout(t *testing.T) {
 		q.Close()
 		require.NoError(t, <-done)
 		require.Len(t, c.sendingScheduled, 1, "the worker wakes the existing connection owner")
-		require.NoError(t, c.pathCredit.expire(accepted.Add(30*time.Second-1)))
+		require.NoError(t, c.pathCredit.expire(accepted))
+		deadline := accepted.Add(duration)
+		require.Equal(t, deadline, c.pathCredit.nextExpiry())
+		c.observedRTT().UpdateRTT(time.Second, 0)
+		c.observedRTT().SetMaxAckDelay(0)
+		require.NoError(t, c.pathCredit.expire(deadline.Add(-1)))
+		require.Equal(t, deadline, c.pathCredit.nextExpiry(), "later RTT changes cannot restart or shorten the chosen deadline")
 		var transportError *qerr.TransportError
-		require.ErrorAs(t, c.pathCredit.expire(accepted.Add(30*time.Second)), &transportError)
+		require.ErrorAs(t, c.pathCredit.expire(deadline), &transportError)
 		require.Equal(t, qerr.InternalError, transportError.ErrorCode)
 	})
 }
@@ -367,7 +414,7 @@ func TestMultipathCreditDuplicateAndReciprocalReceipt(t *testing.T) {
 	require.NoError(t, tc.conn.pathCredit.expire(accepted))
 	receipt.publish(accepted.Add(time.Hour))
 	require.Equal(t, accepted.Add(30*time.Second), tc.conn.pathCredit.nextExpiry())
-	delay := 3 * tc.conn.observedRTT().PTO(false)
+	delay := 3 * tc.conn.observedRTT().PTO(true)
 	received := accepted.Add(30*time.Second - delay/2)
 	require.NoError(t, creditIngress(t, tc, received, &wire.PathAbandonFrame{PathID: 1}))
 	require.NoError(t, tc.conn.pathCredit.expire(accepted.Add(30*time.Second)))
@@ -382,6 +429,10 @@ func TestMultipathCreditDuplicateAndReciprocalReceipt(t *testing.T) {
 
 func TestMultipathCreditCloseCleanup(t *testing.T) {
 	tc, route, _ := newCreditTestConnection(t, 2, 1)
+	active := receivedCreditCID(0, 1, 1)
+	require.NoError(t, creditIngress(t, tc, monotime.Now(), active))
+	tc.conn.connIDManager.SentPacket()
+	require.Contains(t, route.resetTokens, active.StatelessResetToken)
 	require.NoError(t, creditIngress(t, tc, monotime.Now(), receivedCreditCID(1, 0, 0)))
 	declineCreditPath(t, tc, monotime.Now())
 	require.NoError(t, tc.conn.triggerSending(monotime.Now()).err)
@@ -451,4 +502,25 @@ func TestMultipathCreditDefaultDisabledAndFresh(t *testing.T) {
 	failed.conn.connIDGenerator.RemoveAll()
 	failed.conn.connIDManager.Close()
 	require.Empty(t, partialRoute.handlers)
+
+	rotated, rotatedRoute := newCreditTestOwners(t)
+	h := rotated.conn.connIDManager
+	initialToken := protocol.StatelessResetToken{10}
+	h.SetStatelessResetToken(initialToken)
+	h.activeSequenceNumber, h.highestRetired = 10, 10
+	h.handshakeComplete, h.packetsPerConnectionID = true, protocol.PacketsPerConnectionID
+	for seq := uint64(11); seq <= 13; seq++ {
+		f := receivedCreditCID(0, seq, 0)
+		require.NoError(t, h.Add(&wire.NewConnectionIDFrame{SequenceNumber: seq, ConnectionID: f.ConnectionID, StatelessResetToken: f.StatelessResetToken}))
+	}
+	_, err = rotated.conn.enableMultipathCredit(2, 1, 4)
+	require.NoError(t, err)
+	require.True(t, h.IsActiveStatelessResetToken(initialToken))
+	require.Contains(t, rotatedRoute.resetTokens, initialToken, "activation preserves an already-used active CID's detection authority")
+	stale := receivedCreditCID(0, 9, 0)
+	require.NoError(t, creditIngress(t, rotated, monotime.Now(), &wire.NewConnectionIDFrame{SequenceNumber: 9, ConnectionID: stale.ConnectionID, StatelessResetToken: stale.StatelessResetToken}))
+	require.Len(t, h.pathCIDs[0].records, 4, "activation preserves the legacy retirement watermark")
+	require.NotContains(t, h.pathCIDs[0].records, uint64(9))
+	require.NotContains(t, rotatedRoute.resetTokens, stale.StatelessResetToken)
+	require.Contains(t, packedCreditFrames(t, rotated), &wire.PathRetireConnectionIDFrame{SequenceNumber: 9})
 }
