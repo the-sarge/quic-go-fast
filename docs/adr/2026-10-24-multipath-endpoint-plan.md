@@ -1,6 +1,6 @@
 # Bounded native endpoint I/O implementation plan
 
-**Status:** E1 complete; the endpoint route remains inactive. E2A is in progress in [PR #1088](https://github.com/the-sarge/quic-go-fast/pull/1088); E4 is ready; E2 awaits its recovery prerequisites. Dispatch requires a verified frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012).
+**Status:** E1 and E2A complete; the endpoint route remains inactive. E2B #1085 and E4 #1018 are ready; E2 awaits its recovery prerequisites. Dispatch requires a verified frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012).
 
 ## Binding contract and operating discipline
 
@@ -207,7 +207,7 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 | Slice | Disposition | Delivery | Blocked by |
 | --- | --- | --- | --- |
 | [E1](#e1) | complete | Bound native request ownership behind an inactive endpoint seam | None |
-| [E2A](#e2a) | in progress | Own local packet completion and terminal recovery lifetime | None |
+| [E2A](#e2a) | complete | Own local packet completion and terminal recovery lifetime | None |
 | [E2B](#e2b) | new | Qualify ordered delivery and recovery evidence after local completion | E2A |
 | [E2C](#e2c) | new | Reconcile local transmission certainty with cumulative ECN evidence | E2B |
 | [E2](#e2) | replace draft | Deliver nonfatal ordinary packet completions through recovery | E1, E2C |
@@ -222,7 +222,7 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 
 ### E1 — Bound native request ownership behind an inactive endpoint seam
 
-**Current state:** complete. `native_endpoint.go` owns the inactive endpoint boundary; `native_endpoint_test.go` covers the admitted ownership classes. No production constructor selects this route. E2A #1084 is in progress in [PR #1088](https://github.com/the-sarge/quic-go-fast/pull/1088); E4 #1018 remains ready. E2 integration awaits its recovery prerequisites. The slice contract below remains the acceptance authority.
+**Current state:** complete. `native_endpoint.go` owns the inactive endpoint boundary; `native_endpoint_test.go` covers the admitted ownership classes. No production constructor selects this route. E2A #1084 is complete in [PR #1088](https://github.com/the-sarge/quic-go-fast/pull/1088); E2B #1085 and E4 #1018 are ready. E2 integration awaits its recovery prerequisites. The slice contract below remains the acceptance authority.
 
 **Delivers:** Create the internal endpoint control/writer boundary and exercise an actual UDP write through it in a private fixture. Admission, absolute deadlines, independent queued expiry, claimed-token fencing, finite completion reservations, leased fair readiness and nonblocking diagnostics belong to this boundary. No production constructor can activate it yet; native qualification is E6.
 
@@ -288,9 +288,9 @@ The ordinary-completion outcome is implemented by E2A → E2B → E2C → E2, ea
 
 | Semantic family | Required disposition and enforcement owner | Finite evidence / slice | Current status |
 | --- | --- | --- | --- |
-| Pending only; higher ACK while pending; accepted PTO with lower pending PN | Reserve flight, preserve PN and notification, skip pending in loss, alarm and probe extraction; sent-packet handler | Three scenarios / E2A | Required |
-| Proven unsubmitted; early authenticated ACK followed by completion | Return only still-needed reliable information once, discard unreliable information, never fabricate congestion loss; ACK wins delivery, contradictory unsubmitted outcome faults the owner; sent-packet handler | Two scenarios / E2A | Required |
-| Retry, key-space drop, close and late/duplicate old-epoch completion | Retain bounded terminal identity through native completion; prevent requeue, resurrection and mutation of replacement history; sent-packet handler lifecycle | One parameterized scenario / E2A | Required |
+| Pending only; higher ACK while pending; accepted PTO with lower pending PN | Reserve flight, preserve PN and notification, skip pending in loss, alarm and probe extraction; sent-packet handler | Three scenarios / E2A | Covered by `TestLocalCompletionPendingOnly`, `TestLocalCompletionHigherACK`, `TestLocalCompletionMixedPTO` |
+| Proven unsubmitted; early authenticated ACK followed by completion | Return only still-needed reliable information once, discard unreliable information, never fabricate congestion loss; ACK wins delivery, contradictory unsubmitted outcome faults the owner; sent-packet handler | Two scenarios / E2A | Covered by `TestLocalCompletionUnsubmitted`, `TestLocalCompletionEarlyACK` |
+| Retry, key-space drop, close and late/duplicate old-epoch completion | Retain bounded terminal identity through native completion; prevent requeue, resurrection and mutation of replacement history; sent-packet handler lifecycle | One parameterized scenario / E2A | Covered by `TestLocalCompletionTerminalLifetime` |
 | Out-of-order completion and missing/evicted optional evidence | Insert evidence once in registration order, update qualification in place, never resurrect evicted facts or assume native-return times are monotone; rich recovery owner | One scenario / E2B | Required |
 | Early/uncertain ACK timing and fresh-anchor recovery | Logical delivery remains exact once; fence affected sampling intervals and require a fresh qualified anchor; delivery sampler owner | One scenario / E2B | Required |
 | Pending/uncertain/local disposal in persistent-congestion and PTO-confirmation evidence | Exclude unavailable intervals without hiding ordinary packet loss/PTO; preserve indexed-query assumptions and default-path answers; rich recovery owner | One scenario / E2B | Required |
@@ -311,7 +311,9 @@ The ordinary-completion outcome is implemented by E2A → E2B → E2C → E2, ea
 
 ### E2A — Own local packet completion and terminal recovery lifetime
 
-**Identity:** `QGF-MP646-20261024-E2A`. **Issue:** [#1084](https://github.com/the-sarge/quic-go-fast/issues/1084). **Blocked by:** none; no endpoint implementation is consumed. **Existing work:** retain and rework [PR #1088](https://github.com/the-sarge/quic-go-fast/pull/1088) under this contract; do not redispatch. The [scoped re-audit receipt](https://github.com/the-sarge/quic-go-fast/pull/1088#issuecomment-6569254866) owns trigger evidence and design alternatives.
+**Current state:** complete in [PR #1088](https://github.com/the-sarge/quic-go-fast/pull/1088). The private `LocalSentPacketHandler` owns atomic registration, eligibility, terminal completion and shared history capacity in the Reno/no-ECN domain. Six `TestLocalCompletion*` scenarios cover the allocated E2A matrix rows. The native endpoint route remains inactive; E2B #1085 is ready.
+
+**Identity:** `QGF-MP646-20261024-E2A`. **Issue:** [#1084](https://github.com/the-sarge/quic-go-fast/issues/1084). **Blocked by:** none; no endpoint implementation is consumed. **Existing work:** delivered in [PR #1088](https://github.com/the-sarge/quic-go-fast/pull/1088); the incomplete former draft remains unused. The [scoped re-audit receipt](https://github.com/the-sarge/quic-go-fast/pull/1088#issuecomment-6569254866) owns trigger evidence and design alternatives.
 
 **Delivers and owner:** Through the real sent-packet-handler interface, atomically register a private local packet, consume an immutable completion token and reconcile loss/PTO/ACK/local disposal and terminal lifetime. The connection-owned handler owns the lifecycle and bounded tombstones. Registration and completion remain distinct. The supported private constructor and internal mode installers reject ECN and rich sampling before creating records; the legacy constructor and its installers behave as before.
 
