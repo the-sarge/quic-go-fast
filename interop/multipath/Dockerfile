@@ -4,7 +4,10 @@ FROM golang:1.27.3-bookworm@sha256:d9b6a1beb9474adc2a1ce842573639b44b2a0dd49b666
 
 # Freeze package resolution as well as the image and both protocol dependencies.
 RUN rm -f /etc/apt/sources.list.d/debian.sources && \
-    printf '%s\n' 'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20261024T000000Z bookworm main' > /etc/apt/sources.list && \
+    printf '%s\n' \
+      'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20261031T000000Z bookworm main' \
+      'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20261031T000000Z bookworm-updates main' \
+      'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian-security/20261031T000000Z bookworm-security main' > /etc/apt/sources.list && \
     apt-get update && apt-get install -y --no-install-recommends cmake libssl-dev python3 && \
     rm -rf /var/lib/apt/lists/*
 
