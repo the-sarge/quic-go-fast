@@ -397,6 +397,9 @@ func (h *sentPacketHandler) sentPacket(context PacketContext, t monotime.Time, p
 	if encLevel == protocol.Encryption1RTT && h.ecnTracker != nil {
 		h.ecnTracker.SentPacket(pn, ecn)
 	}
+	if h.local != nil && h.local.ecn != nil && congestionKey(encLevel, pn).space == protocol.Encryption1RTT {
+		h.registerLocalECN(local, ecn)
+	}
 
 	pnSpace.history.SentPacket(pn, p)
 	if !isAckEliciting {
@@ -530,8 +533,8 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 		if encLevel == protocol.Encryption1RTT && h.qlogger != nil {
 			h.qlogMetricsUpdated()
 		}
+		h.captureBBRECN(ack, encLevel, priorInFlight)
 		if h.congestionEvents != nil {
-			h.captureBBRECN(ack, encLevel)
 			if len(h.congestionEvents.event.Acked) > 0 || len(h.congestionEvents.event.Lost) > 0 || priorInFlight != h.bytesInFlight || h.congestionEvents.recovery.needsAckFeedback() || (h.bbrECN != nil && encLevel == protocol.Encryption1RTT) {
 				h.finishCongestionFeedback()
 			}
@@ -540,7 +543,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 	}
 	h.beginCongestionFeedback(rcvTime, encLevel, priorInFlight, ackedPackets, largestAcked)
 	witness := h.appendRetainedAck(ack, encLevel)
-	h.captureBBRECN(ack, encLevel)
+	h.captureBBRECN(ack, encLevel, priorInFlight)
 	// update the RTT, if:
 	// * the largest acked is newly acknowledged, AND
 	// * at least one new ack-eliciting packet was acknowledged
@@ -570,7 +573,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 	}
 
 	// Only inform the ECN tracker about new 1-RTT ACKs if the ACK increases the largest acked.
-	if encLevel == protocol.Encryption1RTT && h.ecnTracker != nil && largestAcked > pnSpace.largestAcked {
+	if h.local == nil && encLevel == protocol.Encryption1RTT && h.ecnTracker != nil && largestAcked > pnSpace.largestAcked {
 		congested := h.ecnTracker.HandleNewlyAcked(ackedPackets, int64(ack.ECT0), int64(ack.ECT1), int64(ack.ECNCE))
 		if h.congestionEvents != nil {
 			h.congestionEvents.event.ECNChecked = true
@@ -1064,11 +1067,17 @@ func (h *sentPacketHandler) detectLostPackets(now monotime.Time, encLevel protoc
 				if !p.IsPathMTUProbePacket {
 					h.congestion.OnCongestionEvent(congestion.NewPacketKey(p.EncryptionLevel, pn), p.Length, priorInFlight)
 				}
-				if encLevel == protocol.Encryption1RTT && h.bbrECN != nil {
-					h.bbrECN.lostPacket(pn)
-				}
-				if encLevel == protocol.Encryption1RTT && h.ecnTracker != nil {
-					h.ecnTracker.LostPacket(pn)
+				if encLevel == protocol.Encryption1RTT {
+					if h.local != nil && h.local.ecn != nil {
+						h.local.ecn.lost(h, pn)
+					} else {
+						if h.bbrECN != nil {
+							h.bbrECN.lostPacket(pn)
+						}
+						if h.ecnTracker != nil {
+							h.ecnTracker.LostPacket(pn)
+						}
+					}
 				}
 			}
 		}
@@ -1171,6 +1180,9 @@ func (h *sentPacketHandler) GetLossDetectionTimeout() monotime.Time {
 }
 
 func (h *sentPacketHandler) ECNMode(isShortHeaderPacket bool) protocol.ECN {
+	if h.local != nil && h.local.ecn != nil && (h.local.ecn.failed || h.local.ecn.closed || (h.bbrECN != nil && h.bbrECN.draining && h.local.ecn.unresolved != 0)) {
+		return protocol.ECNNon
+	}
 	if h.bbrECN != nil {
 		return h.bbrECN.mode(isShortHeaderPacket)
 	}

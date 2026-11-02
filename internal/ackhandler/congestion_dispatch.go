@@ -364,7 +364,11 @@ func (h *sentPacketHandler) captureDeliveryRTT(p packetWithPacketNumber, now mon
 	}
 }
 
-func (h *sentPacketHandler) captureBBRECN(ack *wire.AckFrame, level protocol.EncryptionLevel) {
+func (h *sentPacketHandler) captureBBRECN(ack *wire.AckFrame, level protocol.EncryptionLevel, priorInFlight protocol.ByteCount) {
+	if h.local != nil && h.local.ecn != nil && level == protocol.Encryption1RTT {
+		h.local.ecn.feedback(h, ack, priorInFlight)
+		return
+	}
 	if h.bbrECN != nil && h.congestionEvents != nil && level == protocol.Encryption1RTT {
 		e := h.bbrECN.feedback(ack)
 		h.congestionEvents.event.ECN = e
