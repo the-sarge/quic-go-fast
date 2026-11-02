@@ -5,8 +5,10 @@ package self_test
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -48,6 +50,13 @@ func TestPicoquicOrdinaryControl(t *testing.T) {
 			dir, err := os.MkdirTemp(root, role+"-") //nolint:usetesting // Retain peer evidence after the test process exits.
 			require.NoError(t, err)
 			ca, caKey, err := tools.GenerateCA()
+			require.NoError(t, err)
+			// OpenSSL treats an empty issuer/subject leaf as self-issued. Give
+			// this independent-peer CA a distinct name before issuing its leaf.
+			ca.Subject = pkix.Name{CommonName: "R1 independent peer control CA"}
+			caDER, err := x509.CreateCertificate(rand.Reader, ca, ca, ca.PublicKey, caKey)
+			require.NoError(t, err)
+			ca, err = x509.ParseCertificate(caDER)
 			require.NoError(t, err)
 			leaf, leafKey, err := tools.GenerateLeafCert(ca, caKey)
 			require.NoError(t, err)
