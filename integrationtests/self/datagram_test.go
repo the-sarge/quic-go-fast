@@ -131,6 +131,32 @@ func TestDatagramSizeLimit(t *testing.T) {
 	require.Equal(t, bytes.Repeat([]byte("b"), int(sizeErr.MaxDatagramPayloadSize)), datagram)
 }
 
+func TestDatagramContextConnectionReuse(t *testing.T) {
+	server, err := quic.Listen(newUDPConnLocalhost(t), getTLSConfig(), getQuicConfig(&quic.Config{EnableDatagrams: true}))
+	require.NoError(t, err)
+	t.Cleanup(func() { server.Close() })
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	client, err := quic.Dial(ctx, newUDPConnLocalhost(t), server.Addr(), getTLSClientConfig(), getQuicConfig(&quic.Config{EnableDatagrams: true}))
+	require.NoError(t, err)
+	t.Cleanup(func() { client.CloseWithError(0, "") })
+	peer, err := server.Accept(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { peer.CloseWithError(0, "") })
+	canceled, stop := context.WithCancelCause(ctx)
+	stop(assert.AnError)
+	require.ErrorIs(t, client.SendDatagramContext(canceled, []byte("not admitted")), context.Canceled)
+	require.NoError(t, client.SendDatagramContext(ctx, []byte("contextual")))
+	payload, err := peer.ReceiveDatagram(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []byte("contextual"), payload)
+	require.NoError(t, client.SendDatagram([]byte("legacy")))
+	payload, err = peer.ReceiveDatagram(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []byte("legacy"), payload)
+	require.NoError(t, context.Cause(client.Context()))
+}
+
 func TestDatagramSendAfterClose(t *testing.T) {
 	server, err := quic.Listen(
 		newUDPConnLocalhost(t),
