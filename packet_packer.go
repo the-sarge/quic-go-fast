@@ -663,11 +663,6 @@ func (p *packetPacker) maybeGetAppDataPacket(
 	now monotime.Time,
 	v protocol.Version,
 ) payload {
-	// ACK selection consumes queued state. Reserve the periodic elicitation
-	// byte before either ordinary or path ACKs can fill the payload budget.
-	if ackAllowed && p.numNonAckElicitingAcks >= protocol.MaxNonAckElicitingAcks {
-		maxPayloadSize-- // PING is one byte; unused if application data elicits an ACK.
-	}
 	pl := p.composeNextPacket(maxPayloadSize, onlyAck, ackAllowed, now, v)
 
 	// check if we have anything to send
@@ -696,15 +691,21 @@ func (p *packetPacker) composeNextPacket(
 	now monotime.Time,
 	v protocol.Version,
 ) payload {
+	// Only ACK selection reserves the periodic PING byte. Application data
+	// is itself ACK-eliciting and can use the full payload capacity.
+	maxAckSize := maxPayloadSize
+	if ackAllowed && p.numNonAckElicitingAcks >= protocol.MaxNonAckElicitingAcks {
+		maxAckSize--
+	}
 	if onlyAck {
 		if ack := p.acks.GetAckFrame(protocol.Encryption1RTT, now, true); ack != nil {
-			ack.Truncate(maxPayloadSize, v)
+			ack.Truncate(maxAckSize, v)
 			pl := payload{ack: ack, length: ack.Length(v)}
-			p.appendPathAcks(&pl, maxPayloadSize, now, true, v)
+			p.appendPathAcks(&pl, maxAckSize, now, true, v)
 			return pl
 		}
 		var pl payload
-		p.appendPathAcks(&pl, maxPayloadSize, now, true, v)
+		p.appendPathAcks(&pl, maxAckSize, now, true, v)
 		return pl
 	}
 
@@ -714,14 +715,14 @@ func (p *packetPacker) composeNextPacket(
 	var pl payload
 	if ackAllowed {
 		if ack := p.acks.GetAckFrame(protocol.Encryption1RTT, now, !hasRetransmission && !hasData); ack != nil {
-			ack.Truncate(maxPayloadSize, v)
+			ack.Truncate(maxAckSize, v)
 			pl.ack = ack
 			pl.length += ack.Length(v)
 		}
 	}
 
 	if ackAllowed {
-		p.appendPathAcks(&pl, maxPayloadSize, now, !hasRetransmission && !hasData, v)
+		p.appendPathAcks(&pl, maxAckSize, now, !hasRetransmission && !hasData, v)
 	}
 	if p.datagramQueue != nil {
 		if f := p.datagramQueue.Peek(); f != nil {

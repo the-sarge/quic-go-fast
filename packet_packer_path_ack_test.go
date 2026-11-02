@@ -117,6 +117,18 @@ func TestPackerReservesPeriodicPingForFullAckBundle(t *testing.T) {
 			}
 			require.True(t, hasPathAck)
 			require.True(t, hasPing)
+			// Application data supplies its own elicitation. An unused PING
+			// reservation must not discard a DATAGRAM filling the real budget.
+			p.numNonAckElicitingAcks = protocol.MaxNonAckElicitingAcks
+			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: make([]byte, 1167)}))
+			dataBuffer := getPacketBuffer()
+			defer dataBuffer.Release()
+			dataPacket, err := p.AppendPacket(dataBuffer, 1200, now.Add(protocol.MaxAckDelay), protocol.Version1)
+			require.NoError(t, err)
+			require.Equal(t, protocol.ByteCount(1200), dataPacket.Length)
+			require.Len(t, dataPacket.Frames, 1)
+			require.IsType(t, &wire.DatagramFrame{}, dataPacket.Frames[0].Frame)
+			require.Nil(t, c.datagramQueue.Peek())
 		})
 	}
 }
