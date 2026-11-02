@@ -51,6 +51,7 @@ type localCompletions struct {
 	nextEpoch uint64
 	records   map[uint64]*localRegistration
 	closed    bool
+	ecn       *localECNEvidence
 }
 
 type localRegistration struct {
@@ -67,19 +68,20 @@ type localRegistration struct {
 	timingMissing bool
 }
 
-// NewLocalSentPacketHandler admits Reno and rich delivery modes without ECN.
+// NewLocalSentPacketHandler admits the existing Reno and rich delivery modes.
 // Local outcomes and authenticated ACKs are reconciled in the connection context.
 func NewLocalSentPacketHandler(initialPN protocol.PacketNumber, size protocol.ByteCount, rtt *utils.RTTStats, stats *utils.ConnectionStats, validated, enableECN bool, ignore func(protocol.PathID, protocol.PacketNumber), perspective protocol.Perspective, qlogger qlogwriter.Recorder, logger utils.Logger) (LocalSentPacketHandler, error) {
-	if enableECN {
-		return nil, errLocalPacketMode
-	}
-	h := newSentPacketHandler(initialPN, size, rtt, stats, validated, false, ignore, perspective, qlogger, logger, nil)
+	h := newSentPacketHandler(initialPN, size, rtt, stats, validated, enableECN, ignore, perspective, qlogger, logger, nil)
 	h.local = &localCompletions{records: make(map[uint64]*localRegistration)}
+	if enableECN {
+		h.local.ecn = &localECNEvidence{watermark: protocol.InvalidPacketNumber}
+		h.ecnTracker.(*ecnTracker).local = h.local.ecn
+	}
 	return h, nil
 }
 
 func (h *sentPacketHandler) RegisterLocalPacket(context PacketContext, t monotime.Time, pn, largestAcked protocol.PacketNumber, streams []StreamFrame, frames []Frame, level protocol.EncryptionLevel, ecn protocol.ECN, size protocol.ByteCount) (LocalCompletionToken, error) {
-	if h.local == nil || h.local.closed || h.enableECN || h.bbrECN != nil || (ecn != protocol.ECNNon && ecn != protocol.ECNUnsupported) {
+	if h.local == nil || h.local.closed || (ecn != protocol.ECNNon && ecn != protocol.ECNUnsupported && (h.local.ecn == nil || level != protocol.Encryption1RTT || (ecn != protocol.ECT0 && ecn != protocol.ECT1))) {
 		return LocalCompletionToken{}, errLocalPacketMode
 	}
 	if context.PathID != h.pathID {
@@ -109,6 +111,7 @@ func (h *sentPacketHandler) RegisterLocalPacket(context PacketContext, t monotim
 	r := &localRegistration{pn: pn, level: level, epoch: ps.localEpoch, registeredAt: t}
 	h.local.records[token.id] = r
 	h.sentPacket(context, t, pn, largestAcked, streams, frames, level, ecn, size, false, false, r)
+	h.settleLocalUndo(t)
 	if ps.localUnregisteredPN == pn {
 		ps.localUnregisteredPN = protocol.InvalidPacketNumber
 	}
@@ -133,6 +136,9 @@ func (h *sentPacketHandler) CompleteLocalPacket(token LocalCompletionToken, outc
 	if outcome < LocalPacketAccepted || outcome > LocalPacketUnsubmitted || returnedAt.IsZero() || returnedAt.Before(r.registeredAt) {
 		return errors.New("invalid local completion outcome or time")
 	}
+	// Completion can retire other local packets during its loss scan. Finalize
+	// held undo only after that scan and every ECN transition in this operation.
+	defer h.settleLocalUndo(returnedAt)
 	delete(h.local.records, token.id)
 	r.outcome = outcome
 	r.eligibleAt = returnedAt
@@ -140,6 +146,7 @@ func (h *sentPacketHandler) CompleteLocalPacket(token LocalCompletionToken, outc
 		return ErrLocalCompletionContradiction
 	}
 	h.completeLocalCongestion(r)
+	h.completeLocalECN(r, returnedAt)
 	// ACK, key disposal, Retry and close have already settled protocol ownership.
 	// Late facts release only the terminal identity, never replacement history.
 	if r.packet == nil {
@@ -181,6 +188,9 @@ func (h *sentPacketHandler) retireLocal(p *packet, acked bool) {
 		}
 		r.acked = r.acked || acked
 		r.packet = nil
+		if h.local.ecn != nil {
+			h.local.ecn.reconcileTerminal(h, r)
+		}
 	}
 }
 
@@ -259,6 +269,9 @@ func (h *sentPacketHandler) CloseLocal(now monotime.Time) {
 		return
 	}
 	h.local.closed = true
+	if h.local.ecn != nil {
+		h.local.ecn.close()
+	}
 	for _, path := range h.paths {
 		path.CloseLocal(now)
 	}

@@ -14,10 +14,13 @@ type bbrECNPath func(drain bool) (generation uint64, drained, capable bool)
 // EnableBBRECN installs the private validation policy before any registration.
 func EnableBBRECN(handler SentPacketHandler, path bbrECNPath) {
 	h, ok := handler.(*sentPacketHandler)
-	if !ok || h.local != nil || h.bytesSent != 0 || h.congestionEvents == nil || h.bbrECN != nil || path == nil {
+	if !ok || (h.local != nil && h.local.ecn == nil) || h.bytesSent != 0 || h.congestionEvents == nil || h.bbrECN != nil || path == nil {
 		panic("invalid BBR ECN installation")
 	}
 	h.bbrECN = &bbrECNTracker{path: path, watermark: protocol.InvalidPacketNumber}
+	if h.local != nil {
+		h.bbrECN.local = h.local.ecn
+	}
 	h.ecnTracker = nil
 }
 
@@ -33,6 +36,7 @@ type ecnMarkRange struct {
 // The marking ledger is independent of recovery and sampler retirement. Only
 // sent facts enter it; packet-number interval membership never implies ECT.
 type bbrECNTracker struct {
+	local            *localECNEvidence
 	draining, closed bool
 	fence            uint64
 	testing          [numECNTestingPackets]struct {
@@ -78,6 +82,9 @@ func (e *bbrECNTracker) mode(shortHeader bool) protocol.ECN {
 		return protocol.ECNUnsupported
 	}
 	if !shortHeader {
+		return protocol.ECNNon
+	}
+	if e.local != nil && (e.local.failed || e.local.closed || (e.draining && e.local.unresolved != 0)) {
 		return protocol.ECNNon
 	}
 	if e.draining {
@@ -309,12 +316,61 @@ func (e *bbrECNTracker) compact(retireBelow protocol.PacketNumber) {
 	e.ranges = e.ranges[:len(e.ranges)-n]
 }
 
+// unsubmitted reconciles a local outcome against this ledger's retirement
+// authority. A consumed ordinal needs no rewrite: compaction already retired
+// its unacknowledged mark without counting it as an accepted receipt.
+func (b *bbrECNTracker) unsubmitted(pn protocol.PacketNumber, ordinal uint64) {
+	if ordinal != 0 && ordinal <= b.compactedOrdinal {
+		return
+	}
+	i := b.searchRanges(pn)
+	if i == len(b.ranges) || b.ranges[i].first > pn {
+		b.failEvidence()
+		return
+	}
+	// Rewriting a mark can make both neighbours equivalent. Include them so
+	// capacity is charged to semantic ranges, including consecutive disposals.
+	start, end := max(0, i-1), min(len(b.ranges), i+2)
+	b.scratch = b.scratch[:0]
+	for j := start; j < end; j++ {
+		r := b.ranges[j]
+		if j != i {
+			b.appendScratch(r)
+			continue
+		}
+		if r.first < pn {
+			part := r
+			part.last = pn - 1
+			b.appendScratch(part)
+		}
+		part := r
+		part.first, part.last = pn, pn
+		part.ordinal += uint64(pn - r.first)
+		part.mark = protocol.ECNNon
+		b.appendScratch(part)
+		if pn < r.last {
+			part = r
+			part.first = pn + 1
+			part.ordinal += uint64(part.first - r.first)
+			b.appendScratch(part)
+		}
+	}
+	if len(b.ranges)-(end-start)+len(b.scratch) > maxECNMarkRanges {
+		b.failEvidence()
+		return
+	}
+	b.splice(start, end)
+}
+
 func (e *bbrECNTracker) failEvidence() {
 	e.evidenceLost = true
 	e.state = ecnStateFailed
 }
 
 func (e *bbrECNTracker) failTesting() {
+	if e.local != nil && e.local.testingPending != 0 {
+		return
+	}
 	if e.state == ecnStateUnknown && e.accepted.CE-e.offsets.CE+e.testingLost >= e.testingSent {
 		e.state = ecnStateFailed
 	}

@@ -232,7 +232,8 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 	d.recovery.feedback(&d.event, h.rttStats.PTO(true))
 	// A timer scan may run early or against a stale loss deadline. Preserve
 	// MTU retirement flight changes even though they are not congestion loss.
-	if d.event.HasAck || len(d.event.Lost) > 0 || d.event.PriorInFlight != d.event.PostInFlight {
+	// A delayed local ECN result also reaches the sink without replaying an ACK.
+	if d.event.HasAck || d.event.ECNChecked || len(d.event.Lost) > 0 || d.event.PriorInFlight != d.event.PostInFlight {
 		d.sink.Feedback(d.event)
 		if b, ok := h.congestion.(*congestion.BBRSender); ok {
 			if d.event.PersistentCongestion.EndOrdinal != 0 {
@@ -364,7 +365,11 @@ func (h *sentPacketHandler) captureDeliveryRTT(p packetWithPacketNumber, now mon
 	}
 }
 
-func (h *sentPacketHandler) captureBBRECN(ack *wire.AckFrame, level protocol.EncryptionLevel) {
+func (h *sentPacketHandler) captureBBRECN(ack *wire.AckFrame, level protocol.EncryptionLevel, priorInFlight protocol.ByteCount) {
+	if h.local != nil && h.local.ecn != nil && level == protocol.Encryption1RTT {
+		h.local.ecn.feedback(h, ack, priorInFlight)
+		return
+	}
 	if h.bbrECN != nil && h.congestionEvents != nil && level == protocol.Encryption1RTT {
 		e := h.bbrECN.feedback(ack)
 		h.congestionEvents.event.ECN = e

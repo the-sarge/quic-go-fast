@@ -52,6 +52,7 @@ type ecnHandler interface {
 // callers should make sure to start using ECN (i.e. calling Mode) for the very first 1-RTT packet sent.
 // The validation logic implemented here strictly follows the algorithm described in RFC 9000 section 13.4.2 and A.4.
 type ecnTracker struct {
+	local                          *localECNEvidence
 	state                          ecnState
 	numSentTesting, numLostTesting uint8
 
@@ -108,7 +109,7 @@ func (e *ecnTracker) SentPacket(pn protocol.PacketNumber, ecn protocol.ECN) {
 	if e.firstTestingPacket == protocol.InvalidPacketNumber {
 		e.firstTestingPacket = pn
 	}
-	if e.numSentECT0+e.numSentECT1 >= numECNTestingPackets {
+	if e.numSentECT0+e.numSentECT1 >= numECNTestingPackets || (e.local != nil && e.numSentTesting >= numECNTestingPackets) {
 		if e.qlogger != nil {
 			e.qlogger.RecordEvent(qlog.ECNStateUpdated{
 				State: qlog.ECNStateUnknown,
@@ -169,6 +170,26 @@ func (e *ecnTracker) LostPacket(pn protocol.PacketNumber) {
 // It must only be called for ACK frames that increase the largest acknowledged packet number,
 // see section 13.4.2.1 of RFC 9000.
 func (e *ecnTracker) HandleNewlyAcked(packets []packetWithPacketNumber, ect0, ect1, ecnce int64) (congested bool) {
+	// Count ECT0 and ECT1 marks that we used when sending the packets that are now being acknowledged.
+	var ackedECT0, ackedECT1 int64
+	for _, p := range packets {
+		//nolint:exhaustive // We only ever send ECT(0) and ECT(1).
+		switch e.ecnMarking(p.PacketNumber) {
+		case protocol.ECT0:
+			ackedECT0++
+		case protocol.ECT1:
+			ackedECT1++
+		}
+	}
+
+	var testing bool
+	for _, p := range packets {
+		testing = testing || e.isTestingPacket(p.PacketNumber)
+	}
+	return e.handleCounts(ackedECT0, ackedECT1, testing, ect0, ect1, ecnce)
+}
+
+func (e *ecnTracker) handleCounts(ackedECT0, ackedECT1 int64, ackedTestingPacket bool, ect0, ect1, ecnce int64) bool {
 	if e.state == ecnStateFailed {
 		return false
 	}
@@ -185,18 +206,6 @@ func (e *ecnTracker) HandleNewlyAcked(packets []packetWithPacketNumber, ect0, ec
 		}
 		e.state = ecnStateFailed
 		return false
-	}
-
-	// Count ECT0 and ECT1 marks that we used when sending the packets that are now being acknowledged.
-	var ackedECT0, ackedECT1 int64
-	for _, p := range packets {
-		//nolint:exhaustive // We only ever send ECT(0) and ECT(1).
-		switch e.ecnMarking(p.PacketNumber) {
-		case protocol.ECT0:
-			ackedECT0++
-		case protocol.ECT1:
-			ackedECT1++
-		}
 	}
 
 	// If an ACK frame newly acknowledges a packet that the endpoint sent with either the ECT(0) or ECT(1)
@@ -278,13 +287,6 @@ func (e *ecnTracker) HandleNewlyAcked(packets []packetWithPacketNumber, ect0, ec
 		}
 	}
 	if e.state == ecnStateTesting || e.state == ecnStateUnknown {
-		var ackedTestingPacket bool
-		for _, p := range packets {
-			if e.isTestingPacket(p.PacketNumber) {
-				ackedTestingPacket = true
-				break
-			}
-		}
 		// This check won't succeed if the path is mangling ECN-marks (i.e. rewrites all ECN-marked packets to CE).
 		if ackedTestingPacket && (newECT0 > 0 || newECT1 > 0) {
 			e.logger.Debugf("ECN capability confirmed.")
@@ -304,6 +306,9 @@ func (e *ecnTracker) HandleNewlyAcked(packets []packetWithPacketNumber, ect0, ec
 
 // failIfMangled fails ECN validation if all testing packets are lost or CE-marked.
 func (e *ecnTracker) failIfMangled() {
+	if e.local != nil && e.local.testingPending != 0 {
+		return
+	}
 	numAckedECNCE := e.numAckedECNCE + int64(e.numLostTesting)
 	if e.numSentECT0+e.numSentECT1 > numAckedECNCE {
 		return
@@ -318,6 +323,12 @@ func (e *ecnTracker) failIfMangled() {
 }
 
 func (e *ecnTracker) ecnMarking(pn protocol.PacketNumber) protocol.ECN {
+	if e.local != nil {
+		if r := e.local.find(pn); r != nil {
+			return r.mark
+		}
+		return protocol.ECNNon
+	}
 	if pn < e.firstTestingPacket || e.firstTestingPacket == protocol.InvalidPacketNumber {
 		return protocol.ECNNon
 	}
@@ -333,6 +344,10 @@ func (e *ecnTracker) ecnMarking(pn protocol.PacketNumber) protocol.ECN {
 }
 
 func (e *ecnTracker) isTestingPacket(pn protocol.PacketNumber) bool {
+	if e.local != nil {
+		r := e.local.find(pn)
+		return r != nil && r.testing && r.mark != protocol.ECNNon
+	}
 	if e.firstTestingPacket == protocol.InvalidPacketNumber {
 		return false
 	}
