@@ -60,8 +60,10 @@ func TestLocalCompletionPendingOnly(t *testing.T) {
 		if registered {
 			registerLocalTestPacket(t, h, now, protocol.EncryptionInitial, nil)
 		}
-		require.Panics(t, func() { EnableDeliverySampling(h, &congestionRecorder{}, func() protocol.ByteCount { return 0 }) })
-		require.Panics(t, func() { EnableBBR(h, 1200, func() protocol.ByteCount { return 0 }) })
+		if registered {
+			require.Panics(t, func() { EnableDeliverySampling(h, &congestionRecorder{}, func() protocol.ByteCount { return 0 }) })
+			require.Panics(t, func() { EnableBBR(h, 1200, func() protocol.ByteCount { return 0 }) })
+		}
 		require.Panics(t, func() { EnableBBRECN(h, func(bool) (uint64, bool, bool) { return 0, true, true }) })
 		require.Panics(t, func() {
 			h.SentPacket(now, 1, protocol.InvalidPacketNumber, nil, nil, protocol.EncryptionInitial, protocol.ECNNon, 1200, false, false)

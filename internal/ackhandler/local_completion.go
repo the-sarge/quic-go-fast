@@ -54,18 +54,21 @@ type localCompletions struct {
 }
 
 type localRegistration struct {
-	registeredAt monotime.Time
-	packet       *packet // cleared at protocol retirement; never references native storage
-	pn           protocol.PacketNumber
-	level        protocol.EncryptionLevel
-	epoch        uint64
-	outcome      LocalPacketOutcome
-	eligibleAt   monotime.Time
-	acked        bool
+	registeredAt  monotime.Time
+	packet        *packet // cleared at protocol retirement; never references native storage
+	pn            protocol.PacketNumber
+	level         protocol.EncryptionLevel
+	epoch         uint64
+	outcome       LocalPacketOutcome
+	eligibleAt    monotime.Time
+	acked         bool
+	earlyACK      bool
+	richOrdinal   uint64
+	timingMissing bool
 }
 
-// NewLocalSentPacketHandler admits only the initial Reno/no-ECN domain. Rich
-// mode installers enforce the same restriction before they mutate the handler.
+// NewLocalSentPacketHandler admits Reno and rich delivery modes without ECN.
+// Local outcomes and authenticated ACKs are reconciled in the connection context.
 func NewLocalSentPacketHandler(initialPN protocol.PacketNumber, size protocol.ByteCount, rtt *utils.RTTStats, stats *utils.ConnectionStats, validated, enableECN bool, ignore func(protocol.PathID, protocol.PacketNumber), perspective protocol.Perspective, qlogger qlogwriter.Recorder, logger utils.Logger) (LocalSentPacketHandler, error) {
 	if enableECN {
 		return nil, errLocalPacketMode
@@ -76,7 +79,7 @@ func NewLocalSentPacketHandler(initialPN protocol.PacketNumber, size protocol.By
 }
 
 func (h *sentPacketHandler) RegisterLocalPacket(context PacketContext, t monotime.Time, pn, largestAcked protocol.PacketNumber, streams []StreamFrame, frames []Frame, level protocol.EncryptionLevel, ecn protocol.ECN, size protocol.ByteCount) (LocalCompletionToken, error) {
-	if h.local == nil || h.local.closed || h.enableECN || h.congestionEvents != nil || h.bbrECN != nil || (ecn != protocol.ECNNon && ecn != protocol.ECNUnsupported) {
+	if h.local == nil || h.local.closed || h.enableECN || h.bbrECN != nil || (ecn != protocol.ECNNon && ecn != protocol.ECNUnsupported) {
 		return LocalCompletionToken{}, errLocalPacketMode
 	}
 	if level != protocol.EncryptionInitial && level != protocol.EncryptionHandshake && level != protocol.Encryption0RTT && level != protocol.Encryption1RTT {
@@ -123,6 +126,7 @@ func (h *sentPacketHandler) CompleteLocalPacket(token LocalCompletionToken, outc
 	if r.acked && outcome == LocalPacketUnsubmitted {
 		return ErrLocalCompletionContradiction
 	}
+	h.completeLocalCongestion(r)
 	// ACK, key disposal, Retry and close have already settled protocol ownership.
 	// Late facts release only the terminal identity, never replacement history.
 	if r.packet == nil {
@@ -130,16 +134,21 @@ func (h *sentPacketHandler) CompleteLocalPacket(token LocalCompletionToken, outc
 	}
 	if outcome == LocalPacketUnsubmitted {
 		p := r.packet
+		h.beginCongestionFeedback(returnedAt, r.level, h.bytesInFlight, nil, protocol.InvalidPacketNumber)
+		h.discardCongestionPacket(r.level, r.pn)
 		h.getPacketNumberSpace(r.level).history.DeclareLost(r.pn)
 		h.removeFromBytesInFlight(p)
 		if p.IsAckEliciting() {
 			h.queueFramesForRetransmission(p)
 		}
 		r.packet = nil
+		h.finishCongestionFeedback()
 	} else {
 		h.getPacketNumberSpace(r.level).history.qualifyLocal(r.pn)
 		// A higher ACK may already have passed this packet while it was pending.
+		h.beginCongestionFeedback(returnedAt, r.level, h.bytesInFlight, nil, protocol.InvalidPacketNumber)
 		h.detectLostPackets(returnedAt, r.level)
+		h.finishCongestionFeedback()
 	}
 	h.setLossDetectionTimer(returnedAt)
 	return nil
@@ -148,6 +157,13 @@ func (h *sentPacketHandler) CompleteLocalPacket(token LocalCompletionToken, outc
 func (h *sentPacketHandler) retireLocal(p *packet, acked bool) {
 	if r := p.local; r != nil {
 		if acked {
+			if r.outcome == localPacketPending && !r.earlyACK {
+				r.earlyACK = true
+				if d := h.congestionEvents; d != nil {
+					d.sampler.fenceTiming()
+					d.advanceLocalQualification()
+				}
+			}
 			h.getPacketNumberSpace(r.level).history.qualifyLocal(r.pn)
 		}
 		r.acked = r.acked || acked
@@ -230,6 +246,7 @@ func (h *sentPacketHandler) CloseLocal(now monotime.Time) {
 		return
 	}
 	h.local.closed = true
+	h.CloseDelivery()
 	for _, ps := range []*packetNumberSpace{h.initialPackets, h.handshakePackets, h.appDataPackets} {
 		if ps == nil {
 			continue

@@ -26,10 +26,10 @@ func EnableDeliverySampling(handler SentPacketHandler, sink interface {
 }, pending func() protocol.ByteCount,
 ) {
 	h, ok := handler.(*sentPacketHandler)
-	if !ok || h.local != nil || h.bytesSent != 0 || h.congestionEvents != nil || sink == nil || pending == nil {
+	if !ok || h.bytesSent != 0 || h.congestionEvents != nil || sink == nil || pending == nil {
 		panic("invalid delivery sampler installation")
 	}
-	h.congestionEvents = &congestionDispatch{sink: sink, pending: pending}
+	h.congestionEvents = &congestionDispatch{sink: sink, pending: pending, localRoute: h.local != nil}
 }
 
 type congestionPacketKey struct {
@@ -45,6 +45,7 @@ func congestionKey(level protocol.EncryptionLevel, pn protocol.PacketNumber) con
 }
 
 type congestionDispatch struct {
+	localRoute       bool
 	pending          func() protocol.ByteCount
 	sampler          deliverySampler
 	recovery         recoveryEvidence
@@ -72,28 +73,15 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 	}
 	d.expire(p.SendTime)
 	registrationValid := !p.SendTime.IsZero() && !p.SendTime.Before(d.registrationTime)
-	// The pending-bytes authority takes the local credit lock; ask it last.
-	if registrationValid && p.IsAckEliciting() && !p.isPathProbePacket &&
-		(d.sampler.sendOrigin.IsZero() || (prior == 0 && d.sampler.outstanding == 0)) && d.pendingBytes() == 0 {
-		// A lifecycle fence leaves no usable current-generation origin. Records
-		// sent while credit was pending have no origin either; fence those out
-		// before establishing a baseline, without disposing their recovery.
-		if !d.sampler.sendOrigin.IsZero() || d.sampler.originlessRegistrations {
-			d.sampleGeneration++
-		}
-		d.sampler.sendOrigin, d.sampler.deliveredTime = p.SendTime, p.SendTime
-		d.sampler.evidenceLost = false
-		d.sampler.originlessRegistrations = false
-	}
 	info := congestion.PacketInfo{
 		Space:             congestionKey(p.EncryptionLevel, pn).space,
 		Ordinal:           d.ordinal,
 		PathGeneration:    d.pathGeneration,
-		SampleGeneration:  d.sampleGeneration,
 		PacketNumber:      pn,
 		EncryptionLevel:   p.EncryptionLevel,
 		SendTime:          p.SendTime,
 		RegistrationValid: registrationValid,
+		TimingExcluded:    p.local != nil,
 		Length:            p.Length,
 		AckEliciting:      p.IsAckEliciting(),
 		InFlight:          p.includedInBytesInFlight,
@@ -101,7 +89,32 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 		MTUProbe:          p.IsPathMTUProbePacket,
 		ECN:               ecn,
 	}
-	d.recovery.sent(info, d.pathGeneration)
+	if p.local != nil {
+		p.local.richOrdinal = info.Ordinal
+	}
+	d.recovery.sentLocal(info, d.pathGeneration, p.local)
+	if p.local != nil {
+		d.advanceLocalQualification()
+	}
+	// Cursor advancement can fence timing during registration (for example
+	// after eviction). Establish the origin and snapshot only after that fence.
+	// The pending-bytes authority takes the local credit lock; ask it last.
+	if registrationValid && p.IsAckEliciting() && !p.isPathProbePacket &&
+		(d.sampler.sendOrigin.IsZero() || (prior == 0 && d.sampler.outstanding == 0)) && d.pendingBytes() == 0 {
+		// A genuine idle restart and the legacy route retain their lifecycle
+		// semantics. Local origin restoration fences timing only: intervening
+		// registrations still belong to the current logical delivery generation.
+		if !d.sampler.sendOrigin.IsZero() || (!d.localRoute && d.sampler.originlessRegistrations) {
+			d.sampleGeneration++
+		} else if d.localRoute && d.sampler.originlessRegistrations {
+			d.sampler.fenceTiming()
+		}
+		d.sampler.sendOrigin, d.sampler.deliveredTime = p.SendTime, p.SendTime
+		d.sampler.evidenceLost = false
+		d.sampler.originlessRegistrations = false
+	}
+	info.SampleGeneration = d.sampleGeneration
+	info.TimingGeneration = d.sampler.timingGeneration
 	d.registrationTime = max(d.registrationTime, p.SendTime)
 
 	if d.packets.len() < maxDeliveryLive {
@@ -113,6 +126,10 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 	} else {
 		d.sampler.missing++ // Optional evidence never evicts mandatory recovery.
 		d.sampler.evidenceLost = true
+		if p.local != nil {
+			p.local.timingMissing = true
+			d.sampler.fenceTiming()
+		}
 	}
 	d.sink.Sent(congestion.SendEvent{Packet: info, PriorInFlight: prior, PostInFlight: h.bytesInFlight})
 }
@@ -175,6 +192,41 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 	if h.bbrECN != nil {
 		d.event.ECN.Failed = h.bbrECN.state == ecnStateFailed || h.bbrECN.evidenceLost
 	}
+	if d.localRoute {
+		origin := d.sampler.sendOrigin
+		fence := false
+		for _, p := range d.event.Acked {
+			if p.TimingExcluded {
+				fence, origin = true, 0
+				break
+			}
+			if contributesDelivery(p, &d.event) && p.TimingGeneration != d.sampler.timingGeneration && (origin.IsZero() || p.SendTime.Before(origin)) {
+				// This accepted delivery needs its original send-spacing bound.
+				// Invalidate existing snapshots, but preserve that raw bound for
+				// future registrations. A stale snapshot covered by the bound is
+				// not itself another unknown interval: accepted pipelines recover.
+				fence, origin = true, p.SendTime
+			}
+		}
+		if fence {
+			d.sampler.fenceTiming()
+			d.sampler.sendOrigin = origin
+			if !origin.IsZero() {
+				// Retain a complete baseline pair for future snapshots. Excluded
+				// timing still clears both until a fresh registration establishes them.
+				d.sampler.deliveredTime = d.event.Time
+			}
+			d.event.RawRTT = 0
+		}
+	}
+	// Invalidate timing snapshots before either the sampler or controller sees
+	// feedback, without altering their registration identity or delivery totals.
+	for i := range d.event.Acked {
+		p := &d.event.Acked[i]
+		if p.TimingExcluded || p.TimingGeneration != d.sampler.timingGeneration {
+			p.Delivery.Valid = false
+		}
+	}
 	slices.SortFunc(d.event.Lost, func(a, b congestion.PacketInfo) int { return cmp.Compare(a.Ordinal, b.Ordinal) })
 	d.sampler.feedback(&d.event)
 	d.recovery.feedback(&d.event, h.rttStats.PTO(true))
@@ -208,6 +260,7 @@ func (h *sentPacketHandler) discardCongestionPacket(level protocol.EncryptionLev
 		d := h.congestionEvents
 		key := congestionKey(level, pn)
 		d.recovery.discard(key)
+		d.advanceLocalQualification()
 		if p, ok := d.packets.take(key); ok {
 			d.sampler.dispose(p)
 		}
@@ -217,6 +270,7 @@ func (h *sentPacketHandler) discardCongestionPacket(level protocol.EncryptionLev
 func (h *sentPacketHandler) discardCongestionSpace(level protocol.EncryptionLevel) {
 	if d := h.congestionEvents; d != nil {
 		d.recovery.discardSpace(level)
+		d.advanceLocalQualification()
 		// Disposal is a commutative subtraction, so visiting order is irrelevant.
 		d.packets.each(func(key congestionPacketKey, p congestion.PacketInfo) {
 			if p.EncryptionLevel == level {
@@ -303,7 +357,7 @@ func (h *sentPacketHandler) captureDeliveryRTT(p packetWithPacketNumber, now mon
 		return
 	}
 	for _, info := range d.event.Acked {
-		if info.PacketNumber == p.PacketNumber && info.EncryptionLevel == p.EncryptionLevel && info.PathGeneration == d.pathGeneration && info.SampleGeneration == d.sampleGeneration && info.RegistrationValid {
+		if info.PacketNumber == p.PacketNumber && info.EncryptionLevel == p.EncryptionLevel && info.PathGeneration == d.pathGeneration && info.SampleGeneration == d.sampleGeneration && info.RegistrationValid && !info.TimingExcluded && info.TimingGeneration == d.sampler.timingGeneration {
 			d.event.RawRTT = now.Sub(p.SendTime)
 			return
 		}
@@ -323,7 +377,7 @@ func (h *sentPacketHandler) captureBBRECN(ack *wire.AckFrame, level protocol.Enc
 // Its caller must install bounded emission and BBR ECN validation.
 func EnableBBR(handler SentPacketHandler, size protocol.ByteCount, pending func() protocol.ByteCount) *congestion.BBRSender {
 	h, ok := handler.(*sentPacketHandler)
-	if !ok || h.local != nil || h.bytesSent != 0 || h.congestionEvents != nil {
+	if !ok || h.bytesSent != 0 || h.congestionEvents != nil {
 		panic("invalid BBR installation")
 	}
 	b := congestion.NewBBRSender(size)
