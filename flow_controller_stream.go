@@ -30,7 +30,7 @@ func newStreamFlowController(
 	receiveWindow protocol.ByteCount,
 	maxReceiveWindow protocol.ByteCount,
 	initialSendWindow protocol.ByteCount,
-	rttStats *utils.RTTStats,
+	rttStats rttReader,
 	logger utils.Logger,
 ) *streamFlowController {
 	return &streamFlowController{

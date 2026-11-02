@@ -69,7 +69,10 @@ func connectionOptHandshakeConfirmed() testConnectionOpt {
 func connectionOptRTT(rtt time.Duration) testConnectionOpt {
 	rttStats := utils.NewRTTStats()
 	rttStats.UpdateRTT(rtt, 0)
-	return func(conn *Conn) { conn.rttStats = rttStats }
+	return func(conn *Conn) {
+		conn.rttStats = rttStats
+		conn.rttObservation.observe(rttStats)
+	}
 }
 
 func connectionOptRetrySrcConnID(rcid protocol.ConnectionID) testConnectionOpt {

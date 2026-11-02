@@ -82,11 +82,17 @@ func (h *sentPacketHandler) RegisterLocalPacket(context PacketContext, t monotim
 	if h.local == nil || h.local.closed || h.enableECN || h.bbrECN != nil || (ecn != protocol.ECNNon && ecn != protocol.ECNUnsupported) {
 		return LocalCompletionToken{}, errLocalPacketMode
 	}
+	if context.PathID != h.pathID {
+		if path := h.path(context.PathID); path != nil && level == protocol.Encryption1RTT {
+			return path.RegisterLocalPacket(context, t, pn, largestAcked, streams, frames, level, ecn, size)
+		}
+		return LocalCompletionToken{}, errLocalPacketMode
+	}
 	if level != protocol.EncryptionInitial && level != protocol.EncryptionHandshake && level != protocol.Encryption0RTT && level != protocol.Encryption1RTT {
 		return LocalCompletionToken{}, errLocalPacketMode
 	}
 	ps := h.getPacketNumberSpace(level)
-	if !validPacketContext(context, level) || ps == nil || t.IsZero() || size <= 0 || pn < 0 || (ps.history.highestPacketNumber != protocol.InvalidPacketNumber && pn != ps.history.highestPacketNumber+1) {
+	if !h.validPacketContext(context, level) || ps == nil || t.IsZero() || size <= 0 || pn < 0 || (ps.history.highestPacketNumber != protocol.InvalidPacketNumber && pn != ps.history.highestPacketNumber+1) {
 		return LocalCompletionToken{}, errLocalPacketMode
 	}
 	// Reserve against the shared history/tombstone budget before any accounting,
@@ -110,6 +116,13 @@ func (h *sentPacketHandler) RegisterLocalPacket(context PacketContext, t monotim
 }
 
 func (h *sentPacketHandler) CompleteLocalPacket(token LocalCompletionToken, outcome LocalPacketOutcome, returnedAt monotime.Time) error {
+	if h.local != nil && token.owner != &h.local.owner {
+		for _, path := range h.paths {
+			if token.owner == &path.local.owner {
+				return path.CompleteLocalPacket(token, outcome, returnedAt)
+			}
+		}
+	}
 	if h.local == nil || token.owner != &h.local.owner {
 		return errLocalCompletionToken
 	}
@@ -246,6 +259,9 @@ func (h *sentPacketHandler) CloseLocal(now monotime.Time) {
 		return
 	}
 	h.local.closed = true
+	for _, path := range h.paths {
+		path.CloseLocal(now)
+	}
 	h.CloseDelivery()
 	for _, ps := range []*packetNumberSpace{h.initialPackets, h.handshakePackets, h.appDataPackets} {
 		if ps == nil {
@@ -260,7 +276,7 @@ func (h *sentPacketHandler) CloseLocal(now monotime.Time) {
 	h.initialPackets, h.handshakePackets = nil, nil
 	h.appDataPackets = newPacketNumberSpace(0, true)
 	h.lostPackets.Reset()
-	h.ackCarriers = ackCarrierHistory{}
+	h.ackCarriers = ackCarrierHistory{limit: h.ackCarriers.limit}
 	h.numProbesToSend = 0
 	h.ptoMode = SendNone
 	h.congestion.OnPacketsDiscarded()
