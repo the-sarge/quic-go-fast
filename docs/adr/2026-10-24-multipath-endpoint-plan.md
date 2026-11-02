@@ -1,6 +1,6 @@
 # Bounded native endpoint I/O implementation plan
 
-**Status:** E1 complete; the endpoint route remains inactive. E4 is the endpoint frontier; E2 remains blocked by Q2 #599. Dispatch requires a verified frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012).
+**Status:** E1 complete; the endpoint route remains inactive. E2 and E4 are the endpoint frontier. Dispatch requires a verified frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012).
 
 ## Binding contract and operating discipline
 
@@ -10,7 +10,7 @@ The native endpoint ownership domain includes every listed ordinary QUIC v1/v2, 
 
 Preserve [ADR 0001](0001-upstream-compatibility.md), [ADR 0003](0003-follow-stable-upstream-releases.md), [ADR 0004](0004-packet-emission-ownership.md), accepted BBR/ECN decisions, default Reno spurious-loss undo and adaptive-loss contracts. Do not introduce custom I/O providers/wrappers, restricted/network-admitted/candidate-group or send-thread-QoS combinations, multipath v2, FEC, duplicate DATAGRAM delivery, public scheduling callbacks, arbitrary server socket association, coupled congestion control or address discovery. Ordinary unregistered endpoints preserve their existing contracts. Local queue/native timeouts remain nonfatal backpressure for ordinary and multipath peers on granted endpoints. A qualified-native contract violation faults/quarantines the endpoint without freeing a live borrow.
 
-**Existing-work disposition:** new runtime slices; no unmerged implementation is accepted as a dependency. Retain exploration/sizing as history; the linked slice audit records disposition of prior documents. Q2 #599 remains an external unfinished qualification slice; no result, exception or execution readiness transfers to this program.
+**Existing-work disposition:** new runtime slices; no unmerged implementation is accepted as a dependency. Retain exploration/sizing as history; the linked slice audit records disposition of prior documents. Full Q2 #599 remains deferred and incomplete; it is not an E2 prerequisite. The [shared recovery sequencing rule](2026-10-24-multipath-reno-plan.md#program-qualification-ledger-and-sequencing) preserves the existing slice evidence and later qualification requirements; no Q2 result, application-release exception or execution readiness transfers to this program.
 
 **Evidence discipline:** write the named failing or characterization cases first. For runtime slices, at most 16 new deterministic scenario tests (R2/R16 at most 20) cover the listed semantic families, one positive per behavior and one negative per distinct supported failure owner. Run affected-package tests and vet; Go/source or dependency changes also require `go mod tidy -diff`. One focused race run is budgeted where the slice crosses execution contexts; no repeated timing stress is implied. At most one discriminating central-guard mutation per owner is allowed only if needed to prove inherited coverage reaches that guard. No recursive fixture-completeness obligation, syntax-variant matrix, new platform or additional operational campaign enters through review. The exact operational inventory/ceiling is below. If the accepted family cannot fit, stop and re-audit rather than silently grow the slice.
 
@@ -207,7 +207,7 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 | Slice | Disposition | Delivery | Blocked by |
 | --- | --- | --- | --- |
 | [E1](#e1) | complete | Bound native request ownership behind an inactive endpoint seam | None |
-| [E2](#e2) | new | Deliver nonfatal ordinary packet completions through recovery | #599, E1 |
+| [E2](#e2) | new | Deliver nonfatal ordinary packet completions through recovery | E1 |
 | [E3](#e3) | new | Transfer validation and MTU probes asynchronously | E2 |
 | [E4](#e4) | new | Cover transport replies, cached close and public writes | E1 |
 | [E5](#e5) | new | Seal endpoint shutdown and return its grant exactly once | E3, E4 |
@@ -219,7 +219,7 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 
 ### E1 — Bound native request ownership behind an inactive endpoint seam
 
-**Current state:** complete. `native_endpoint.go` owns the inactive endpoint boundary; `native_endpoint_test.go` covers the admitted ownership classes. No production constructor selects this route. E4 is ready; E2 still requires Q2 #599. The slice contract below remains the acceptance authority.
+**Current state:** complete. `native_endpoint.go` owns the inactive endpoint boundary; `native_endpoint_test.go` covers the admitted ownership classes. No production constructor selects this route. E2 and E4 are ready. The slice contract below remains the acceptance authority.
 
 **Delivers:** Create the internal endpoint control/writer boundary and exercise an actual UDP write through it in a private fixture. Admission, absolute deadlines, independent queued expiry, claimed-token fencing, finite completion reservations, leased fair readiness and nonblocking diagnostics belong to this boundary. No production constructor can activate it yet; native qualification is E6.
 
@@ -237,7 +237,7 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 
 **Context imports:** Endpoint ownership contract; Request lifetime, expiry and diagnostics; Admission and capacity notification; Selected endpoint parameters. Include the binding discipline and only the matching closure rows, plus this current slice and direct blocker interfaces; do not load every slice contract.
 
-**Slice decision audit:** Splitting queue/control/native lifetime would leave two owners of one token; keep one endpoint module. Do not merge E2: protocol disposal is a separate owner and Q2-gated behavior. A synchronous connection-loop writer violates responsiveness; the retained handoff is required by the accepted native grant. Rejected split/merge alternatives have no revisit trigger except the stated context/contract stop. Direct blockers supply the interfaces or evidence named here; transitive blockers need not be repeated and convenience ordering is excluded.
+**Slice decision audit:** Splitting queue/control/native lifetime would leave two owners of one token; keep one endpoint module. Do not merge E2: protocol disposal is a separate owner and independently bounded behavior. A synchronous connection-loop writer violates responsiveness; the retained handoff is required by the accepted native grant. Rejected split/merge alternatives have no revisit trigger except the stated context/contract stop. Direct blockers supply the interfaces or evidence named here; transitive blockers need not be repeated and convenience ordering is excluded.
 
 **Stop:** No finite request/metadata bound or no sole token owner; a fake timer is the only proposed cancellation mechanism.
 
@@ -271,7 +271,7 @@ The repeated timing root ends the original two-review cycle. After this amendmen
 
 **Delivers:** Route handshake/application/ACK packets for privately granted ordinary connections through the endpoint; add connection-owned local disposal without PN reuse or congestion-loss fabrication. Keep accepted/uncertain recovery and early-ACK reconciliation. GSO/batch fallback shares one deadline and cannot replay accepted prefixes. Add connection-owned pending-local eligibility at pre-I/O registration: reserved flight cannot become network loss/PTO/ECN/sample evidence before a qualified transition. Preserve registration ordinal/time and send notification; reconcile early ACK and terminal completion exactly once.
 
-**Blocked by:** #599, E1. **Existing work:** new slice; no unmerged implementation accepted.
+**Blocked by:** E1 (complete in [PR #1070](https://github.com/the-sarge/quic-go-fast/pull/1070)). **Existing work:** new slice; no unmerged implementation accepted.
 
 **Single owner and authority completeness:** Emission owns immutable packet registration; connection recovery owns protocol disposal; endpoint alone releases native storage and local queue credit. The connection run loop consumes the reserved completion mailbox and owns terminal protocol disposal; the worker never decides connection policy. Cover constructors, validation and the destruction/cancellation consumers named by this behavior together; no persisted state is introduced.
 
@@ -285,7 +285,7 @@ The repeated timing root ends the original two-review cycle. After this amendmen
 
 **Context imports:** Submission outcomes and backpressure; Pending-local recovery eligibility; Native error classification; Send-route adaptation and probe accounting; Selected endpoint parameters. Include the binding discipline and only the matching closure rows, plus this current slice and direct blocker interfaces; do not load every slice contract.
 
-**Slice decision audit:** Separate buffers from recovery policy to keep the owner boundary explicit; splitting caller and disposal cannot remain green. E1 is needed for exact outcomes; Q2 supplies the required shared-recovery baseline. Do not merge E3: probe commitments have different ownership. Rejected split/merge alternatives have no revisit trigger except the stated context/contract stop. Direct blockers supply the interfaces or evidence named here; transitive blockers need not be repeated and convenience ordering is excluded.
+**Slice decision audit:** Separate buffers from recovery policy to keep the owner boundary explicit; splitting caller and disposal cannot remain green. E1 supplies exact outcomes. Full Q2 produces qualification evidence, not an interface consumed by E2, and remains deferred. E2's existing pending-local, ACK/completion and ordinary-controller preservation cases own its recovery evidence; the bounded GridCast application gate is not a replacement prerequisite. Do not merge E3: probe commitments have different ownership. Rejected split/merge alternatives have no revisit trigger except the stated context/contract stop. Direct blockers supply the interfaces or evidence named here; transitive blockers need not be repeated and convenience ordering is excluded.
 
 **Stop:** Local disposal requires changing Reno/BBR algorithms or weakening shared delivery identity.
 
