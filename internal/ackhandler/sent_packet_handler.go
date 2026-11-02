@@ -87,6 +87,7 @@ type sentPacketHandler struct {
 	initialPackets          *packetNumberSpace
 	handshakePackets        *packetNumberSpace
 	appDataPackets          *packetNumberSpace
+	ackCarriers             ackCarrierHistory
 	lostPackets             lostPacketTracker // only for application-data packet number space
 	packetThresholdDisabled bool              // application space, after surviving spurious-loss proof
 	timeThresholdEighths    uint8             // extra application RTT allowance, in eighths
@@ -105,7 +106,7 @@ type sentPacketHandler struct {
 
 	handshakeConfirmed bool
 
-	ignorePacketsBelow func(protocol.PacketNumber)
+	ignorePacketsBelow func(protocol.PathID, protocol.PacketNumber)
 
 	ackedPackets []packetWithPacketNumber // to avoid allocations in detectAndRemoveAckedPackets
 
@@ -148,7 +149,7 @@ func NewSentPacketHandler(
 	connStats *utils.ConnectionStats,
 	clientAddressValidated bool,
 	enableECN bool,
-	ignorePacketsBelow func(protocol.PacketNumber),
+	ignorePacketsBelow func(protocol.PathID, protocol.PacketNumber),
 	pers protocol.Perspective,
 	qlogger qlogwriter.Recorder,
 	logger utils.Logger,
@@ -163,7 +164,7 @@ func newSentPacketHandler(
 	connStats *utils.ConnectionStats,
 	clientAddressValidated bool,
 	enableECN bool,
-	ignorePacketsBelow func(protocol.PacketNumber),
+	ignorePacketsBelow func(protocol.PathID, protocol.PacketNumber),
 	pers protocol.Perspective,
 	qlogger qlogwriter.Recorder,
 	logger utils.Logger,
@@ -340,6 +341,7 @@ func (h *sentPacketHandler) sentPacket(context PacketContext, t monotime.Time, p
 	if !validPacketContext(context, encLevel) {
 		panic("invalid path-zero packet context")
 	}
+	targets := snapshotAckTargets(largestAcked, frames, encLevel)
 	priorInFlight := h.bytesInFlight
 	h.bytesSent += size
 	h.connStats.BytesSent.Add(uint64(size))
@@ -368,6 +370,7 @@ func (h *sentPacketHandler) sentPacket(context PacketContext, t monotime.Time, p
 	p.Length = size
 	p.Frames = frames
 	p.LargestAcked = largestAcked
+	p.ackTargets = targets
 	p.StreamFrames = streamFrames
 	p.IsPathMTUProbePacket = isPathMTUProbePacket
 	p.isPathProbePacket = isPathProbePacket
@@ -468,6 +471,11 @@ func (h *sentPacketHandler) getPacketNumberSpace(encLevel protocol.EncryptionLev
 }
 
 func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.EncryptionLevel, rcvTime monotime.Time) (protocol.ApplicationKeyReceipt, error) {
+	// R7 supplies nonzero sent spaces. Until then a PATH_ACK for another
+	// target must not be interpreted in this handler's path-zero history.
+	if ack.HasPathID && (ack.PathID != 0 || encLevel != protocol.Encryption1RTT) {
+		return protocol.ApplicationKeyReceipt{}, &qerr.TransportError{ErrorCode: qerr.ProtocolViolation, ErrorMessage: "ACK for unavailable path space"}
+	}
 	if h.local != nil && h.local.closed {
 		return protocol.ApplicationKeyReceipt{}, nil
 	}
@@ -495,6 +503,9 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 	ackedPackets, hasAckEliciting, err := h.detectAndRemoveAckedPackets(ack, encLevel)
 	if err != nil {
 		return protocol.ApplicationKeyReceipt{}, err
+	}
+	if encLevel == protocol.Encryption1RTT {
+		h.ackCarriers.acknowledge(ack, rcvTime, h.ignorePacketsBelow)
 	}
 	if h.congestionEvents != nil {
 		h.ExpireDelivery(rcvTime)
@@ -768,8 +779,8 @@ func (h *sentPacketHandler) detectAndRemoveAckedPackets(
 	}
 
 	for _, p := range h.ackedPackets {
-		if p.LargestAcked != protocol.InvalidPacketNumber && encLevel == protocol.Encryption1RTT && h.ignorePacketsBelow != nil {
-			h.ignorePacketsBelow(p.LargestAcked + 1)
+		if encLevel == protocol.Encryption1RTT {
+			p.ackTargets.apply(h.ignorePacketsBelow)
 		}
 
 		for _, f := range p.Frames {
@@ -1043,6 +1054,7 @@ func (h *sentPacketHandler) detectLostPackets(now monotime.Time, encLevel protoc
 			if p.Outstanding() && (encLevel == protocol.Encryption0RTT || encLevel == protocol.Encryption1RTT) {
 				h.lostPackets.Add(pn, p.recoveryTime())
 			}
+			h.retainAckCarrier(pn, p, now)
 			h.retireLocal(p, false)
 			pnSpace.history.DeclareLost(pn)
 			if !p.isPathProbePacket && p.IsAckEliciting() {
@@ -1321,6 +1333,7 @@ func (h *sentPacketHandler) QueueProbePacketAt(encLevel protocol.EncryptionLevel
 	// TODO: don't declare the packet lost here.
 	// Keep track of acknowledged frames instead.
 	// Call DeclareLost before queueFramesForRetransmission, which clears the packet's frames.
+	h.retainAckCarrier(pn, p, now)
 	h.retireLocal(p, false)
 	pnSpace.history.DeclareLost(pn)
 	h.removeFromBytesInFlight(p)
@@ -1356,6 +1369,7 @@ func (h *sentPacketHandler) ResetForRetry(now monotime.Time) {
 	localRTTEligible := true
 	h.congestion.OnPacketsDiscarded()
 	h.lostPackets.Reset()
+	h.ackCarriers = ackCarrierHistory{}
 	h.resetCongestionCapture(false)
 	h.bytesInFlight = 0
 	var firstPacketSendTime monotime.Time
@@ -1416,6 +1430,7 @@ func (h *sentPacketHandler) MigratedPath(now monotime.Time, initialMaxDatagramSi
 	h.minPNToRelaxReordering = protocol.InvalidPacketNumber
 	h.lostPackets.Reset()
 	for pn, p := range h.appDataPackets.history.Packets() {
+		h.retainAckCarrier(pn, p, now)
 		h.retireLocal(p, false)
 		h.appDataPackets.history.DeclareLost(pn)
 		if !p.isPathProbePacket {
@@ -1442,4 +1457,19 @@ func (h *sentPacketHandler) MigratedPath(now monotime.Time, initialMaxDatagramSi
 		)
 	}
 	h.setLossDetectionTimer(now)
+}
+
+func (h *sentPacketHandler) retainAckCarrier(pn protocol.PacketNumber, p *packet, now monotime.Time) {
+	if p.EncryptionLevel != protocol.Encryption1RTT || (p.local != nil && p.local.outcome == LocalPacketUnsubmitted) {
+		return
+	}
+	// Saturate the snapshot duration before multiplying. Receipt expiry is an
+	// efficiency bound; forgetting a receipt leaves the capped receive history.
+	pto := min(h.rttStats.PTO(true), time.Duration(1<<63-1)/3)
+	expires := now.Add(3 * pto)
+	if expires.Before(now) {
+		expires = monotime.Time(1<<63 - 1)
+	}
+	h.ackCarriers.add(pn, expires, p.ackTargets, p.local)
+	p.ackTargets = ackTargets{}
 }

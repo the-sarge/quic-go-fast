@@ -15,6 +15,7 @@ type ReceivedPacketHandler struct {
 	appDataPackets   appDataReceivedPacketTracker
 
 	lowest1RTTPacket protocol.PacketNumber
+	paths            map[protocol.PathID]*appDataReceivedPacketTracker
 }
 
 func NewReceivedPacketHandler(logger utils.Logger) *ReceivedPacketHandler {
@@ -37,6 +38,9 @@ func (h *ReceivedPacketHandler) SetAppDataAckThreshold(threshold int) {
 		panic(fmt.Sprintf("ackhandler: acknowledgment threshold %d outside [%d, %d]", threshold, MinAckThreshold, MaxAckThreshold))
 	}
 	h.appDataPackets.ackThreshold = threshold
+	for _, tracker := range h.paths {
+		tracker.ackThreshold = threshold
+	}
 }
 
 // AppDataAckThreshold returns the threshold set by SetAppDataAckThreshold, or
@@ -97,7 +101,13 @@ func (h *ReceivedPacketHandler) DropPackets(encLevel protocol.EncryptionLevel) {
 }
 
 func (h *ReceivedPacketHandler) GetAlarmTimeout() monotime.Time {
-	return h.appDataPackets.GetAlarmTimeout()
+	alarm := h.appDataPackets.GetAlarmTimeout()
+	for _, tracker := range h.paths {
+		if next := tracker.GetAlarmTimeout(); !next.IsZero() && (alarm.IsZero() || next.Before(alarm)) {
+			alarm = next
+		}
+	}
+	return alarm
 }
 
 func (h *ReceivedPacketHandler) GetAckFrame(encLevel protocol.EncryptionLevel, now monotime.Time, onlyIfQueued bool) *wire.AckFrame {
@@ -135,4 +145,90 @@ func (h *ReceivedPacketHandler) IsPotentiallyDuplicate(pn protocol.PacketNumber,
 		return h.appDataPackets.IsPotentiallyDuplicate(pn)
 	}
 	panic("unexpected encryption level")
+}
+
+// AddPath admits one additional application receive space. Only private fixtures
+// call this until the authenticated path registry is integrated in R9.
+func (h *ReceivedPacketHandler) AddPath(id protocol.PathID) error {
+	if id == 0 || h.paths[id] != nil || len(h.paths) >= 1 {
+		return fmt.Errorf("ackhandler: receive path unavailable: %d", id)
+	}
+	if h.paths == nil {
+		h.paths = make(map[protocol.PathID]*appDataReceivedPacketTracker)
+	}
+	tracker := newAppDataReceivedPacketTracker(h.appDataPackets.logger)
+	tracker.ackThreshold = h.appDataPackets.ackThreshold
+	h.paths[id] = tracker
+	return nil
+}
+
+func (h *ReceivedPacketHandler) appDataOnPath(id protocol.PathID) *appDataReceivedPacketTracker {
+	if id == 0 {
+		return &h.appDataPackets
+	}
+	return h.paths[id]
+}
+
+func (h *ReceivedPacketHandler) ReceivedPacketOnPath(id protocol.PathID, pn protocol.PacketNumber, ecn protocol.ECN, now monotime.Time, ackEliciting bool) error {
+	if id == 0 {
+		return h.ReceivedPacket(pn, ecn, protocol.Encryption1RTT, now, ackEliciting)
+	}
+	tracker := h.appDataOnPath(id)
+	if tracker == nil {
+		return fmt.Errorf("ackhandler: unknown receive path: %d", id)
+	}
+	return tracker.ReceivedPacket(pn, ecn, now, ackEliciting)
+}
+
+func (h *ReceivedPacketHandler) IsPotentiallyDuplicateOnPath(id protocol.PathID, pn protocol.PacketNumber) bool {
+	tracker := h.appDataOnPath(id)
+	return tracker == nil || tracker.IsPotentiallyDuplicate(pn)
+}
+
+func (h *ReceivedPacketHandler) GetPathAckFrame(id protocol.PathID, now monotime.Time, onlyIfQueued bool) *wire.AckFrame {
+	tracker := h.appDataOnPath(id)
+	if tracker == nil {
+		return nil
+	}
+	ack := tracker.GetAckFrame(now, onlyIfQueued)
+	if ack != nil {
+		ack.HasPathID, ack.PathID = true, id
+	}
+	return ack
+}
+
+// IgnorePacketsBelowOnPath applies a confirmed carrier's target watermark.
+// Unknown targets never allocate state.
+func (h *ReceivedPacketHandler) IgnorePacketsBelowOnPath(id protocol.PathID, pn protocol.PacketNumber) {
+	if tracker := h.appDataOnPath(id); tracker != nil {
+		tracker.IgnoreBelow(pn)
+	}
+}
+
+// AppendPathAckFrames selects only admitted nonzero targets. Space is checked
+// before consuming a queued ACK so a full carrier cannot lose its wakeup.
+func (h *ReceivedPacketHandler) AppendPathAckFrames(frames []Frame, maxSize protocol.ByteCount, now monotime.Time, onlyIfQueued bool, v protocol.Version) ([]Frame, protocol.ByteCount) {
+	var length protocol.ByteCount
+	for id, tracker := range h.paths {
+		if !tracker.hasNewAck {
+			continue
+		}
+		ranges := tracker.packetHistory.ranges
+		if len(ranges) == 0 {
+			continue
+		}
+		newest := ranges[len(ranges)-1]
+		minimum := wire.AckFrame{HasPathID: true, PathID: id, DelayTime: max(0, now.Sub(tracker.largestObservedRcvdTime)), ECT0: tracker.ect0, ECT1: tracker.ect1, ECNCE: tracker.ecnce, AckRanges: []wire.AckRange{{Smallest: newest.Start, Largest: newest.End}}}
+		if minimum.Length(v) > maxSize-length {
+			continue
+		}
+		ack := h.GetPathAckFrame(id, now, onlyIfQueued)
+		if ack == nil {
+			continue
+		}
+		ack.Truncate(maxSize-length, v)
+		frames = append(frames, Frame{Frame: ack})
+		length += ack.Length(v)
+	}
+	return frames, length
 }

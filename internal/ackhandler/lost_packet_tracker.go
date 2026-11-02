@@ -6,6 +6,7 @@ import (
 
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/wire"
 )
 
 type lostPacket struct {
@@ -74,4 +75,47 @@ func (t *lostPacketTracker) DeleteBefore(ti monotime.Time) {
 
 func (t *lostPacketTracker) Reset() {
 	t.lostPackets = t.lostPackets[:0]
+}
+
+// Retired ACK carriers retain only target watermarks. This bounded history is
+// separate from spurious-loss evidence: a PTO or migration retirement must not
+// train Reno loss adaptation merely because it carried an ACK.
+type retiredAckCarrier struct {
+	local   *localRegistration // completion identity only; no packet or native storage
+	pn      protocol.PacketNumber
+	expires monotime.Time
+	targets ackTargets
+}
+
+type ackCarrierHistory struct{ carriers []retiredAckCarrier }
+
+const maxRetiredAckCarriers = 64
+
+func (h *ackCarrierHistory) add(pn protocol.PacketNumber, expires monotime.Time, targets ackTargets, local *localRegistration) {
+	if targets.count == 0 {
+		return
+	}
+	if len(h.carriers) == maxRetiredAckCarriers {
+		h.carriers = slices.Delete(h.carriers, 0, 1)
+	}
+	h.carriers = append(h.carriers, retiredAckCarrier{pn: pn, expires: expires, targets: targets, local: local})
+}
+
+func (h *ackCarrierHistory) acknowledge(ack *wire.AckFrame, now monotime.Time, apply func(protocol.PathID, protocol.PacketNumber)) {
+	h.carriers = slices.DeleteFunc(h.carriers, func(c retiredAckCarrier) bool {
+		if !now.Before(c.expires) {
+			return true
+		}
+		if !ack.AcksPacket(c.pn) {
+			return false
+		}
+		if c.local != nil {
+			if c.local.outcome == LocalPacketUnsubmitted {
+				return true
+			}
+			c.local.acked = true
+		}
+		c.targets.apply(apply)
+		return true
+	})
 }
