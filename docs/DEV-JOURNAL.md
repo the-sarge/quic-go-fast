@@ -8365,3 +8365,28 @@ All 17 distinct applicable hosted checks passed (33 push/PR entries), including 
 ### Next
 
 [R8 issue #1028](https://github.com/the-sarge/quic-go-fast/issues/1028) remains the ready Reno frontier. [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029) still requires [E5 issue #1019](https://github.com/the-sarge/quic-go-fast/issues/1019) and R8 (#1028); R7 completion creates no newly ready successor. [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) remain the live current-state views. Complete the exact slice task after journal closure; no separate frontier/status PR is needed.
+
+---
+
+## Local ECN qualification landed - 2026-11-02 16:06 EST
+
+**Main:** `d6ebe9a7e50e`
+**Actor:** Codex
+
+### Completed
+
+[PR #1104 — Qualify local ECN transmission and cumulative evidence](https://github.com/the-sarge/quic-go-fast/pull/1104) merged as `d6ebe9a7e50e9b04018e64597a8f2ccc8c48f772`, closing [E2C issue #1086](https://github.com/the-sarge/quic-go-fast/issues/1086). Private Reno and BBR ECN now distinguish intended marks, confirmed transmission, possible transmission and proven non-submission. Bounded cumulative constraints retain report-time limits and invalid reports across supersession; semantic marking ranges preserve qualified-flight and non-submission capacity. One terminal reconciler covers ACK-only retirement, PTO, migration and either arrival order of protocol retirement/native uncertainty. Controller formulas and the inactive endpoint route are preserved.
+
+### Decisions
+
+The existing loss history retains authenticated Reno undo receipts while a possible CE delta awaits qualification. Valid CE precedes undo; invalid or unavailable evidence releases surviving legitimate undo. Native completion finalizes after its enclosing loss scan. The [current E2C contract for issue #1086](https://github.com/the-sarge/quic-go-fast/blob/d6ebe9a7e50e9b04018e64597a8f2ccc8c48f772/docs/adr/2026-10-24-multipath-endpoint-plan.md#e2c) owns the bounded semantics; the [boundary decision for PR #1104](https://github.com/the-sarge/quic-go-fast/pull/1104#issuecomment-6588043330) records the rationale. No additional store, worker, public representation or resource ceiling was introduced.
+
+### Validation
+
+Exactly three existing TestLocalECN functions cover the accepted outcome/lifecycle variants, including deferred accepted CE, invalidating non-submission, terminal uncertain ACK-only retirement, exact-once effects and genuine exhaustion. Initial, replacement and one explicitly authorized extra full-panel review completed. Final verification of source `20261102T201225-5a6ef3d4dd0964afdafc6ba6` was clear at reviewed head `11dd5a7735ccada33f31114c1491ad768f56c226`, including the enclosing completion-boundary correction; bounded-bookkeeping and inherited unmarked-receipt observations retained their non-gating rejection.
+
+Exact-head affected-package tests passed (31.200s), along with vet, module tidy diff, configured lint/go-fix, clean-tree and whitespace checks. All 17 applicable hosted PR checks passed before exact-head squash merge, including [unit run 41522809192](https://github.com/the-sarge/quic-go-fast/actions/runs/41522809192) and [integration run 41522809282](https://github.com/the-sarge/quic-go-fast/actions/runs/41522809282). The [certification receipt for PR #1104](https://github.com/the-sarge/quic-go-fast/pull/1104#issuecomment-6588243088) retains the evidence. No extra scenario function, race/native/platform/mutation/operational campaign, worthwhile deferred follow-up or admitted untraced effect remains.
+
+### Next
+
+The merged product owns E2C completion and the committed E2 readiness transition. [E2 issue #1016](https://github.com/the-sarge/quic-go-fast/issues/1016) has both native blockers closed and joins [E4 issue #1018](https://github.com/the-sarge/quic-go-fast/issues/1018) on the endpoint frontier. [Endpoint parent #1012](https://github.com/the-sarge/quic-go-fast/issues/1012) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) remain the live current-state views. No separate frontier/status PR is required.
