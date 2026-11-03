@@ -1,0 +1,57 @@
+# E5 #1019 endpoint shutdown re-audit
+
+## Trigger and preserved state
+
+Execution preflight for [E5 #1019](https://github.com/the-sarge/quic-go-fast/issues/1019) at `e2b124ace373915f2676cf8b6f4b95c2e72d1902` found material owners and ordering obligations outside the slice's named files. No implementation code exists. Branch `codex/e5-endpoint-shutdown-1019` is preserved at that base.
+
+| Accepted assumption | Current source fact | Why it cannot be avoided |
+| --- | --- | --- |
+| Drain and close migrate at their existing call sites | `emission.drain` calls `queue.Close` (`packet_emission.go:109`), which on this route runs `CloseLocal` (`native_ordinary.go:419`). That replaces `appDataPackets` with a fresh number space and sets the Initial and Handshake spaces to nil (`internal/ackhandler/local_completion.go:349-350`). `handleCloseError` packs the close afterwards (`connection.go:853-854`, `:2633`) | A close packed there reuses a packet number under the same key or dereferences a nil space, so drain and final close have to become separate steps |
+| Live close only needs an asynchronous submission | `detach` revokes queued work at once (`native_endpoint.go:474`), while the baseline drain sends everything queued before the close (`send_queue.go:197-204`). The control class is served ahead of data (`native_endpoint.go:688`) | A direct offer discards the queue or lets the close overtake it, and the peer then drops data the baseline delivers |
+| A private activation exists to integrate under | Only fixtures build `Transport{responses: ...}` and call `useNativeOrdinary` (`native_ordinary.go:65`). `doDial` (`transport.go:362`) and `handleInitialImpl` (`server.go:972`) never install the route, and `server.go` is not a named file | No connection can reach the integrated route until both constructors install it |
+| `Path.Switch` only needs the exclusion removed | `replacePath` has no target transport (`packet_emission.go:711`, `connection.go:1056`). `consume` reconciles only the primary participant and discards other participants' results (`native_ordinary.go:330`, `:372-378`), and those participants have no wakeup. `take` makes a blocking send on `p.completed` (`native_endpoint.go:447`) | An old-endpoint record would hold its slot and tokens forever, and a full record array would stall the connection with no wakeup |
+| Join can observe an existing stop | Nothing seals on close: `Transport.close` only revokes the epoch (`transport.go:648`), and only tests call `stop`. `run` closes `done` without joining the writer (`native_endpoint.go:570-572`). Nothing refuses a second grant on the same socket, and `fail` keeps no record (`native_endpoint.go:851`) | The transferred authority has no owner yet |
+
+The binding rule makes a newly discovered shared-state effect a slice stop until a scoped re-audit establishes that it fits the existing outcome and one-PR budget. These effects are that case. None changes an owner: each one extends a mechanism that E1 through E4 already introduced for this route.
+
+## Accepted design
+
+Keep child #1019, its private typed domain and one independently green product PR. No exported grant or join method, new platform, controller formula, wire behavior or new goroutine enters the slice. Ungranted transports keep every existing route.
+
+**One private activation.** An unexported `Transport.configureNativeIO(maxWriteDuration)` runs before initialization, as the existing `Configure...` methods do, and is the only way to install this route. It takes B in [1 ms, 1 s] and the exact unconnected `*net.UDPConn` in `Transport.Conn`. It refuses a repeated grant on that transport and any transport with external or managed packet I/O, network admission, fixed peer, a candidate group or send thread QoS. It starts the endpoint and sets `Transport.responses` once, so public writes need no initialization. The same validation runs again in `beginPacketIOLocked`, so a replaced `Conn` or a later conflicting configuration fails before any attachment. A process-wide table keyed by socket pointer refuses a second live grant; undisclosed duplicate descriptors remain the caller's contract violation.
+
+**Constructors install the route.** `doDial` and the server's new-connection path call one install step after construction and before the loop starts, next to the existing install calls. Exhausted participant slots return `ErrMultipathResourceLimitV1` from a dial. A server abandons the attempt through `abortUnstarted` and answers through `refuseNewConn`, the existing bounded CONNECTION_REFUSED path, which drops when its queue or the stateless class is full. A sealed endpoint sends no response.
+
+**Close seals first.** `Transport.close` revokes the root epoch and seals admission before its existing server and connection shutdown. Sealing already discards queued work through exact-once completion, and the current request keeps its token until actual return. `Close` does not wait for the writer and socket-close ownership is unchanged.
+
+**Stop and join.** Control waits for the writer's exit only once no token is outstanding, so that wait involves no native operation. It then releases the socket's grant entry and closes `done`, in that order and exactly once. The unexported `Transport.waitNativeIOStopped(ctx)` returns `ErrMultipathNotConfiguredV1` without a grant, `ErrMultipathNotStoppingV1` before close, `ctx.Err()` on expiry and nil once `done` is closed. Expiry leaves authority with the endpoint. An overdue current token holds `done` open, and a late return permits it without reopening admission. Diagnostic consumers stay outside the join.
+
+**Reserved fault record.** The endpoint holds one inline record, written once before `fault` closes, with the cause, the current identity and the native error. It needs no capacity reservation and cannot be dropped, and a successful join leaves it readable. It does not change the existing fault consequences.
+
+**Drain and final close are separate.** On this route `emission.drain` calls a new `drain` on the sender: it finishes the pending reservation, stops further admission and moves terminal disposal of that participant's results to the endpoint, because protocol consequences are now sealed. Recovery stays open, so the packer keeps its packet numbers. Queued requests keep running to their existing deadlines. The deferred `Close` then runs `CloseLocal` and detaches. On an early exit with no drain, it detaches at once as it does today.
+
+**One close obligation per participant.** `emission.close` packs as before, keeps its retained copy for the closed handler and transfers the packet buffer to the endpoint with its ECN marking. The endpoint holds at most one obligation per participant, in a field reserved by attachment, so the queue does not grow. Control admits it on the connection-control lane only after that participant's queued and current requests have resolved, which keeps the baseline order. It uses ordinary fair admission and carries a deadline of deposit+B. Expiry, seal or fault releases the buffer once. The closed handler's cached retransmission is unchanged, and no connection context waits for any of it. Detach takes effect when the obligation and retained requests are gone.
+
+**A path switch moves the primary participant.** `switchToNewPath` passes its target transport to a new local replacement step. It applies the existing generation reset, makes the target's participant primary, keeps the old one as a secondary target and publishes a new `nativeOrdinaryConn` around the new `sendConn`. First-send and GSO state belong to the path, so each conn owns its `endpointWriteState`. An ungranted target or a refused attachment rejects through the existing `reject`. Every participant of a connection shares one wake channel, and `consume` reconciles all of them through one function. Generations differ across a switch, so identities cannot collide. Because the channel is now shared, `take` signals without blocking. Only the primary endpoint's fault ends the connection, which preserves survivors on other endpoints.
+
+**Error identities.** Add `ErrMultipathInvalidConfigV1`, `ErrMultipathUnsupportedV1`, `ErrMultipathResourceLimitV1`, `ErrMultipathNotConfiguredV1` and `ErrMultipathNotStoppingV1` as E4 added its identities, documented as private-fixture-only until R19. They are the plan's accepted names, and no exported method yet returns them on an ungranted transport.
+
+## Boundaries
+
+R19 keeps constructor defaults and helper-owned grants, and it publishes the exported methods. E6 keeps native qualification. `useNativeOrdinary` keeps refusing `pathCredit`: R9 extends terminal receipts through the bounded-submission facts before it grants consumed-path authority, as its contract says, so that combination is not an E2–E4 exclusion to remove here. External packet I/O, candidate groups and send thread QoS stay refused under the binding contract. `send_queue.go` and `closed_conn.go` need no change: the ungranted queue keeps its behavior, and E4 already routes cached close through its epoch.
+
+## Gates re-run
+
+| Gate | Result |
+| --- | --- |
+| Representation | Unchanged. The domain is the exact granted socket, and existing owners validate external representations. |
+| Artifact classes | Unchanged. No new maintained aid, and the transport test suite owns the named scenarios. |
+| Evidence budget | Unchanged: at most 16 deterministic scenario tests, one focused race run, one fresh review and at most one replacement. Loopback in one integrated scenario is a fixture boundary, not native qualification. |
+| Single owner | Unchanged. Transport control owns the grant epoch and join publication, the connection owns logical destruction, and the endpoint token remains the sole native owner. |
+| Authority completeness | Construction, validation, refusal, seal, drain, close, switch, fault, late return and re-grant are all covered by this design. |
+| Transitional seams | Narrower: the drain, close and switch exclusions are removed. `nativeOrdinaryConn` direct writes stay refused as a guard, not a seam. |
+| Blast radius | Adds `server.go` (constructor install), `native_ordinary.go`, `packet_emission_local.go`, and new platform files for the activation and its stub. `internal/ackhandler` needs no change. |
+| Context fit | About 26k tokens by byte count against the 24k target: the binding discipline and three imported owner sections, the E5 slice, the four endpoint and adapter files, and the named symbols. That is over the target but fits with room for implementation and review, so it is recorded here rather than treated as a re-slice. |
+| Split or merge | The strongest split moves routes before the grant and join. It is rejected on merit: join's claim depends on the closed route census, and routes alone leave no activation to test. E6 stays separate. |
+
+Contract closure stays as declared: the existing `Revocation / shutdown / late return` row governs, with no new matrix.
