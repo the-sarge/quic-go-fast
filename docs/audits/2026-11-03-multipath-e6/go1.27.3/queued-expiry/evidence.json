@@ -1,0 +1,10 @@
+{
+  "class": "queued-expiry",
+  "go": "go1.27.3",
+  "traversal": true,
+  "timing_ms": {
+    "injected_current_return": 0.295548,
+    "injected_queued_expiry": 0.742364
+  },
+  "facts": {}
+}

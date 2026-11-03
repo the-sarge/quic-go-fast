@@ -1,0 +1,7 @@
+Kernel Version: 7.0
+
+=== RUN   TestNativeQualification
+=== RUN   TestNativeQualification/expired-before-dispatch
+--- PASS: TestNativeQualification (0.00s)
+    --- PASS: TestNativeQualification/expired-before-dispatch (0.00s)
+PASS

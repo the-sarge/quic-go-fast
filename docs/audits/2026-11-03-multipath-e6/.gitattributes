@@ -1,0 +1,2 @@
+# Preserve raw test and strace output, including trailing whitespace.
+*.log -whitespace

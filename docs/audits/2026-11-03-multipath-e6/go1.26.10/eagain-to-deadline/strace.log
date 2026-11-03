@@ -1,0 +1,2 @@
+3002344 sendmsg(7, {msg_name={sa_family=AF_INET, sin_port=htons(48184), sin_addr=inet_addr("127.0.0.1")}, msg_namelen=16, msg_iov=[{iov_base="stalled", iov_len=7}], msg_iovlen=1, msg_controllen=0, msg_flags=0}, 0) = -1 EAGAIN (Resource temporarily unavailable) (INJECTED)
+3002349 --- SIGURG {si_signo=SIGURG, si_code=SI_TKILL, si_pid=3002344, si_uid=1000} ---
