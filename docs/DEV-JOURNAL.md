@@ -8537,3 +8537,36 @@ No review finding was deferred, so no follow-up issue was filed.
 ### Next
 
 The committed product state is 7/9 endpoint slices and 15/34 program slices complete. [E5 issue #1019](https://github.com/the-sarge/quic-go-fast/issues/1019) is the ready endpoint frontier, and [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029) still requires it. [Endpoint parent #1012](https://github.com/the-sarge/quic-go-fast/issues/1012) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) own live readiness.
+
+---
+
+## Multipath E5 endpoint shutdown landed - 2026-11-03 12:04 EST
+
+**Main:** `acee430d1a5d`
+**Actor:** Claude
+
+### Summary
+
+[PR #1133 — Multipath E5: Seal endpoint shutdown and return its grant exactly once](https://github.com/the-sarge/quic-go-fast/pull/1133) merged as `acee430d1a5d3251614f9449742c5071e962a880`, closing [E5 issue #1019](https://github.com/the-sarge/quic-go-fast/issues/1019). One unexported `Transport.configureNativeIO` now installs the private route, and `doDial` and the server use it. `Transport.close` seals admission before logical shutdown and doesn't wait for the writer. The grant returns once, after the writer has exited, and a reserved fault record outlives it. Live CONNECTION_CLOSE, connection drain and client `Path.Switch` now run on the endpoint. No public constructor installs this route, and ungranted transports keep their existing routes.
+
+### Decisions
+
+[PR #1132 — the scoped re-audit](https://github.com/the-sarge/quic-go-fast/pull/1132) merged before any implementation, because preflight found owners and ordering obligations outside the slice's named files. The [audit](audits/2026-11-03-e5-endpoint-shutdown-reaudit.md) and the [E5 contract](adr/2026-10-24-multipath-endpoint-plan.md#e5) hold the reasoning. The decisions that shaped the code:
+
+- Drain and final close are separate steps. `CloseLocal` replaces the packet-number spaces, so a close packed after it would reuse a packet number under the same key. Removing that ordering made the test fail on a reused number.
+- A close is one per-participant obligation, admitted only after that participant's queued and current requests resolve, so it can't overtake packets the baseline sends first. It carries a deadline of deposit+B.
+- A path's origin and target must be both on the route or both off it, so no direct write can outlive a join.
+
+### Validation
+
+The initial review `20261103T160046-ff26cc26dfd22fdd7d358f79` led to two behavior fixes, both reproduced red first. A native public write now seals configuration, because a fixed peer set after the grant was being bypassed. A result from before the latest path switch now settles its tokens and nothing else, through one `switchGeneration` floor: a connection could return to an endpoint it had left, and the old write's destination error then ended it. That second case shared its invariant and owner with a finding from the re-audit's document review, whose narrower fix keyed on the participant. The fix replaced that seam instead of adding a case. Verification at `12ae31120` had a clear blocking projection, and replacement review `20261103T162052-fd6b0d1075d9452e6ccc04d0` found nothing. The [PR #1133 certificate](https://github.com/the-sarge/quic-go-fast/pull/1133#issuecomment-6609685511) records the dispositions and local gates on Go 1.27.3 darwin/arm64, plus the root package on Linux amd64.
+
+Evidence stayed inside the budget: 14 of 16 scenario tests and one focused race run. Ten guards were removed through `go test -overlay` as red proofs, and three tests that stayed green were sharpened until they failed. If those are counted as the plan's optional mutation allowance, they exceed its one per owner. This is not native qualification, which E6 owns.
+
+All 33 hosted check runs succeeded on `12ae31120`. macOS arm64 capacity limits meant several jobs were never acquired by a runner, across PR #1132 and PR #1133. Same-head reruns were limited to those jobs. On PR #1132 the `push` twin of one job was cancelled three times, and that docs-only head merged on the `pull_request` run of the same job passing.
+
+`TestCandidateOrdinaryProfileClose` failed once on hosted Windows at an earlier head, on the ungranted route this PR doesn't change. [Issue #1134](https://github.com/the-sarge/quic-go-fast/issues/1134) records the likely cause, which is from reading the code and not reproduced. No review finding was deferred.
+
+### Next
+
+The committed product state is 8/9 endpoint slices and 16/34 program slices complete. [E6 issue #1020](https://github.com/the-sarge/quic-go-fast/issues/1020) and [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029) have no open blockers. [Endpoint parent #1012](https://github.com/the-sarge/quic-go-fast/issues/1012), [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) own live readiness.
