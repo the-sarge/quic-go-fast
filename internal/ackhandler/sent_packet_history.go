@@ -277,7 +277,9 @@ func (h *sentPacketHistory) Difference(a, b protocol.PacketNumber) protocol.Pack
 	diff := a - b
 	if a > b && len(h.unqualifiedLocal) > 0 {
 		first, _ := slices.BinarySearch(h.unqualifiedLocal, b+1)
-		last, _ := slices.BinarySearch(h.unqualifiedLocal, a)
+		// An ordinary packet qualifies when ACKed, but a path probe's number stays
+		// excluded, so a is excluded too if it's still listed.
+		last, _ := slices.BinarySearch(h.unqualifiedLocal, a+1)
 		diff -= protocol.PacketNumber(last - first)
 	}
 	if len(h.skippedPackets) == 0 {

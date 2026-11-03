@@ -518,6 +518,21 @@ func TestLocalProbeRegistration(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, tracker.Lost, "unqualified probes cannot supply packet-distance evidence")
 	})
+	t.Run("ACKed path probe is not a packet-distance witness", func(t *testing.T) {
+		h := confirmed(t, monotime.Now())
+		now := monotime.Now()
+		var tracker packetTracker
+		for i := range protocol.PacketNumber(3) {
+			_, token := registerLocalTestPacket(t, h, now, protocol.Encryption1RTT, []Frame{tracker.NewPingFrame(i)})
+			require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now))
+		}
+		var probes packetTracker
+		probe := registerPathProbe(t, h, now, probes.NewPingFrame(3))
+		_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(probe)}, protocol.Encryption1RTT, now.Add(time.Millisecond))
+		require.NoError(t, err)
+		require.Len(t, probes.Acked, 1)
+		require.Empty(t, tracker.Lost, "the time threshold still applies, but the probe's number supplies no distance")
+	})
 	t.Run("path probe holds no flight and ends by timeout", func(t *testing.T) {
 		h := confirmed(t, monotime.Now())
 		now := monotime.Now()

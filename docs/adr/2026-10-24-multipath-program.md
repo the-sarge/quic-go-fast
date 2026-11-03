@@ -1,6 +1,6 @@
 # QUIC multipath #646 program
 
-**Identity:** `QGF-MP646-20261024`. **Status:** implementation in progress; E1, E2A, E2B, E2C, E2 #1016, E4 #1018, R1, R2, R3, R4, R5, R6, R7 and R8 complete (14/34 slices). The endpoint route remains inactive in public construction. **Scope:** both Reno-first primary/backup and BBR/aggregation. **Tracking issue:** [#646](https://github.com/the-sarge/quic-go-fast/issues/646). The track plans are the current implementation contracts. Historical design/sizing and review notes explain decisions; issues and OmniFocus own current status/pointers rather than mirrored contracts.
+**Identity:** `QGF-MP646-20261024`. **Status:** implementation in progress; E1, E2A, E2B, E2C, E2 #1016, E3 #1017, E4 #1018, R1, R2, R3, R4, R5, R6, R7 and R8 complete (15/34 slices). The endpoint route remains inactive in public construction. **Scope:** both Reno-first primary/backup and BBR/aggregation. **Tracking issue:** [#646](https://github.com/the-sarge/quic-go-fast/issues/646). The track plans are the current implementation contracts. Historical design/sizing and review notes explain decisions; issues and OmniFocus own current status/pointers rather than mirrored contracts.
 
 ## Tracks and frontier
 
