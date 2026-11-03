@@ -16,8 +16,8 @@ import (
 	"github.com/quic-go/quic-go/internal/monotime"
 )
 
-// This route is deliberately inactive: no Transport or connection constructor
-// selects it. E2–E5 migrate producers; R19 owns public activation. In particular,
+// This route is deliberately private: only Transport.configureNativeIO selects
+// it, and no exported constructor does. R19 owns public activation. In particular,
 // this is not a PacketConn provider or permission to unwrap a caller's socket.
 const (
 	endpointRequests     = 128
@@ -121,11 +121,34 @@ type nativeEndpoint struct {
 	commands          chan func(*endpointState)
 	work              chan *endpointToken
 	returned          chan struct{}
-	done              chan struct{}
+	writer            chan struct{} // closed when the writer can no longer touch the socket
+	done              chan struct{} // closed once, after writer, to return write authority
 	fault             chan struct{}
+	faultRecord       endpointFaultRecord // written once, before fault closes
+	stopped           func()              // owned by control; runs just before done closes
 	diagnostics       chan endpointDiagnostic
 	dropped           atomic.Uint64
 	stateless, public *endpointParticipant
+}
+
+type endpointFaultCause uint8
+
+const (
+	// endpointFaultOverdue found no acknowledgment at the cutoff.
+	endpointFaultOverdue endpointFaultCause = iota + 1
+	// endpointFaultLateReturn found an acknowledgment stamped at or after the cutoff.
+	endpointFaultLateReturn
+	// endpointFaultNative is a closed socket or a failed deadline operation.
+	endpointFaultNative
+)
+
+// endpointFaultRecord is reserved in the endpoint, so publishing it needs no
+// capacity and can't be dropped. It outlives a successful join: the join returns
+// authority without certifying that earlier writes succeeded.
+type endpointFaultRecord struct {
+	cause    endpointFaultCause
+	identity endpointIdentity
+	err      error
 }
 
 type endpointParticipant struct {
@@ -142,6 +165,21 @@ type endpointParticipant struct {
 	results                    []int
 	wait                       [3]endpointWait
 	admissionPath, servicePath int
+	// draining means the connection has sealed its protocol consequences: its
+	// queued work keeps running, and control disposes of its results. Detaching
+	// takes effect once its close obligation and retained requests are gone.
+	draining, detaching bool
+	closing             endpointClosing
+}
+
+// endpointClosing is a connection's one close obligation, held in a field that
+// attachment already reserved. The buffer stays outside the endpoint's capacity
+// until admission, like any other producer-owned packet.
+type endpointClosing struct {
+	pending  bool
+	request  endpointRequest
+	size     int
+	deadline time.Time
 }
 
 type endpointWait struct {
@@ -201,6 +239,7 @@ type endpointState struct {
 	admissionClass, serviceClass       int
 	capacityGeneration                 uint64
 	nextAdmission                      uint64
+	closers                            []*endpointParticipant
 }
 
 func newNativeEndpoint(socket *net.UDPConn, budget time.Duration, sink func(endpointDiagnostic)) (*nativeEndpoint, error) {
@@ -214,7 +253,7 @@ func startNativeEndpoint(native endpointNativeIO, budget time.Duration, sink fun
 	e := &nativeEndpoint{
 		generation: nextNativeEndpoint.Add(1),
 		commands:   make(chan func(*endpointState)), work: make(chan *endpointToken, 1),
-		returned: make(chan struct{}, 1), done: make(chan struct{}), fault: make(chan struct{}),
+		returned: make(chan struct{}, 1), writer: make(chan struct{}), done: make(chan struct{}), fault: make(chan struct{}),
 		diagnostics: make(chan endpointDiagnostic, 128),
 	}
 	go func() {
@@ -257,6 +296,12 @@ func (e *nativeEndpoint) do(f func(*endpointState)) {
 }
 
 func (e *nativeEndpoint) attach(id uint64) (*endpointParticipant, error) {
+	return e.attachShared(id, nil)
+}
+
+// attachShared attaches a participant that signals an existing wake channel, or a
+// new one when wake is nil. Only the channel's one consumer receives from it.
+func (e *nativeEndpoint) attachShared(id uint64, wake chan struct{}) (*endpointParticipant, error) {
 	var p *endpointParticipant
 	err := net.ErrClosed
 	e.do(func(s *endpointState) {
@@ -273,6 +318,9 @@ func (e *nativeEndpoint) attach(id uint64) (*endpointParticipant, error) {
 		for i, existing := range s.participants[:endpointParticipants] {
 			if existing == nil {
 				p = newEndpointParticipant(e, id, i, endpointData)
+				if wake != nil {
+					p.completed = wake
+				}
 				s.participants[i], err = p, nil
 				return
 			}
@@ -290,7 +338,7 @@ func (s *endpointState) valid(p *endpointParticipant) bool {
 func (e *nativeEndpoint) offer(p *endpointParticipant, lane int, request endpointRequest) error {
 	err := net.ErrClosed
 	e.do(func(s *endpointState) {
-		if s.sealed || s.faulted || !s.valid(p) {
+		if s.sealed || s.faulted || !s.valid(p) || p.draining {
 			return
 		}
 		if !request.authorized() {
@@ -351,7 +399,7 @@ func (s *endpointState) admit(p *endpointParticipant, lane, size int) (endpointA
 		}
 		wait.pending, wait.bytes = true, size
 	}
-	s.chooseGrant(now)
+	s.arbitrate(now, p, lane)
 	if s.grant == nil || s.grant.participant != p || s.grant.lane != lane || s.grant.expires.IsZero() {
 		return endpointAdmission{}, errEndpointCapacity
 	}
@@ -372,12 +420,6 @@ func (s *endpointState) admit(p *endpointParticipant, lane, size int) (endpointA
 		select {
 		case <-p.ready:
 		default:
-		}
-		if len(p.results) == 0 {
-			select {
-			case <-p.completed:
-			default:
-			}
 		}
 		return admission, nil
 	}
@@ -439,20 +481,28 @@ func (e *nativeEndpoint) take(p *endpointParticipant) (endpointResult, bool) {
 		s.records[i] = endpointRecord{}
 		p.retained--
 		s.capacityGeneration++
-		select {
-		case <-p.completed:
-		default:
-		}
+		// A connection's participants can share this channel, so control only
+		// signals it. A drain here could swallow another endpoint's wakeup.
 		if len(p.results) != 0 {
-			p.completed <- struct{}{}
+			select {
+			case p.completed <- struct{}{}:
+			default:
+			}
 		}
 	})
 	return result, ok
 }
 
 func (e *nativeEndpoint) stop() <-chan struct{} {
-	e.do(func(s *endpointState) { s.sealed = true })
+	e.seal()
 	return e.done
+}
+
+// seal stops admission for good. Queued work resolves as unsubmitted and the
+// current request keeps its token until actual return, so this never waits for
+// native I/O.
+func (e *nativeEndpoint) seal() {
+	e.do(func(s *endpointState) { s.sealed = true })
 }
 
 // cancelReadiness withdraws work that was refused and remains producer-owned.
@@ -469,15 +519,64 @@ func (e *nativeEndpoint) cancelReadiness(p *endpointParticipant, lane int) {
 	})
 }
 
-// detach cancels queued work immediately. A claimed request, including blocked
-// deadline setup/reset, keeps the participant's fence until actual native return.
+// detach cancels queued work immediately, unless the participant is draining. A
+// claimed request, including blocked deadline setup/reset, keeps the participant's
+// fence until actual native return.
 func (e *nativeEndpoint) detach(p *endpointParticipant) <-chan struct{} {
 	e.do(func(s *endpointState) {
-		if s.valid(p) {
-			s.revoke(p)
+		if !s.valid(p) {
+			return
 		}
+		if p.draining {
+			p.detaching = true
+			s.finishDrain(p)
+			return
+		}
+		s.revoke(p)
 	})
 	return p.retired
+}
+
+// serviceClosers runs after arbitration, so a lease granted in this pass is used
+// in this pass.
+func (s *endpointState) serviceClosers(now time.Time) {
+	for j := 0; j < len(s.closers); {
+		p := s.closers[j]
+		if s.faulted || !now.Before(p.closing.deadline) {
+			s.dropClosing(p)
+			s.finishDrain(p)
+			continue
+		}
+		if p.retained == 0 {
+			if admission, err := s.admit(p, 2, p.closing.size); err == nil {
+				request := p.closing.request
+				request.deadline = p.closing.deadline
+				s.commit(admission, request)
+				p.closing = endpointClosing{}
+				s.closers = slices.Delete(s.closers, j, j+1)
+				s.chooseGrant(now)
+				continue
+			}
+		}
+		j++
+	}
+}
+
+func (s *endpointState) dropClosing(p *endpointParticipant) {
+	if !p.closing.pending {
+		return
+	}
+	for _, buffer := range p.closing.request.buffers {
+		buffer.Release()
+	}
+	p.closing = endpointClosing{}
+	s.closers = slices.DeleteFunc(s.closers, func(closer *endpointParticipant) bool { return closer == p })
+}
+
+func (s *endpointState) finishDrain(p *endpointParticipant) {
+	if p.active && p.detaching && !p.closing.pending && p.retained == 0 {
+		s.revoke(p)
+	}
 }
 
 func (s *endpointState) retire(p *endpointParticipant) {
@@ -487,8 +586,8 @@ func (s *endpointState) retire(p *endpointParticipant) {
 	}
 }
 
-func (s *endpointState) revoke(p *endpointParticipant) {
-	p.active = false
+// withdraw ends everything that waits on the participant's consumer.
+func (s *endpointState) withdraw(p *endpointParticipant) {
 	clear(p.wait[:])
 	if s.grant != nil && s.grant.participant == p {
 		s.releaseGrant()
@@ -504,6 +603,12 @@ func (s *endpointState) revoke(p *endpointParticipant) {
 			s.cancelAdmission(endpointAdmission{index: index, serial: record.serial})
 		}
 	}
+}
+
+func (s *endpointState) revoke(p *endpointParticipant) {
+	p.active = false
+	s.dropClosing(p)
+	s.withdraw(p)
 	if s.current != nil && s.records[s.current.index].participant == p {
 		s.current.canceled.Store(true)
 	}
@@ -547,9 +652,10 @@ func (s *endpointState) publish(index int, result endpointResult) {
 		s.retire(p)
 		return
 	}
-	if !p.active {
+	if !p.active || p.draining {
 		*r = endpointRecord{}
 		p.retained--
+		s.finishDrain(p)
 		s.retire(p)
 		return
 	}
@@ -568,6 +674,14 @@ func (s *endpointState) publish(index int, result endpointResult) {
 func (s *endpointState) run() {
 	e := s.endpoint
 	defer close(e.done)
+	defer func() {
+		// run exits with no token outstanding, so this involves no native
+		// operation. Diagnostic sinks stay outside the join.
+		<-e.writer
+		if e.stopped != nil {
+			e.stopped()
+		}
+	}()
 	defer close(e.diagnostics)
 	defer close(e.work)
 	timer := time.NewTimer(time.Hour)
@@ -607,6 +721,7 @@ func (s *endpointState) run() {
 			return
 		}
 		s.chooseGrant(now)
+		s.serviceClosers(now)
 		if s.current == nil && len(s.queue) != 0 {
 			j := s.chooseService()
 			i := s.queue[j]
@@ -634,10 +749,10 @@ func (s *endpointState) run() {
 			}
 		}
 		for _, i := range s.queue {
-			deadline := s.records[i].request.deadline
-			if next.IsZero() || deadline.Before(next) {
-				next = deadline
-			}
+			next = earlierEndpointTime(next, s.records[i].request.deadline)
+		}
+		for _, p := range s.closers {
+			next = earlierEndpointTime(next, p.closing.deadline)
 		}
 		if !next.IsZero() {
 			timer.Reset(time.Until(next))
@@ -667,12 +782,14 @@ func (s *endpointState) reconcileCurrent(now time.Time) {
 	completion := token.completion.Load()
 	if completion == nil {
 		if !now.Before(cutoff) {
-			s.fail()
+			s.fail(endpointFaultOverdue, nil)
 		}
 		return // still fenced; only the writer can acknowledge native return
 	}
-	if completion.fault || !completion.returnedAt.Before(cutoff) {
-		s.fail()
+	if completion.fault {
+		s.fail(endpointFaultNative, completion.result.err)
+	} else if !completion.returnedAt.Before(cutoff) {
+		s.fail(endpointFaultLateReturn, completion.result.err)
 	}
 	s.publish(token.index, completion.result)
 	s.current = nil
@@ -738,6 +855,12 @@ func (s *endpointState) reclaimGrant(now time.Time) {
 // arrivals cannot consume that capacity. An unused lease ends its registration;
 // a producer that still owns pending work can register again after the floor.
 func (s *endpointState) chooseGrant(now time.Time) {
+	s.arbitrate(now, nil, 0)
+}
+
+// arbitrate wakes the lease's holder, unless that holder is admitting right now.
+// Waking it then would leave a signal with nothing to do on its shared channel.
+func (s *endpointState) arbitrate(now time.Time, admitting *endpointParticipant, admittingLane int) {
 	s.reclaimGrant(now)
 	if s.sealed || s.faulted {
 		return
@@ -808,6 +931,9 @@ func (s *endpointState) chooseGrant(now time.Time) {
 	n := p.wait[g.lane].bytes
 	if g.expires.IsZero() && s.count < endpointRequests && n <= endpointBytes-s.bytes && s.classCount[class] < endpointClassCounts[class] && n <= endpointClassBytes[class]-s.classBytes[class] {
 		g.expires = now.Add(endpointLease)
+		if p == admitting && g.lane == admittingLane {
+			return
+		}
 		select {
 		case p.ready <- s.capacityGeneration:
 		default:
@@ -848,9 +974,13 @@ func (s *endpointState) chooseService() int {
 	return best
 }
 
-func (s *endpointState) fail() {
+func (s *endpointState) fail(cause endpointFaultCause, err error) {
 	if !s.faulted {
 		s.faulted = true
+		s.endpoint.faultRecord = endpointFaultRecord{cause: cause, err: err}
+		if s.current != nil {
+			s.endpoint.faultRecord.identity = s.current.request.identity
+		}
 		close(s.endpoint.fault)
 		if s.current != nil {
 			s.current.canceled.Store(true)
@@ -859,6 +989,7 @@ func (s *endpointState) fail() {
 }
 
 func (e *nativeEndpoint) write(native endpointNativeIO) {
+	defer close(e.writer)
 	for token := range e.work {
 		r := token.request
 		result := endpointResult{unsubmitted: r.datagrams()}

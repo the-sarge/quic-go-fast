@@ -495,6 +495,7 @@ func TestNativeEndpointCompletionPool(t *testing.T) {
 		_, ok := e.take(first)
 		require.True(t, ok)
 		<-p.ready
+		<-p.completed // the grant also wakes the consumer, which alone receives this channel
 		require.NoError(t, e.offer(p, 0, r))
 		<-p.completed
 		result, ok := e.take(p)
@@ -521,6 +522,7 @@ func TestNativeEndpointReadinessLease(t *testing.T) {
 		_, ok := e.take(p)
 		require.True(t, ok)
 		generation := <-p.ready
+		<-p.completed
 		other, err := e.attach(2)
 		require.NoError(t, err)
 		next := endpointTestRequest(2, "next turn")

@@ -165,6 +165,9 @@ type Transport struct {
 	conn       rawConn
 	responses  *endpointResponses
 	policyConn packetPolicyConn
+	// nativeIOConn is the socket granted to the native endpoint. It and responses
+	// are configured before initialization and immutable thereafter.
+	nativeIOConn net.PacketConn
 	// candidates is joined before initialization and immutable thereafter.
 	candidates *candidateGroup
 	// setupAdmission is configured before initialization and immutable thereafter.
@@ -393,6 +396,11 @@ func (t *Transport) doDial(
 		conn.abortUnstarted(err)
 		return nil, err
 	}
+	if err := conn.installNativeRoute(t, sendConn.RemoteAddr(), packetInfo{}); err != nil {
+		t.mutex.Unlock()
+		conn.abortUnstarted(err)
+		return nil, err
+	}
 	t.handlers[srcConnID] = packetHandlerEntry{handler: conn}
 	t.mutex.Unlock()
 
@@ -540,6 +548,11 @@ func (t *Transport) WriteTo(b []byte, addr net.Addr) (int, error) {
 		if closed {
 			return 0, net.ErrClosed
 		}
+		// A public write is the route's first use when no connection preceded it, so
+		// it seals configuration without starting the reader.
+		if err := t.beginPacketIO(); err != nil {
+			return 0, err
+		}
 		return t.responses.backend.writePublic(b, addr, t.responses.epoch)
 	}
 	if err := t.init(false); err != nil {
@@ -646,6 +659,9 @@ func (t *Transport) close(e error) {
 	e = &errTransportClosed{err: e}
 	t.transportClosed = true
 	t.responses.revoke()
+	// Sealing precedes logical shutdown, so no captured producer can reach the
+	// socket once it begins. It doesn't wait for the writer.
+	t.responses.seal()
 	t.closeErr = e
 	t.cancelReadRetry()
 	server := t.server

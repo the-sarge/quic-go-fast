@@ -7,7 +7,9 @@ import (
 	"net"
 	"net/netip"
 	"runtime"
+	"slices"
 	"sync/atomic"
+	"time"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
@@ -15,6 +17,8 @@ import (
 )
 
 var nextNativeOrdinary atomic.Uint64
+
+var errLocalPacketRoute = errors.New("quic: operation excluded from private ordinary endpoint route")
 
 // Validation probes use the connection-control lane, so ordinary backlog can't
 // starve them.
@@ -37,29 +41,34 @@ type ordinaryLocalRecord struct {
 }
 
 type nativeOrdinarySender struct {
-	endpoint         *nativeEndpoint
-	participant      *endpointParticipant
-	recovery         ackhandler.LocalSentPacketHandler
-	connection       *Conn
-	destination      netip.AddrPort
-	oob              []byte
-	writeState       endpointWriteState
-	nativeGSO        bool
-	generation       uint64
+	endpoint    *nativeEndpoint
+	participant *endpointParticipant
+	recovery    ackhandler.LocalSentPacketHandler
+	connection  *Conn
+	destination netip.AddrPort
+	oob         []byte
+	writeState  *endpointWriteState // the current path's; each conn owns its own
+	nativeGSO   bool
+	generation  uint64
+	// switchGeneration is the generation the latest path switch began. A result
+	// below it belongs to a path the connection left, even on an endpoint it has
+	// since returned to.
+	switchGeneration uint64
 	records          [4]ordinaryLocalRecord
 	pending          *ordinaryLocalRecord
 	err              error
-	closed           bool
+	drained, closed  bool
 	droppedDatagrams uint64
-	// targets holds at most one participant per other endpoint a client probed.
-	// Each pass of the connection loop consumes their records, which have no
-	// protocol consequence, so they need no wakeup of their own.
+	// targets holds at most one participant per other endpoint a client probed or
+	// left. They share the primary's wake channel, and each pass of the connection
+	// loop reconciles all of them.
 	targets []*endpointParticipant
 }
 
 type nativeOrdinaryConn struct {
 	sendConn
-	sender *nativeOrdinarySender
+	sender     *nativeOrdinarySender
+	writeState endpointWriteState
 }
 
 func (c *Conn) useNativeOrdinary(endpoint *nativeEndpoint, destination netip.AddrPort, info packetInfo) error {
@@ -83,7 +92,9 @@ func (c *Conn) useNativeOrdinary(endpoint *nativeEndpoint, destination netip.Add
 		destination: destination, oob: info.OOB(), nativeGSO: runtime.GOOS == "linux", generation: 1,
 	}
 	c.emission.local, c.emission.queue = queue, queue
-	c.conn = &nativeOrdinaryConn{sendConn: c.conn, sender: queue}
+	conn := &nativeOrdinaryConn{sendConn: c.conn, sender: queue}
+	queue.writeState = &conn.writeState
+	c.conn = conn
 	return nil
 }
 
@@ -114,6 +125,39 @@ func (e *nativeEndpoint) submit(admission endpointAdmission, request endpointReq
 	return err
 }
 
+// drain moves terminal disposal to the endpoint. Queued requests keep their
+// deadlines, because the baseline sends them ahead of a CONNECTION_CLOSE. It
+// never waits for native I/O.
+func (e *nativeEndpoint) drain(p *endpointParticipant) {
+	e.do(func(s *endpointState) {
+		if !s.valid(p) || p.draining {
+			return
+		}
+		p.draining = true
+		s.withdraw(p)
+	})
+}
+
+// depositClose takes ownership of a draining participant's close packet on
+// success. It is admitted on the connection-control lane once the participant's
+// queued and current requests resolve, or released at deposit+B.
+func (e *nativeEndpoint) depositClose(p *endpointParticipant, request endpointRequest) error {
+	err := net.ErrClosed
+	e.do(func(s *endpointState) {
+		if s.sealed || s.faulted || !s.valid(p) || !p.draining || p.closing.pending {
+			return
+		}
+		err = errEndpointRequest
+		if request.identity.connection != p.id || !request.destination.IsValid() || len(request.buffers) != 1 || request.buffers[0] == nil || request.buffers[0].refCount != 1 || len(request.buffers[0].Data) == 0 || cap(request.buffers[0].Data) > 64<<10 {
+			return
+		}
+		p.closing = endpointClosing{pending: true, request: request, size: cap(request.buffers[0].Data), deadline: time.Now().Add(s.budget)}
+		s.closers = append(s.closers, p)
+		err = nil
+	})
+	return err
+}
+
 func (e *nativeEndpoint) cancelAdmission(admission endpointAdmission) {
 	e.do(func(s *endpointState) { s.cancelAdmission(admission) })
 }
@@ -133,7 +177,7 @@ func (e *nativeEndpoint) cancelGeneration(p *endpointParticipant, generation uin
 }
 
 func (s *nativeOrdinarySender) WouldBlock() bool {
-	if s.closed || s.err != nil {
+	if s.drained || s.closed || s.err != nil {
 		return true
 	}
 	if s.pending != nil {
@@ -153,7 +197,7 @@ func (s *nativeOrdinarySender) WouldBlock() bool {
 		}
 		admission, err := s.endpoint.prepare(s.participant, 0, int(protocol.MaxLargePacketBufferSize))
 		if err != nil {
-			if !errors.Is(err, errEndpointCapacity) {
+			if !errors.Is(err, errEndpointCapacity) && !errors.Is(err, net.ErrClosed) {
 				s.err = err
 			}
 			return true
@@ -188,6 +232,31 @@ func (s *nativeOrdinarySender) Send(buffer *packetBuffer, segment uint16, ecn pr
 		panic("local packet handoff without reserved construction capacity")
 	}
 	record.metadata, record.bytes = metadata, buffer.Len()
+	request := endpointRequest{
+		identity: record.identity, destination: s.destination, buffers: []*packetBuffer{buffer},
+		deadline: record.admission.deadline, oob: s.packetOOB(ecn), gsoSize: segment, nativeGSO: s.nativeGSO,
+		writeState: s.writeState, credit: metadata.credit,
+	}
+	record.datagrams = request.datagrams()
+	err := errEndpointRequest
+	if segment == 0 || record.count == record.datagrams {
+		err = s.endpoint.submit(record.admission, request)
+	}
+	if err != nil {
+		// A sealed refusal isn't this connection's failure: the transport's destroy
+		// carries the close cause, and a fault arrives through the fault channel.
+		if !errors.Is(err, net.ErrClosed) {
+			s.err = err
+		}
+		buffer.Release()
+		metadata.credit.complete()
+		s.finish()
+		return
+	}
+	s.pending = nil
+}
+
+func (s *nativeOrdinarySender) packetOOB(ecn protocol.ECN) []byte {
 	oob := append([]byte(nil), s.oob...)
 	if ecn != protocol.ECNUnsupported {
 		if s.destination.Addr().Unmap().Is4() {
@@ -196,24 +265,32 @@ func (s *nativeOrdinarySender) Send(buffer *packetBuffer, segment uint16, ecn pr
 			oob = appendIPv6ECNMsg(oob, ecn)
 		}
 	}
-	request := endpointRequest{
-		identity: record.identity, destination: s.destination, buffers: []*packetBuffer{buffer},
-		deadline: record.admission.deadline, oob: oob, gsoSize: segment, nativeGSO: s.nativeGSO,
-		writeState: &s.writeState, credit: metadata.credit,
-	}
-	record.datagrams = request.datagrams()
-	if segment != 0 && record.count != record.datagrams {
-		s.err = errEndpointRequest
-	} else {
-		s.err = s.endpoint.submit(record.admission, request)
-	}
-	if s.err != nil {
-		buffer.Release()
-		metadata.credit.complete()
-		s.finish()
+	return oob
+}
+
+// drain ends local admission while recovery stays open. CloseLocal replaces the
+// packet-number spaces, and the close packet is packed after this returns.
+func (s *nativeOrdinarySender) drain() {
+	if s.drained || s.closed {
 		return
 	}
-	s.pending = nil
+	s.drained = true
+	s.finish()
+	s.endpoint.drain(s.participant)
+}
+
+// sendClose consumes the buffer. The endpoint holds it as this connection's close
+// obligation, so the caller never waits for native I/O.
+func (s *nativeOrdinarySender) sendClose(buffer *packetBuffer, ecn protocol.ECN) error {
+	s.drain()
+	err := s.endpoint.depositClose(s.participant, endpointRequest{
+		identity:    endpointIdentity{connection: s.participant.id, generation: s.generation, pathGeneration: s.connection.pathGeneration, tuple: s.connection.pathGeneration},
+		destination: s.destination, buffers: []*packetBuffer{buffer}, oob: s.packetOOB(ecn), writeState: s.writeState,
+	})
+	if err != nil {
+		buffer.Release()
+	}
+	return err
 }
 
 func (s *nativeOrdinarySender) SendProbe(*packetBuffer, net.Addr, packetInfo) error {
@@ -243,7 +320,7 @@ func (s *nativeOrdinarySender) probeParticipant(endpoint *nativeEndpoint) *endpo
 			return target
 		}
 	}
-	target, err := endpoint.attach(s.participant.id)
+	target, err := endpoint.attachShared(s.participant.id, s.participant.completed)
 	if err != nil {
 		return nil
 	}
@@ -326,12 +403,30 @@ func (s *nativeOrdinarySender) finish() {
 }
 
 func (s *nativeOrdinarySender) consume() error {
+	s.consumeParticipant(s.participant)
+	for _, target := range s.targets {
+		s.consumeParticipant(target)
+	}
+	select {
+	case <-s.endpoint.fault:
+		s.err = errors.Join(s.err, errEndpointFault)
+	default:
+	}
+	return s.err
+}
+
+// consumeParticipant reconciles one endpoint's results. A result from before the
+// latest path switch settles its tokens and nothing else, so a path the connection
+// left can't end it or affect its replacement.
+func (s *nativeOrdinarySender) consumeParticipant(participant *endpointParticipant) {
 	for {
-		result, ok := s.endpoint.take(s.participant)
+		result, ok := participant.endpoint.take(participant)
 		if !ok {
-			break
+			return
 		}
-		s.connection.scheduleSending()
+		if participant == s.participant {
+			s.connection.scheduleSending()
+		}
 		identity := result.identity
 		identity.endpoint = 0
 		for index := range s.records {
@@ -358,7 +453,9 @@ func (s *nativeOrdinarySender) consume() error {
 				}
 				s.completePacket(packet, outcome, result.returnedAt, isSendMsgSizeErr(result.err))
 			}
-			if isSendMsgSizeErr(result.err) {
+			if identity.generation < s.switchGeneration {
+				s.connection.scheduleSending()
+			} else if isSendMsgSizeErr(result.err) {
 				if record.metadata.handshake && record.datagrams == 1 && record.bytes > protocol.MinInitialPacketSize {
 					s.connection.handshakeSendFeedback.publish(record.metadata.pathGeneration)
 				}
@@ -369,19 +466,6 @@ func (s *nativeOrdinarySender) consume() error {
 			break
 		}
 	}
-	for _, target := range s.targets {
-		for {
-			if _, ok := target.endpoint.take(target); !ok {
-				break
-			}
-		}
-	}
-	select {
-	case <-s.endpoint.fault:
-		s.err = errors.Join(s.err, errEndpointFault)
-	default:
-	}
-	return s.err
 }
 
 func (s *nativeOrdinarySender) reject() {
@@ -411,6 +495,33 @@ func (s *nativeOrdinarySender) rebind(address net.Addr, info packetInfo) bool {
 	return true
 }
 
+// replacePath switches to the target transport's endpoint. Recovery has already
+// retired the old registrations, so their late results reconcile terminal identity
+// through the old participant, which stays attached until close. It returns the new
+// path's conn, or nil after rejecting a target that can't take the route.
+func (s *nativeOrdinarySender) replacePath(target *Transport, conn sendConn) sendConn {
+	endpoint := nativeTransportEndpoint(target)
+	var participant *endpointParticipant
+	if endpoint != nil && !s.closed && !s.drained {
+		participant = s.probeParticipant(endpoint)
+	}
+	if participant == nil {
+		s.reject()
+		return nil
+	}
+	s.reset()
+	s.switchGeneration = s.generation
+	if participant != s.participant {
+		s.targets = slices.DeleteFunc(s.targets, func(p *endpointParticipant) bool { return p == participant })
+		s.targets = append(s.targets, s.participant)
+		s.participant, s.endpoint = participant, endpoint
+	}
+	s.oob = nil
+	next := &nativeOrdinaryConn{sendConn: conn, sender: s}
+	s.writeState = &next.writeState
+	return next
+}
+
 func (s *nativeOrdinarySender) Close() {
 	if s.closed {
 		return
@@ -424,6 +535,8 @@ func (s *nativeOrdinarySender) Close() {
 	}
 	clear(s.records[:])
 }
+
+func (c *nativeOrdinaryConn) localRoute() {}
 
 func (c *nativeOrdinaryConn) Write([]byte, uint16, protocol.ECN) error { return errLocalPacketRoute }
 
@@ -439,6 +552,6 @@ func (c *nativeOrdinaryConn) ChangeRemoteAddr(address net.Addr, info packetInfo)
 
 func (c *nativeOrdinaryConn) capabilities() connCapabilities {
 	capabilities := c.sendConn.capabilities()
-	capabilities.GSO = capabilities.GSO && !c.sender.writeState.gsoDisabled.Load()
+	capabilities.GSO = capabilities.GSO && !c.writeState.gsoDisabled.Load()
 	return capabilities
 }

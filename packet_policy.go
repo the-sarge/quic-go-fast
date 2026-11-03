@@ -2,6 +2,7 @@ package quic
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/netip"
 
@@ -140,6 +141,11 @@ func (t *Transport) checkPathPolicy(origin sendConn) error {
 	}
 	if t.policyConn.network != nil {
 		return errors.New("quic: network restricted transport cannot accept a path")
+	}
+	// A path off the native route could write around the endpoint's grant and
+	// outlive its join, and a route origin can't wait on a direct write.
+	if _, local := origin.(localRouteConn); local != (t.responses != nil) {
+		return fmt.Errorf("%w: a path's origin and target must share the native endpoint route", ErrMultipathUnsupportedV1)
 	}
 	// Reserve the target while still holding the configuration lock. No setter
 	// can install a fixed policy between successful admission and initialization.

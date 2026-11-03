@@ -269,6 +269,8 @@ func TestNativeOrdinaryTerminalLifetime(t *testing.T) {
 					c.sentPacketHandler.DropPackets(protocol.EncryptionInitial, monotime.Now())
 				case "close":
 					c.emission.drain()
+					require.NotEqual(t, ackhandler.SendNone, c.sentPacketHandler.SendMode(monotime.Now()), "the close packet still needs recovery's packet numbers")
+					queue.Close()
 					require.Equal(t, ackhandler.SendNone, c.sentPacketHandler.SendMode(monotime.Now()))
 					select {
 					case <-queue.participant.retired:

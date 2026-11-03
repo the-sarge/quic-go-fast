@@ -1,6 +1,6 @@
 # Reno-first QUIC multipath implementation plan
 
-**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8 complete (8/19 slices); R9 #1029 awaits E5 #1019. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
+**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8 complete (8/19 slices); R9 #1029 is ready now that E5 #1019 is complete. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
 
 ## Binding contract and operating discipline
 
@@ -551,7 +551,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R7 — Give Reno paths independent recovery and pacing
 
-**State:** complete. R8 #1028 is complete. R9 #1029 still requires E5 #1019; there is no newly ready Reno successor. Public negotiation remains disabled.
+**State:** complete. R8 #1028 is complete. R9 #1029 is ready now that E5 #1019 is complete. Public negotiation remains disabled.
 
 **Delivers:** Partition application sent histories, loss/PTO, Reno registration prefix/undo and adaptive-loss state by protocol path, with aggregate logical delivery/resource ceilings. Demultiplex target ACK independent of carrier; preserve per-generation retained evidence and path-zero behavior. Create one stable connection-owned RTT observation/accessor for connection and already-created stream flow controllers; constructors/readers use it while per-path recovery retains separate RTT state. Later retirement/primary transitions update that same owner.
 
@@ -589,7 +589,7 @@ The thirteen deterministic new scenarios and one focused race run terminate this
 
 ### R8 — Issue bounded path credit and CID windows
 
-**State:** complete. Two slots and the fixed initial unused-ID/CID window are available only through private activation. R9 #1029 remains blocked by E5 #1019; there is no newly ready Reno successor. Public negotiation remains disabled.
+**State:** complete. Two slots and the fixed initial unused-ID/CID window are available only through private activation. R9 #1029 is ready now that E5 #1019 is complete. Public negotiation remains disabled.
 
 **Delivers:** Implement two live slots, one unused-ID issuance window, monotonic grants, per-path CID limits and compliant-churn resource decline through real control handlers. Do not allocate arrays from sparse peer IDs or grant replacement credit while an unresolved submission still occupies a slot. Establish the common terminal-transition owner via unused-issued-ID abandonment: real control ingress queues the reciprocal frame and retains bounded CID/terminal evidence. Compliant resource decline uses this owner; no terminal cleanup is deferred to a successor.
 

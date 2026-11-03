@@ -175,6 +175,22 @@ func (t *Transport) beginPacketIOLocked() error {
 	if c.external != nil && !samePacketConn(c.external.conn, t.Conn) {
 		return errors.New("quic: Transport.Conn changed after external packet I/O registration")
 	}
+	if t.nativeIOConn != nil {
+		if !samePacketConn(t.nativeIOConn, t.Conn) {
+			return fmt.Errorf("%w: Transport.Conn changed after the native endpoint grant", ErrMultipathUnsupportedV1)
+		}
+		return t.nativeIOConflict()
+	}
+	return nil
+}
+
+// nativeIOConflict refuses configurations the native endpoint's profile excludes.
+// Configuration can happen on either side of the grant, so initialization checks
+// again. Requires packetIO.mutex.
+func (t *Transport) nativeIOConflict() error {
+	if t.packetIO.external != nil || t.policyConn.policy != nil || t.policyConn.network != nil || t.candidates != nil || t.sendThreadQoS {
+		return fmt.Errorf("%w: excluded transport configuration", ErrMultipathUnsupportedV1)
+	}
 	return nil
 }
 
