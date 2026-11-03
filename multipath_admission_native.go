@@ -21,6 +21,11 @@ func (c *Conn) openPathPrivate(ctx context.Context, target *Transport, addr net.
 	case err := <-request.done:
 		return err
 	case <-ctx.Done():
+		select {
+		case err := <-request.done:
+			return err // an already published result stands
+		default:
+		}
 		request.canceled.Store(true)
 		c.scheduleSending()
 		return context.Cause(ctx)

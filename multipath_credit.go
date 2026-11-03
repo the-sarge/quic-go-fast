@@ -214,7 +214,8 @@ func (p *pathCreditRegistry) expire(now monotime.Time) error {
 				return &qerr.TransportError{ErrorCode: qerr.InternalError, ErrorMessage: "unanswered path abandonment"}
 			}
 		}
-		if !terminal.expired && terminal.expiry != 0 && !terminal.expiry.After(now) {
+		// Retention alone releases nothing: the signal proves the fence resolved.
+		if !terminal.expired && terminal.signaled && terminal.expiry != 0 && !terminal.expiry.After(now) {
 			p.conn.connIDGenerator.releasePathCIDs(id)
 			p.conn.connIDManager.releasePathCIDs(id)
 			terminal.expired = true
@@ -256,7 +257,8 @@ func (p *pathCreditRegistry) nextExpiry() monotime.Time {
 		if !terminal.received && terminal.unanswered != 0 && (next == 0 || terminal.unanswered < next) {
 			next = terminal.unanswered
 		}
-		if !terminal.expired && terminal.expiry != 0 && (next == 0 || terminal.expiry < next) {
+		// An unresolved fence wakes through endpoint completion, not an elapsed timer.
+		if !terminal.expired && terminal.signaled && terminal.expiry != 0 && (next == 0 || terminal.expiry < next) {
 			next = terminal.expiry
 		}
 	}

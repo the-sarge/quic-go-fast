@@ -5,6 +5,8 @@ package quic
 import (
 	"context"
 	"crypto/tls"
+	"errors"
+	"io"
 	"net"
 	"testing"
 	"testing/synctest"
@@ -205,18 +207,20 @@ func (f *admissionFixture) peerWrites(t *testing.T, id protocol.PathID) []admiss
 		var frames []wire.Frame
 		for len(payload) > 0 {
 			typ, n, err := parser.ParseType(payload, protocol.Encryption1RTT)
-			if err != nil {
-				break
+			if errors.Is(err, io.EOF) {
+				break // only PADDING remained
 			}
+			require.NoError(t, err)
 			payload = payload[n:]
-			if typ == wire.FrameTypePing {
-				frames = append(frames, &wire.PingFrame{})
+			// Control frames are shuffled, so every type before them must parse.
+			if typ.IsAckFrameType() || typ.IsPathAckFrameType() {
+				_, n, err := parser.ParseAckFrame(typ, payload, protocol.Encryption1RTT, protocol.Version1)
+				require.NoError(t, err)
+				payload = payload[n:]
 				continue
 			}
 			frame, n, err := parser.ParseLessCommonFrame(typ, payload, protocol.Version1)
-			if err != nil {
-				break
-			}
+			require.NoError(t, err)
 			payload = payload[n:]
 			frames = append(frames, frame)
 		}
@@ -378,52 +382,144 @@ func TestPathAdmissionMismatchedResponseTarget(t *testing.T) {
 }
 
 func TestPathAdmissionAbsoluteExpiry(t *testing.T) {
-	nativeOrdinaryTest(t, func(t *testing.T) {
-		f := newAdmissionFixture(t, protocol.PerspectiveServer)
-		f.supplyPeerCIDs(t)
-		require.True(t, f.receive(t, 1, admissionTupleA, 1200, &wire.PingFrame{}))
-		f.pass(t)
-		start := monotime.Now()
-		require.Equal(t, start.Add(5*time.Second), f.c.pathCredit.members[1].candidate.probe.validationDeadline)
-		require.LessOrEqual(t, f.c.pathCredit.nextExpiry(), start.Add(5*time.Second))
-		time.Sleep(5 * time.Second)
-		f.pass(t)
-		require.Contains(t, f.c.pathCredit.terminals, protocol.PathID(1))
-		require.Equal(t, 1, admissionAbandons(f.peerWrites(t, 0), 1), "expiry closes a consumed ID on the survivor")
-		require.True(t, f.c.pathCredit.paths[1], "the consumed ID stays charged")
-		f.receive(t, 1, admissionTupleA, 100, &wire.PingFrame{})
-		require.Nil(t, f.c.pathCredit.members[1].candidate, "traffic cannot revive it")
+	t.Run("no response", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveServer)
+			f.supplyPeerCIDs(t)
+			require.True(t, f.receive(t, 1, admissionTupleA, 1200, &wire.PingFrame{}))
+			f.pass(t)
+			start := monotime.Now()
+			require.Equal(t, start.Add(5*time.Second), f.c.pathCredit.members[1].candidate.probe.validationDeadline)
+			require.LessOrEqual(t, f.c.pathCredit.nextExpiry(), start.Add(5*time.Second))
+			time.Sleep(5 * time.Second)
+			f.pass(t)
+			require.Contains(t, f.c.pathCredit.terminals, protocol.PathID(1))
+			require.Equal(t, 1, admissionAbandons(f.peerWrites(t, 0), 1), "expiry closes a consumed ID on the survivor")
+			require.True(t, f.c.pathCredit.paths[1], "the consumed ID stays charged")
+			f.receive(t, 1, admissionTupleA, 100, &wire.PingFrame{})
+			require.Nil(t, f.c.pathCredit.members[1].candidate, "traffic cannot revive it")
+		})
+	})
+	t.Run("a response handled before expiry service", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveServer)
+			f.supplyPeerCIDs(t)
+			require.True(t, f.receive(t, 1, admissionTupleA, 1200, &wire.PingFrame{}))
+			f.pass(t)
+			challenge := admissionChallenges(f.peerWrites(t, 1))[0]
+			time.Sleep(6 * time.Second)
+			require.True(t, f.receive(t, 1, admissionTupleA, 100, &wire.PathResponseFrame{Data: challenge}))
+			require.False(t, f.c.pathCredit.members[1].live, "the deadline is absolute")
+			f.pass(t)
+			require.Contains(t, f.c.pathCredit.terminals, protocol.PathID(1))
+		})
+	})
+	t.Run("a committed path with no peer CID", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveServer)
+			require.True(t, f.receive(t, 1, admissionTupleA, 1200, &wire.PingFrame{}))
+			require.Nil(t, f.c.pathCredit.members[1].candidate)
+			start := monotime.Now()
+			require.Equal(t, start.Add(5*time.Second), f.c.pathCredit.nextExpiry())
+			time.Sleep(3 * time.Second)
+			f.supplyPeerCIDs(t)
+			require.True(t, f.receive(t, 1, admissionTupleA, 1200, &wire.PingFrame{}))
+			require.Equal(t, start.Add(5*time.Second), f.c.pathCredit.members[1].candidate.probe.validationDeadline, "a later CID or retry cannot refresh it")
+			time.Sleep(2 * time.Second)
+			f.pass(t)
+			require.Contains(t, f.c.pathCredit.terminals, protocol.PathID(1))
+			require.Equal(t, 1, admissionAbandons(f.peerWrites(t, 0), 1))
+		})
 	})
 }
 
 func TestPathAdmissionReceivedAbandonAwaitsFence(t *testing.T) {
-	nativeOrdinaryTest(t, func(t *testing.T) {
-		f := newAdmissionFixture(t, protocol.PerspectiveServer)
-		f.supplyPeerCIDs(t)
-		f.socket.hold = nativeProbeHoldAll
-		require.True(t, f.receive(t, 1, admissionTupleA, 1200, &wire.PingFrame{}))
-		f.pass(t)
-		require.Len(t, f.socket.writes, 1, "the validation send is claimed")
-		cid := f.issuedCID(1)
-		require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathAbandonFrame{PathID: 1}))
-		terminal := f.c.pathCredit.terminals[1]
-		require.False(t, terminal.signaled, "no reciprocal signal may precede the fence")
-		f.pass(t)
-		require.Len(t, f.socket.writes, 1, "the claimed send blocks the signal, and the probe budget is revoked")
-		require.False(t, terminal.signaled)
-		f.socket.hold = nil
-		f.socket.release()
-		f.pass(t)
-		require.True(t, terminal.signaled)
-		f.pass(t)
-		require.Equal(t, 1, admissionAbandons(f.peerWrites(t, 0), 1))
-		_, routed := f.route.Get(cid)
-		require.True(t, routed, "routing outlives the signal")
-		require.NotZero(t, terminal.expiry)
-		require.NoError(t, f.c.pathCredit.expire(terminal.expiry))
-		_, routed = f.route.Get(cid)
-		require.False(t, routed)
-		require.Zero(t, f.c.pathCredit.historyUnits)
+	t.Run("a claimed validation send", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveServer)
+			f.supplyPeerCIDs(t)
+			f.socket.hold = nativeProbeHoldAll
+			require.True(t, f.receive(t, 1, admissionTupleA, 1200, &wire.PingFrame{}))
+			f.pass(t)
+			require.Len(t, f.socket.writes, 1, "the validation send is claimed")
+			cid := f.issuedCID(1)
+			require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathAbandonFrame{PathID: 1}))
+			terminal := f.c.pathCredit.terminals[1]
+			require.False(t, terminal.signaled, "no reciprocal signal may precede the fence")
+			f.pass(t)
+			require.Len(t, f.socket.writes, 1, "the claimed send blocks the signal, and the probe budget is revoked")
+			require.False(t, terminal.signaled)
+			f.socket.hold = nil
+			f.socket.release()
+			f.pass(t)
+			require.True(t, terminal.signaled)
+			f.pass(t)
+			require.Equal(t, 1, admissionAbandons(f.peerWrites(t, 0), 1))
+			_, routed := f.route.Get(cid)
+			require.True(t, routed, "routing outlives the signal")
+			require.NotZero(t, terminal.expiry)
+			require.NoError(t, f.c.pathCredit.expire(terminal.expiry))
+			_, routed = f.route.Get(cid)
+			require.False(t, routed)
+			require.Zero(t, f.c.pathCredit.historyUnits)
+		})
+	})
+	t.Run("a validation that left a retry claimed", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveServer)
+			f.supplyPeerCIDs(t)
+			require.True(t, f.receive(t, 1, admissionTupleA, 1200, &wire.PingFrame{}))
+			f.pass(t)
+			first := admissionChallenges(f.peerWrites(t, 1))[0]
+			candidate := f.c.pathCredit.members[1].candidate
+			f.socket.hold = nativeProbeHoldAll
+			time.Sleep(time.Duration(candidate.probe.nextProbeTime - monotime.Now()))
+			f.pass(t)
+			require.Equal(t, 2, candidate.probe.numChallenges, "the retry is claimed")
+			require.True(t, f.receive(t, 1, admissionTupleA, 100, &wire.PathResponseFrame{Data: first}))
+			require.True(t, f.c.pathCredit.members[1].live)
+			require.False(t, candidate.probe.probeEpoch.valid(), "success revokes the retry")
+			require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathAbandonFrame{PathID: 1}))
+			terminal := f.c.pathCredit.terminals[1]
+			f.pass(t)
+			require.False(t, terminal.signaled, "a dropped candidate's claim still fences")
+			f.socket.hold = nil
+			f.socket.release()
+			f.pass(t)
+			require.True(t, terminal.signaled)
+		})
+	})
+	t.Run("retention that elapses during a claim", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveServer)
+			f.supplyPeerCIDs(t)
+			f.socket.hold = nativeProbeHoldAll
+			require.True(t, f.receive(t, 1, admissionTupleA, 1200, &wire.PingFrame{}))
+			f.pass(t)
+			cid := f.issuedCID(1)
+			require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathAbandonFrame{PathID: 1}))
+			terminal := f.c.pathCredit.terminals[1]
+			late := terminal.expiry.Add(time.Hour)
+			for range 2 {
+				require.NoError(t, f.c.pathCredit.expire(late))
+			}
+			require.False(t, terminal.expired)
+			require.False(t, terminal.signaled)
+			require.Contains(t, f.c.pathCredit.members, protocol.PathID(1))
+			require.Equal(t, 1, f.c.pathCredit.historyUnits)
+			_, routed := f.route.Get(cid)
+			require.True(t, routed)
+			require.NotEqual(t, terminal.expiry, f.c.pathCredit.nextExpiry(), "an elapsed retention timer cannot spin")
+			f.socket.hold = nil
+			f.socket.release()
+			synctest.Wait()
+			require.NoError(t, f.c.pathCredit.expire(late))
+			require.True(t, terminal.signaled)
+			require.True(t, terminal.expired)
+			_, routed = f.route.Get(cid)
+			require.False(t, routed)
+			require.Zero(t, f.c.pathCredit.historyUnits)
+		})
 	})
 }
 
@@ -497,6 +593,12 @@ func TestPathAdmissionClientOpen(t *testing.T) {
 			}
 		}
 		require.True(t, answered)
+		// The bounded history can forget a live tuple, which keeps its authority.
+		f.c.pathCredit.validated = nil
+		f.socket.writes = nil
+		require.True(t, f.receive(t, 1, admissionTupleA, 100, &wire.PathChallengeFrame{Data: [8]byte{8}}))
+		f.pass(t)
+		require.NotEmpty(t, f.peerWrites(t, 1), "a live path keeps answering on its tuple")
 	})
 }
 
@@ -551,6 +653,22 @@ func TestPathAdmissionCancellation(t *testing.T) {
 			require.NotContains(t, f.c.pathCredit.terminals, protocol.PathID(1))
 			require.Nil(t, f.c.pathOpen.Load(), "the operation slot is free")
 			require.Zero(t, f.c.pathCredit.historyUnits)
+		})
+	})
+	t.Run("a response handled before cancellation service", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			ctx, cancel := context.WithCancel(context.Background())
+			errs := f.openAsync(ctx, nil, admissionTupleA)
+			f.pass(t)
+			challenge := admissionChallenges(f.peerWrites(t, 1))[0]
+			cancel()
+			require.ErrorIs(t, <-errs, context.Canceled)
+			require.True(t, f.receive(t, 1, admissionTupleA, 100, &wire.PathResponseFrame{Data: challenge}))
+			require.False(t, f.c.pathCredit.members[1].live, "a canceled open never activates")
+			f.pass(t)
+			require.Contains(t, f.c.pathCredit.terminals, protocol.PathID(1))
 		})
 	})
 	t.Run("after an ID is committed", func(t *testing.T) {

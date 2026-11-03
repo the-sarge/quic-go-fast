@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -41,6 +42,11 @@ type pathMember struct {
 	candidate *pathCandidate
 	response  *pathResponseDue
 	announce  bool
+	deadline  monotime.Time // absolute, set at commitment; only a validating path uses it
+	// fences lists every probe epoch this path has created. An entry leaves only
+	// once it is revoked and resolved, so the abandonment signal and the release of
+	// this member can never outrun a submission.
+	fences []pathFence
 	// established accounts for sends to a validated tuple, whose amplification
 	// limit is lifted, and revokes them at retirement.
 	established path
@@ -53,7 +59,11 @@ type pathCandidate struct {
 	transport *Transport
 	connID    protocol.ConnectionID
 	request   *pathOpenRequest
-	retired   bool // the slot stays charged until its submissions fence
+}
+
+type pathFence struct {
+	transport *Transport
+	epoch     *responseEpoch
 }
 
 type pathResponseDue struct {
@@ -99,7 +109,9 @@ func (p *pathCreditRegistry) enableAdmission() {
 		return
 	}
 	addr := p.conn.RemoteAddr()
-	p.members = map[protocol.PathID]*pathMember{0: {id: 0, live: true, addr: addr, established: path{validated: true, mtuValidated: true}}}
+	zero := &pathMember{id: 0, live: true, addr: addr, established: path{validated: true, mtuValidated: true}}
+	zero.fences = []pathFence{{epoch: &zero.established.probeEpoch}}
+	p.members = map[protocol.PathID]*pathMember{0: zero}
 	p.validated = []net.Addr{addr}
 	p.rtt = make(map[protocol.PathID]*utils.RTTStats)
 	p.attachments = make(map[*Transport]int)
@@ -127,7 +139,7 @@ func (p *pathCreditRegistry) admitIssuedKeys(id protocol.PathID) error {
 
 // admitMember commits an ID after authentication or a local decision. Every
 // capacity is reserved before recovery, routes or submission exist.
-func (p *pathCreditRegistry) admitMember(id protocol.PathID, target *Transport) (*pathMember, error) {
+func (p *pathCreditRegistry) admitMember(id protocol.PathID, target *Transport, now monotime.Time) (*pathMember, error) {
 	if p.historyUnits >= maxPathHistoryUnits {
 		return nil, fmt.Errorf("%w: retained path history is full", ErrMultipathResourceLimitV1)
 	}
@@ -150,14 +162,15 @@ func (p *pathCreditRegistry) admitMember(id protocol.PathID, target *Transport) 
 		return nil, fmt.Errorf("%w: path ID %d is not available", ErrMultipathResourceLimitV1, id)
 	}
 	p.historyUnits++
-	member := &pathMember{id: id, established: path{validated: true, mtuValidated: true}}
+	member := &pathMember{id: id, transport: target, deadline: pathDeadline(now, pathTimeout), established: path{validated: true, mtuValidated: true}}
+	member.fences = []pathFence{{transport: target, epoch: &member.established.probeEpoch}}
 	p.members[id] = member
 	return member, nil
 }
 
 // admitIngress is reached only by an authenticated packet. A declined path keeps
 // terminal metadata alone, and a sparse or unissued ID has no keys to get here.
-func (p *pathCreditRegistry) admitIngress(id protocol.PathID, _ monotime.Time) {
+func (p *pathCreditRegistry) admitIngress(id protocol.PathID, now monotime.Time) {
 	if !p.hasAdmission() {
 		return
 	}
@@ -168,7 +181,7 @@ func (p *pathCreditRegistry) admitIngress(id protocol.PathID, _ monotime.Time) {
 		p.decline(id, 0, ErrPathClosed)
 		return
 	}
-	if _, err := p.admitMember(id, nil); err != nil {
+	if _, err := p.admitMember(id, nil, now); err != nil {
 		p.decline(id, pathResourceLimitReached, err)
 	}
 }
@@ -198,7 +211,7 @@ func (p *pathCreditRegistry) activate(m *pathMember, addr net.Addr, info packetI
 	p.recordValidated(addr)
 }
 
-func (p *pathCreditRegistry) newCandidate(addr net.Addr, info packetInfo, target *Transport, connID protocol.ConnectionID, deadline monotime.Time, now monotime.Time) *pathCandidate {
+func (p *pathCreditRegistry) newCandidate(m *pathMember, addr net.Addr, info packetInfo, target *Transport, connID protocol.ConnectionID, deadline monotime.Time, now monotime.Time) *pathCandidate {
 	base := max(2*utils.DefaultInitialRTT, p.conn.observedRTT().PTO(true))
 	candidate := &pathCandidate{addr: addr, info: info, transport: target, connID: connID}
 	candidate.probe = path{
@@ -206,6 +219,8 @@ func (p *pathCreditRegistry) newCandidate(addr net.Addr, info packetInfo, target
 		baseProbeInterval: base, probeInterval: base,
 		nextProbeTime: now, validationDeadline: deadline,
 	}
+	m.fences = append(m.fences, pathFence{transport: target, epoch: &candidate.probe.probeEpoch})
+	m.candidate = candidate
 	return candidate
 }
 
@@ -227,7 +242,7 @@ func (p *pathCreditRegistry) receivedTuple(id protocol.PathID, addr net.Addr, in
 		return
 	}
 	if candidate := m.candidate; candidate != nil {
-		if !candidate.retired && addrsEqual(candidate.addr, addr) {
+		if addrsEqual(candidate.addr, addr) {
 			candidate.probe.bytesReceived += size
 			answer()
 			p.conn.scheduleSending()
@@ -244,24 +259,34 @@ func (p *pathCreditRegistry) receivedTuple(id protocol.PathID, addr net.Addr, in
 		answer()
 		return
 	}
+	if p.pruneFences(m) {
+		return // a retired candidate's slot stays charged until its submissions fence
+	}
 	connID, ok := p.conn.connIDManager.pathDestination(id, m.live)
 	if !ok {
-		return // the peer must retry once a CID is available
+		return // the peer must retry once a CID is available; the deadline keeps running
 	}
-	m.candidate = p.newCandidate(addr, info, nil, connID, pathDeadline(now, pathTimeout), now)
-	m.candidate.probe.bytesReceived = size
+	deadline := m.deadline
+	if m.live {
+		deadline = pathDeadline(now, pathTimeout)
+	}
+	p.newCandidate(m, addr, info, nil, connID, deadline, now).probe.bytesReceived = size
 	answer()
 	p.conn.scheduleSending()
 }
 
 // pathResponse matches only challenges committed on the arrival path. The data is
 // unguessable, so a response elsewhere is a peer that has not followed the path.
+// Packets are handled before expiry, so eligibility is checked here as well.
 func (p *pathCreditRegistry) pathResponse(f *wire.PathResponseFrame, ingress protocol.PathID, now monotime.Time) {
 	m := p.members[ingress]
-	if m == nil || m.candidate == nil || m.candidate.retired || p.terminals[ingress] != nil {
+	if m == nil || m.candidate == nil || p.terminals[ingress] != nil {
 		return
 	}
 	candidate := m.candidate
+	if !now.Before(candidate.probe.validationDeadline) || (candidate.request != nil && candidate.request.canceled.Load()) {
+		return
+	}
 	if !candidate.probe.matchResponse(f.Data, now) {
 		return
 	}
@@ -274,8 +299,9 @@ func (p *pathCreditRegistry) pathResponse(f *wire.PathResponseFrame, ingress pro
 	} else {
 		p.activate(m, candidate.addr, candidate.info, candidate.transport)
 	}
-	m.candidate = nil
-	if request := candidate.request; request != nil {
+	request := candidate.request
+	p.retireCandidate(m)
+	if request != nil {
 		request.finish(nil)
 		p.conn.pathOpen.CompareAndSwap(request, nil)
 	}
@@ -291,28 +317,19 @@ func (p *pathCreditRegistry) service(now monotime.Time) error {
 		return err
 	}
 	for id, m := range p.members {
-		candidate := m.candidate
-		if candidate == nil {
+		if p.terminals[id] != nil {
 			continue
 		}
-		if candidate.retired {
-			if !p.probesPending(candidate) {
-				m.candidate = nil
+		if !m.live {
+			if !now.Before(m.deadline) {
+				p.decline(id, 0, errPathValidationTimeout)
 			}
 			continue
 		}
-		if now.Before(candidate.probe.validationDeadline) {
-			continue
+		if m.candidate != nil && !now.Before(m.candidate.probe.validationDeadline) {
+			p.retireCandidate(m)
 		}
-		if m.live {
-			candidate.probe.retire()
-			candidate.retired = true
-			if !p.probesPending(candidate) {
-				m.candidate = nil
-			}
-			continue
-		}
-		p.decline(id, 0, errPathValidationTimeout)
+		p.pruneFences(m)
 	}
 	for id, terminal := range p.terminals {
 		p.signalTerminal(id, terminal)
@@ -320,8 +337,29 @@ func (p *pathCreditRegistry) service(now monotime.Time) error {
 	return nil
 }
 
-func (p *pathCreditRegistry) probesPending(candidate *pathCandidate) bool {
-	return p.conn.emission.local.probesPending(candidate.transport, &candidate.probe.probeEpoch)
+// retireCandidate revokes the candidate's queued probes. Its fence entry keeps
+// target and epoch for whatever is already claimed.
+func (p *pathCreditRegistry) retireCandidate(m *pathMember) {
+	if m.candidate != nil {
+		m.candidate.probe.retire()
+		m.candidate = nil
+	}
+}
+
+// pruneFences drops resolved revoked entries, and reports whether one remains.
+func (p *pathCreditRegistry) pruneFences(m *pathMember) bool {
+	busy := false
+	m.fences = slices.DeleteFunc(m.fences, func(fence pathFence) bool {
+		if !fence.epoch.revoked.Load() {
+			return false
+		}
+		if p.conn.emission.local.probesPending(fence.transport, fence.epoch) {
+			busy = true
+			return false
+		}
+		return true
+	})
+	return busy
 }
 
 // serviceRequest handles the local operation. Before an ID is committed, a
@@ -335,7 +373,7 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 		if !request.canceled.Load() {
 			return nil
 		}
-		if m := p.members[request.id]; m != nil && m.candidate != nil && !m.candidate.retired && p.terminals[request.id] == nil {
+		if m := p.members[request.id]; m != nil && !m.live && p.terminals[request.id] == nil {
 			p.decline(request.id, 0, context.Canceled)
 		}
 		if terminal := p.terminals[request.id]; terminal == nil || terminal.signaled {
@@ -361,12 +399,11 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 	if !ok {
 		return nil // no peer CID yet; a later control frame wakes this pass
 	}
-	m, err := p.admitMember(id, request.transport)
+	m, err := p.admitMember(id, request.transport, now)
 	if err != nil {
 		return p.refuseRequest(request, err)
 	}
 	request.accepted, request.id = true, id
-	m.transport = request.transport
 	if request.transport != nil {
 		p.attachments[request.transport]++
 		runner := (*packetHandlerMap)(request.transport)
@@ -381,15 +418,14 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 		p.conn.pathOpen.CompareAndSwap(request, nil)
 		return nil
 	}
-	deadline := pathDeadline(now, pathTimeout)
 	if d, ok := request.ctx.Deadline(); ok {
-		if limit := now.Add(time.Until(d)); limit.Before(deadline) {
-			deadline = limit
+		if limit := now.Add(time.Until(d)); limit.Before(m.deadline) {
+			m.deadline = limit
 		}
 	}
-	m.candidate = p.newCandidate(request.addr, packetInfo{}, request.transport, connID, deadline, now)
-	m.candidate.probe.unlimited = true
-	m.candidate.request = request
+	candidate := p.newCandidate(m, request.addr, packetInfo{}, request.transport, connID, m.deadline, now)
+	candidate.probe.unlimited = true
+	candidate.request = request
 	return nil
 }
 
@@ -408,16 +444,12 @@ func (p *pathCreditRegistry) retireMember(id protocol.PathID, err error) {
 	}
 	m.response, m.announce = nil, false
 	m.established.retire()
-	candidate := m.candidate
-	if candidate == nil {
-		return
-	}
-	candidate.probe.retire()
-	candidate.retired = true
-	if request := candidate.request; request != nil {
-		candidate.request = nil
-		request.finish(err) // a canceled caller has already returned
-		request.canceled.Store(true)
+	if candidate := m.candidate; candidate != nil {
+		if request := candidate.request; request != nil {
+			request.finish(err) // a canceled caller has already returned
+			request.canceled.Store(true)
+		}
+		p.retireCandidate(m)
 	}
 }
 
@@ -428,13 +460,10 @@ func (p *pathCreditRegistry) signalTerminal(id protocol.PathID, terminal *pathTe
 		return
 	}
 	if m := p.members[id]; m != nil {
-		if m.candidate != nil && p.probesPending(m.candidate) {
-			return
+		p.pruneFences(m)
+		if len(m.fences) != 0 {
+			return // every entry is revoked here, so each one is an unresolved claim
 		}
-		if p.conn.emission.local.probesPending(m.transport, &m.established.probeEpoch) {
-			return
-		}
-		m.candidate = nil
 	}
 	if p.hasAdmission() {
 		if sealer, err := p.conn.emission.packer.cryptoSetup.Get1RTTSealer(); err == nil {
@@ -469,17 +498,24 @@ func (p *pathCreditRegistry) releaseMember(id protocol.PathID) {
 
 func (p *pathCreditRegistry) nextAdmissionExpiry() monotime.Time {
 	var next monotime.Time
+	take := func(t monotime.Time) {
+		if t != 0 && (next == 0 || t < next) {
+			next = t
+		}
+	}
 	for id, m := range p.members {
-		candidate := m.candidate
-		if candidate == nil || candidate.retired || p.terminals[id] != nil {
+		if p.terminals[id] != nil {
 			continue
 		}
-		if next == 0 || candidate.probe.validationDeadline < next {
-			next = candidate.probe.validationDeadline
+		if !m.live {
+			take(m.deadline)
 		}
-		// A due probe that couldn't be sent waits for the next wake, not a spin.
-		if t := candidate.probe.nextProbeTime; candidate.probe.canProbe(t) && t.After(p.now) && t < next {
-			next = t
+		if candidate := m.candidate; candidate != nil {
+			take(candidate.probe.validationDeadline)
+			// A due probe that couldn't be sent waits for the next wake, not a spin.
+			if t := candidate.probe.nextProbeTime; candidate.probe.canProbe(t) && t.After(p.now) {
+				take(t)
+			}
 		}
 	}
 	return next
@@ -508,7 +544,7 @@ func (p *pathCreditRegistry) memberProbe(m *pathMember, now monotime.Time) *path
 	if m.id == 0 {
 		context = p.conn.emission.packer.pathZeroContext()
 	}
-	if candidate := m.candidate; candidate != nil && !candidate.retired {
+	if candidate := m.candidate; candidate != nil {
 		probe := &candidate.probe
 		var frames []ackhandler.Frame
 		var data [8]byte
@@ -559,7 +595,7 @@ func (p *pathCreditRegistry) memberProbe(m *pathMember, now monotime.Time) *path
 		frames = append(frames, ackhandler.Frame{Frame: &wire.PathResponseFrame{Data: m.response.data}, Handler: emptyHandler{}})
 		addr, info = m.response.addr, m.response.info
 	}
-	if !p.tupleValidated(addr) {
+	if !addrsEqual(addr, m.addr) && !p.tupleValidated(addr) {
 		return nil // no accounting owner for this tuple; the peer must retry
 	}
 	return &pathProbeIntent{
@@ -582,9 +618,6 @@ func (p *pathCreditRegistry) closeAdmission() {
 	}
 	for _, m := range p.members {
 		m.established.retire()
-		if m.candidate != nil {
-			m.candidate.probe.retire()
-			m.candidate.retired = true
-		}
+		p.retireCandidate(m)
 	}
 }
