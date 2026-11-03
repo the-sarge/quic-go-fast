@@ -26,13 +26,21 @@ func TestDialCaptureFixture(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 			defer cancel()
-			cmd := exec.CommandContext(ctx, binary, "-test.run=^TestDial/DialAddr$", "-test.timeout=10s", "-test.v")
+			cmd := exec.CommandContext(ctx, binary, "-test.run=^TestDial$/^DialAddr$", "-test.timeout=10s", "-test.v")
 			target := ""
 			if fail {
 				target = "TestDial/DialAddr"
 			}
 			cmd.Env = append(os.Environ(), "QUIC_GO_DIAL_CAPTURE_FAIL_TEST="+target)
 			output, err := cmd.CombinedOutput()
+			// A filter matching nothing also exits zero, and any other test would report as this fixture.
+			var ran []string
+			for line := range bytes.SplitSeq(output, []byte("\n")) {
+				if test, ok := bytes.CutPrefix(line, []byte("=== RUN   ")); ok {
+					ran = append(ran, string(test))
+				}
+			}
+			require.Equal(t, []string{"TestDial", "TestDial/DialAddr"}, ran, string(output))
 			if !fail {
 				require.NoError(t, err, string(output))
 				require.NotContains(t, string(output), "dial-capture ")
