@@ -190,8 +190,9 @@ func TestNativeOrdinarySegmentPrefix(t *testing.T) {
 					}
 					_, err = c.sentPacketHandler.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: 0, Largest: largest}}}, protocol.Encryption1RTT, monotime.Now())
 					require.NoError(t, err, "accepted and uncertain portions retain their original recovery registrations")
+					// The generator may randomly skip the next number, but never reuses one.
 					pn, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
-					require.EqualValues(t, 3, pn)
+					require.GreaterOrEqual(t, pn, protocol.PacketNumber(3))
 				})
 			})
 		}
