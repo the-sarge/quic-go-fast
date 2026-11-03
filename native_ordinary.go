@@ -366,6 +366,22 @@ func (s *nativeOrdinarySender) probesPending(target *Transport, epoch *responseE
 	return endpoint != nil && endpoint.epochPending(epoch)
 }
 
+// epochPending reports an unresolved request under epoch. A claimed request stays
+// unresolved until actual native return.
+func (e *nativeEndpoint) epochPending(epoch *responseEpoch) bool {
+	pending := false
+	e.do(func(s *endpointState) {
+		for index := range s.records {
+			record := &s.records[index]
+			if record.used && !record.reserved && !record.terminal && record.request.epoch == epoch {
+				pending = true
+				return
+			}
+		}
+	})
+	return pending
+}
+
 func nativeTransportEndpoint(target *Transport) *nativeEndpoint {
 	if target == nil || target.responses == nil {
 		return nil

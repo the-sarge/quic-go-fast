@@ -505,22 +505,6 @@ func (e *nativeEndpoint) seal() {
 	e.do(func(s *endpointState) { s.sealed = true })
 }
 
-// epochPending reports an unresolved request under epoch. A claimed request stays
-// unresolved until actual native return.
-func (e *nativeEndpoint) epochPending(epoch *responseEpoch) bool {
-	pending := false
-	e.do(func(s *endpointState) {
-		for index := range s.records {
-			record := &s.records[index]
-			if record.used && !record.reserved && !record.terminal && record.request.epoch == epoch {
-				pending = true
-				return
-			}
-		}
-	})
-	return pending
-}
-
 // cancelReadiness withdraws work that was refused and remains producer-owned.
 // It never cancels an admitted request or touches a native borrow.
 func (e *nativeEndpoint) cancelReadiness(p *endpointParticipant, lane int) {
