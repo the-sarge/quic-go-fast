@@ -3,8 +3,8 @@
   "go": "go1.26.10",
   "traversal": true,
   "timing_ms": {
-    "injected_fallback_return": 1.21715,
-    "injected_retry_return": 0.72162
+    "injected_fallback_return": 0.947892,
+    "injected_retry_return": 1.072085
   },
   "facts": {
     "simulated_gso_eio": 1

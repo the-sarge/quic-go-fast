@@ -4,7 +4,7 @@ This receipt records [E6 #1020](https://github.com/the-sarge/quic-go-fast/issues
 
 ## Result
 
-**Qualified, for this fixed example-level domain.** All 12 instances passed once on candidate `0a9f72fe55b0ed559c72a13246d9ed3b63811f3e`, each class in its own process at B = 100 ms. No production file changes. This is no public support claim: the route stays private until R19, and no negotiated multipath traffic ran, which R17 and R18 own.
+**Qualified, for this fixed example-level domain.** All 12 instances passed once on candidate `21ee943656ef01583e8ee7c96fca48b966eecaf9`, each class in its own process at B = 100 ms. No production file changes. This is no public support claim: the route stays private until R19, and no negotiated multipath traffic ran, which R17 and R18 own.
 
 | Identity | Value |
 | --- | --- |
@@ -21,9 +21,9 @@ Timing here is attribution only and isn't compared to the tolerance. In all thre
 
 | Class | Go 1.26.10 | Go 1.27.3 | Observed |
 | --- | --- | --- | --- |
-| EAGAIN-to-deadline | return +0.27 ms | return +0.70 ms | Deadline error, one uncertain datagram, no fault |
-| Retry and fallback | retry +0.72 ms, fallback +1.22 ms | retry +0.33 ms, fallback +0.98 ms | Real `EPERM`, then the retry's injected `EAGAIN`. Fallback: one uncertain segment and two unsubmitted, GSO disabled |
-| Independent queued expiry | expiry +0.92 ms, current +1.23 ms | expiry +0.61 ms, current +0.17 ms | The queued request completed unsubmitted while the current one was still in the poller |
+| EAGAIN-to-deadline | return +0.86 ms | return +0.41 ms | Deadline error, one uncertain datagram, no fault |
+| Retry and fallback | retry +1.07 ms, fallback +0.95 ms | retry +0.26 ms, fallback +0.25 ms | Real `EPERM`, then the retry's injected `EAGAIN`. Fallback: one uncertain segment and two unsubmitted, GSO disabled |
+| Independent queued expiry | expiry +0.43 ms, current +0.74 ms | expiry +0.74 ms, current +0.30 ms | The queued request completed unsubmitted while the current one was still in the poller |
 
 Times are after each request's own deadline.
 
@@ -35,33 +35,33 @@ Every value is within the 20 ms tolerance. These classes ran without a tracer.
 
 | Class | Measure | Go 1.26.10 | Go 1.27.3 |
 | --- | --- | --- | --- |
-| Expired-before-dispatch | Expiry published | 0.06 ms | 0.06 ms |
-| Expired-before-dispatch | Successor publication | 0.09 ms | 0.08 ms |
-| Shutdown and join | Public write return | 0.10 ms | 0.11 ms |
+| Expired-before-dispatch | Expiry published | 0.07 ms | 0.27 ms |
+| Expired-before-dispatch | Successor publication | 0.05 ms | 0.04 ms |
+| Shutdown and join | Public write return | 0.12 ms | 0.13 ms |
 | Request-class contention | Native return past deadline | none | none |
-| Request-class contention | Slowest publication | 2.85 ms | 3.02 ms |
+| Request-class contention | Slowest publication | 3.36 ms | 2.80 ms |
 | Pressure phase | Native return past deadline | none | none |
-| Pressure phase | Slowest publication | 2.72 ms | 3.87 ms |
+| Pressure phase | Slowest publication | 2.50 ms | 2.71 ms |
 
-Join isn't a tolerance measure. It took 0.05–0.13 ms, against the budget plus tolerance that the fixture asserts. After join, a direct write and a write deadline on the caller's socket both behaved normally, and a post-close `WriteTo` returned `net.ErrClosed`.
+Join isn't a tolerance measure. It took 0.05–0.10 ms, against the budget plus tolerance that the fixture asserts. After join, a direct write and a write deadline on the caller's socket both behaved normally, and a post-close `WriteTo` returned `net.ErrClosed`.
 
-A sink that never returned dropped about 6,000 diagnostics in each contention run without faulting the endpoint, so publication didn't backpressure the writer. An unrelated GridCast Windows CI VM ran on the host throughout, at a load average near 1.4. Nothing reserved cores for this campaign.
+A sink that never returned dropped about 6,000 diagnostics in each contention run without faulting the endpoint, so publication didn't backpressure the writer. Unrelated CI ran on the host throughout, including `Runner.Worker` jobs, at a load average of 4.0–4.5. Nothing reserved cores for this campaign, so these timings come from a busy host.
 
 ## Pressure and contention
 
-**No real pressure wait was observed.** About 190 stack samples during 1 second of traffic with a 2 KiB send buffer found the writer in the poller zero times, and `SndbufErrors` didn't move. Loopback delivers synchronously, so this is recorded as no observed wait and isn't pressure evidence. Native poll traversal rests on injection alone.
+**No real pressure wait was observed.** 192 stack samples during 1 second of traffic with a 2 KiB send buffer found the writer in the poller zero times, and `SndbufErrors` didn't move. Loopback delivers synchronously, so this is recorded as no observed wait and isn't pressure evidence. Native poll traversal rests on injection alone.
 
-**Data lanes contended and progressed.** 32 participants each moved 64 datagrams per lane, drawing about 14,500 refusals with a peak of 32 endpoint requests, and no request expired.
+**Data lanes contended and progressed.** 32 participants each moved 64 datagrams per lane, drawing about 14,900 refusals with sampled peaks of 30 and 29 of 128 endpoint requests, and no request expired.
 
-**Stateless and public classes were mostly refused.** Over about 120 ms, public writes succeeded 1 time in about 110 attempts on each toolchain, and stateless replies 2 in 113 and 1 in 110. The endpoint held a third of its slots at most, and each class had room. One grant exists at a time (`native_endpoint.go:863`), and a refused caller of these classes withdraws (`native_response.go:33-35`, `:67-70`), so it only gets in when it arrives while no grant is held. The contract allows this: both routes are best-effort or return backpressure with no hidden retry. It does mean a public `WriteTo` can see `ErrMultipathBackpressureV1` almost every time under saturated data traffic, even with free capacity. This class shows the routes share the real writer without a fault. It doesn't show that they get a useful share, and R18's stateless-pressure cell and the public activation decision should take that into account.
+**Stateless and public classes were mostly refused.** Over about 120 ms, public writes succeeded 1 time in 113 attempts on Go 1.26.10 and 2 in 111 on Go 1.27.3, and stateless replies 2 in 113 and 2 in 111. The sampled endpoint occupancy stayed far below its 128 slots, and these classes' own caps of 8 weren't the limit. One grant exists at a time (`native_endpoint.go:863`), and a refused caller of these classes withdraws (`native_response.go:33-35`, `:67-70`), so it only gets in when it arrives while no grant is held. The contract allows this: both routes are best-effort or return backpressure with no hidden retry. It does mean a public `WriteTo` can see `ErrMultipathBackpressureV1` almost every time under saturated data traffic, even with free capacity. This class shows the routes share the real writer without a fault. It doesn't show that they get a useful share, and R18's stateless-pressure cell and the public activation decision should take that into account.
 
 ## Operational ledger
 
-The [ledger](2026-11-03-multipath-e6/ledger.json) charges 45 instances and 60 host-seconds: 12 regular and 33 from the reserve. Cumulative use is 55 of 180 instances, leaving 125 instances and 28,288 host-seconds. Only R1's receipt preceded this one.
+The [ledger](2026-11-03-multipath-e6/ledger.json) charges 58 instances and 90 host-seconds: 12 regular and 46 from the reserve. Cumulative use is 68 of 180 instances, leaving 112 instances and 28,258 host-seconds. Only R1's receipt preceded this one.
 
-The reserve had 32 left, so it is overdrawn by one, and the 126 remaining scheduled instances exceed remaining capacity by one. The owner said on 2026-11-03 that the ceiling can be raised if needed. This receipt doesn't change it. R17 or a later preflight has to record that raise before spending the last instance.
+The reserve had 32 left, so it is overdrawn by 14, and the 126 remaining scheduled instances exceed remaining capacity by 14. The owner said on 2026-11-03 that the ceiling can be raised if needed. This receipt doesn't change it. A later preflight has to record that raise before capacity runs out.
 
-The superseded campaign on `4b6e00c0c618bd08ad9a29c9608ee8b949b84ddb` passed all 12. It was rerun for the attempt counts above, not to obtain a pass.
+Two superseded campaigns also passed all 12. The one on `4b6e00c0c618bd08ad9a29c9608ee8b949b84ddb` was rerun to add the attempt counts above. The one on `0a9f72fe55b0ed559c72a13246d9ed3b63811f3e` was rerun because review found that concurrent participants could lower a recorded timing maximum, which the fixture now prevents. Neither was rerun to obtain a pass. The maximum's own check is `TestNativeQualRaiseKeepsMaximum`, which needs no native socket and ran once under `-race`, uncharged.
 
 ## Completion and applicability
 

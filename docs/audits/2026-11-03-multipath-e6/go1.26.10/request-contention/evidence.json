@@ -5,18 +5,18 @@
   "timing_ms": {
     "native_return_overrun": 0,
     "pressure_native_return_overrun": 0,
-    "pressure_publication": 2.721071,
-    "publication": 2.848551
+    "pressure_publication": 2.497322,
+    "publication": 3.356873
   },
   "facts": {
-    "contention_ms": 122.394139,
+    "contention_ms": 123.640937,
     "diagnostics_dropped": 6018,
     "expired": 0,
     "lane_0_accepted": 2048,
     "lane_1_accepted": 2048,
     "lane_2_accepted": 2048,
-    "peak_endpoint_requests": 32,
-    "pressure_accepted": 52616,
+    "peak_endpoint_requests": 30,
+    "pressure_accepted": 51496,
     "pressure_expired": 0,
     "pressure_sndbuf_errors": 0,
     "pressure_stack_samples": 192,
@@ -24,8 +24,8 @@
     "pressure_uncertain": 0,
     "public_attempts": 113,
     "public_sent": 1,
-    "received": 58763,
-    "refusals": 14636,
+    "received": 57643,
+    "refusals": 14874,
     "stateless_attempts": 113,
     "stateless_sent": 2,
     "uncertain": 0

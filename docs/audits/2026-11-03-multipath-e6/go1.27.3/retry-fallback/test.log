@@ -2,6 +2,6 @@ Kernel Version: 7.0
 
 === RUN   TestNativeQualification
 === RUN   TestNativeQualification/retry-fallback
---- PASS: TestNativeQualification (0.21s)
-    --- PASS: TestNativeQualification/retry-fallback (0.21s)
+--- PASS: TestNativeQualification (0.20s)
+    --- PASS: TestNativeQualification/retry-fallback (0.20s)
 PASS

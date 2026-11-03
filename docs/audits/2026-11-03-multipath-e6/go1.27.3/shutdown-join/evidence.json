@@ -3,10 +3,10 @@
   "go": "go1.27.3",
   "traversal": false,
   "timing_ms": {
-    "public_write_return": 0.113643
+    "public_write_return": 0.128962
   },
   "facts": {
-    "client_join_ms": 0.132429,
-    "server_join_ms": 0.047539
+    "client_join_ms": 0.083627,
+    "server_join_ms": 0.045315
   }
 }

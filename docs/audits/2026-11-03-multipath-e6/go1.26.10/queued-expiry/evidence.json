@@ -3,8 +3,8 @@
   "go": "go1.26.10",
   "traversal": true,
   "timing_ms": {
-    "injected_current_return": 1.227008,
-    "injected_queued_expiry": 0.916792
+    "injected_current_return": 0.737627,
+    "injected_queued_expiry": 0.428195
   },
   "facts": {}
 }

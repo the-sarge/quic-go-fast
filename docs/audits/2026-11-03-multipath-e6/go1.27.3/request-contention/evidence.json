@@ -5,29 +5,29 @@
   "timing_ms": {
     "native_return_overrun": 0,
     "pressure_native_return_overrun": 0,
-    "pressure_publication": 3.868683,
-    "publication": 3.021474
+    "pressure_publication": 2.713377,
+    "publication": 2.79487
   },
   "facts": {
-    "contention_ms": 119.074375,
-    "diagnostics_dropped": 6017,
+    "contention_ms": 120.215896,
+    "diagnostics_dropped": 6019,
     "expired": 0,
     "lane_0_accepted": 2048,
     "lane_1_accepted": 2048,
     "lane_2_accepted": 2048,
-    "peak_endpoint_requests": 32,
-    "pressure_accepted": 53737,
+    "peak_endpoint_requests": 29,
+    "pressure_accepted": 51496,
     "pressure_expired": 0,
     "pressure_sndbuf_errors": 0,
-    "pressure_stack_samples": 193,
+    "pressure_stack_samples": 192,
     "pressure_stack_waits": 0,
     "pressure_uncertain": 0,
-    "public_attempts": 110,
-    "public_sent": 1,
-    "received": 59883,
-    "refusals": 14445,
-    "stateless_attempts": 110,
-    "stateless_sent": 1,
+    "public_attempts": 111,
+    "public_sent": 2,
+    "received": 57644,
+    "refusals": 14901,
+    "stateless_attempts": 111,
+    "stateless_sent": 2,
     "uncertain": 0
   }
 }

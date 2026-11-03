@@ -3,8 +3,8 @@
   "go": "go1.26.10",
   "traversal": true,
   "timing_ms": {
-    "injected_native_return": 0.269743,
-    "injected_publication": 0.46378
+    "injected_native_return": 0.863263,
+    "injected_publication": 0.242094
   },
   "facts": {}
 }

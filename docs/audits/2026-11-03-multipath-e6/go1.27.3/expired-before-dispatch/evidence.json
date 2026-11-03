@@ -3,8 +3,8 @@
   "go": "go1.27.3",
   "traversal": false,
   "timing_ms": {
-    "expiry": 0.058529,
-    "successor_publication": 0.078397
+    "expiry": 0.271269,
+    "successor_publication": 0.036979
   },
   "facts": {}
 }
