@@ -8476,3 +8476,30 @@ The [PR #1125 exact-head certificate](https://github.com/the-sarge/quic-go-fast/
 ### Next
 
 The product state is 5/9 endpoint slices and 13/34 program slices complete. [E2 issue #1016](https://github.com/the-sarge/quic-go-fast/issues/1016) remains in progress independently; [E5 issue #1019](https://github.com/the-sarge/quic-go-fast/issues/1019) still requires [E3 issue #1017](https://github.com/the-sarge/quic-go-fast/issues/1017), so E4 creates no newly ready successor. [Endpoint parent #1012](https://github.com/the-sarge/quic-go-fast/issues/1012) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) own live readiness. Journal closure and the exact E4 OmniFocus task are being reconciled after the product merge.
+
+---
+
+## Multipath E2 ordinary completion integration landed - 2026-11-02 22:18 EST
+
+**Main:** `71f2471fcf97`
+**Actor:** Codex
+
+### Completed
+
+[PR #1124 — Multipath E2: integrate ordinary native completions](https://github.com/the-sarge/quic-go-fast/pull/1124) merged as `71f2471fcf974a5f0c397fdb949f24e09663814c`, closing [E2 issue #1016](https://github.com/the-sarge/quic-go-fast/issues/1016). The private ordinary route reserves endpoint and recovery capacity before packet construction, retains immutable per-datagram completion identities, consumes native results on the connection loop, and preserves native borrow/BBR credit until actual return. Timeout/expiry is nonfatal, raw non-timeout errors retain identity, and Retry/startup cleanup preserves terminal ownership. Public activation remains disabled; E4 #1018 response/public-write behavior is preserved.
+
+### Decisions
+
+The [accepted E2 contract](adr/2026-10-24-multipath-endpoint-plan.md#e2) and [scoped admission re-audit](audits/2026-11-02-e2-admission-reaudit.md), published by [PR #1127](https://github.com/the-sarge/quic-go-fast/pull/1127), replace the overly conservative recovery-pressure guard with one packet allowance after handshake confirmation or three before confirmation. Existing conservative skip-marker reservation and bulk per-packet checks remain. The amendment preserves one product PR, four scenario functions, one local race run, and the consumed fresh-review allowance; it does not add a third product review.
+
+### Validation
+
+Authenticated initial review `20261103T012552-2804653ffa2ebe062706792b` and replacement review `20261103T020239-1b9fe7ea818ecf48f39d103a` completed the configured full panel, adjudication and synthesis. Final verification of replacement-review findings at `38115fd379fc7aedc37aea0279baff23fb2ce2aa` completed with a clear blocking projection and 3/3 cluster coverage. The initial unauthenticated attempt was not passing evidence; using the normal authenticated Codex home preserved the panel.
+
+The [PR #1124 exact-head certificate](https://github.com/the-sarge/quic-go-fast/pull/1124#issuecomment-6594385894) records passing full tests, affected vet, tidy-diff, lint, the single allocated focused race run, and Linux/OpenBSD/Windows amd64 test-binary compilation on clean head `38115fd379fc7aedc37aea0279baff23fb2ce2aa`, base `8ff843ec517207fa435e06f674b3438018efb496`, Go 1.27.3 darwin/arm64. All 17 distinct hosted checks passed before exact-head squash merge, including unit run `41569329669`, integration `41569329624`, lint `41569329629`, cross compilation `41569329638` and interop `41569329642`. This is not native-platform qualification or a transport-wide join proof.
+
+Deferred findings were rechecked against merged commit `71f2471fcf974a5f0c397fdb949f24e09663814c`. Persistent EMSGSIZE can still repack reliable work (`native_ordinary.go:231`, `native_ordinary.go:260`), but no material retry cadence or E2 retry-floor obligation was established. Conditional speculative prepare/cancel remains (`native_ordinary.go:145`, `native_ordinary.go:210`, `packet_emission.go:131`), but universal frequency and material cost remain unsupported. Neither justifies a tracked follow-up or an extra campaign on the inactive route.
+
+### Next
+
+The committed product state is 6/9 endpoint slices and 14/34 program slices complete. [E3 issue #1017](https://github.com/the-sarge/quic-go-fast/issues/1017) is the sole ready frontier, with no open blockers. [E5 issue #1019](https://github.com/the-sarge/quic-go-fast/issues/1019) still requires E3 #1017; [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029) still requires E5 #1019. [Endpoint parent #1012](https://github.com/the-sarge/quic-go-fast/issues/1012) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) own live readiness. This entry appends history only; the product PR owns the completion/frontier transition.
