@@ -61,13 +61,22 @@ type endpointRequest struct {
 	identity    endpointIdentity
 	destination netip.AddrPort
 	buffers     []*packetBuffer
+	datagram    *endpointDatagram
 	deadline    time.Time // zero selects admission+B; an earlier deadline is allowed
 }
 
 type endpointResult struct {
 	identity                         endpointIdentity
 	accepted, uncertain, unsubmitted int
+	bytes                            int
 	err                              error
+}
+
+func (request endpointRequest) packetCount() int {
+	if request.datagram != nil {
+		return 1
+	}
+	return len(request.buffers)
 }
 
 // These are the native system boundary, not callbacks on the control path.
@@ -255,8 +264,14 @@ func (e *nativeEndpoint) offer(p *endpointParticipant, lane int, request endpoin
 		if s.sealed || s.faulted || !s.valid(p) {
 			return
 		}
+		if request.datagram != nil && !request.datagram.epoch.valid() {
+			return
+		}
 		err = errEndpointRequest
-		if lane < 0 || lane > 2 || request.identity.connection != p.id || !request.destination.IsValid() || len(request.buffers) == 0 || len(request.buffers) > endpointBatch {
+		if lane < 0 || lane > 2 || request.identity.connection != p.id || !request.destination.IsValid() || request.packetCount() == 0 || request.packetCount() > endpointBatch {
+			return
+		}
+		if request.datagram != nil && (len(request.buffers) != 0 || p.class < endpointStateless) {
 			return
 		}
 		class := p.class
@@ -267,6 +282,9 @@ func (e *nativeEndpoint) offer(p *endpointParticipant, lane int, request endpoin
 			return
 		}
 		n := 0
+		if request.datagram != nil {
+			n = cap(request.datagram.data)
+		}
 		for i, b := range request.buffers {
 			if b == nil || b.refCount != 1 || len(b.Data) == 0 {
 				return
@@ -408,6 +426,7 @@ func (s *endpointState) revoke(p *endpointParticipant) {
 func (s *endpointState) publish(index int, result endpointResult) {
 	r := &s.records[index]
 	result.identity = r.request.identity
+	datagram := r.request.datagram
 	for _, b := range r.request.buffers {
 		b.Release()
 	}
@@ -423,6 +442,20 @@ func (s *endpointState) publish(index int, result endpointResult) {
 	clear(r.buffers[:])
 	r.result, r.terminal = result, true
 	p := r.participant
+	if datagram != nil {
+		if datagram.result != nil {
+			datagram.result <- result
+		}
+		select {
+		case s.endpoint.diagnostics <- endpointDiagnostic{identity: result.identity, kind: 1}:
+		default:
+			s.endpoint.dropped.Add(1)
+		}
+		*r = endpointRecord{}
+		p.retained--
+		s.retire(p)
+		return
+	}
 	if !p.active {
 		*r = endpointRecord{}
 		p.retained--
@@ -461,16 +494,17 @@ func (s *endpointState) run() {
 		for j := 0; j < len(s.queue); {
 			i := s.queue[j]
 			r := &s.records[i]
-			if s.faulted || !r.participant.active || !now.Before(r.request.deadline) {
+			revoked := r.request.datagram != nil && !r.request.datagram.epoch.valid()
+			if s.faulted || !r.participant.active || revoked || !now.Before(r.request.deadline) {
 				err := os.ErrDeadlineExceeded
 				if s.faulted {
 					err = errEndpointFault
 				}
-				if !r.participant.active {
+				if !r.participant.active || revoked {
 					err = errEndpointRevoked
 				}
 				s.queue = append(s.queue[:j], s.queue[j+1:]...)
-				s.publish(i, endpointResult{unsubmitted: len(r.request.buffers), err: err})
+				s.publish(i, endpointResult{unsubmitted: r.request.packetCount(), err: err})
 				continue
 			}
 			j++
@@ -732,13 +766,21 @@ func (s *endpointState) fail() {
 func (e *nativeEndpoint) write(native endpointNativeIO) {
 	for token := range e.work {
 		r := token.request
-		result := endpointResult{unsubmitted: len(r.buffers)}
+		result := endpointResult{unsubmitted: r.packetCount()}
 		fault := false
 		if err := native.SetWriteDeadline(r.deadline); err != nil {
 			result.err, fault = err, true
 		} else {
-			for _, b := range r.buffers {
-				if token.canceled.Load() {
+			for index := range r.packetCount() {
+				var data []byte
+				var oob []byte
+				if r.datagram != nil {
+					data = r.datagram.data
+					oob = r.datagram.oob
+				} else {
+					data = r.buffers[index].Data
+				}
+				if token.canceled.Load() || (r.datagram != nil && !r.datagram.epoch.valid()) {
 					result.err = errEndpointRevoked
 					break
 				}
@@ -746,8 +788,9 @@ func (e *nativeEndpoint) write(native endpointNativeIO) {
 					result.err = os.ErrDeadlineExceeded
 					break
 				}
-				n, _, err := native.WriteMsgUDPAddrPort(b.Data, nil, r.destination)
-				if err == nil && n == len(b.Data) {
+				n, _, err := native.WriteMsgUDPAddrPort(data, oob, r.destination)
+				result.bytes += n
+				if err == nil && n == len(data) {
 					result.accepted++
 					result.unsubmitted--
 					continue

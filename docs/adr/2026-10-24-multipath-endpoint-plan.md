@@ -1,6 +1,6 @@
 # Bounded native endpoint I/O implementation plan
 
-**Status:** E1, E2A, E2B and E2C complete; the endpoint route remains inactive. E2 #1016 and E4 #1018 are ready; the recovery prerequisites are complete. Dispatch requires a verified frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012).
+**Status:** E1, E2A, E2B, E2C and E4 #1018 complete; the endpoint route remains inactive in public construction. E2 #1016 is the remaining frontier; the recovery prerequisites are complete. E5 #1019 still requires E3 #1017. Dispatch requires a verified frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012).
 
 ## Binding contract and operating discipline
 
@@ -222,7 +222,7 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 
 ### E1 — Bound native request ownership behind an inactive endpoint seam
 
-**Current state:** complete. `native_endpoint.go` owns the inactive endpoint boundary; `native_endpoint_test.go` covers the admitted ownership classes. No production constructor selects this route. E2A #1084 is complete in [PR #1088](https://github.com/the-sarge/quic-go-fast/pull/1088); E2C #1086 is complete; E2 #1016 and E4 #1018 are ready. The slice contract below remains the acceptance authority.
+**Current state:** complete. `native_endpoint.go` owns the inactive endpoint boundary; `native_endpoint_test.go` covers the admitted ownership classes. No production constructor selects this route. E2A #1084 is complete in [PR #1088](https://github.com/the-sarge/quic-go-fast/pull/1088); E2C #1086 and E4 #1018 are complete; E2 #1016 remains the frontier. The slice contract below remains the acceptance authority.
 
 **Delivers:** Create the internal endpoint control/writer boundary and exercise an actual UDP write through it in a private fixture. Admission, absolute deadlines, independent queued expiry, claimed-token fencing, finite completion reservations, leased fair readiness and nonblocking diagnostics belong to this boundary. No production constructor can activate it yet; native qualification is E6.
 
@@ -464,6 +464,8 @@ The existing registration fields own the representation: `packet == nil` already
 <a id="e4"></a>
 
 ### E4 — Cover transport replies, cached close and public writes
+
+**Current state:** complete. `endpoint_responses.go` and `native_response.go` adapt the named transport/server/public producers to the endpoint in private fixtures. Response epochs fence server, transport and cache retirement; submitted response storage is independently owned, and public bytes stay borrowed through actual native return. The sixteen deterministic scenarios in `native_response_test.go` cover the accepted E4 evidence families. No public constructor installs this route. E5 #1019 still requires E3 #1017; E4 completion alone creates no new frontier child.
 
 **Delivers:** Adapt stateless reset, Retry, version negotiation, refusal/INVALID_TOKEN, cached close and synchronous public WriteTo to endpoint ownership in private fixtures. Epoch revocation and copied destination metadata prevent stale response submission; buffer aliases remain retained until return.
 
