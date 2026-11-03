@@ -8503,3 +8503,37 @@ Deferred findings were rechecked against merged commit `71f2471fcf974a5f0c397fdb
 ### Next
 
 The committed product state is 6/9 endpoint slices and 14/34 program slices complete. [E3 issue #1017](https://github.com/the-sarge/quic-go-fast/issues/1017) is the sole ready frontier, with no open blockers. [E5 issue #1019](https://github.com/the-sarge/quic-go-fast/issues/1019) still requires E3 #1017; [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029) still requires E5 #1019. [Endpoint parent #1012](https://github.com/the-sarge/quic-go-fast/issues/1012) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) own live readiness. This entry appends history only; the product PR owns the completion/frontier transition.
+
+---
+
+## Multipath E3 probe route landed - 2026-11-03 00:23 EST
+
+**Main:** `ee62a1ebb5d2`
+**Actor:** Claude
+
+### Completed
+
+[PR #1130 — Multipath E3: Transfer validation and MTU probes asynchronously](https://github.com/the-sarge/quic-go-fast/pull/1130) merged as `ee62a1ebb5d221c49277c73f1f7c8ad6ef2e1586`, closing [E3 issue #1017](https://github.com/the-sarge/quic-go-fast/issues/1017). Client and server validation probes, ordinary rebinding and MTU probes now use the private endpoint route, and the connection loop doesn't wait for the native write. Amplification, packet-number and challenge commitments precede the offer and survive refusal. No public constructor installs this route, and ungranted routes are unchanged.
+
+### Decisions
+
+The [scoped re-audit](audits/2026-11-02-e3-probe-route-reaudit.md), published by [PR #1129](https://github.com/the-sarge/quic-go-fast/pull/1129) before any implementation, named the recovery, adapter and endpoint seams the slice's file list had left out. It also fixed these dispositions in the [E3 contract](adr/2026-10-24-multipath-endpoint-plan.md#e3):
+
+- MTU local disposal is not PMTU loss, a size rejection stays PMTU feedback, and an uncertain probe's later loss records no lost entry.
+- Path probes register without a completion token, and on this route their numbers stay out of packet distance.
+- A client probe uses its target transport's endpoint, and an ungranted target stays rejected.
+- Client `Path.Close`, server path retirement and target transport close revoke queued probes. Peer-driven `RetirePriorTo` does not, because it retires a probing connection ID rather than the path.
+
+Client `Path.Switch` across transports, live CONNECTION_CLOSE and connection drain stay rejected on this route until [E5 issue #1019](https://github.com/the-sarge/quic-go-fast/issues/1019).
+
+### Validation
+
+Evidence stayed inside the budget: seven new test functions of the 16 allowed, one focused race run, and one guard mutation, which removed the packet-distance exclusion and made `TestLocalProbeRegistration` fail. Initial review `20261103T044018-c3453ce30a46f292c56d0493` led to one behavior fix: `Difference` now excludes a local path probe at its upper endpoint. Verification at `e305782431ffb1433ebcba86a5e23b0e962bed95` had a clear blocking projection. Replacement review `20261103T045938-c46b92f18cf28e3af34234d1` required no change. The [PR #1130 discussion](https://github.com/the-sarge/quic-go-fast/pull/1130) records the dispositions and the exact-head local certification at `01ed1732861566c1286afa12659b2e69fdd712eb` on Go 1.27.3 darwin/arm64. All 33 hosted check runs succeeded on that head.
+
+Two hosted failures were nondeterministic tests fixed by diagnosis rather than reruns. `TestNativeOrdinarySegmentPrefix`, from PR #1124, failed because the packet-number generator can skip the number it asserted; the fix landed in PR #1129. `TestHTTPServerIdleTimeout` failed on macOS with Go 1.27.3 when the 30 ms idle timer fired about 57 ms late and the close missed its 90 ms budget, so the budget is now a scaled one second, in PR #1130. Neither failing path used the new probe route.
+
+No review finding was deferred, so no follow-up issue was filed.
+
+### Next
+
+The committed product state is 7/9 endpoint slices and 15/34 program slices complete. [E5 issue #1019](https://github.com/the-sarge/quic-go-fast/issues/1019) is the ready endpoint frontier, and [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029) still requires it. [Endpoint parent #1012](https://github.com/the-sarge/quic-go-fast/issues/1012) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) own live readiness.
