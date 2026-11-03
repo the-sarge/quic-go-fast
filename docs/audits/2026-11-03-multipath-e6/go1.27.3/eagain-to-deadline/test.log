@@ -1,0 +1,7 @@
+Kernel Version: 7.0
+
+=== RUN   TestNativeQualification
+=== RUN   TestNativeQualification/eagain-to-deadline
+--- PASS: TestNativeQualification (0.10s)
+    --- PASS: TestNativeQualification/eagain-to-deadline (0.10s)
+PASS

@@ -1,0 +1,12 @@
+{
+  "class": "shutdown-join",
+  "go": "go1.26.10",
+  "traversal": false,
+  "timing_ms": {
+    "public_write_return": 0.097012
+  },
+  "facts": {
+    "client_join_ms": 0.12235,
+    "server_join_ms": 0.090169
+  }
+}

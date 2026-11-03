@@ -1,0 +1,12 @@
+{
+  "class": "retry-fallback",
+  "go": "go1.27.3",
+  "traversal": true,
+  "timing_ms": {
+    "injected_fallback_return": 0.97736,
+    "injected_retry_return": 0.333062
+  },
+  "facts": {
+    "simulated_gso_eio": 1
+  }
+}

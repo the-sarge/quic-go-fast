@@ -1,6 +1,6 @@
 # Bounded native endpoint I/O implementation plan
 
-**Status:** E1, E2A, E2B, E2C, E2 #1016, E3 #1017, E4 #1018 and E5 #1019 complete; the endpoint route remains inactive in public construction. E6 #1020 is ready; ordinary endpoint integration is complete. Dispatch requires a verified frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012).
+**Status:** all nine slices complete, including E6 #1020; the endpoint route remains inactive in public construction until R19. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012).
 
 ## Binding contract and operating discipline
 
@@ -214,7 +214,7 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 | [E3](#e3) | complete | Transfer validation and MTU probes asynchronously | E2 |
 | [E4](#e4) | complete | Cover transport replies, cached close and public writes | E1 |
 | [E5](#e5) | complete | Seal endpoint shutdown and return its grant exactly once | E3, E4 |
-| [E6](#e6) | new | Qualify the native deadline and join boundary | E5 |
+| [E6](#e6) | complete | Qualify the native deadline and join boundary | E5 |
 
 ## Implementation slices
 
@@ -528,6 +528,8 @@ The existing registration fields own the representation: `packet == nil` already
 <a id="e6"></a>
 
 ### E6 — Qualify the native deadline and join boundary
+
+**Current state:** complete. The [E6 receipt](../audits/2026-11-03-multipath-e6-receipt.md) records 12 passing native instances on Linux amd64 with Go 1.26.10 and 1.27.3, its one simulated input and its contention observation. No successor becomes ready: R16 #1036 still requires R11, R13, R14 and R15.
 
 **Delivers:** Build the disposable real-UDP/native-poller fixture and run the six accepted native classes on the two pinned Go versions. Record exact kernel image, toolchain, syscall/injection tool and native traversal. Compare actual socket pressure separately; do not call injected EAGAIN real kernel congestion. Publish qualification or an explicit stop. The shared-contention native cell uses bounded endpoint participant/path request classes through the real writer; it makes no negotiated multipath traffic claim. R17/R18 cover actual ordinary-plus-multipath traffic. Separate injected native-poller traversal from non-injected 20 ms timing qualification within the same observations.
 

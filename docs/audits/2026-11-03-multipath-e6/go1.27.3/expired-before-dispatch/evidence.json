@@ -1,0 +1,10 @@
+{
+  "class": "expired-before-dispatch",
+  "go": "go1.27.3",
+  "traversal": false,
+  "timing_ms": {
+    "expiry": 0.058529,
+    "successor_publication": 0.078397
+  },
+  "facts": {}
+}

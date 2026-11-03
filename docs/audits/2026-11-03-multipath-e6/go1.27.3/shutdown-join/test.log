@@ -1,0 +1,7 @@
+Kernel Version: 7.0
+
+=== RUN   TestNativeQualification
+=== RUN   TestNativeQualification/shutdown-join
+--- PASS: TestNativeQualification (0.01s)
+    --- PASS: TestNativeQualification/shutdown-join (0.01s)
+PASS

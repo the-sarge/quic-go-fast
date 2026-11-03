@@ -1,0 +1,256 @@
+{
+  "candidate": "0a9f72fe55b0ed559c72a13246d9ed3b63811f3e",
+  "kernel": "Linux minimax 7.0.0-30-generic #30-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 31 18:22:54 UTC 2026 x86_64 GNU/Linux",
+  "os_release": "PRETTY_NAME=\"Ubuntu 26.04.1 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"26.04\"\nVERSION=\"26.04.1 LTS (Resolute Raccoon)\"\nVERSION_CODENAME=resolute\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=resolute\nLOGO=ubuntu-logo\n",
+  "strace": "strace -- version 6.19",
+  "toolchains": {
+    "go1.26.10": {
+      "internal/poll/fd_unix.go": "689fb78bb32b8e810fa1dd2ded475a79574f24a8f40260af2d4a3273392bc2cc"
+    },
+    "go1.27.3": {
+      "internal/poll/fd_unix.go": "675f74e8cbfc73170e08b43947c131706cd59e498d722555fe3b793618f5f162"
+    }
+  },
+  "instances": [
+    {
+      "go": "go1.26.10",
+      "class": "expired-before-dispatch",
+      "command": [
+        "/home/josh/agents/e6-results/go1.26.10.test",
+        "-test.run=^TestNativeQualification$/^expired-before-dispatch$",
+        "-test.count=1",
+        "-test.timeout=30s",
+        "-test.v"
+      ],
+      "exit": 0,
+      "seconds": 0.005,
+      "load_before": "1.33 1.40 1.17 2/592 2942896",
+      "load_after": "1.33 1.40 1.17 2/592 2942902",
+      "failure": null
+    },
+    {
+      "go": "go1.26.10",
+      "class": "eagain-to-deadline",
+      "command": [
+        "strace",
+        "-f",
+        "-qq",
+        "--seccomp-bpf",
+        "-o",
+        "/home/josh/agents/e6-results/go1.26.10/eagain-to-deadline/strace.log",
+        "-e",
+        "trace=sendmsg",
+        "-e",
+        "inject=sendmsg:error=EAGAIN",
+        "/home/josh/agents/e6-results/go1.26.10.test",
+        "-test.run=^TestNativeQualification$/^eagain-to-deadline$",
+        "-test.count=1",
+        "-test.timeout=30s",
+        "-test.v"
+      ],
+      "exit": 0,
+      "seconds": 0.106,
+      "load_before": "1.33 1.40 1.17 2/592 2942902",
+      "load_after": "1.33 1.40 1.17 2/592 2942913",
+      "failure": null
+    },
+    {
+      "go": "go1.26.10",
+      "class": "retry-fallback",
+      "command": [
+        "sudo",
+        "-n",
+        "env",
+        "NATIVE_QUAL_EVIDENCE=/home/josh/agents/e6-results/go1.26.10/retry-fallback/evidence.json",
+        "unshare",
+        "-n",
+        "sh",
+        "-c",
+        "ip link set lo up && nft add table inet qual && nft add chain inet qual out '{ type filter hook output priority 0; }' && nft add rule inet qual out meta l4proto udp drop && exec 'strace' '-f' '-qq' '--seccomp-bpf' '-o' '/home/josh/agents/e6-results/go1.26.10/retry-fallback/strace.log' '-e' 'trace=sendmsg' '-e' 'inject=sendmsg:error=EAGAIN:when=2+' '/home/josh/agents/e6-results/go1.26.10.test' '-test.run=^TestNativeQualification$/^retry-fallback$' '-test.count=1' '-test.timeout=30s' '-test.v'"
+      ],
+      "exit": 0,
+      "seconds": 0.225,
+      "load_before": "1.33 1.40 1.17 2/592 2942913",
+      "load_after": "1.33 1.40 1.17 2/592 2942934",
+      "failure": null
+    },
+    {
+      "go": "go1.26.10",
+      "class": "queued-expiry",
+      "command": [
+        "strace",
+        "-f",
+        "-qq",
+        "--seccomp-bpf",
+        "-o",
+        "/home/josh/agents/e6-results/go1.26.10/queued-expiry/strace.log",
+        "-e",
+        "trace=sendmsg",
+        "-e",
+        "inject=sendmsg:error=EAGAIN",
+        "/home/josh/agents/e6-results/go1.26.10.test",
+        "-test.run=^TestNativeQualification$/^queued-expiry$",
+        "-test.count=1",
+        "-test.timeout=30s",
+        "-test.v"
+      ],
+      "exit": 0,
+      "seconds": 0.106,
+      "load_before": "1.33 1.40 1.17 2/592 2942934",
+      "load_after": "1.33 1.40 1.17 2/592 2942943",
+      "failure": null
+    },
+    {
+      "go": "go1.26.10",
+      "class": "shutdown-join",
+      "command": [
+        "/home/josh/agents/e6-results/go1.26.10.test",
+        "-test.run=^TestNativeQualification$/^shutdown-join$",
+        "-test.count=1",
+        "-test.timeout=30s",
+        "-test.v"
+      ],
+      "exit": 0,
+      "seconds": 0.008,
+      "load_before": "1.33 1.40 1.17 2/592 2942943",
+      "load_after": "1.33 1.40 1.17 2/592 2942956",
+      "failure": null
+    },
+    {
+      "go": "go1.26.10",
+      "class": "request-contention",
+      "command": [
+        "/home/josh/agents/e6-results/go1.26.10.test",
+        "-test.run=^TestNativeQualification$/^request-contention$",
+        "-test.count=1",
+        "-test.timeout=30s",
+        "-test.v"
+      ],
+      "exit": 0,
+      "seconds": 1.13,
+      "load_before": "1.33 1.40 1.17 2/592 2942956",
+      "load_after": "1.33 1.40 1.17 3/592 2942984",
+      "failure": null
+    },
+    {
+      "go": "go1.27.3",
+      "class": "expired-before-dispatch",
+      "command": [
+        "/home/josh/agents/e6-results/go1.27.3.test",
+        "-test.run=^TestNativeQualification$/^expired-before-dispatch$",
+        "-test.count=1",
+        "-test.timeout=30s",
+        "-test.v"
+      ],
+      "exit": 0,
+      "seconds": 0.006,
+      "load_before": "1.33 1.40 1.17 3/592 2942984",
+      "load_after": "1.33 1.40 1.17 2/592 2942990",
+      "failure": null
+    },
+    {
+      "go": "go1.27.3",
+      "class": "eagain-to-deadline",
+      "command": [
+        "strace",
+        "-f",
+        "-qq",
+        "--seccomp-bpf",
+        "-o",
+        "/home/josh/agents/e6-results/go1.27.3/eagain-to-deadline/strace.log",
+        "-e",
+        "trace=sendmsg",
+        "-e",
+        "inject=sendmsg:error=EAGAIN",
+        "/home/josh/agents/e6-results/go1.27.3.test",
+        "-test.run=^TestNativeQualification$/^eagain-to-deadline$",
+        "-test.count=1",
+        "-test.timeout=30s",
+        "-test.v"
+      ],
+      "exit": 0,
+      "seconds": 0.107,
+      "load_before": "1.33 1.40 1.17 2/592 2942990",
+      "load_after": "1.33 1.40 1.17 2/592 2943000",
+      "failure": null
+    },
+    {
+      "go": "go1.27.3",
+      "class": "retry-fallback",
+      "command": [
+        "sudo",
+        "-n",
+        "env",
+        "NATIVE_QUAL_EVIDENCE=/home/josh/agents/e6-results/go1.27.3/retry-fallback/evidence.json",
+        "unshare",
+        "-n",
+        "sh",
+        "-c",
+        "ip link set lo up && nft add table inet qual && nft add chain inet qual out '{ type filter hook output priority 0; }' && nft add rule inet qual out meta l4proto udp drop && exec 'strace' '-f' '-qq' '--seccomp-bpf' '-o' '/home/josh/agents/e6-results/go1.27.3/retry-fallback/strace.log' '-e' 'trace=sendmsg' '-e' 'inject=sendmsg:error=EAGAIN:when=2+' '/home/josh/agents/e6-results/go1.27.3.test' '-test.run=^TestNativeQualification$/^retry-fallback$' '-test.count=1' '-test.timeout=30s' '-test.v'"
+      ],
+      "exit": 0,
+      "seconds": 0.224,
+      "load_before": "1.33 1.40 1.17 2/592 2943000",
+      "load_after": "1.33 1.40 1.17 2/592 2943021",
+      "failure": null
+    },
+    {
+      "go": "go1.27.3",
+      "class": "queued-expiry",
+      "command": [
+        "strace",
+        "-f",
+        "-qq",
+        "--seccomp-bpf",
+        "-o",
+        "/home/josh/agents/e6-results/go1.27.3/queued-expiry/strace.log",
+        "-e",
+        "trace=sendmsg",
+        "-e",
+        "inject=sendmsg:error=EAGAIN",
+        "/home/josh/agents/e6-results/go1.27.3.test",
+        "-test.run=^TestNativeQualification$/^queued-expiry$",
+        "-test.count=1",
+        "-test.timeout=30s",
+        "-test.v"
+      ],
+      "exit": 0,
+      "seconds": 0.106,
+      "load_before": "1.33 1.40 1.17 2/592 2943021",
+      "load_after": "1.33 1.40 1.17 2/592 2943030",
+      "failure": null
+    },
+    {
+      "go": "go1.27.3",
+      "class": "shutdown-join",
+      "command": [
+        "/home/josh/agents/e6-results/go1.27.3.test",
+        "-test.run=^TestNativeQualification$/^shutdown-join$",
+        "-test.count=1",
+        "-test.timeout=30s",
+        "-test.v"
+      ],
+      "exit": 0,
+      "seconds": 0.008,
+      "load_before": "1.33 1.40 1.17 2/592 2943030",
+      "load_after": "1.33 1.40 1.17 2/592 2943043",
+      "failure": null
+    },
+    {
+      "go": "go1.27.3",
+      "class": "request-contention",
+      "command": [
+        "/home/josh/agents/e6-results/go1.27.3.test",
+        "-test.run=^TestNativeQualification$/^request-contention$",
+        "-test.count=1",
+        "-test.timeout=30s",
+        "-test.v"
+      ],
+      "exit": 0,
+      "seconds": 1.129,
+      "load_before": "1.33 1.40 1.17 2/592 2943043",
+      "load_after": "1.39 1.41 1.18 2/591 2943071",
+      "failure": null
+    }
+  ]
+}
