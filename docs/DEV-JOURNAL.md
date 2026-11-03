@@ -8451,3 +8451,28 @@ S1's merged consumable revision satisfies the dependency of [S2 issue #2169 — 
 Completed [issue #1120 — Stabilize sent-path adaptive isolation fixture](https://github.com/the-sarge/quic-go-fast/issues/1120) in [PR #1121](https://github.com/the-sarge/quic-go-fast/pull/1121), merged as `cdd2951f7b592928531f9da7f09df52d226042c5`. The existing isolation test now assigns separate sequential packet-number generators to both paths before sending packets, making its cross-path ACK assumptions deterministic while preserving its assertions and timing.
 
 Validation passed on candidate `7263c393fd3ccc8732c6b58a1a474d2a827fa055`: 300 focused executions, 100 race-enabled focused executions, the ackhandler package tests, affected-package vet, module tidiness, formatting and diff checks. RAS review `20261102T231746-9c81c26c6f168e4e99fa1af5` reported no findings. Existing hosted PR checks passed before the exact-head squash merge. Issue #1120 is closed; no review follow-ups remain.
+
+---
+
+## Multipath E4 response ownership landed - 2026-11-02 20:46 EST
+
+**Main:** `20ac966e24f7`
+**Actor:** Codex
+
+### Completed
+
+[PR #1125 — Cover transport replies, cached close and public writes](https://github.com/the-sarge/quic-go-fast/pull/1125) merged as `20ac966e24f7afd5f4c7f7d44491bcfb910767cc`, closing [E4 issue #1018](https://github.com/the-sarge/quic-go-fast/issues/1018). The inactive endpoint adapter now owns Retry, refusal/INVALID_TOKEN, version negotiation, stateless reset and cached-close datagrams, with copied response payload and destination/OOB metadata. Transport/server/cache epochs fence retired responses. Synchronous public writes retain borrowed bytes until native return, including overdue/quarantined calls, and expose classified admission/deadline/uncertain errors without authorizing replay.
+
+### Decisions
+
+The [accepted E4 contract](adr/2026-10-24-multipath-endpoint-plan.md#e4) keeps the unregistered route unchanged and public constructor activation disabled. Endpoint join belongs to [E5 issue #1019](https://github.com/the-sarge/quic-go-fast/issues/1019), native qualification to [E6 issue #1020](https://github.com/the-sarge/quic-go-fast/issues/1020), and activation to [R19 issue #1039](https://github.com/the-sarge/quic-go-fast/issues/1039). The product commit owns the E4 completion/frontier transition; this entry appends history only.
+
+### Validation
+
+The admitted suite contains 16 deterministic scenario instances and one focused race configuration. Full-panel review `20261103T011606-c2a360f69a0d0adc99629014` completed all four reviewers, adjudication and synthesis; its two low documentation findings were fixed under the shared docs-only exception. The [PR #1125 dispositions](https://github.com/the-sarge/quic-go-fast/pull/1125#issuecomment-6593004101) retain the decisions. The earlier incomplete review was not counted as passing evidence; authenticated-home retry preserved the full configured panel.
+
+The [PR #1125 exact-head certificate](https://github.com/the-sarge/quic-go-fast/pull/1125#issuecomment-6593056984) records passing root tests, focused race tests, root vet, tidy-diff, fix-diff, configured lint and clean-tree/whitespace checks at `5feacab1e76fdcfe7f76f1efebc51c4eb7ba5d45` on base `db3890b38779f9594dd8f47709e5faed7b9eb7ad` with Go 1.27.3 on darwin/arm64. All 17 hosted PR checks passed before exact-head squash merge, including unit run `41560076290`, integration `41560076295`, lint `41560076279`, cross compilation `41560076289` and interop `41560076258`. This is not native-platform qualification. No deferred review finding or material untraced effect remains within E4's admitted scope.
+
+### Next
+
+The product state is 5/9 endpoint slices and 13/34 program slices complete. [E2 issue #1016](https://github.com/the-sarge/quic-go-fast/issues/1016) remains in progress independently; [E5 issue #1019](https://github.com/the-sarge/quic-go-fast/issues/1019) still requires [E3 issue #1017](https://github.com/the-sarge/quic-go-fast/issues/1017), so E4 creates no newly ready successor. [Endpoint parent #1012](https://github.com/the-sarge/quic-go-fast/issues/1012) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) own live readiness. Journal closure and the exact E4 OmniFocus task are being reconciled after the product merge.
