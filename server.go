@@ -1001,6 +1001,17 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 		s.retireZeroRTTQueue(hdr.DestConnectionID)
 		return nil
 	}
+	if err := conn.installNativeRoute((*Transport)(s.tr), p.remoteAddr, p.info); err != nil {
+		conn.abortUnstarted(err)
+		if errors.Is(err, ErrMultipathResourceLimitV1) {
+			s.refuseNewConn(p, hdr)
+			return nil
+		}
+		// A sealed endpoint sends no response.
+		p.buffer.Release()
+		s.retireZeroRTTQueue(hdr.DestConnectionID)
+		return nil
+	}
 	conn.handlePacket(p)
 	// Adding the connection will fail if the client's chosen Destination Connection ID is already in use.
 	// This is very unlikely: Even if an attacker chooses a connection ID that's already in use,

@@ -852,6 +852,11 @@ runLoop:
 	c.cryptoStreamHandler.Close()
 	c.emission.drain() // close the send queue before sending the CONNECTION_CLOSE
 	c.handleCloseError(closeErr)
+	if c.emission.local != nil {
+		// Closing local recovery can record, so it precedes the recorder's Close.
+		// The defer covers only the exits before the run loop.
+		c.emission.local.Close()
+	}
 	if c.qlogger != nil {
 		if _, ok := errors.AsType[*errCloseForRecreating](closeErr.err); !ok {
 			c.qlogger.Close()
@@ -1053,7 +1058,12 @@ func (c *Conn) switchToNewPath(tr *Transport, now monotime.Time) {
 	c.emission.resetLocalPath(c.pathGeneration, now)
 	c.resetPathPacketSize(now)
 	conn := newSendConn(tr.conn, c.conn.RemoteAddr(), packetInfo{}, utils.DefaultLogger) // TODO: find a better way
-	queue := c.emission.replacePath(conn, &c.handshakeSendFeedback)
+	var queue sender
+	if c.emission.local != nil {
+		queue = c.emission.replaceLocalPath(tr, conn)
+	} else {
+		queue = c.emission.replacePath(conn, &c.handshakeSendFeedback)
+	}
 	// replacePath published the new socket, so DF is checked on the new path.
 	c.startMTUDiscovery(now)
 	go func() {
@@ -2502,6 +2512,9 @@ func (c *Conn) CloseWithError(code ApplicationErrorCode, desc string) error {
 // Ordinary teardown would wait for unstarted workers and remove routing entries
 // that may belong to the connection that won registration.
 func (c *Conn) abortUnstarted(err error) {
+	if c.emission.local != nil {
+		c.emission.local.Close() // no run loop will return its participant slot
+	}
 	c.authority.release()
 	c.closePacketAdmission()
 	c.cryptoStreamHandler.Close()

@@ -165,6 +165,9 @@ type Transport struct {
 	conn       rawConn
 	responses  *endpointResponses
 	policyConn packetPolicyConn
+	// nativeIOConn is the socket granted to the native endpoint. It and responses
+	// are configured before initialization and immutable thereafter.
+	nativeIOConn net.PacketConn
 	// candidates is joined before initialization and immutable thereafter.
 	candidates *candidateGroup
 	// setupAdmission is configured before initialization and immutable thereafter.
@@ -389,6 +392,11 @@ func (t *Transport) doDial(
 	conn.installAckThreshold(t.ackThreshold)
 	conn.installSendThreadQoS(t.sendThreadQoS)
 	if err := conn.bindCandidate(t.candidates); err != nil {
+		t.mutex.Unlock()
+		conn.abortUnstarted(err)
+		return nil, err
+	}
+	if err := conn.installNativeRoute(t, sendConn.RemoteAddr(), packetInfo{}); err != nil {
 		t.mutex.Unlock()
 		conn.abortUnstarted(err)
 		return nil, err
@@ -646,6 +654,9 @@ func (t *Transport) close(e error) {
 	e = &errTransportClosed{err: e}
 	t.transportClosed = true
 	t.responses.revoke()
+	// Sealing precedes logical shutdown, so no captured producer can reach the
+	// socket once it begins. It doesn't wait for the writer.
+	t.responses.seal()
 	t.closeErr = e
 	t.cancelReadRetry()
 	server := t.server

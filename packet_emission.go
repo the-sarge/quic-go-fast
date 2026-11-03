@@ -106,7 +106,13 @@ type emissionIntent struct {
 
 func (e *packetEmission) setToken(token []byte) { e.packer.SetToken(token) }
 func (e *packetEmission) run() error            { return e.queue.Run() }
-func (e *packetEmission) drain()                { e.queue.Close() }
+func (e *packetEmission) drain() {
+	if e.local != nil {
+		e.local.drain()
+		return
+	}
+	e.queue.Close()
+}
 func (e *packetEmission) capacity() <-chan struct{} {
 	if e.queue.WouldBlock() {
 		return e.queue.Available()
@@ -724,6 +730,17 @@ func (e *packetEmission) replacePath(conn sendConn, feedback *handshakeSendFeedb
 	return queue
 }
 
+// replaceLocalPath publishes the target endpoint's conn. A rejected target leaves
+// the path in place and fails the connection through the sender.
+func (e *packetEmission) replaceLocalPath(tr *Transport, conn sendConn) sender {
+	if next := e.local.replacePath(tr, conn); next != nil {
+		e.connMutex.Lock()
+		*e.conn = next
+		e.connMutex.Unlock()
+	}
+	return e.local
+}
+
 // In-place rebinding deliberately retains the active queue: pending writes use
 // the destination current at their syscall, as before.
 func (e *packetEmission) rebindPath(addr net.Addr, info packetInfo) {
@@ -731,9 +748,6 @@ func (e *packetEmission) rebindPath(addr net.Addr, info packetInfo) {
 }
 
 func (e *packetEmission) close(cause error) ([]byte, error) {
-	if e.local != nil {
-		return nil, errLocalPacketRoute
-	}
 	var packet *coalescedPacket
 	var err error
 	if transportErr, ok := errors.AsType[*qerr.TransportError](cause); ok {
@@ -751,6 +765,12 @@ func (e *packetEmission) close(cause error) ([]byte, error) {
 	}
 	ecn := (*e.recovery).ECNMode(packet.IsOnlyShortHeaderPacket())
 	e.policy.logCoalescedPacket(packet, ecn)
+	if e.local != nil {
+		// The endpoint owns the packet from here, and the closed handler keeps its
+		// own copy. Logical destruction doesn't wait for the native write.
+		retained := bytes.Clone(packet.buffer.Data)
+		return retained, e.local.sendClose(packet.buffer, ecn)
+	}
 	defer packet.buffer.Release()
 	// Close-only authority survives fencing; revocation stops this submission.
 	if !e.authority.permitsClose() {

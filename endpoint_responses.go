@@ -17,12 +17,25 @@ var (
 	// ErrMultipathUncertainV1 identifies a native result that cannot prove non-submission.
 	// Neither this error nor a zero byte count authorizes replay.
 	ErrMultipathUncertainV1 = errors.New("quic: native endpoint transmission uncertain")
+	// ErrMultipathInvalidConfigV1 identifies a refused native endpoint grant:
+	// a budget outside its range, a repeated grant or a late one.
+	ErrMultipathInvalidConfigV1 = errors.New("quic: invalid native endpoint configuration")
+	// ErrMultipathUnsupportedV1 identifies a socket or transport combination outside
+	// the native endpoint's support domain.
+	ErrMultipathUnsupportedV1 = errors.New("quic: native endpoint combination unsupported")
+	// ErrMultipathResourceLimitV1 identifies an exhausted native endpoint participant budget.
+	ErrMultipathResourceLimitV1 = errors.New("quic: native endpoint resource limit reached")
+	// ErrMultipathNotConfiguredV1 reports a join on a transport without a native endpoint grant.
+	ErrMultipathNotConfiguredV1 = errors.New("quic: native endpoint not configured")
+	// ErrMultipathNotStoppingV1 reports a join requested before the transport was closed.
+	ErrMultipathNotStoppingV1 = errors.New("quic: native endpoint not stopping")
 )
 
 type endpointResponseBackend interface {
 	writePublic([]byte, net.Addr, *responseEpoch) (int, error)
 	writeResponse([]byte, net.Addr, packetInfo, *responseEpoch) error
 	revokeResponse(*responseEpoch)
+	seal()
 }
 
 type responseEpoch struct {
@@ -64,5 +77,11 @@ func (responses *endpointResponses) child() *endpointResponses {
 func (responses *endpointResponses) revoke() {
 	if responses != nil {
 		responses.backend.revokeResponse(responses.epoch)
+	}
+}
+
+func (responses *endpointResponses) seal() {
+	if responses != nil {
+		responses.backend.seal()
 	}
 }
