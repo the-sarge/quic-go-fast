@@ -130,7 +130,11 @@ func (s *nativeOrdinarySender) WouldBlock() bool {
 	if s.pending != nil {
 		return false
 	}
-	if !s.recovery.CanRegisterLocalPackets(maxGSOSegments + 3) {
+	packets := 1
+	if !s.connection.handshakeConfirmed {
+		packets = 3
+	}
+	if !s.recovery.CanRegisterLocalPackets(packets) {
 		return true
 	}
 	for index := range s.records {

@@ -199,6 +199,19 @@ func TestNativeOrdinarySegmentPrefix(t *testing.T) {
 }
 
 func TestNativeOrdinaryTerminalLifetime(t *testing.T) {
+	register := func(t *testing.T, c *Conn, frames []ackhandler.Frame) {
+		t.Helper()
+		now := monotime.Now()
+		pn := c.sentPacketHandler.PopPacketNumber(protocol.Encryption1RTT)
+		if c.emission.local != nil {
+			local := c.sentPacketHandler.(ackhandler.LocalSentPacketHandler)
+			token, err := local.RegisterLocalPacket(ackhandler.PacketContext{}, now, pn, protocol.InvalidPacketNumber, nil, frames, protocol.Encryption1RTT, protocol.ECNNon, 1200)
+			require.NoError(t, err)
+			require.NoError(t, local.CompleteLocalPacket(token, ackhandler.LocalPacketAccepted, now))
+		} else {
+			c.sentPacketHandler.SentPacketWithContext(ackhandler.PacketContext{}, now, pn, protocol.InvalidPacketNumber, nil, frames, protocol.Encryption1RTT, protocol.ECNNon, 1200, false, false)
+		}
+	}
 	for _, lifecycle := range []string{"Retry", "dropped keys", "close", "early ACK"} {
 		t.Run(lifecycle, func(t *testing.T) {
 			nativeOrdinaryTest(t, func(t *testing.T) {
@@ -332,6 +345,111 @@ func TestNativeOrdinaryTerminalLifetime(t *testing.T) {
 			})
 		})
 	}
+	for _, controller := range []string{"reno", "bbrv3"} {
+		for _, event := range []string{"ACK", "PTO"} {
+			for _, route := range []string{"legacy", "private"} {
+				t.Run("tracking pressure/"+controller+"/"+event+"/"+route, func(t *testing.T) {
+					nativeOrdinaryTest(t, func(t *testing.T) {
+						tc := bbrDepthTestConnection(t, controller, false)
+						c := tc.conn
+						c.rttStats.UpdateRTT(5*time.Millisecond, 0)
+						c.rttStats.SetMaxAckDelay(protocol.MaxAckDelay)
+						c.sentPacketHandler.ReceivedBytes(64<<20, monotime.Now())
+						var writes []monotime.Time
+						var packets [][]byte
+						observe := func(data []byte) {
+							writes = append(writes, monotime.Now())
+							packets = append(packets, bytes.Clone(data))
+						}
+						if route == "private" {
+							endpoint := startNativeEndpoint(endpointTestNative{send: func(data []byte) (int, error) {
+								observe(data)
+								return len(data), nil
+							}}, 100*time.Millisecond, nil)
+							defer func() { <-endpoint.stop() }()
+							require.NoError(t, c.useNativeOrdinary(endpoint, netip.MustParseAddrPort("1.2.3.4:4321"), packetInfo{}))
+						} else {
+							tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(data []byte, _ uint16, _ protocol.ECN) error {
+								observe(data)
+								return nil
+							}).AnyTimes()
+						}
+						first, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+						for {
+							next, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+							if next-first >= protocol.MaxTrackedSentPackets-128 {
+								break
+							}
+							register(t, c, nil)
+						}
+						register(t, c, []ackhandler.Frame{{Frame: &wire.PingFrame{}}})
+						now := monotime.Now()
+						require.Equal(t, ackhandler.SendAck, c.sentPacketHandler.SendMode(now))
+						deadline := c.sentPacketHandler.GetLossDetectionTimeout()
+						require.False(t, deadline.IsZero())
+						if route == "private" {
+							local := c.sentPacketHandler.(ackhandler.LocalSentPacketHandler)
+							require.True(t, local.CanRegisterLocalPackets(1))
+							require.False(t, local.CanRegisterLocalPackets(maxGSOSegments+3))
+						}
+						if event == "ACK" {
+							received := tc.receivedPacketHandler()
+							require.NoError(t, received.ReceivedPacket(1, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+							require.NotNil(t, received.GetAckFrame(protocol.Encryption1RTT, now, false))
+							require.NoError(t, received.ReceivedPacket(2, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+							deadline = received.GetAlarmTimeout()
+							require.False(t, deadline.IsZero())
+							require.True(t, deadline.Before(c.sentPacketHandler.GetLossDetectionTimeout()))
+						}
+						stop := runNativeOrdinaryTestConnection(t, tc, nil)
+						defer stop()
+						time.Sleep(deadline.Sub(now) + time.Millisecond)
+						synctest.Wait()
+						require.NoError(t, c.ctx.Err())
+						require.NotEmpty(t, writes, "tracking pressure must preserve actionable control timers")
+						require.Equal(t, deadline, writes[0], "the connection selects the control deadline, not idle termination")
+						frames := schedulingFrames(t, tc, packets[0])
+						found := false
+						for _, frame := range frames {
+							_, ack := frame.(*wire.AckFrame)
+							_, ping := frame.(*wire.PingFrame)
+							found = found || (event == "ACK" && ack) || (event == "PTO" && ping)
+						}
+						require.True(t, found, "the real packer constructs the expected control packet")
+					})
+				})
+			}
+		}
+	}
+	t.Run("tracking quantum", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			require.Greater(t, protocol.MaxTrackedSentPackets-protocol.MaxOutstandingSentPackets, 2*(maxGSOSegments+3))
+			tc := newEmissionTestConnection(t, false)
+			c := tc.conn
+			endpoint := startNativeEndpoint(endpointTestNative{}, 100*time.Millisecond, nil)
+			require.NoError(t, c.useNativeOrdinary(endpoint, netip.MustParseAddrPort("1.2.3.4:4321"), packetInfo{}))
+			queue := c.emission.local.(*nativeOrdinarySender)
+			defer func() { queue.Close(); <-endpoint.stop() }()
+			for queue.recovery.CanRegisterLocalPackets(3) {
+				register(t, c, nil)
+			}
+			require.True(t, queue.recovery.CanRegisterLocalPackets(1))
+			c.handshakeConfirmed = false
+			c.initialStream.Write([]byte("coalesced work remains producer-owned"))
+			before, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+			require.Equal(t, emissionQueueFull, c.emission.coalesced(monotime.Now()).stop)
+			after, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+			require.Equal(t, before, after)
+			require.True(t, c.initialStream.HasData())
+			c.handshakeConfirmed = true
+			require.False(t, queue.WouldBlock(), "the confirmed atomic quantum still fits")
+			queue.finish()
+			for queue.recovery.CanRegisterLocalPackets(1) {
+				register(t, c, nil)
+			}
+			require.True(t, queue.WouldBlock(), "actual atomic-quantum exhaustion remains a hard block")
+		})
+	})
 }
 
 func runNativeOrdinaryTestConnection(t *testing.T, tc *testConnection, expected error) func() {
