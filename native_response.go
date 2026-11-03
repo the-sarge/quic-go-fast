@@ -79,7 +79,7 @@ func (endpoint *nativeEndpoint) writePublic(data []byte, address net.Addr, epoch
 	if result.uncertain != 0 {
 		err = errors.Join(err, ErrMultipathUncertainV1)
 	}
-	if errors.Is(err, errEndpointRevoked) {
+	if errors.Is(err, errEndpointRevoked) || errors.Is(err, errEndpointFault) {
 		err = errors.Join(err, net.ErrClosed)
 	}
 	return result.bytes, err

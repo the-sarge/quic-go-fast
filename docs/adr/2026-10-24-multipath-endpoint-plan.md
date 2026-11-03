@@ -212,7 +212,7 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 | [E2C](#e2c) | complete | Reconcile local transmission certainty with cumulative ECN evidence | E2B |
 | [E2](#e2) | replace draft | Deliver nonfatal ordinary packet completions through recovery | E1, E2C |
 | [E3](#e3) | new | Transfer validation and MTU probes asynchronously | E2 |
-| [E4](#e4) | new | Cover transport replies, cached close and public writes | E1 |
+| [E4](#e4) | complete | Cover transport replies, cached close and public writes | E1 |
 | [E5](#e5) | new | Seal endpoint shutdown and return its grant exactly once | E3, E4 |
 | [E6](#e6) | new | Qualify the native deadline and join boundary | E5 |
 

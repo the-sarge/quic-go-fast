@@ -62,7 +62,7 @@ func TestEndpointResponseSnapshotsAliases(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		release := make(chan struct{})
 		address := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1234}
-		info := packetInfo{addr: netip.MustParseAddr("127.0.0.2"), ifIndex: 3}
+		info := packetInfo{addr: netip.MustParseAddr("127.0.0.2")}
 		var payloads []string
 		var destinations []netip.AddrPort
 		var metadata [][]byte
@@ -304,12 +304,15 @@ func TestEndpointCachedCloseDisposal(t *testing.T) {
 		require.True(t, handlers.Add(identity, newClosedRemoteConn()))
 		payload := []byte("cached close")
 		handlers.ReplaceWithClosed([]protocol.ConnectionID{identity}, payload, 10*time.Millisecond)
-		cached := transport.handlers[identity].handler
+		cached, found := handlers.Get(identity)
+		require.True(t, found)
 		address := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1234}
 		cached.handlePacket(receivedPacket{buffer: getPacketBuffer(), remoteAddr: address})
 		synctest.Wait()
 		time.Sleep(11 * time.Millisecond)
-		require.Empty(t, transport.handlers)
+		synctest.Wait()
+		_, found = handlers.Get(identity)
+		require.False(t, found)
 		clear(payload)
 		cached.handlePacket(receivedPacket{buffer: getPacketBuffer(), remoteAddr: address})
 		close(release)
@@ -350,7 +353,14 @@ func TestEndpointPublicOverdueBorrow(t *testing.T) {
 			<-release
 			return len(data), nil
 		}}, time.Second, nil)
-		defer func() { <-endpoint.stop() }()
+		defer func() {
+			select {
+			case <-release:
+			default:
+				close(release)
+			}
+			<-endpoint.stop()
+		}()
 		transport := &Transport{responses: newEndpointResponses(endpoint)}
 		returned := make(chan int, 1)
 		go func() {
@@ -358,12 +368,22 @@ func TestEndpointPublicOverdueBorrow(t *testing.T) {
 			returned <- written
 		}()
 		synctest.Wait()
-		time.Sleep(time.Second + endpointTolerance + time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
+		queued := make(chan error, 1)
+		go func() {
+			_, err := transport.WriteTo([]byte("queued"), &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1234})
+			queued <- err
+		}()
+		synctest.Wait()
+		time.Sleep(500*time.Millisecond + endpointTolerance + time.Millisecond)
 		select {
 		case <-endpoint.fault:
 		default:
 			t.Fatal("overdue native request did not fault the endpoint")
 		}
+		err := <-queued
+		require.ErrorIs(t, err, net.ErrClosed)
+		require.NotErrorIs(t, err, ErrMultipathUncertainV1)
 		select {
 		case <-returned:
 			t.Fatal("overdue notification released the caller's native borrow")
