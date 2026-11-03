@@ -671,6 +671,26 @@ func TestPathAdmissionCancellation(t *testing.T) {
 			require.Contains(t, f.c.pathCredit.terminals, protocol.PathID(1))
 		})
 	})
+	t.Run("a result published before cancellation stands", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			ctx, cancel := context.WithCancel(context.Background())
+			request := &pathOpenRequest{ctx: ctx, addr: admissionTupleA, done: make(chan error, 1)}
+			require.True(t, request.outcome.CompareAndSwap(pathOpenPending, pathOpenCanceled), "cancellation wins this request")
+			f.c.pathOpen.Store(request)
+			require.NoError(t, f.c.pathCredit.serviceRequest(monotime.Now()))
+			require.Nil(t, f.c.pathOpen.Load())
+			require.False(t, request.finish(nil), "a canceled caller is never told otherwise")
+			require.Empty(t, request.done)
+			errs := f.openAsync(ctx, nil, admissionTupleA)
+			f.pass(t)
+			require.True(t, f.receive(t, 1, admissionTupleA, 100, &wire.PathResponseFrame{Data: admissionChallenges(f.peerWrites(t, 1))[0]}))
+			require.True(t, f.c.pathCredit.members[1].live)
+			cancel()
+			require.NoError(t, <-errs, "the published result stands")
+		})
+	})
 	t.Run("after an ID is committed", func(t *testing.T) {
 		nativeOrdinaryTest(t, func(t *testing.T) {
 			f := newAdmissionFixture(t, protocol.PerspectiveClient)

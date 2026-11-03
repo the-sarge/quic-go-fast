@@ -79,17 +79,28 @@ type pathOpenRequest struct {
 	transport *Transport
 	addr      net.Addr
 	done      chan error
-	canceled  atomic.Bool
+	outcome   atomic.Int32 // one transition decides what the caller observes
 	accepted  bool
 	id        protocol.PathID
 }
 
-func (r *pathOpenRequest) finish(err error) {
-	select {
-	case r.done <- err:
-	default:
+const (
+	pathOpenPending int32 = iota
+	pathOpenCanceled
+	pathOpenFinished
+)
+
+// finish publishes the connection's result unless cancellation already won. A
+// false return means the caller was told it canceled, so nothing may activate.
+func (r *pathOpenRequest) finish(err error) bool {
+	if !r.outcome.CompareAndSwap(pathOpenPending, pathOpenFinished) {
+		return false
 	}
+	r.done <- err
+	return true
 }
+
+func (r *pathOpenRequest) canceled() bool { return r.outcome.Load() == pathOpenCanceled }
 
 // pathProbeIntent is one emission's frames, selected before any commitment.
 type pathProbeIntent struct {
@@ -284,7 +295,7 @@ func (p *pathCreditRegistry) pathResponse(f *wire.PathResponseFrame, ingress pro
 		return
 	}
 	candidate := m.candidate
-	if !now.Before(candidate.probe.validationDeadline) || (candidate.request != nil && candidate.request.canceled.Load()) {
+	if !now.Before(candidate.probe.validationDeadline) || (candidate.request != nil && candidate.request.canceled()) {
 		return
 	}
 	if !candidate.probe.matchResponse(f.Data, now) {
@@ -294,15 +305,17 @@ func (p *pathCreditRegistry) pathResponse(f *wire.PathResponseFrame, ingress pro
 	if !candidate.probe.mtuValidated {
 		return
 	}
+	request := candidate.request
+	if request != nil && !request.finish(nil) {
+		return // cancellation won; the next service closes this initiation
+	}
 	if m.live {
 		p.recordValidated(candidate.addr)
 	} else {
 		p.activate(m, candidate.addr, candidate.info, candidate.transport)
 	}
-	request := candidate.request
 	p.retireCandidate(m)
 	if request != nil {
-		request.finish(nil)
 		p.conn.pathOpen.CompareAndSwap(request, nil)
 	}
 }
@@ -370,7 +383,7 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 		return nil
 	}
 	if request.accepted {
-		if !request.canceled.Load() {
+		if request.outcome.Load() == pathOpenPending {
 			return nil
 		}
 		if m := p.members[request.id]; m != nil && !m.live && p.terminals[request.id] == nil {
@@ -381,7 +394,7 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 		}
 		return nil
 	}
-	if request.canceled.Load() {
+	if request.canceled() {
 		p.conn.pathOpen.CompareAndSwap(request, nil)
 		return nil
 	}
@@ -412,10 +425,11 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 		}
 	}
 	if request.transport == nil && p.tupleValidated(request.addr) {
-		p.activate(m, request.addr, packetInfo{}, nil)
-		m.announce = true
-		request.finish(nil)
-		p.conn.pathOpen.CompareAndSwap(request, nil)
+		if request.finish(nil) {
+			p.activate(m, request.addr, packetInfo{}, nil)
+			m.announce = true
+			p.conn.pathOpen.CompareAndSwap(request, nil)
+		}
 		return nil
 	}
 	if d, ok := request.ctx.Deadline(); ok {
@@ -447,7 +461,6 @@ func (p *pathCreditRegistry) retireMember(id protocol.PathID, err error) {
 	if candidate := m.candidate; candidate != nil {
 		if request := candidate.request; request != nil {
 			request.finish(err) // a canceled caller has already returned
-			request.canceled.Store(true)
 		}
 		p.retireCandidate(m)
 	}

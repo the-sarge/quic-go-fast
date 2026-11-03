@@ -21,12 +21,14 @@ func (c *Conn) openPathPrivate(ctx context.Context, target *Transport, addr net.
 	case err := <-request.done:
 		return err
 	case <-ctx.Done():
-		select {
-		case err := <-request.done:
-			return err // an already published result stands
-		default:
+		if !request.outcome.CompareAndSwap(pathOpenPending, pathOpenCanceled) {
+			select { // the connection decided first, and publishes at once
+			case err := <-request.done:
+				return err
+			case <-c.ctx.Done():
+				return context.Cause(c.ctx)
+			}
 		}
-		request.canceled.Store(true)
 		c.scheduleSending()
 		return context.Cause(ctx)
 	case <-c.ctx.Done():
