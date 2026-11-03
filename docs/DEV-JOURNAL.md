@@ -8605,3 +8605,38 @@ The Windows failure itself is still not reproduced on Windows and stays attribut
 ### Next
 
 No follow-ups were filed; the review deferred nothing. The live view of the multipath program stays on [E6 issue #1020](https://github.com/the-sarge/quic-go-fast/issues/1020) and [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029).
+
+---
+
+## Multipath E6 native deadline and join boundary qualified - 2026-11-03 16:48 EST
+
+**Main:** `a19b05ff3b05`
+**Actor:** Claude
+
+### Summary
+
+[PR #1137 — Multipath E6: Qualify the native deadline and join boundary](https://github.com/the-sarge/quic-go-fast/pull/1137) closed [E6 issue #1020](https://github.com/the-sarge/quic-go-fast/issues/1020) as merge `a19b05ff`, after scoped re-audit [PR #1136](https://github.com/the-sarge/quic-go-fast/pull/1136). No production file changed. The endpoint track is complete at 9/9, and the program is at 17/34. The route stays private until R19, and no negotiated multipath traffic ran, so this is no public support claim.
+
+### Decisions
+
+The fixture is a build-tagged root-package test rather than an `integrationtests/self` test, because the grant methods and per-request deadlines aren't reachable from outside the package. The [re-audit](https://github.com/the-sarge/quic-go-fast/blob/a19b05ff3b05a491fac5a41260154d04b8070c35/docs/audits/2026-11-03-e6-native-qualification-reaudit.md) records this and the other method changes. The fallback's GSO `EIO` is simulated by a test wrapper, because this kernel gave no real trigger, and the [receipt](https://github.com/the-sarge/quic-go-fast/blob/a19b05ff3b05a491fac5a41260154d04b8070c35/docs/audits/2026-11-03-multipath-e6-receipt.md) labels it.
+
+### Validation
+
+All 12 instances passed once on candidate `21ee9436` on `minimax`, six classes on each of Go 1.26.10 and 1.27.3, at B = 100 ms. Every uninstrumented value was within the 20 ms tolerance on a busy host, and the slowest was 3.36 ms. In all three injected classes, stacks sampled mid-wait showed the writer in `waitWrite` under `writeEndpointRequest`.
+
+Real socket pressure never produced a wait: 192 stack samples with a 2 KiB send buffer found the writer in the poller zero times, because loopback delivers synchronously. Native poll traversal therefore rests on injection alone.
+
+Two earlier campaigns also passed and were superseded, neither to obtain a pass. One lacked attempt counts. In the other, review found that concurrent participants could lower a recorded timing maximum, which could have hidden a tolerance failure.
+
+RAS review `20261103T183704-cf01b0f95d6941cff10488bc` led to four fix-now findings, and verify came back clear. Replacement review `20261103T185110-d671039b24c7209bfbc95fb5` raised only a stale PR description. `claude-fable` failed in that run and quorum held.
+
+Main advanced by [PR #1138](https://github.com/the-sarge/quic-go-fast/pull/1138) and [PR #1139](https://github.com/the-sarge/quic-go-fast/pull/1139) while the first hosted run finished, so `154d0da4` was not merged. Merge head `ee8a3728` has a PR diff byte-identical to the reviewed head, so it was re-certified with no new review. Four macOS jobs on it were cancelled because no runner was acquired, with zero steps run. The two `pull_request` runs were rerun once on the same head and passed. The `push` copies of the two macOS unit jobs stayed cancelled, and every `pull_request` check passed.
+
+### Next
+
+[Issue #1141](https://github.com/the-sarge/quic-go-fast/issues/1141) records that stateless and public writes were refused about 98–99% of the time under saturated data traffic, even with free capacity. The contract allows this, but it should be decided before public activation in R19.
+
+This slice charged 58 instances, bringing the program to 68 of 180, and the remaining scheduled work exceeds remaining capacity by 14. The owner said the ceiling can be raised if needed, and a later preflight has to record that raise.
+
+E6 makes no successor newly ready, because R16 still requires R11, R13, R14 and R15. [Program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) owns live readiness, with [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029) as the frontier.
