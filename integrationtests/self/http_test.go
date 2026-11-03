@@ -775,8 +775,10 @@ func testHTTPServerIdleTimeout(t *testing.T, beforeReturn func(context.Context, 
 	conn := latestConn.Load()
 	require.NotNil(t, conn, "connection was not opened")
 
+	// A hosted runner can fire the idle timer and deliver its close late. Without
+	// that close, this connection has no other way to end within the budget.
 	select {
-	case <-time.After(3 * idleTimeout):
+	case <-time.After(scaleDuration(time.Second)):
 		t.Fatal("connection was not closed")
 	case <-conn.Context().Done():
 	}
