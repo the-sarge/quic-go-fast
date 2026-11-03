@@ -12,6 +12,8 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/quic-go/quic-go/internal/monotime"
 )
 
 // This route is deliberately inactive: no Transport or connection constructor
@@ -62,12 +64,29 @@ type endpointRequest struct {
 	destination netip.AddrPort
 	buffers     []*packetBuffer
 	deadline    time.Time // zero selects admission+B; an earlier deadline is allowed
+	oob         []byte
+	gsoSize     uint16
+	nativeGSO   bool
+	writeState  *endpointWriteState
+	credit      *sendReservation
 }
 
 type endpointResult struct {
 	identity                         endpointIdentity
 	accepted, uncertain, unsubmitted int
 	err                              error
+	returnedAt                       monotime.Time
+}
+
+type endpointWriteState struct {
+	wroteFirstPacket bool
+	gsoDisabled      atomic.Bool
+}
+
+type endpointAdmission struct {
+	index    int
+	serial   uint64
+	deadline time.Time
 }
 
 // These are the native system boundary, not callbacks on the control path.
@@ -124,6 +143,9 @@ type endpointGrant struct {
 
 type endpointRecord struct {
 	used, terminal bool
+	reserved       bool
+	serial         uint64
+	revoked        bool
 	participant    *endpointParticipant
 	lane           int
 	class          endpointClass
@@ -163,6 +185,7 @@ type endpointState struct {
 	admissionControls, serviceControls int
 	admissionClass, serviceClass       int
 	capacityGeneration                 uint64
+	nextAdmission                      uint64
 }
 
 func newNativeEndpoint(socket *net.UDPConn, budget time.Duration, sink func(endpointDiagnostic)) (*nativeEndpoint, error) {
@@ -259,10 +282,6 @@ func (e *nativeEndpoint) offer(p *endpointParticipant, lane int, request endpoin
 		if lane < 0 || lane > 2 || request.identity.connection != p.id || !request.destination.IsValid() || len(request.buffers) == 0 || len(request.buffers) > endpointBatch {
 			return
 		}
-		class := p.class
-		if class == endpointData && lane == 2 {
-			class = endpointControl
-		}
 		if p.class != endpointData && lane != 0 {
 			return
 		}
@@ -276,55 +295,153 @@ func (e *nativeEndpoint) offer(p *endpointParticipant, lane int, request endpoin
 			}
 			n += cap(b.Data)
 		}
-		if n > 1<<20 || (class != endpointData && n > 64<<10) {
-			return
-		}
-		err = errEndpointCapacity
-		now := time.Now()
-		// Settle the old lease before registering this command's live work.
-		// A retry racing the timer must not be erased as an abandoned offer.
-		s.reclaimGrant(now)
-		w := &p.wait[lane]
-		if !w.pending || w.bytes != n {
-			if s.grant != nil && s.grant.participant == p && s.grant.lane == lane {
-				s.releaseGrant()
-			}
-			w.pending, w.bytes = true, n
-		}
-		s.chooseGrant(now)
-		if s.grant == nil || s.grant.participant != p || s.grant.lane != lane || s.grant.expires.IsZero() {
-			return
-		}
-		for i := range s.records {
-			r := &s.records[i]
-			if r.used {
-				continue
-			}
-			*r = endpointRecord{used: true, participant: p, lane: lane, class: class, bytes: n, request: request}
-			r.request.identity.endpoint = e.generation
-			copy(r.buffers[:], request.buffers)
-			r.request.buffers = r.buffers[:len(request.buffers)]
-			limit := time.Now().Add(s.budget)
-			if request.deadline.IsZero() || request.deadline.After(limit) {
-				r.request.deadline = limit
-			}
-			s.queue = append(s.queue, i)
-			s.count++
-			s.bytes += n
-			s.classCount[class]++
-			s.classBytes[class] += n
-			p.retained++
-			w.pending = false
-			s.grant = nil
-			select {
-			case <-p.ready:
-			default:
-			}
-			err = nil
-			return
+		var admission endpointAdmission
+		admission, err = s.admit(p, lane, n)
+		if err == nil {
+			s.commit(admission, request)
 		}
 	})
 	return err
+}
+
+func (s *endpointState) admit(p *endpointParticipant, lane, size int) (endpointAdmission, error) {
+	if s.sealed || s.faulted || !s.valid(p) {
+		return endpointAdmission{}, net.ErrClosed
+	}
+	if lane < 0 || lane > 2 || (p.class != endpointData && lane != 0) || size <= 0 || size > 1<<20 {
+		return endpointAdmission{}, errEndpointRequest
+	}
+	class := p.class
+	if class == endpointData && lane == 2 {
+		class = endpointControl
+	}
+	if class != endpointData && size > 64<<10 {
+		return endpointAdmission{}, errEndpointRequest
+	}
+	now := time.Now()
+	s.reclaimGrant(now)
+	wait := &p.wait[lane]
+	if !wait.pending || wait.bytes != size {
+		if s.grant != nil && s.grant.participant == p && s.grant.lane == lane {
+			s.releaseGrant()
+		}
+		wait.pending, wait.bytes = true, size
+	}
+	s.chooseGrant(now)
+	if s.grant == nil || s.grant.participant != p || s.grant.lane != lane || s.grant.expires.IsZero() {
+		return endpointAdmission{}, errEndpointCapacity
+	}
+	for index := range s.records {
+		if s.records[index].used {
+			continue
+		}
+		s.nextAdmission++
+		admission := endpointAdmission{index: index, serial: s.nextAdmission, deadline: now.Add(s.budget)}
+		s.records[index] = endpointRecord{used: true, reserved: true, serial: admission.serial, participant: p, lane: lane, class: class, bytes: size}
+		s.count++
+		s.bytes += size
+		s.classCount[class]++
+		s.classBytes[class] += size
+		p.retained++
+		wait.pending = false
+		s.grant = nil
+		select {
+		case <-p.ready:
+		default:
+		}
+		if len(p.results) == 0 {
+			select {
+			case <-p.completed:
+			default:
+			}
+		}
+		return admission, nil
+	}
+	return endpointAdmission{}, errEndpointCapacity
+}
+
+func (s *endpointState) commit(admission endpointAdmission, request endpointRequest) {
+	record := &s.records[admission.index]
+	var size int
+	for _, buffer := range request.buffers {
+		size += cap(buffer.Data)
+	}
+	released := record.bytes - size
+	s.bytes -= released
+	s.classBytes[record.class] -= released
+	record.bytes = size
+	if released != 0 {
+		s.capacityGeneration++
+	}
+	record.reserved = false
+	record.request = request
+	record.request.identity.endpoint = s.endpoint.generation
+	record.request.oob = slices.Clone(request.oob)
+	copy(record.buffers[:], request.buffers)
+	record.request.buffers = record.buffers[:len(request.buffers)]
+	if request.deadline.IsZero() || request.deadline.After(admission.deadline) {
+		record.request.deadline = admission.deadline
+	}
+	s.queue = append(s.queue, admission.index)
+}
+
+func (e *nativeEndpoint) prepare(p *endpointParticipant, lane, size int) (endpointAdmission, error) {
+	var admission endpointAdmission
+	err := net.ErrClosed
+	e.do(func(s *endpointState) { admission, err = s.admit(p, lane, size) })
+	return admission, err
+}
+
+func (e *nativeEndpoint) submit(admission endpointAdmission, request endpointRequest) error {
+	err := net.ErrClosed
+	e.do(func(s *endpointState) {
+		if admission.index < 0 || admission.index >= len(s.records) {
+			return
+		}
+		record := &s.records[admission.index]
+		if !record.used || !record.reserved || record.serial != admission.serial || !s.valid(record.participant) || s.sealed || s.faulted {
+			return
+		}
+		err = errEndpointRequest
+		if request.identity.connection != record.participant.id || !request.destination.IsValid() || len(request.buffers) != 1 || request.buffers[0] == nil || request.buffers[0].refCount != 1 || len(request.buffers[0].Data) == 0 || cap(request.buffers[0].Data) > record.bytes {
+			return
+		}
+		s.commit(admission, request)
+		err = nil
+	})
+	return err
+}
+
+func (s *endpointState) cancelAdmission(admission endpointAdmission) {
+	record := &s.records[admission.index]
+	if !record.used || !record.reserved || record.serial != admission.serial {
+		return
+	}
+	s.count--
+	s.bytes -= record.bytes
+	s.classCount[record.class]--
+	s.classBytes[record.class] -= record.bytes
+	record.participant.retained--
+	s.capacityGeneration++
+	*record = endpointRecord{}
+}
+
+func (e *nativeEndpoint) cancelAdmission(admission endpointAdmission) {
+	e.do(func(s *endpointState) { s.cancelAdmission(admission) })
+}
+
+func (e *nativeEndpoint) cancelGeneration(p *endpointParticipant, generation uint64) {
+	e.do(func(s *endpointState) {
+		for index := range s.records {
+			record := &s.records[index]
+			if record.used && !record.reserved && !record.terminal && record.participant == p && record.request.identity.generation == generation {
+				record.revoked = true
+				if s.current != nil && s.current.index == index {
+					s.current.canceled.Store(true)
+				}
+			}
+		}
+	})
 }
 
 func (e *nativeEndpoint) take(p *endpointParticipant) (endpointResult, bool) {
@@ -399,6 +516,12 @@ func (s *endpointState) revoke(p *endpointParticipant) {
 		p.retained--
 	}
 	p.results = p.results[:0]
+	for index := range s.records {
+		record := &s.records[index]
+		if record.used && record.reserved && record.participant == p {
+			s.cancelAdmission(endpointAdmission{index: index, serial: record.serial})
+		}
+	}
 	if s.current != nil && s.records[s.current.index].participant == p {
 		s.current.canceled.Store(true)
 	}
@@ -411,12 +534,16 @@ func (s *endpointState) publish(index int, result endpointResult) {
 	for _, b := range r.request.buffers {
 		b.Release()
 	}
+	r.request.credit.complete()
+	if result.returnedAt.IsZero() {
+		result.returnedAt = monotime.Now()
+	}
 	s.count--
 	s.bytes -= r.bytes
 	s.classCount[r.class]--
 	s.classBytes[r.class] -= r.bytes
 	s.capacityGeneration++
-	if errors.Is(result.err, os.ErrDeadlineExceeded) || errors.Is(result.err, syscall.EAGAIN) || errors.Is(result.err, syscall.EWOULDBLOCK) || errors.Is(result.err, syscall.ENOBUFS) {
+	if localEndpointBackpressure(result.err) {
 		r.participant.wait[r.lane].notBefore = time.Now().Add(endpointRetry)
 	}
 	r.request = endpointRequest{}
@@ -461,16 +588,16 @@ func (s *endpointState) run() {
 		for j := 0; j < len(s.queue); {
 			i := s.queue[j]
 			r := &s.records[i]
-			if s.faulted || !r.participant.active || !now.Before(r.request.deadline) {
+			if s.faulted || !r.participant.active || r.revoked || !now.Before(r.request.deadline) {
 				err := os.ErrDeadlineExceeded
 				if s.faulted {
 					err = errEndpointFault
 				}
-				if !r.participant.active {
+				if !r.participant.active || r.revoked {
 					err = errEndpointRevoked
 				}
 				s.queue = append(s.queue[:j], s.queue[j+1:]...)
-				s.publish(i, endpointResult{unsubmitted: len(r.request.buffers), err: err})
+				s.publish(i, endpointResult{unsubmitted: r.request.datagrams(), err: err})
 				continue
 			}
 			j++
@@ -687,6 +814,10 @@ func (s *endpointState) chooseGrant(now time.Time) {
 		case p.ready <- s.capacityGeneration:
 		default:
 		}
+		select {
+		case p.completed <- struct{}{}:
+		default:
+		}
 	}
 }
 
@@ -732,51 +863,119 @@ func (s *endpointState) fail() {
 func (e *nativeEndpoint) write(native endpointNativeIO) {
 	for token := range e.work {
 		r := token.request
-		result := endpointResult{unsubmitted: len(r.buffers)}
+		result := endpointResult{unsubmitted: r.datagrams()}
 		fault := false
 		if err := native.SetWriteDeadline(r.deadline); err != nil {
 			result.err, fault = err, true
 		} else {
-			for _, b := range r.buffers {
-				if token.canceled.Load() {
-					result.err = errEndpointRevoked
-					break
-				}
-				if !time.Now().Before(r.deadline) {
-					result.err = os.ErrDeadlineExceeded
-					break
-				}
-				n, _, err := native.WriteMsgUDPAddrPort(b.Data, nil, r.destination)
-				if err == nil && n == len(b.Data) {
-					result.accepted++
-					result.unsubmitted--
-					continue
-				}
-				if err == nil {
-					err = io.ErrShortWrite
-				}
-				result.err = err
-				if errors.Is(err, net.ErrClosed) || errors.Is(err, syscall.EBADF) || errors.Is(err, syscall.ENOTSOCK) {
-					fault = true
-				}
-				// A timeout (including a zero byte count) cannot establish zero
-				// submission. Only a known atomic datagram rejection can do so.
-				if !errors.Is(err, syscall.EMSGSIZE) {
-					result.uncertain++
-					result.unsubmitted--
-				}
-				break
-			}
+			result = writeEndpointRequest(native, token)
+			fault = errors.Is(result.err, net.ErrClosed) || errors.Is(result.err, syscall.EBADF) || errors.Is(result.err, syscall.ENOTSOCK)
 		}
 		if err := native.SetWriteDeadline(time.Time{}); err != nil {
 			result.err, fault = errors.Join(result.err, err), true
 		}
 		// Publication ends this token's native borrow. Do not access payload
 		// after Store: control may immediately release/reuse its storage.
-		token.completion.Store(&endpointWriteResult{result: result, fault: fault, returnedAt: time.Now()})
+		result.returnedAt = monotime.Now()
+		token.completion.Store(&endpointWriteResult{result: result, fault: fault, returnedAt: result.returnedAt.ToTime()})
 		select {
 		case e.returned <- struct{}{}:
 		default:
 		}
 	}
+}
+
+func (r endpointRequest) datagrams() int {
+	if r.gsoSize != 0 && len(r.buffers) == 1 {
+		return (len(r.buffers[0].Data) + int(r.gsoSize) - 1) / int(r.gsoSize)
+	}
+	return len(r.buffers)
+}
+
+func endpointSubmissionAllowed(token *endpointToken) error {
+	if token.canceled.Load() {
+		return errEndpointRevoked
+	}
+	if !time.Now().Before(token.request.deadline) {
+		return os.ErrDeadlineExceeded
+	}
+	return nil
+}
+
+func localEndpointBackpressure(err error) bool {
+	if timeout, ok := errors.AsType[net.Error](err); ok && timeout.Timeout() {
+		return true
+	}
+	return errors.Is(err, os.ErrDeadlineExceeded) || errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.ENOBUFS)
+}
+
+func writeEndpointDatagram(native endpointNativeIO, token *endpointToken, data, oob []byte) (bool, error) {
+	if err := endpointSubmissionAllowed(token); err != nil {
+		return false, err
+	}
+	request := token.request
+	first := request.writeState != nil && !request.writeState.wroteFirstPacket
+	written, _, err := native.WriteMsgUDPAddrPort(data, oob, request.destination)
+	if request.writeState != nil {
+		request.writeState.wroteFirstPacket = true
+	}
+	if first && endpointSendmsgError(err, syscall.EPERM) {
+		if denied := endpointSubmissionAllowed(token); denied != nil {
+			return false, denied
+		}
+		written, _, err = native.WriteMsgUDPAddrPort(data, oob, request.destination)
+	}
+	if err == nil && written != len(data) {
+		err = io.ErrShortWrite
+	}
+	return true, err
+}
+
+func endpointSendmsgError(err error, cause error) bool {
+	system, ok := errors.AsType[*os.SyscallError](err)
+	return ok && system.Syscall == "sendmsg" && errors.Is(system.Err, cause)
+}
+
+func writeEndpointRequest(native endpointNativeIO, token *endpointToken) endpointResult {
+	request := token.request
+	result := endpointResult{unsubmitted: request.datagrams()}
+	for _, buffer := range request.buffers {
+		data := buffer.Data
+		segment := len(data)
+		if request.gsoSize != 0 {
+			segment = int(request.gsoSize)
+			if request.nativeGSO && request.writeState != nil && !request.writeState.gsoDisabled.Load() {
+				oob := appendUDPSegmentSizeMsg(slices.Clone(request.oob), request.gsoSize)
+				attempted, err := writeEndpointDatagram(native, token, data, oob)
+				if endpointSendmsgError(err, syscall.EIO) {
+					request.writeState.gsoDisabled.Store(true)
+				} else {
+					units := request.datagrams()
+					result.err = err
+					if err == nil {
+						result.accepted, result.unsubmitted = units, 0
+					} else if attempted && !errors.Is(err, syscall.EMSGSIZE) {
+						result.uncertain, result.unsubmitted = units, 0
+					}
+					return result
+				}
+			}
+		}
+		for len(data) != 0 {
+			length := min(segment, len(data))
+			attempted, err := writeEndpointDatagram(native, token, data[:length], request.oob)
+			if err != nil {
+				result.err = err
+				if attempted && !errors.Is(err, syscall.EMSGSIZE) {
+					result.uncertain++
+					result.unsubmitted--
+				}
+				return result
+			}
+			result.accepted++
+			result.unsubmitted--
+			data = data[length:]
+		}
+	}
+	return result
 }

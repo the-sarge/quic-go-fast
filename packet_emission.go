@@ -33,6 +33,7 @@ type packetEmission struct {
 	packer   *packetPacker
 	recovery *ackhandler.SentPacketHandler
 	queue    sender
+	local    localPacketSender
 	version  protocol.Version
 
 	policy emissionPolicy
@@ -126,6 +127,9 @@ func (e *packetEmission) finish(result emissionResult) emissionResult {
 }
 
 func (e *packetEmission) send(now monotime.Time, confirmed bool) (result emissionResult) {
+	if e.local != nil {
+		defer e.local.finish()
+	}
 	if e.bbr != nil {
 		return e.sendBounded(now, confirmed)
 	}
@@ -231,7 +235,9 @@ func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCo
 		e.pacingBytes += size
 	}
 	e.policy.logShortHeaderPacket(p, ecn, size)
-	e.registerPacket(p, ecn, now)
+	if err := e.registerPacket(p, ecn, now); err != nil {
+		return shortHeaderPacket{}, 0, err
+	}
 	return p, size, nil
 }
 
@@ -324,7 +330,10 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 	}
 }
 
-func (e *packetEmission) registerPacket(p shortHeaderPacket, ecn protocol.ECN, now monotime.Time) {
+func (e *packetEmission) registerPacket(p shortHeaderPacket, ecn protocol.ECN, now monotime.Time) error {
+	if e.local != nil && (p.IsPathProbePacket || p.IsPathMTUProbePacket) {
+		return errLocalPacketRoute
+	}
 	e.captureTerminalReceipts(p.Frames)
 	if p.IsPathProbePacket {
 		(*e.recovery).SentPacketWithContext(
@@ -340,7 +349,7 @@ func (e *packetEmission) registerPacket(p shortHeaderPacket, ecn protocol.ECN, n
 			p.IsPathMTUProbePacket,
 			true,
 		)
-		return
+		return nil
 	}
 	e.policy.noteEmissionActivity(p, now)
 
@@ -348,7 +357,7 @@ func (e *packetEmission) registerPacket(p shortHeaderPacket, ecn protocol.ECN, n
 	if p.Ack != nil {
 		largestAcked = p.Ack.LargestAcked()
 	}
-	(*e.recovery).SentPacketWithContext(
+	if err := e.register(
 		p.Context,
 		now,
 		p.PacketNumber,
@@ -360,8 +369,11 @@ func (e *packetEmission) registerPacket(p shortHeaderPacket, ecn protocol.ECN, n
 		p.Length,
 		p.IsPathMTUProbePacket,
 		false,
-	)
+	); err != nil {
+		return err
+	}
 	e.policy.noteEmissionRegistration()
+	return nil
 }
 
 // dispatch interprets recovery's opportunity before any destructive packing.
@@ -405,7 +417,9 @@ func (e *packetEmission) coalesced(now monotime.Time) emissionResult {
 		return emissionResult{err: err, supplyExhausted: err == nil}
 	}
 	e.policy.noteFirstEmission()
-	e.sendCoalesced(packet, (*e.recovery).ECNMode(packet.IsOnlyShortHeaderPacket()), now)
+	if err := e.sendCoalesced(packet, (*e.recovery).ECNMode(packet.IsOnlyShortHeaderPacket()), now); err != nil {
+		return emissionResult{err: err}
+	}
 	result := emissionResult{progress: true}
 	//nolint:exhaustive // Preserve only the handshake flight's pacing/immediate-retry policy.
 	switch (*e.recovery).SendMode(now) {
@@ -427,8 +441,7 @@ func (e *packetEmission) maybeSendAckOnlyPacket(now monotime.Time, confirmed boo
 		if packet == nil {
 			return false, nil
 		}
-		e.sendCoalesced(packet, ecn, now)
-		return true, nil
+		return true, e.sendCoalesced(packet, ecn, now)
 	}
 
 	ecn := (*e.recovery).ECNMode(true)
@@ -440,7 +453,10 @@ func (e *packetEmission) maybeSendAckOnlyPacket(now monotime.Time, confirmed boo
 		return false, err
 	}
 	e.policy.logShortHeaderPacket(p, ecn, buf.Len())
-	e.registerPacket(p, ecn, now)
+	if err := e.registerPacket(p, ecn, now); err != nil {
+		buf.Release()
+		return false, err
+	}
 	e.handoff(buf, 0, ecn, sendMetadata{})
 	return true, nil
 }
@@ -489,11 +505,16 @@ func (e *packetEmission) sendProbePacket(sendMode ackhandler.SendMode, now monot
 	if packet == nil || (len(packet.longHdrPackets) == 0 && packet.shortHdrPacket == nil) {
 		return fmt.Errorf("connection BUG: couldn't pack %s probe packet: %v", encLevel, packet)
 	}
-	e.sendCoalesced(packet, (*e.recovery).ECNMode(packet.IsOnlyShortHeaderPacket()), now)
-	return nil
+	return e.sendCoalesced(packet, (*e.recovery).ECNMode(packet.IsOnlyShortHeaderPacket()), now)
 }
 
-func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN, now monotime.Time) {
+func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN, now monotime.Time) error {
+	handed := false
+	defer func() {
+		if !handed {
+			packet.buffer.Release()
+		}
+	}()
 	e.policy.logCoalescedPacket(packet, ecn)
 	if e.bbr != nil && e.paceReservation {
 		paced := packet.shortHdrPacket != nil && (packet.shortHdrPacket.IsAckEliciting() || len(packet.shortHdrPacket.StreamFrames) != 0)
@@ -514,7 +535,7 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 		if p.ack != nil {
 			largestAcked = p.ack.LargestAcked()
 		}
-		(*e.recovery).SentPacketWithContext(
+		if err := e.register(
 			p.context,
 			now,
 			p.header.PacketNumber,
@@ -526,7 +547,9 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 			p.length,
 			false,
 			false,
-		)
+		); err != nil {
+			return err
+		}
 		e.policy.noteCoalescedRegistration(p.EncryptionLevel(), now)
 	}
 	if p := packet.shortHdrPacket; p != nil {
@@ -536,7 +559,7 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 		if p.Ack != nil {
 			largestAcked = p.Ack.LargestAcked()
 		}
-		(*e.recovery).SentPacketWithContext(
+		if err := e.register(
 			p.Context,
 			now,
 			p.PacketNumber,
@@ -548,15 +571,22 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 			p.Length,
 			p.IsPathMTUProbePacket,
 			false,
-		)
+		); err != nil {
+			return err
+		}
 	}
 	e.policy.noteEmissionRegistration()
 	e.handoff(packet.buffer, 0, ecn, e.policy.coalescedSendMetadata(hasHandshakePacket))
+	handed = true
+	return nil
 }
 
 // Direct operations borrow the destination and preserve best-effort write errors.
 // Storage belongs to emission until the synchronous write has returned.
 func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackhandler.Frame, path *path, addr net.Addr, info packetInfo, checksum qlog.DatagramPayloadChecksum, now monotime.Time) error {
+	if e.local != nil {
+		return errLocalPacketRoute
+	}
 	isChallenge := func(f ackhandler.Frame) bool {
 		_, ok := f.Frame.(*wire.PathChallengeFrame)
 		return ok
@@ -609,6 +639,9 @@ func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackh
 }
 
 func (e *packetEmission) clientProbe(connID protocol.ConnectionID, frame ackhandler.Frame, tr *Transport, addr net.Addr, now monotime.Time) error {
+	if e.local != nil {
+		return errLocalPacketRoute
+	}
 	if !(*e.recovery).CanSendPathProbe() {
 		return nil
 	}
@@ -624,6 +657,9 @@ func (e *packetEmission) clientProbe(connID protocol.ConnectionID, frame ackhand
 }
 
 func (e *packetEmission) mtuProbe(finder *mtuFinder, now monotime.Time) emissionResult {
+	if e.local != nil {
+		return emissionResult{err: errLocalPacketRoute}
+	}
 	if e.queue.WouldBlock() {
 		return emissionResult{stop: emissionQueueFull, available: e.queue.Available()}
 	}
@@ -651,6 +687,10 @@ func (e *packetEmission) activeConn() sendConn {
 // The connection still starts workers and owns failure/lifecycle policy. Publish
 // the path as before, then drain and join the old worker before replacing its queue.
 func (e *packetEmission) replacePath(conn sendConn, feedback *handshakeSendFeedback) sender {
+	if e.local != nil {
+		e.local.reject()
+		return e.local
+	}
 	e.connMutex.Lock()
 	*e.conn = conn
 	e.connMutex.Unlock()
@@ -669,6 +709,9 @@ func (e *packetEmission) rebindPath(addr net.Addr, info packetInfo) {
 }
 
 func (e *packetEmission) close(cause error) ([]byte, error) {
+	if e.local != nil {
+		return nil, errLocalPacketRoute
+	}
 	var packet *coalescedPacket
 	var err error
 	if transportErr, ok := errors.AsType[*qerr.TransportError](cause); ok {

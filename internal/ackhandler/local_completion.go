@@ -19,6 +19,7 @@ type LocalSentPacketHandler interface {
 	RegisterLocalPacket(PacketContext, monotime.Time, protocol.PacketNumber, protocol.PacketNumber, []StreamFrame, []Frame, protocol.EncryptionLevel, protocol.ECN, protocol.ByteCount) (LocalCompletionToken, error)
 	CompleteLocalPacket(LocalCompletionToken, LocalPacketOutcome, monotime.Time) error
 	CloseLocal(monotime.Time)
+	CanRegisterLocalPackets(int) bool
 }
 
 // LocalCompletionToken identifies one registration, including its original epoch.
@@ -72,12 +73,28 @@ type localRegistration struct {
 // Local outcomes and authenticated ACKs are reconciled in the connection context.
 func NewLocalSentPacketHandler(initialPN protocol.PacketNumber, size protocol.ByteCount, rtt *utils.RTTStats, stats *utils.ConnectionStats, validated, enableECN bool, ignore func(protocol.PathID, protocol.PacketNumber), perspective protocol.Perspective, qlogger qlogwriter.Recorder, logger utils.Logger) (LocalSentPacketHandler, error) {
 	h := newSentPacketHandler(initialPN, size, rtt, stats, validated, enableECN, ignore, perspective, qlogger, logger, nil)
+	return EnableLocalCompletions(h)
+}
+
+func EnableLocalCompletions(handler SentPacketHandler) (LocalSentPacketHandler, error) {
+	h, ok := handler.(*sentPacketHandler)
+	if !ok || h.local != nil || h.bytesSent != 0 || h.pathRoot != nil || len(h.paths) != 0 {
+		return nil, errLocalPacketMode
+	}
 	h.local = &localCompletions{records: make(map[uint64]*localRegistration)}
-	if enableECN {
+	if h.enableECN || h.bbrECN != nil {
 		h.local.ecn = &localECNEvidence{watermark: protocol.InvalidPacketNumber}
-		h.ecnTracker.(*ecnTracker).local = h.local.ecn
+		if h.bbrECN != nil {
+			h.bbrECN.local = h.local.ecn
+		} else {
+			h.ecnTracker.(*ecnTracker).local = h.local.ecn
+		}
 	}
 	return h, nil
+}
+
+func (h *sentPacketHandler) CanRegisterLocalPackets(count int) bool {
+	return h.local != nil && !h.local.closed && count > 0 && count <= (protocol.MaxTrackedSentPackets-h.numTrackedPackets())/2
 }
 
 func (h *sentPacketHandler) RegisterLocalPacket(context PacketContext, t monotime.Time, pn, largestAcked protocol.PacketNumber, streams []StreamFrame, frames []Frame, level protocol.EncryptionLevel, ecn protocol.ECN, size protocol.ByteCount) (LocalCompletionToken, error) {
