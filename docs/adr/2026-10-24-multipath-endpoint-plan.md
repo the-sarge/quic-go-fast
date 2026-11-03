@@ -222,7 +222,7 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 
 ### E1 — Bound native request ownership behind an inactive endpoint seam
 
-**Current state:** complete. `native_endpoint.go` owns the inactive endpoint boundary; `native_endpoint_test.go` covers the admitted ownership classes. No production constructor selects this route. E2A #1084 is complete in [PR #1088](https://github.com/the-sarge/quic-go-fast/pull/1088); E2C #1086 is complete; E2 #1016 is complete in [PR #1124](https://github.com/the-sarge/quic-go-fast/pull/1124); E4 #1018 is complete in [PR #1125](https://github.com/the-sarge/quic-go-fast/pull/1125); E3 #1017 is ready. The slice contract below remains the acceptance authority.
+**Current state:** complete. `native_endpoint.go` owns the inactive endpoint boundary; `native_endpoint_test.go` covers the admitted ownership classes. No production constructor selects this route. E2A #1084 is complete in [PR #1088](https://github.com/the-sarge/quic-go-fast/pull/1088); E2C #1086 is complete; E2 #1016 is complete in [PR #1124](https://github.com/the-sarge/quic-go-fast/pull/1124); E4 #1018 is complete in [PR #1125](https://github.com/the-sarge/quic-go-fast/pull/1125); E3 #1017 is complete in [PR #1130](https://github.com/the-sarge/quic-go-fast/pull/1130). The slice contract below remains the acceptance authority.
 
 **Delivers:** Create the internal endpoint control/writer boundary and exercise an actual UDP write through it in a private fixture. Admission, absolute deadlines, independent queued expiry, claimed-token fencing, finite completion reservations, leased fair readiness and nonblocking diagnostics belong to this boundary. No production constructor can activate it yet; native qualification is E6.
 
@@ -376,7 +376,7 @@ The local qualification table remains derived state owned and indexed by the exi
 
 ### E2C — Reconcile local transmission certainty with cumulative ECN evidence
 
-**Current state:** complete. The private Reno and BBR ECN validators consume qualified local transmission facts and bounded cumulative receipt summaries through the real handler. Three `TestLocalECN*` scenarios cover the allocated rows and terminal-authority matrix; the endpoint route remains inactive. E2 #1016 is complete in [PR #1124](https://github.com/the-sarge/quic-go-fast/pull/1124); E4 #1018 is complete in [PR #1125](https://github.com/the-sarge/quic-go-fast/pull/1125); E3 #1017 is ready. The [re-audit receipt](../audits/2026-11-02-e2c-terminal-reaudit.md) retains execution history.
+**Current state:** complete. The private Reno and BBR ECN validators consume qualified local transmission facts and bounded cumulative receipt summaries through the real handler. Three `TestLocalECN*` scenarios cover the allocated rows and terminal-authority matrix; the endpoint route remains inactive. E2 #1016 is complete in [PR #1124](https://github.com/the-sarge/quic-go-fast/pull/1124); E4 #1018 is complete in [PR #1125](https://github.com/the-sarge/quic-go-fast/pull/1125); E3 #1017 is complete in [PR #1130](https://github.com/the-sarge/quic-go-fast/pull/1130). The [re-audit receipt](../audits/2026-11-02-e2c-terminal-reaudit.md) retains execution history.
 
 **Identity:** `QGF-MP646-20261024-E2C`. **Issue:** [#1086](https://github.com/the-sarge/quic-go-fast/issues/1086). **Blocked by:** E2B; its complete rich local path is needed to exercise both existing controllers through the real handler. **Existing work:** replace the draft under the shared disposition above.
 
