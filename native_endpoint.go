@@ -385,33 +385,6 @@ func (s *endpointState) commit(admission endpointAdmission, request endpointRequ
 	s.queue = append(s.queue, admission.index)
 }
 
-func (e *nativeEndpoint) prepare(p *endpointParticipant, lane, size int) (endpointAdmission, error) {
-	var admission endpointAdmission
-	err := net.ErrClosed
-	e.do(func(s *endpointState) { admission, err = s.admit(p, lane, size) })
-	return admission, err
-}
-
-func (e *nativeEndpoint) submit(admission endpointAdmission, request endpointRequest) error {
-	err := net.ErrClosed
-	e.do(func(s *endpointState) {
-		if admission.index < 0 || admission.index >= len(s.records) {
-			return
-		}
-		record := &s.records[admission.index]
-		if !record.used || !record.reserved || record.serial != admission.serial || !s.valid(record.participant) || s.sealed || s.faulted {
-			return
-		}
-		err = errEndpointRequest
-		if request.identity.connection != record.participant.id || !request.destination.IsValid() || len(request.buffers) != 1 || request.buffers[0] == nil || request.buffers[0].refCount != 1 || len(request.buffers[0].Data) == 0 || cap(request.buffers[0].Data) > record.bytes {
-			return
-		}
-		s.commit(admission, request)
-		err = nil
-	})
-	return err
-}
-
 func (s *endpointState) cancelAdmission(admission endpointAdmission) {
 	record := &s.records[admission.index]
 	if !record.used || !record.reserved || record.serial != admission.serial {
@@ -424,24 +397,6 @@ func (s *endpointState) cancelAdmission(admission endpointAdmission) {
 	record.participant.retained--
 	s.capacityGeneration++
 	*record = endpointRecord{}
-}
-
-func (e *nativeEndpoint) cancelAdmission(admission endpointAdmission) {
-	e.do(func(s *endpointState) { s.cancelAdmission(admission) })
-}
-
-func (e *nativeEndpoint) cancelGeneration(p *endpointParticipant, generation uint64) {
-	e.do(func(s *endpointState) {
-		for index := range s.records {
-			record := &s.records[index]
-			if record.used && !record.reserved && !record.terminal && record.participant == p && record.request.identity.generation == generation {
-				record.revoked = true
-				if s.current != nil && s.current.index == index {
-					s.current.canceled.Store(true)
-				}
-			}
-		}
-	})
 }
 
 func (e *nativeEndpoint) take(p *endpointParticipant) (endpointResult, bool) {

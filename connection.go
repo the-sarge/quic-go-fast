@@ -666,7 +666,7 @@ func (c *Conn) run() (err error) {
 runLoop:
 	for {
 		if err := c.emission.consumeLocal(); err != nil {
-			c.setCloseError(&closeError{err: err})
+			c.destroyImpl(err)
 			break runLoop
 		}
 		if c.framer.QueuedTooManyControlFrames() {
@@ -759,7 +759,7 @@ runLoop:
 		// This could cause packets to be declared lost, and retransmissions to be enqueued.
 		now := monotime.Now()
 		if err := c.emission.consumeLocal(); err != nil {
-			c.setCloseError(&closeError{err: err})
+			c.destroyImpl(err)
 			break runLoop
 		}
 		if h, ok := c.sentPacketHandler.(deliveryLifecycle); ok {

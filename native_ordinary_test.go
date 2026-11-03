@@ -4,6 +4,7 @@ package quic
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/netip"
 	"os"
@@ -24,7 +25,7 @@ func nativeOrdinaryTest(t *testing.T, run func(*testing.T)) {
 	t.Helper()
 	now := time.Now()
 	synctest.Test(t, func(t *testing.T) {
-		if offset := now.Sub(time.Now()); offset > 0 {
+		if offset := time.Until(now); offset > 0 {
 			time.Sleep(offset)
 		}
 		run(t)
@@ -61,7 +62,7 @@ func TestNativeOrdinaryDatagramDisposal(t *testing.T) {
 		synctest.Wait()
 		require.NoError(t, c.useNativeOrdinary(e, netip.MustParseAddrPort("1.2.3.4:4321"), packetInfo{}))
 		require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("expired datagram")}))
-		stop := runNativeOrdinaryTestConnection(t, tc)
+		stop := runNativeOrdinaryTestConnection(t, tc, nil)
 		defer stop()
 		time.Sleep(150 * time.Millisecond)
 		synctest.Wait()
@@ -291,7 +292,7 @@ func TestNativeOrdinaryTerminalLifetime(t *testing.T) {
 	}
 }
 
-func runNativeOrdinaryTestConnection(t *testing.T, tc *testConnection) func() {
+func runNativeOrdinaryTestConnection(t *testing.T, tc *testConnection, expected error) func() {
 	t.Helper()
 	tc.conn.idleTimeout = time.Second
 	tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
@@ -305,7 +306,11 @@ func runNativeOrdinaryTestConnection(t *testing.T, tc *testConnection) func() {
 	return func() {
 		tc.conn.destroy(nil)
 		synctest.Wait()
-		require.NoError(t, <-stopped)
+		if expected != nil {
+			require.ErrorIs(t, <-stopped, expected)
+		} else {
+			require.NoError(t, <-stopped)
+		}
 	}
 }
 
@@ -317,6 +322,7 @@ func TestNativeOrdinaryStreamResumes(t *testing.T) {
 		{name: "queued expiry", outcome: "queued expiry", controller: "reno"},
 		{name: "native timeout", outcome: "native timeout", controller: "reno"},
 		{name: "BBR ECN native timeout", outcome: "native timeout", controller: "bbrv3", ecn: true},
+		{name: "destination failure", outcome: "destination", controller: "reno"},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			nativeOrdinaryTest(t, func(t *testing.T) {
@@ -335,6 +341,9 @@ func TestNativeOrdinaryStreamResumes(t *testing.T) {
 						return len(data), nil
 					}
 					packets = append(packets, bytes.Clone(data))
+					if outcome == "destination" {
+						return 0, &os.SyscallError{Syscall: "sendmsg", Err: syscall.ECONNREFUSED}
+					}
 					if outcome == "native timeout" && len(packets) == 1 {
 						time.Sleep(100 * time.Millisecond)
 						return 0, os.ErrDeadlineExceeded
@@ -353,10 +362,18 @@ func TestNativeOrdinaryStreamResumes(t *testing.T) {
 				flow := newStreamFlowController(0, c.connFlowController, 1<<20, 1<<20, 1<<20, c.flowControlRTT(), c.logger)
 				stream := newSendStream(c.ctx, 0, c, flow, false)
 				require.NoError(t, stream.TryWriteAll(payload))
-				stop := runNativeOrdinaryTestConnection(t, tc)
+				var expected error
+				if outcome == "destination" {
+					expected = syscall.ECONNREFUSED
+				}
+				stop := runNativeOrdinaryTestConnection(t, tc, expected)
 				defer stop()
 				time.Sleep(200 * time.Millisecond)
 				synctest.Wait()
+				if outcome == "destination" {
+					require.ErrorIs(t, context.Cause(c.ctx), syscall.ECONNREFUSED)
+					return
+				}
 				require.NoError(t, c.ctx.Err(), "local deadlines cannot terminate an ordinary connection")
 				require.NotEmpty(t, packets)
 				var previous protocol.PacketNumber = -1

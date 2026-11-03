@@ -82,6 +82,9 @@ func EnableLocalCompletions(handler SentPacketHandler) (LocalSentPacketHandler, 
 		return nil, errLocalPacketMode
 	}
 	h.local = &localCompletions{records: make(map[uint64]*localRegistration)}
+	if h.congestionEvents != nil {
+		h.congestionEvents.localRoute = true
+	}
 	if h.enableECN || h.bbrECN != nil {
 		h.local.ecn = &localECNEvidence{watermark: protocol.InvalidPacketNumber}
 		if h.bbrECN != nil {
