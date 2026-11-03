@@ -6,7 +6,7 @@
 
 | Track | Plan | Parent | Slices | Current state |
 | --- | --- | --- | ---: | --- |
-| E — native endpoint | [Endpoint plan](2026-10-24-multipath-endpoint-plan.md) | [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012) | 9 | E1, E2A #1084, E2B #1085, E2C #1086 E2 #1016 and E4 #1018 complete; E3 #1017 ready |
+| E — native endpoint | [Endpoint plan](2026-10-24-multipath-endpoint-plan.md) | [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012) | 9 | E1, E2A #1084, E2B #1085, E2C #1086, E2 #1016 and E4 #1018 complete; E3 #1017 ready |
 | R — Reno primary/backup | [Reno plan](2026-10-24-multipath-reno-plan.md) | [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013) | 19 | R1 complete in [PR #1071](https://github.com/the-sarge/quic-go-fast/pull/1071), R2 complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 complete; R4 #1024 complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091); R5 #1025 complete; R6 #1026 complete; R7 #1027 complete; R8 #1028 complete; R9 #1029 awaits E5 #1019 |
 | B — BBR/aggregation | [BBR plan](2026-10-24-multipath-bbr-plan.md) | [#1014](https://github.com/the-sarge/quic-go-fast/issues/1014) | 6 | B1 #1040 blocked by R19 and existing Q2 #599 receipt prerequisite |
 
