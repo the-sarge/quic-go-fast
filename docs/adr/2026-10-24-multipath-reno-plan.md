@@ -1,6 +1,6 @@
 # Reno-first QUIC multipath implementation plan
 
-**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8 complete (8/19 slices); R9 #1029 is ready now that E5 #1019 is complete. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
+**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8/R9 complete (9/19 slices); R10 #1030 is ready. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
 
 ## Binding contract and operating discipline
 
@@ -377,7 +377,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 | [R6](#r6) | complete | Route receive ACK histories by target and carrier | R5 |
 | [R7](#r7) | complete | Give Reno paths independent recovery and pacing | R6 |
 | [R8](#r8) | complete | Issue bounded path credit and CID windows | R4 |
-| [R9](#r9) | new | Admit and validate a second authenticated path | E5, R7, R8 |
+| [R9](#r9) | complete | Admit and validate a second authenticated path | E5, R7, R8 |
 | [R10](#r10) | new | Carry reliable traffic over the selected path | R9 |
 | [R11](#r11) | new | Schedule DATAGRAMs with path-qualified PMTU | R10 |
 | [R12](#r12) | new | Replenish retired path credit and reconcile late delivery | R10 |
@@ -551,7 +551,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R7 — Give Reno paths independent recovery and pacing
 
-**State:** complete. R8 #1028 is complete. R9 #1029 is ready now that E5 #1019 is complete. Public negotiation remains disabled.
+**State:** complete. R8 #1028 is complete. R9 #1029 is complete. Public negotiation remains disabled.
 
 **Delivers:** Partition application sent histories, loss/PTO, Reno registration prefix/undo and adaptive-loss state by protocol path, with aggregate logical delivery/resource ceilings. Demultiplex target ACK independent of carrier; preserve per-generation retained evidence and path-zero behavior. Create one stable connection-owned RTT observation/accessor for connection and already-created stream flow controllers; constructors/readers use it while per-path recovery retains separate RTT state. Later retirement/primary transitions update that same owner.
 
@@ -589,7 +589,7 @@ The thirteen deterministic new scenarios and one focused race run terminate this
 
 ### R8 — Issue bounded path credit and CID windows
 
-**State:** complete. Two slots and the fixed initial unused-ID/CID window are available only through private activation. R9 #1029 is ready now that E5 #1019 is complete. Public negotiation remains disabled.
+**State:** complete. Two slots and the fixed initial unused-ID/CID window are available only through private activation. R9 #1029 is complete. Public negotiation remains disabled.
 
 **Delivers:** Implement two live slots, one unused-ID issuance window, monotonic grants, per-path CID limits and compliant-churn resource decline through real control handlers. Do not allocate arrays from sparse peer IDs or grant replacement credit while an unresolved submission still occupies a slot. Establish the common terminal-transition owner via unused-issued-ID abandonment: real control ingress queues the reciprocal frame and retains bounded CID/terminal evidence. Compliant resource decline uses this owner; no terminal cleanup is deferred to a successor.
 
@@ -630,6 +630,8 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 ### R9 — Admit and validate a second authenticated path
 
+**State:** complete. `multipath_admission.go` holds the private driver, and `multipath_admission_test.go` the 16 scenarios. R10 #1030 is ready. Public negotiation remains disabled.
+
 **Delivers:** Connect bounded path membership to authenticated ingress and client initiation in a private driver: per-path tuple candidates, anti-amplification, challenge publication, deadline/contention and validated activation. Handle legal new-path packets without PATH_CHALLENGE and previously validated tuples. Extend the same registry terminal owner through consumed/validating/initial-live abort, timeout, decline and received abandonment, including submission cutoff, reciprocal signaling, retained PN/CID obligations and connection cleanup. Keep replacement credit at the initial window until R12. Admission reserves the two live slots, shared four-history-unit budget and eight distinct transport-attachment ceiling before establishing authoritative routes.
 
 **Blocked by:** E5, R7, R8. **Existing work:** new slice; no unmerged implementation accepted.
@@ -651,6 +653,16 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 **Context imports:** Resource admission and retention; Failed initiation and remote last-path abandonment; Submission cutoffs and connection closure; endpoint probe/result interface receipt. Include the binding discipline and only the matching closure rows, plus this current slice and direct blocker interfaces; do not load every slice contract.
 
 **Slice decision audit:** Initiation through validation and mandatory teardown is one authority-complete behavior; splitting teardown afterward is unsafe. R8 already supplies the common terminal owner; E5 transitively supplies E3 probes and all endpoint fences, and R7 supplies recovery. If this does not fit 24k tokens, split behavior-preserving candidate plumbing before R9 grants live authority, not safety cleanup after it. Replacement credit and established late-delivery integration remain R12. Rejected split/merge alternatives have no revisit trigger except the stated context/contract stop. Direct blockers supply the interfaces or evidence named here; transitive blockers need not be repeated and convenience ordering is excluded.
+
+**Current enforcement and finite evidence:** The 16 deterministic scenarios and one focused race run terminate this evidence scope. No guard mutation is needed, because the scenarios exercise these owners directly with real keys on both ends and the real endpoint.
+
+| Accepted semantic class | Enforcement owner | Terminating regression evidence |
+| --- | --- | --- |
+| Unknown, issued and authenticated new path; no allocation before authentication | Registry after CID binding and authentication | `TestPathAdmissionAuthenticatedWithoutChallenge`, `TestPathAdmissionUnauthenticatedSparseIDs`, `TestPathAdmissionClientDeclinesUnopenedID` |
+| One candidate per path, contention, per-tuple amplification, absolute deadline, response target | Registry; `path` accounting; emission commits probes | `TestPathAdmissionTwoCandidates`, `TestPathAdmissionContentionKeepsAdmitted`, `TestPathAdmissionNoCrossTupleAmplification`, `TestPathAdmissionAbsoluteExpiry`, `TestPathAdmissionMismatchedResponseTarget` |
+| Client initiation, target routes, validated tuple | Registry; CID generator keeps bindings | `TestPathAdmissionClientOpen`, `TestPathAdmissionTargetTransportRoutes`, `TestPathAdmissionValidatedTupleAnnounces` |
+| Cancellation, received abandonment, cutoff before signal, retained routing, close | One terminal owner; endpoint reports the fence | `TestPathAdmissionCancellation`, `TestPathAdmissionReceivedAbandonAwaitsFence`, `TestPathAdmissionNativeReceiptStartsTimer`, `TestPathAdmissionCloseAndStatus` |
+| History and attachment capacity before routes | Registry | `TestPathAdmissionResourceSaturation` |
 
 **Stop:** Second path can be reached from public config before complete supported lifecycle or controller is allocated from unauthenticated tuple.
 

@@ -129,7 +129,11 @@ const (
 //   - [VersionNegotiationError]: returned by the client, when there's no version overlap between the peers
 type Conn struct {
 	pathCredit *pathCreditRegistry
-	emission   packetEmission
+	// pathOpen holds the one local path operation, from request until its fence resolves.
+	pathOpen atomic.Pointer[pathOpenRequest]
+	// ingressPath is the routed path of the short-header packet being handled.
+	ingressPath protocol.PathID
+	emission    packetEmission
 	// Destination connection ID used during the handshake.
 	// Used to check source connection ID on incoming packets.
 	handshakeDestConnID protocol.ConnectionID
@@ -1395,14 +1399,20 @@ func (c *Conn) handleShortHeaderPacket(
 		wasQueued, err = c.handleUnpackError(err, p, qlog.PacketType1RTT, datagramPayloadChecksum)
 		return false, err
 	}
-	c.largestRcvdAppData = max(c.largestRcvdAppData, pn)
+	if p.pathID == 0 {
+		c.largestRcvdAppData = max(c.largestRcvdAppData, pn)
+	}
+	if c.pathCredit != nil && p.pathID != 0 {
+		// Only an authenticated packet can reach this admission.
+		c.pathCredit.admitIngress(p.pathID, p.rcvTime)
+	}
 
 	if c.logger.Debug() {
 		c.logger.Debugf("<- Reading packet %d (%d bytes) for connection %s, 1-RTT", pn, p.Size(), destConnID)
 		wire.LogShortHeader(c.logger, destConnID, pn, pnLen, keyPhase)
 	}
 
-	if c.receivedPacketHandler.IsPotentiallyDuplicate(pn, protocol.Encryption1RTT) {
+	if c.receivedPacketHandler.IsPotentiallyDuplicateOnPath(p.pathID, pn) {
 		c.logger.Debugf("Dropping (potentially) duplicate packet.")
 		if c.qlogger != nil {
 			c.qlogger.RecordEvent(qlog.PacketDropped{
@@ -1438,9 +1448,16 @@ func (c *Conn) handleShortHeaderPacket(
 			})
 		}
 	}
+	c.ingressPath = p.pathID
 	isNonProbing, pathChallenge, err := c.handleUnpackedShortHeaderPacket(destConnID, pn, data, p.ecn, p.rcvTime, log)
+	c.ingressPath = 0
 	if err != nil {
 		return false, err
+	}
+
+	if c.pathCredit != nil && c.pathCredit.hasAdmission() {
+		c.pathCredit.receivedTuple(p.pathID, p.remoteAddr, p.info, p.Size(), pathChallenge, p.rcvTime)
+		return true, nil
 	}
 
 	// In RFC 9000, only the client can migrate between paths.
@@ -1956,7 +1973,7 @@ func (c *Conn) handleUnpackedShortHeaderPacket(
 		return false, nil, err
 	}
 	c.sentPacketHandler.ReceivedPacket(protocol.Encryption1RTT, rcvTime)
-	if err := c.receivedPacketHandler.ReceivedPacket(pn, ecn, protocol.Encryption1RTT, rcvTime, isAckEliciting); err != nil {
+	if err := c.receivedPacketHandler.ReceivedPacketOnPath(c.ingressPath, pn, ecn, rcvTime, isAckEliciting); err != nil {
 		return false, nil, err
 	}
 	return isNonProbing, pathChallenge, nil
@@ -2162,6 +2179,11 @@ func (c *Conn) handleFrame(
 		if c.pathCredit != nil {
 			err = c.pathCredit.receiveCID(frame, rcvTime)
 		}
+	case *wire.PathStatusFrame:
+		// R15 owns the preference. Only the ID is checked here.
+		if c.pathCredit != nil {
+			err = c.pathCredit.validateID(frame.PathID)
+		}
 	case *wire.MaxPathIDFrame:
 		if c.pathCredit != nil {
 			c.pathCredit.peerMax = max(c.pathCredit.peerMax, frame.MaximumPathID)
@@ -2354,12 +2376,17 @@ func (c *Conn) handleHandshakeEvents(now monotime.Time) error {
 }
 
 func (c *Conn) handlePathChallengeFrame(f *wire.PathChallengeFrame) {
-	if c.perspective == protocol.PerspectiveClient {
+	// The registry answers on the challenge's own path and tuple.
+	if c.perspective == protocol.PerspectiveClient && (c.pathCredit == nil || !c.pathCredit.hasAdmission()) {
 		c.queueControlFrame(&wire.PathResponseFrame{Data: f.Data})
 	}
 }
 
 func (c *Conn) handlePathResponseFrame(f *wire.PathResponseFrame) error {
+	if c.pathCredit != nil && c.pathCredit.hasAdmission() {
+		c.pathCredit.pathResponse(f, c.ingressPath, monotime.Now())
+		return nil
+	}
 	switch c.perspective {
 	case protocol.PerspectiveClient:
 		return c.handlePathResponseFrameClient(f)
@@ -2862,6 +2889,11 @@ func (c *Conn) triggerSending(now monotime.Time) emissionResult {
 
 // The connection produces path and control intent; emission selects packet shapes.
 func (c *Conn) prepareEmission(now monotime.Time) emissionIntent {
+	if c.pathCredit != nil {
+		if intent := c.pathCredit.nextProbe(now); intent != nil {
+			return emissionIntent{path: intent}
+		}
+	}
 	if c.perspective == protocol.PerspectiveClient && c.handshakeConfirmed {
 		if pm := c.pathManagerOutgoing.Load(); pm != nil {
 			connID, frame, tr, ok := pm.NextPathToProbe()

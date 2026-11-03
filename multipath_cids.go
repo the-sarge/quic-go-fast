@@ -118,6 +118,61 @@ func (h *connIDManager) addPathCID(f *wire.PathNewConnectionIDFrame, expiry mono
 	return nil
 }
 
+// pathDestination selects a peer CID for a probe on id. A new tuple on an
+// established path takes an unused CID when one exists, so tuples stay unlinkable.
+// Selection grants no reset-detection authority; registration records use.
+func (h *connIDManager) pathDestination(id protocol.PathID, fresh bool) (protocol.ConnectionID, bool) {
+	set := h.pathCIDs[id]
+	if set == nil {
+		return protocol.ConnectionID{}, false
+	}
+	if entry, ok := set.records[set.active]; ok && !entry.retired && !fresh {
+		return entry.ConnectionID, true
+	}
+	var selected protocol.ConnectionID
+	var seq uint64
+	found := false
+	for candidate, entry := range set.records {
+		if entry.retired || entry.used || candidate == set.active {
+			continue
+		}
+		if !found || candidate < seq {
+			selected, seq, found = entry.ConnectionID, candidate, true
+		}
+	}
+	return selected, found
+}
+
+// pathDestinationUsable refuses a CID that was retired after a candidate chose it.
+func (h *connIDManager) pathDestinationUsable(id protocol.PathID, cid protocol.ConnectionID) bool {
+	if set := h.pathCIDs[id]; set != nil {
+		for _, entry := range set.records {
+			if entry.ConnectionID == cid {
+				return !entry.retired
+			}
+		}
+	}
+	return false
+}
+
+// notePathProbe records use when a probe registers, like ordinary emission.
+func (h *connIDManager) notePathProbe(id protocol.PathID, cid protocol.ConnectionID) {
+	set := h.pathCIDs[id]
+	if set == nil {
+		return
+	}
+	for seq, entry := range set.records {
+		if entry.ConnectionID == cid && !entry.used && !entry.retired {
+			entry.used = true
+			set.records[seq] = entry
+			if entry.detectsReset() {
+				h.addStatelessResetToken(entry.StatelessResetToken)
+			}
+			return
+		}
+	}
+}
+
 func (h *connIDManager) releasePathCIDs(id protocol.PathID) {
 	if set := h.pathCIDs[id]; set != nil {
 		for _, entry := range set.records {

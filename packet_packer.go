@@ -913,8 +913,30 @@ func (p *packetPacker) PackPathProbePacket(connID protocol.ConnectionID, frames 
 // preparePathProbePacket leaves bytes unsealed. Emission commits encryption and
 // the packet number after final policy checks and exact byte reservation.
 func (p *packetPacker) preparePathProbePacket(connID protocol.ConnectionID, frames []ackhandler.Frame, maxPacketSize protocol.ByteCount, v protocol.Version) (preparedShortHeaderPacket, *packetBuffer, error) {
-	context := p.pathZeroContext()
-	pn, pnLen := p.pnManager.PeekPacketNumber(protocol.Encryption1RTT)
+	return p.preparePathProbePacketOn(p.pathZeroContext(), connID, frames, maxPacketSize, v)
+}
+
+// packetNumbersOn resolves only admitted recovery. Path zero keeps the captured manager.
+func (p *packetPacker) packetNumbersOn(id protocol.PathID) (packetNumberManager, error) {
+	if id == 0 {
+		return p.pnManager, nil
+	}
+	if h, ok := p.pnManager.(interface {
+		RecoveryOnPath(protocol.PathID) ackhandler.SentPacketHandler
+	}); ok {
+		if path := h.RecoveryOnPath(id); path != nil {
+			return path, nil
+		}
+	}
+	return nil, fmt.Errorf("packetPacker BUG: no packet numbers for path %d", id)
+}
+
+func (p *packetPacker) preparePathProbePacketOn(context ackhandler.PacketContext, connID protocol.ConnectionID, frames []ackhandler.Frame, maxPacketSize protocol.ByteCount, v protocol.Version) (preparedShortHeaderPacket, *packetBuffer, error) {
+	numbers, err := p.packetNumbersOn(context.PathID)
+	if err != nil {
+		return preparedShortHeaderPacket{}, nil, err
+	}
+	pn, pnLen := numbers.PeekPacketNumber(protocol.Encryption1RTT)
 	buf := getPacketBuffer()
 	s, err := p.cryptoSetup.Get1RTTSealer()
 	if err != nil {
@@ -1107,7 +1129,11 @@ func (p *packetPacker) commitShortHeaderPacket(buffer *packetBuffer, prepared pr
 		return shortHeaderPacket{}, err
 	}
 	buffer.Data = buffer.Data[:prepared.bufferStart+len(raw)]
-	if newPN := p.pnManager.PopPacketNumber(protocol.Encryption1RTT); newPN != packet.PacketNumber {
+	numbers, err := p.packetNumbersOn(packet.Context.PathID)
+	if err != nil {
+		return shortHeaderPacket{}, err
+	}
+	if newPN := numbers.PopPacketNumber(protocol.Encryption1RTT); newPN != packet.PacketNumber {
 		return shortHeaderPacket{}, fmt.Errorf("packetPacker BUG: Peeked and Popped packet numbers do not match: expected %d, got %d", packet.PacketNumber, newPN)
 	}
 	return packet, nil

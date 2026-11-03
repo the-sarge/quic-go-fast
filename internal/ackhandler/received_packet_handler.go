@@ -147,8 +147,8 @@ func (h *ReceivedPacketHandler) IsPotentiallyDuplicate(pn protocol.PacketNumber,
 	panic("unexpected encryption level")
 }
 
-// AddPath admits one additional application receive space. Only private fixtures
-// call this until the authenticated path registry is integrated in R9.
+// AddPath admits one additional application receive space. The path registry
+// calls this after authentication or local commitment.
 func (h *ReceivedPacketHandler) AddPath(id protocol.PathID) error {
 	if id == 0 || h.paths[id] != nil || len(h.paths) >= 1 {
 		return fmt.Errorf("ackhandler: receive path unavailable: %d", id)

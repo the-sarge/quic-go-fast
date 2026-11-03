@@ -102,6 +102,7 @@ type emissionIntent struct {
 	frame     ackhandler.Frame
 	addr      net.Addr
 	mtu       *mtuFinder
+	path      *pathProbeIntent
 }
 
 func (e *packetEmission) setToken(token []byte) { e.packer.SetToken(token) }
@@ -174,6 +175,13 @@ func (e *packetEmission) send(now monotime.Time, confirmed bool) (result emissio
 
 func (e *packetEmission) sendAny(now monotime.Time, confirmed bool) emissionResult {
 	intent := e.policy.prepareEmission(now)
+	if intent.path != nil {
+		sent, err := e.admissionProbe(intent.path, now)
+		if err != nil || sent {
+			return emissionResult{err: err, retry: err == nil}
+		}
+		// Nothing fit this tuple's allowance, so ordinary work keeps its turn.
+	}
 	if intent.transport != nil {
 		err := e.clientProbe(intent.connID, intent.frame, intent.transport, intent.addr, now)
 		return emissionResult{err: err, retry: err == nil}
@@ -590,6 +598,32 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 // private endpoint route, every commitment still precedes the offer, but storage
 // transfers to the endpoint and the connection loop never waits for the write.
 func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackhandler.Frame, path *path, addr net.Addr, info packetInfo, checksum qlog.DatagramPayloadChecksum, now monotime.Time) error {
+	return e.validationProbe(e.packer.pathZeroContext(), nil, connID, frames, path, addr, info, checksum, now)
+}
+
+// admissionProbe sends the registry's selected frames on their own path and tuple.
+// A refused target costs no packet number, and its challenge stays charged.
+func (e *packetEmission) admissionProbe(intent *pathProbeIntent, now monotime.Time) (bool, error) {
+	if intent.transport != nil {
+		ready, err := e.local.probeTargetReady(intent.transport)
+		if err != nil {
+			return false, err
+		}
+		if !ready {
+			intent.refused(now)
+			return true, nil
+		}
+	}
+	before := intent.probe.bytesSent
+	err := e.validationProbe(intent.context, intent.transport, intent.connID, intent.frames, intent.probe, intent.addr, intent.info, 0, now)
+	sent := intent.probe.bytesSent != before
+	if sent {
+		intent.sent()
+	}
+	return sent, err
+}
+
+func (e *packetEmission) validationProbe(context ackhandler.PacketContext, target *Transport, connID protocol.ConnectionID, frames []ackhandler.Frame, path *path, addr net.Addr, info packetInfo, checksum qlog.DatagramPayloadChecksum, now monotime.Time) error {
 	isChallenge := func(f ackhandler.Frame) bool {
 		_, ok := f.Frame.(*wire.PathChallengeFrame)
 		return ok
@@ -601,7 +635,7 @@ func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackh
 				return nil
 			}
 		}
-		prepared, buf, err := e.packer.preparePathProbePacket(connID, frames, path.sendAllowance(), e.version)
+		prepared, buf, err := e.packer.preparePathProbePacketOn(context, connID, frames, path.sendAllowance(), e.version)
 		if err != nil {
 			return err
 		}
@@ -645,7 +679,7 @@ func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackh
 		}
 		if e.local != nil {
 			transferred = true
-			return e.local.sendProbe(buf, nil, addr, info, &path.probeEpoch)
+			return e.local.sendProbe(buf, target, addr, info, &path.probeEpoch)
 		}
 		return e.queue.SendProbe(buf, addr, info)
 	}

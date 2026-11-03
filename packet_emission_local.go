@@ -14,6 +14,7 @@ type localPacketSender interface {
 	registerMTUProbe(*mtuFinderAckHandler)
 	probeTargetReady(*Transport) (bool, error)
 	sendProbe(*packetBuffer, *Transport, net.Addr, packetInfo, *responseEpoch) error
+	probesPending(*Transport, *responseEpoch) bool
 	finish()
 	drain()
 	sendClose(*packetBuffer, protocol.ECN) error

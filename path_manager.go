@@ -52,6 +52,9 @@ type path struct {
 	validationDeadline monotime.Time
 	// probeEpoch stops this path's queued endpoint probes once the path retires.
 	probeEpoch responseEpoch
+	// unlimited marks a client's own target: the anti-amplification limit protects
+	// an address that never asked for traffic, and the challenge cap bounds the rest.
+	unlimited bool
 }
 
 // Saturate policy times instead of wrapping a duration or monotonic deadline.
@@ -91,7 +94,7 @@ func (p *path) retire() {
 }
 
 func (p *path) sendAllowance() protocol.ByteCount {
-	if p.validated {
+	if p.validated || p.unlimited {
 		return protocol.MaxByteCount
 	}
 	return 3*p.bytesReceived - p.bytesSent
@@ -237,26 +240,38 @@ func (pm *pathManager) HandlePacket(
 func (pm *pathManager) HandlePathResponseFrame(f *wire.PathResponseFrame, now monotime.Time) {
 	pm.Expire(now)
 	for _, p := range pm.paths {
-		for _, challenge := range p.challenges[:p.numChallenges] {
-			if challenge.data != f.Data {
-				continue
-			}
-			if challenge.padded {
-				p.validated = true
-				p.mtuValidated = true
-				p.clearChallenges()
-			} else if !p.validated {
-				p.validated = true
-				p.validationDeadline = pathDeadline(now, p.validationTimeout)
-				hasPadded := slices.ContainsFunc(p.challenges[:p.numChallenges], func(c pathChallengeRecord) bool { return c.padded })
-				if !hasPadded {
-					p.nextProbeTime = now
-					p.probeInterval = p.baseProbeInterval
-				}
-			}
+		if p.matchResponse(f.Data, now) {
 			return
 		}
 	}
+}
+
+// matchResponse applies a response to its committed challenge. Padding is recorded
+// on the challenge, because a response frame carries no size. A validationTimeout
+// of zero keeps the deadline absolute.
+func (p *path) matchResponse(data [8]byte, now monotime.Time) bool {
+	for _, challenge := range p.challenges[:p.numChallenges] {
+		if challenge.data != data {
+			continue
+		}
+		if challenge.padded {
+			p.validated = true
+			p.mtuValidated = true
+			p.clearChallenges()
+		} else if !p.validated {
+			p.validated = true
+			if p.validationTimeout != 0 {
+				p.validationDeadline = pathDeadline(now, p.validationTimeout)
+			}
+			hasPadded := slices.ContainsFunc(p.challenges[:p.numChallenges], func(c pathChallengeRecord) bool { return c.padded })
+			if !hasPadded {
+				p.nextProbeTime = now
+				p.probeInterval = p.baseProbeInterval
+			}
+		}
+		return true
+	}
+	return false
 }
 
 // Expiry is independent of received traffic and send eligibility.
