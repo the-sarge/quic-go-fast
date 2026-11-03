@@ -80,6 +80,16 @@ func (c *Conn) installNativeRoute(t *Transport, remote net.Addr, info packetInfo
 	return err
 }
 
+// faultObservation returns the reserved fault record once the endpoint has faulted.
+func (e *nativeEndpoint) faultObservation() (endpointFaultRecord, bool) {
+	select {
+	case <-e.fault:
+		return e.faultRecord, true
+	default:
+		return endpointFaultRecord{}, false
+	}
+}
+
 // waitNativeIOStopped observes the join that returns write and deadline authority
 // over the socket. Success means no coordinator, captured producer or native call
 // can touch them again; it does not certify that earlier writes succeeded, and the

@@ -106,6 +106,7 @@ type emissionIntent struct {
 
 func (e *packetEmission) setToken(token []byte) { e.packer.SetToken(token) }
 func (e *packetEmission) run() error            { return e.queue.Run() }
+
 func (e *packetEmission) drain() {
 	if e.local != nil {
 		e.local.drain()
@@ -113,6 +114,7 @@ func (e *packetEmission) drain() {
 	}
 	e.queue.Close()
 }
+
 func (e *packetEmission) capacity() <-chan struct{} {
 	if e.queue.WouldBlock() {
 		return e.queue.Available()

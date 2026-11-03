@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"slices"
 	"sync/atomic"
+	"time"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
@@ -16,6 +17,8 @@ import (
 )
 
 var nextNativeOrdinary atomic.Uint64
+
+var errLocalPacketRoute = errors.New("quic: operation excluded from private ordinary endpoint route")
 
 // Validation probes use the connection-control lane, so ordinary backlog can't
 // starve them.
@@ -113,6 +116,39 @@ func (e *nativeEndpoint) submit(admission endpointAdmission, request endpointReq
 			return
 		}
 		s.commit(admission, request)
+		err = nil
+	})
+	return err
+}
+
+// drain moves terminal disposal to the endpoint. Queued requests keep their
+// deadlines, because the baseline sends them ahead of a CONNECTION_CLOSE. It
+// never waits for native I/O.
+func (e *nativeEndpoint) drain(p *endpointParticipant) {
+	e.do(func(s *endpointState) {
+		if !s.valid(p) || p.draining {
+			return
+		}
+		p.draining = true
+		s.withdraw(p)
+	})
+}
+
+// depositClose takes ownership of a draining participant's close packet on
+// success. It is admitted on the connection-control lane once the participant's
+// queued and current requests resolve, or released at deposit+B.
+func (e *nativeEndpoint) depositClose(p *endpointParticipant, request endpointRequest) error {
+	err := net.ErrClosed
+	e.do(func(s *endpointState) {
+		if s.sealed || s.faulted || !s.valid(p) || !p.draining || p.closing.pending {
+			return
+		}
+		err = errEndpointRequest
+		if request.identity.connection != p.id || !request.destination.IsValid() || len(request.buffers) != 1 || request.buffers[0] == nil || request.buffers[0].refCount != 1 || len(request.buffers[0].Data) == 0 || cap(request.buffers[0].Data) > 64<<10 {
+			return
+		}
+		p.closing = endpointClosing{pending: true, request: request, size: cap(request.buffers[0].Data), deadline: time.Now().Add(s.budget)}
+		s.closers = append(s.closers, p)
 		err = nil
 	})
 	return err

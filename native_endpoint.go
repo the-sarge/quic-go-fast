@@ -505,16 +505,6 @@ func (e *nativeEndpoint) seal() {
 	e.do(func(s *endpointState) { s.sealed = true })
 }
 
-// faultObservation returns the reserved fault record once the endpoint has faulted.
-func (e *nativeEndpoint) faultObservation() (endpointFaultRecord, bool) {
-	select {
-	case <-e.fault:
-		return e.faultRecord, true
-	default:
-		return endpointFaultRecord{}, false
-	}
-}
-
 // cancelReadiness withdraws work that was refused and remains producer-owned.
 // It never cancels an admitted request or touches a native borrow.
 func (e *nativeEndpoint) cancelReadiness(p *endpointParticipant, lane int) {
@@ -545,39 +535,6 @@ func (e *nativeEndpoint) detach(p *endpointParticipant) <-chan struct{} {
 		s.revoke(p)
 	})
 	return p.retired
-}
-
-// drain moves terminal disposal to the endpoint. Queued requests keep their
-// deadlines, because the baseline sends them ahead of a CONNECTION_CLOSE. It
-// never waits for native I/O.
-func (e *nativeEndpoint) drain(p *endpointParticipant) {
-	e.do(func(s *endpointState) {
-		if !s.valid(p) || p.draining {
-			return
-		}
-		p.draining = true
-		s.withdraw(p)
-	})
-}
-
-// depositClose takes ownership of a draining participant's close packet on
-// success. It is admitted on the connection-control lane once the participant's
-// queued and current requests resolve, or released at deposit+B.
-func (e *nativeEndpoint) depositClose(p *endpointParticipant, request endpointRequest) error {
-	err := net.ErrClosed
-	e.do(func(s *endpointState) {
-		if s.sealed || s.faulted || !s.valid(p) || !p.draining || p.closing.pending {
-			return
-		}
-		err = errEndpointRequest
-		if request.identity.connection != p.id || !request.destination.IsValid() || len(request.buffers) != 1 || request.buffers[0] == nil || request.buffers[0].refCount != 1 || len(request.buffers[0].Data) == 0 || cap(request.buffers[0].Data) > 64<<10 {
-			return
-		}
-		p.closing = endpointClosing{pending: true, request: request, size: cap(request.buffers[0].Data), deadline: time.Now().Add(s.budget)}
-		s.closers = append(s.closers, p)
-		err = nil
-	})
-	return err
 }
 
 // serviceClosers runs after arbitration, so a lease granted in this pass is used

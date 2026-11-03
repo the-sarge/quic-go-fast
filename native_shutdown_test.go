@@ -311,7 +311,6 @@ func TestNativeCloseObligation(t *testing.T) {
 				written = append(written, string(data))
 				return len(data), nil
 			}}, time.Second, nil)
-			defer func() { <-e.stop() }()
 			occupy(t, e)
 			p, err := e.attach(1)
 			require.NoError(t, err)
@@ -327,6 +326,7 @@ func TestNativeCloseObligation(t *testing.T) {
 			}
 			close(release)
 			<-fence
+			<-e.stop() // other participants' requests can still be in the writer
 			require.Contains(t, written, "close")
 		})
 	})

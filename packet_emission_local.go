@@ -1,15 +1,12 @@
 package quic
 
 import (
-	"errors"
 	"net"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 )
-
-var errLocalPacketRoute = errors.New("quic: operation excluded from private ordinary endpoint route")
 
 type localPacketSender interface {
 	sender
