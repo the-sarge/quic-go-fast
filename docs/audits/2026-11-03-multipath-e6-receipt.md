@@ -39,7 +39,7 @@ Every value is within the 20 ms tolerance. These classes ran without a tracer.
 | Expired-before-dispatch | Successor publication | 0.05 ms | 0.04 ms |
 | Shutdown and join | Public write return | 0.12 ms | 0.13 ms |
 | Request-class contention | Native return past deadline | none | none |
-| Request-class contention | Slowest publication | 3.36 ms | 2.80 ms |
+| Request-class contention | Slowest publication | 3.36 ms | 2.79 ms |
 | Pressure phase | Native return past deadline | none | none |
 | Pressure phase | Slowest publication | 2.50 ms | 2.71 ms |
 
