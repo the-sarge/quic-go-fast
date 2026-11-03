@@ -637,6 +637,10 @@ func (c *Conn) run() (err error) {
 		c.undecryptablePacketsToProcess = nil
 	}()
 
+	if c.emission.local != nil {
+		defer c.emission.local.Close()
+	}
+
 	c.timer = time.NewTimer(monotime.Until(c.idleTimeoutStartTime().Add(c.config.HandshakeIdleTimeout)))
 	if c.emission.bbr != nil {
 		c.pacingKick = newPacingKick()
@@ -649,11 +653,13 @@ func (c *Conn) run() (err error) {
 	if err := c.handleHandshakeEvents(monotime.Now()); err != nil {
 		return err
 	}
-	go func() {
-		if err := c.emission.run(); err != nil {
-			c.destroyImpl(err)
-		}
-	}()
+	if c.emission.local == nil {
+		go func() {
+			if err := c.emission.run(); err != nil {
+				c.destroyImpl(err)
+			}
+		}()
+	}
 
 	if c.perspective == protocol.PerspectiveClient {
 		c.scheduleSending() // so the ClientHello actually gets sent
@@ -663,6 +669,10 @@ func (c *Conn) run() (err error) {
 
 runLoop:
 	for {
+		if err := c.emission.consumeLocal(); err != nil {
+			c.destroyImpl(err)
+			break runLoop
+		}
 		if c.framer.QueuedTooManyControlFrames() {
 			c.setCloseError(&closeError{err: &qerr.TransportError{ErrorCode: InternalError}})
 			break runLoop
@@ -731,6 +741,8 @@ runLoop:
 			case <-c.timer.C:
 			case <-c.sendingScheduled:
 			case <-c.handshakeSendFeedback.wakeup:
+			case <-c.emission.localWakeup():
+			case <-c.emission.localFault():
 			case <-sendQueueAvailable:
 			case <-c.receivePhase.requests():
 				c.openReceivePhase()
@@ -750,6 +762,10 @@ runLoop:
 		// Check for loss detection timeout.
 		// This could cause packets to be declared lost, and retransmissions to be enqueued.
 		now := monotime.Now()
+		if err := c.emission.consumeLocal(); err != nil {
+			c.destroyImpl(err)
+			break runLoop
+		}
 		if h, ok := c.sentPacketHandler.(deliveryLifecycle); ok {
 			h.ExpireDelivery(now)
 		}
@@ -1684,6 +1700,7 @@ func (c *Conn) handleRetryPacket(hdr *wire.Header, data []byte, rcvTime monotime
 
 	newDestConnID := hdr.SrcConnectionID
 	c.receivedRetry = true
+	c.emission.resetLocal()
 	c.sentPacketHandler.ResetForRetry(rcvTime)
 	c.handshakeTimeouts = 0 // a new handshake attempt
 	c.handshakeDestConnID = newDestConnID

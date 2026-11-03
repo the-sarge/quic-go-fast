@@ -7,6 +7,7 @@ import (
 	"github.com/quic-go/quic-go/internal/congestion"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/stretchr/testify/require"
 )
@@ -28,9 +29,11 @@ func (r *localRichRecorder) Feedback(e congestion.FeedbackEvent) {
 
 func newLocalRichHandler(t *testing.T) (*sentPacketHandler, *congestionRecorder) {
 	t.Helper()
-	h := newLocalTestHandler(t).(*sentPacketHandler)
+	h := newSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger, nil)
 	r := &congestionRecorder{}
 	b := EnableBBR(h, 1200, func() protocol.ByteCount { return 0 })
+	_, err := EnableLocalCompletions(h)
+	require.NoError(t, err)
 	h.congestionEvents.sink = &localRichRecorder{recorder: r, controller: b}
 	return h, r
 }

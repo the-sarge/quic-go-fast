@@ -1,6 +1,6 @@
 # Bounded native endpoint I/O implementation plan
 
-**Status:** E1, E2A, E2B, E2C and E4 #1018 complete; the endpoint route remains inactive in public construction. E2 #1016 is the remaining frontier; the recovery prerequisites are complete. E5 #1019 still requires E3 #1017. Dispatch requires a verified frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012).
+**Status:** E1, E2A, E2B, E2C, E2 #1016 and E4 #1018 complete; the endpoint route remains inactive in public construction. E3 #1017 is ready; E5 #1019 still requires E3 #1017; ordinary endpoint integration is complete. Dispatch requires a verified frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012).
 
 ## Binding contract and operating discipline
 
@@ -210,7 +210,7 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 | [E2A](#e2a) | complete | Own local packet completion and terminal recovery lifetime | None |
 | [E2B](#e2b) | complete | Qualify ordered delivery and recovery evidence after local completion | E2A |
 | [E2C](#e2c) | complete | Reconcile local transmission certainty with cumulative ECN evidence | E2B |
-| [E2](#e2) | replace draft | Deliver nonfatal ordinary packet completions through recovery | E1, E2C |
+| [E2](#e2) | complete | Deliver nonfatal ordinary packet completions through recovery | E1, E2C |
 | [E3](#e3) | new | Transfer validation and MTU probes asynchronously | E2 |
 | [E4](#e4) | complete | Cover transport replies, cached close and public writes | E1 |
 | [E5](#e5) | new | Seal endpoint shutdown and return its grant exactly once | E3, E4 |
@@ -222,7 +222,7 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 
 ### E1 — Bound native request ownership behind an inactive endpoint seam
 
-**Current state:** complete. `native_endpoint.go` owns the inactive endpoint boundary; `native_endpoint_test.go` covers the admitted ownership classes. No production constructor selects this route. E2A #1084 is complete in [PR #1088](https://github.com/the-sarge/quic-go-fast/pull/1088); E2C #1086 and E4 #1018 are complete; E2 #1016 remains the frontier. The slice contract below remains the acceptance authority.
+**Current state:** complete. `native_endpoint.go` owns the inactive endpoint boundary; `native_endpoint_test.go` covers the admitted ownership classes. No production constructor selects this route. E2A #1084 is complete in [PR #1088](https://github.com/the-sarge/quic-go-fast/pull/1088); E2C #1086 is complete; E2 #1016 is complete in [PR #1124](https://github.com/the-sarge/quic-go-fast/pull/1124); E4 #1018 is complete in [PR #1125](https://github.com/the-sarge/quic-go-fast/pull/1125); E3 #1017 is ready. The slice contract below remains the acceptance authority.
 
 **Delivers:** Create the internal endpoint control/writer boundary and exercise an actual UDP write through it in a private fixture. Admission, absolute deadlines, independent queued expiry, claimed-token fencing, finite completion reservations, leased fair readiness and nonblocking diagnostics belong to this boundary. No production constructor can activate it yet; native qualification is E6.
 
@@ -297,9 +297,9 @@ The ordinary-completion outcome is implemented by E2A → E2B → E2C → E2, ea
 | Confirmed, uncertain and unsubmitted marks with cumulative counters | Keep marking identity separate from transmission qualification; no false clean, bleaching or congestion conclusion from unresolved evidence; ECN owner | One scenario / E2C | Covered by `TestLocalECNOutcomes` |
 | Early ACK then late/out-of-order completion and cumulative snapshot supersession | Count authenticated transmission once; process cumulative evidence without counter rollback or duplicate CE delta; ECN owner | One scenario / E2C | Covered by `TestLocalECNSnapshotSupersession` |
 | ECN lifecycle/exhaustion and fresh usable evidence | Preserve counter fences and bounded degraded behavior across Retry/drop/retirement; unavailable evidence cannot certify ECN; ECN owner | One scenario / E2C | Covered by `TestLocalECNLifecycleAndExhaustion` |
-| Ordinary STREAM resumes after local expiry/timeout; DATAGRAM disposal | Real packer, registration, endpoint and connection completion path; nonfatal backpressure, no encrypted replay | Two scenarios / E2 | Required |
-| Accepted prefix, uncertain segment and proven tail; ordinary non-timeout policy | Shared absolute deadline across permission/GSO fallback, immutable per-datagram mapping; endpoint facts and connection policy | One parameterized scenario / E2 | Required |
-| Retry/close during current native use, late return, mailbox and recovery-tracking pressure | Cancel epoch without discarding required live reconciliation; retain borrow, bound producer/completion ownership and preserve actionable ACK/PTO progress | One parameterized scenario / E2 | Required |
+| Ordinary STREAM resumes after local expiry/timeout; DATAGRAM disposal | Real packer, registration, endpoint and connection completion path; nonfatal backpressure, no encrypted replay | Two scenarios / E2 | Covered by `TestNativeOrdinaryStreamResumes` and `TestNativeOrdinaryDatagramDisposal` |
+| Accepted prefix, uncertain segment and proven tail; ordinary non-timeout policy | Shared absolute deadline across permission/GSO fallback, immutable per-datagram mapping; endpoint facts and connection policy | One parameterized scenario / E2 | Covered by `TestNativeOrdinarySegmentPrefix` |
+| Retry/close during current native use, late return, mailbox and recovery-tracking pressure | Cancel epoch without discarding required live reconciliation; retain borrow, bound producer/completion ownership and preserve actionable ACK/PTO progress | One parameterized scenario / E2 | Covered by `TestNativeOrdinaryTerminalLifetime` |
 
 **Shared preservation and exclusions:** Existing real-packer entrypoint, send-queue, default Reno ordering/undo/adaptive loss, delivery/recovery equivalence and work-bound, BBR and ECN tests remain authoritative for unchanged behavior. No controller formula, delivery identity, ordinary unregistered error policy, amplification accounting, PN continuation, socket ownership or public support changes. No persisted restart round trip exists; fresh constructors and destructive runtime consumers are covered. Any material effect outside the named owners, including an index service-bound regression, is a stop rather than permission to widen implementation.
 
@@ -376,7 +376,7 @@ The local qualification table remains derived state owned and indexed by the exi
 
 ### E2C — Reconcile local transmission certainty with cumulative ECN evidence
 
-**Current state:** complete. The private Reno and BBR ECN validators consume qualified local transmission facts and bounded cumulative receipt summaries through the real handler. Three `TestLocalECN*` scenarios cover the allocated rows and terminal-authority matrix; the endpoint route remains inactive. E4 #1018 is complete; E2 #1016 remains the frontier. The [re-audit receipt](../audits/2026-11-02-e2c-terminal-reaudit.md) retains execution history.
+**Current state:** complete. The private Reno and BBR ECN validators consume qualified local transmission facts and bounded cumulative receipt summaries through the real handler. Three `TestLocalECN*` scenarios cover the allocated rows and terminal-authority matrix; the endpoint route remains inactive. E2 #1016 is complete in [PR #1124](https://github.com/the-sarge/quic-go-fast/pull/1124); E4 #1018 is complete in [PR #1125](https://github.com/the-sarge/quic-go-fast/pull/1125); E3 #1017 is ready. The [re-audit receipt](../audits/2026-11-02-e2c-terminal-reaudit.md) retains execution history.
 
 **Identity:** `QGF-MP646-20261024-E2C`. **Issue:** [#1086](https://github.com/the-sarge/quic-go-fast/issues/1086). **Blocked by:** E2B; its complete rich local path is needed to exercise both existing controllers through the real handler. **Existing work:** replace the draft under the shared disposition above.
 
@@ -422,6 +422,8 @@ The existing registration fields own the representation: `packet == nil` already
 <a id="e2"></a>
 
 ### E2 — Deliver nonfatal ordinary packet completions through recovery
+
+**Current state:** complete in [PR #1124](https://github.com/the-sarge/quic-go-fast/pull/1124). The private ordinary adapter reserves endpoint/completion capacity before construction, carries immutable registration mappings and consumes native facts in the connection loop. The four allocated scenarios cover local backpressure, prefix/fallback policy and terminal lifetime; production socket activation remains excluded. E3 #1017 is ready; E4 #1018 is complete in [PR #1125](https://github.com/the-sarge/quic-go-fast/pull/1125).
 
 **Identity:** `QGF-MP646-20261024-E2`. **Issue:** [#1016](https://github.com/the-sarge/quic-go-fast/issues/1016). **Blocked by:** E1 and E2C; E2A/E2B are transitive. **Existing work:** retain and rework [PR #1124](https://github.com/the-sarge/quic-go-fast/pull/1124) at `20370f65d6234e3dbd039123f04c7595d5e2ebf6` under the admission re-audit below; the earlier incomplete uncommitted draft remains replaced.
 
