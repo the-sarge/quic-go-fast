@@ -179,7 +179,12 @@ func TestDialSetupAdmissionRefusesBeforeConstruction(t *testing.T) {
 		_, err := tr.Dial(ctxA, serverA.LocalAddr(), candidateClientTLS(), nil)
 		errA <- err
 	}()
-	budget.waitState(t, func(s setupBudgetState) bool { return s.acquired == 1 }, "dial A is admitted")
+	// Dial A records its admission and constructs its connection after the
+	// budget acquires, so observe both before issuing B: the records then have a
+	// causal order and the constructor count is A's alone.
+	require.Eventually(t, func() bool {
+		return len(dials.admissions()) == 1 && constructed.Load() == 1
+	}, 5*time.Second, time.Millisecond, "dial A is admitted and constructed")
 
 	ctxB, cancelB := context.WithTimeout(context.WithValue(t.Context(), dialID{}, "b"), 5*time.Second)
 	defer cancelB()
