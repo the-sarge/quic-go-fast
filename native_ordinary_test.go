@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/netip"
 	"os"
 	"syscall"
@@ -24,6 +25,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
+
+// nativeTestBlockerID can't collide with a connection's participant ID, which
+// comes from a process-wide counter that every native test connection advances.
+const nativeTestBlockerID = math.MaxUint64
 
 func nativeOrdinaryTest(t *testing.T, run func(*testing.T)) {
 	t.Helper()
@@ -60,9 +65,9 @@ func TestNativeOrdinaryDatagramDisposal(t *testing.T) {
 			return len(data), nil
 		}}, 100*time.Millisecond, nil)
 		defer func() { <-e.stop() }()
-		blocker, err := e.attach(77)
+		blocker, err := e.attach(nativeTestBlockerID)
 		require.NoError(t, err)
-		require.NoError(t, e.offer(blocker, 0, endpointTestRequest(77, "occupy native")))
+		require.NoError(t, e.offer(blocker, 0, endpointTestRequest(nativeTestBlockerID, "occupy native")))
 		synctest.Wait()
 		require.NoError(t, c.useNativeOrdinary(e, netip.MustParseAddrPort("1.2.3.4:4321"), packetInfo{}))
 		require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("expired datagram")}))
@@ -515,9 +520,9 @@ func TestNativeOrdinaryStreamResumes(t *testing.T) {
 				}}, 100*time.Millisecond, nil)
 				defer func() { <-e.stop() }()
 				if outcome == "queued expiry" {
-					blocker, err := e.attach(77)
+					blocker, err := e.attach(nativeTestBlockerID)
 					require.NoError(t, err)
-					require.NoError(t, e.offer(blocker, 0, endpointTestRequest(77, "occupy native")))
+					require.NoError(t, e.offer(blocker, 0, endpointTestRequest(nativeTestBlockerID, "occupy native")))
 					synctest.Wait()
 				}
 				require.NoError(t, c.useNativeOrdinary(e, netip.MustParseAddrPort("1.2.3.4:4321"), packetInfo{}))
