@@ -47,6 +47,7 @@ type closePacket struct {
 	addr      net.Addr
 	info      packetInfo
 	authority *connAuthority
+	responses *endpointResponses
 }
 
 // The Transport is the central point to manage incoming and outgoing QUIC connections.
@@ -162,6 +163,7 @@ type Transport struct {
 	server *baseServer
 
 	conn       rawConn
+	responses  *endpointResponses
 	policyConn packetPolicyConn
 	// candidates is joined before initialization and immutable thereafter.
 	candidates *candidateGroup
@@ -531,6 +533,15 @@ func (t *Transport) init(allowZeroLengthConnIDs bool) error {
 
 // WriteTo sends a packet on the underlying connection.
 func (t *Transport) WriteTo(b []byte, addr net.Addr) (int, error) {
+	if t.responses != nil {
+		t.mutex.Lock()
+		closed := t.transportClosed
+		t.mutex.Unlock()
+		if closed {
+			return 0, net.ErrClosed
+		}
+		return t.responses.backend.writePublic(b, addr, t.responses.epoch)
+	}
 	if err := t.init(false); err != nil {
 		return 0, err
 	}
@@ -553,7 +564,11 @@ func (t *Transport) runSendQueue() {
 			}
 		case p := <-t.closeQueue:
 			if p.authority.permitsClose() {
-				t.conn.WritePacket(p.payload, p.addr, p.info.OOB(), 0, protocol.ECNUnsupported)
+				responses := p.responses
+				if responses == nil {
+					responses = t.responses
+				}
+				responses.send(nil, t.conn, p.payload, p.addr, p.info)
 			}
 		case p := <-t.statelessResetQueue:
 			if t.candidates.isFenced() {
@@ -630,6 +645,7 @@ func (t *Transport) close(e error) {
 
 	e = &errTransportClosed{err: e}
 	t.transportClosed = true
+	t.responses.revoke()
 	t.closeErr = e
 	t.cancelReadRetry()
 	server := t.server
@@ -875,7 +891,7 @@ func (t *Transport) sendStatelessReset(p receivedPacket) {
 	rand.Read(data)
 	data[0] = (data[0] & 0x7f) | 0x40
 	data = append(data, token[:]...)
-	if err := writeUnfencedResponse(t.candidates, t.conn, data, p.remoteAddr, p.info); err != nil {
+	if err := t.responses.send(t.candidates, t.conn, data, p.remoteAddr, p.info); err != nil {
 		t.logger.Debugf("Error sending Stateless Reset to %s: %s", p.remoteAddr, err)
 	}
 }
@@ -1093,12 +1109,21 @@ func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connCl
 	}
 	h.mutex.Unlock()
 	retired := setup.holdClosing()
+	responses := h.responses.child()
 	var handler packetHandler
 	if connClosePacket != nil {
 		handler = newClosedLocalConn(
 			func(addr net.Addr, info packetInfo) {
+				if responses != nil {
+					if !responses.epoch.valid() {
+						return
+					}
+					if destination, ok := addr.(*net.UDPAddr); ok && destination != nil {
+						addr = net.UDPAddrFromAddrPort(destination.AddrPort())
+					}
+				}
 				select {
-				case h.closeQueue <- closePacket{payload: connClosePacket, addr: addr, info: info, authority: authority}:
+				case h.closeQueue <- closePacket{payload: connClosePacket, addr: addr, info: info, authority: authority, responses: responses}:
 				default:
 					// We're backlogged.
 					// Just drop the packet, sending CONNECTION_CLOSE copies is best effort anyway.
@@ -1117,6 +1142,7 @@ func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connCl
 	h.mutex.Lock()
 	t := (*Transport)(h)
 	if t.transportClosed || (t.closeErr != nil && unsettledSetup) {
+		responses.revoke()
 		// A connection can finish closing after shutdown took its handler
 		// snapshot. Listener closure only suppresses unsettled setup retention;
 		// established connections keep ordinary closing/draining behavior.
@@ -1137,6 +1163,7 @@ func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connCl
 	}
 	var timer *time.Timer
 	retire := sync.OnceFunc(func() {
+		responses.revoke()
 		h.mutex.Lock()
 		timer.Stop()
 		for _, id := range ids {
