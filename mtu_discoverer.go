@@ -193,7 +193,24 @@ func (f *mtuFinder) Reset(start, max protocol.ByteCount) {
 type mtuFinderAckHandler struct {
 	*mtuFinder
 	generation uint8
+	// The private endpoint route reports local results through these. Each probe
+	// has its own state, so a late result can't touch a newer probe's in-flight size.
+	resolved, disposed, uncertain bool
 }
+
+// disposeLocal ends a probe that provably never left the host. It resolves the
+// attempt without a lost entry, and the recovery callback that follows is inert.
+func (h *mtuFinderAckHandler) disposeLocal() {
+	if h.generation != h.mtuFinder.generation || h.resolved {
+		return
+	}
+	h.resolved, h.disposed = true, true
+	h.inFlight = protocol.InvalidByteCount
+}
+
+// markLocalUncertain keeps the probe outstanding, so an ACK still raises the size.
+// A later loss proves nothing about the path if the probe never left the host.
+func (h *mtuFinderAckHandler) markLocalUncertain() { h.uncertain = true }
 
 var _ ackhandler.FrameHandler = &mtuFinderAckHandler{}
 
@@ -202,6 +219,7 @@ func (h *mtuFinderAckHandler) OnAcked(wire.Frame) {
 		// ACK for probe sent before reset
 		return
 	}
+	h.resolved = true
 	size := h.inFlight
 	if size == protocol.InvalidByteCount {
 		panic("OnAcked callback called although there's no MTU probe packet in flight")
@@ -239,9 +257,17 @@ func (h *mtuFinderAckHandler) OnLost(wire.Frame) {
 		// probe sent before reset received
 		return
 	}
+	if h.disposed {
+		return
+	}
+	h.resolved = true
 	size := h.inFlight
 	if size == protocol.InvalidByteCount {
 		panic("OnLost callback called although there's no MTU probe packet in flight")
+	}
+	if h.uncertain {
+		h.inFlight = protocol.InvalidByteCount
+		return
 	}
 	h.lastProbeWasLost = true
 	h.inFlight = protocol.InvalidByteCount

@@ -294,6 +294,12 @@ func (h *sentPacketHistory) Difference(a, b protocol.PacketNumber) protocol.Pack
 	return diff
 }
 
+// excludeFromDistance keeps a number with no transmission fact out of packet
+// distance. Packet numbers register in order, so the slice stays sorted.
+func (h *sentPacketHistory) excludeFromDistance(pn protocol.PacketNumber) {
+	h.unqualifiedLocal = append(h.unqualifiedLocal, pn)
+}
+
 // qualifyLocal admits accepted/uncertain completion or authenticated transmission
 // exactly once. Logical ACK qualification does not release its completion token.
 func (h *sentPacketHistory) qualifyLocal(pn protocol.PacketNumber) {

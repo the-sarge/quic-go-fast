@@ -17,6 +17,8 @@ import (
 type LocalSentPacketHandler interface {
 	SentPacketHandler
 	RegisterLocalPacket(PacketContext, monotime.Time, protocol.PacketNumber, protocol.PacketNumber, []StreamFrame, []Frame, protocol.EncryptionLevel, protocol.ECN, protocol.ByteCount) (LocalCompletionToken, error)
+	RegisterLocalMTUProbe(PacketContext, monotime.Time, protocol.PacketNumber, []Frame, protocol.ECN, protocol.ByteCount) (LocalCompletionToken, error)
+	RegisterLocalPathProbe(PacketContext, monotime.Time, protocol.PacketNumber, []Frame, protocol.ByteCount) error
 	CompleteLocalPacket(LocalCompletionToken, LocalPacketOutcome, monotime.Time) error
 	CloseLocal(monotime.Time)
 	CanRegisterLocalPackets(int) bool
@@ -101,12 +103,50 @@ func (h *sentPacketHandler) CanRegisterLocalPackets(count int) bool {
 }
 
 func (h *sentPacketHandler) RegisterLocalPacket(context PacketContext, t monotime.Time, pn, largestAcked protocol.PacketNumber, streams []StreamFrame, frames []Frame, level protocol.EncryptionLevel, ecn protocol.ECN, size protocol.ByteCount) (LocalCompletionToken, error) {
+	return h.registerLocalPacket(context, t, pn, largestAcked, streams, frames, level, ecn, size, false)
+}
+
+// RegisterLocalMTUProbe keeps the probe's loss out of congestion control. Its
+// other local lifecycle is the same as an ordinary registration's.
+func (h *sentPacketHandler) RegisterLocalMTUProbe(context PacketContext, t monotime.Time, pn protocol.PacketNumber, frames []Frame, ecn protocol.ECN, size protocol.ByteCount) (LocalCompletionToken, error) {
+	return h.registerLocalPacket(context, t, pn, protocol.InvalidPacketNumber, nil, frames, protocol.Encryption1RTT, ecn, size, true)
+}
+
+// RegisterLocalPathProbe needs no completion token: a path probe holds no flight,
+// ECN mark or RTT sample, so no recovery consumer reads its transmission. Whether
+// or not it left the host, its number never counts toward packet distance.
+func (h *sentPacketHandler) RegisterLocalPathProbe(context PacketContext, t monotime.Time, pn protocol.PacketNumber, frames []Frame, size protocol.ByteCount) error {
+	if h.local == nil || h.local.closed {
+		return errLocalPacketMode
+	}
+	if context.PathID != h.pathID {
+		if path := h.path(context.PathID); path != nil {
+			return path.RegisterLocalPathProbe(context, t, pn, frames, size)
+		}
+		return errLocalPacketMode
+	}
+	ps := h.appDataPackets
+	if !h.validPacketContext(context, protocol.Encryption1RTT) || t.IsZero() || size <= 0 || pn < 0 || (ps.history.highestPacketNumber != protocol.InvalidPacketNumber && pn != ps.history.highestPacketNumber+1) {
+		return errLocalPacketMode
+	}
+	if h.numTrackedPackets() >= protocol.MaxTrackedSentPackets {
+		return ErrLocalCompletionCapacity
+	}
+	h.sentPacket(context, t, pn, protocol.InvalidPacketNumber, nil, frames, protocol.Encryption1RTT, protocol.ECNNon, size, false, true, nil)
+	ps.history.excludeFromDistance(pn)
+	if ps.localUnregisteredPN == pn {
+		ps.localUnregisteredPN = protocol.InvalidPacketNumber
+	}
+	return nil
+}
+
+func (h *sentPacketHandler) registerLocalPacket(context PacketContext, t monotime.Time, pn, largestAcked protocol.PacketNumber, streams []StreamFrame, frames []Frame, level protocol.EncryptionLevel, ecn protocol.ECN, size protocol.ByteCount, mtu bool) (LocalCompletionToken, error) {
 	if h.local == nil || h.local.closed || (ecn != protocol.ECNNon && ecn != protocol.ECNUnsupported && (h.local.ecn == nil || level != protocol.Encryption1RTT || (ecn != protocol.ECT0 && ecn != protocol.ECT1))) {
 		return LocalCompletionToken{}, errLocalPacketMode
 	}
 	if context.PathID != h.pathID {
 		if path := h.path(context.PathID); path != nil && level == protocol.Encryption1RTT {
-			return path.RegisterLocalPacket(context, t, pn, largestAcked, streams, frames, level, ecn, size)
+			return path.registerLocalPacket(context, t, pn, largestAcked, streams, frames, level, ecn, size, mtu)
 		}
 		return LocalCompletionToken{}, errLocalPacketMode
 	}
@@ -130,7 +170,7 @@ func (h *sentPacketHandler) RegisterLocalPacket(context PacketContext, t monotim
 	token := LocalCompletionToken{owner: &h.local.owner, id: h.local.owner.next, epoch: ps.localEpoch}
 	r := &localRegistration{pn: pn, level: level, epoch: ps.localEpoch, registeredAt: t}
 	h.local.records[token.id] = r
-	h.sentPacket(context, t, pn, largestAcked, streams, frames, level, ecn, size, false, false, r)
+	h.sentPacket(context, t, pn, largestAcked, streams, frames, level, ecn, size, mtu, false, r)
 	h.settleLocalUndo(t)
 	if ps.localUnregisteredPN == pn {
 		ps.localUnregisteredPN = protocol.InvalidPacketNumber

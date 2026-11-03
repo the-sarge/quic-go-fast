@@ -331,12 +331,9 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 }
 
 func (e *packetEmission) registerPacket(p shortHeaderPacket, ecn protocol.ECN, now monotime.Time) error {
-	if e.local != nil && (p.IsPathProbePacket || p.IsPathMTUProbePacket) {
-		return errLocalPacketRoute
-	}
 	e.captureTerminalReceipts(p.Frames)
 	if p.IsPathProbePacket {
-		(*e.recovery).SentPacketWithContext(
+		return e.register(
 			p.Context,
 			now,
 			p.PacketNumber,
@@ -349,7 +346,6 @@ func (e *packetEmission) registerPacket(p shortHeaderPacket, ecn protocol.ECN, n
 			p.IsPathMTUProbePacket,
 			true,
 		)
-		return nil
 	}
 	e.policy.noteEmissionActivity(p, now)
 
@@ -582,11 +578,10 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 }
 
 // Direct operations borrow the destination and preserve best-effort write errors.
-// Storage belongs to emission until the synchronous write has returned.
+// Storage belongs to emission until the synchronous write has returned. On the
+// private endpoint route, every commitment still precedes the offer, but storage
+// transfers to the endpoint and the connection loop never waits for the write.
 func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackhandler.Frame, path *path, addr net.Addr, info packetInfo, checksum qlog.DatagramPayloadChecksum, now monotime.Time) error {
-	if e.local != nil {
-		return errLocalPacketRoute
-	}
 	isChallenge := func(f ackhandler.Frame) bool {
 		_, ok := f.Frame.(*wire.PathChallengeFrame)
 		return ok
@@ -618,7 +613,12 @@ func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackh
 			frames = slices.DeleteFunc(frames, isChallenge)
 			continue
 		}
-		defer buf.Release()
+		transferred := false
+		defer func() {
+			if !transferred {
+				buf.Release()
+			}
+		}()
 		if !path.reserveProbe(prepared.Length) {
 			return nil
 		}
@@ -632,34 +632,50 @@ func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackh
 			}
 		}
 		e.policy.logPathProbe(p, addr, buf.Len(), checksum)
-		e.registerPacket(p, protocol.ECNNon, now)
+		if err := e.registerPacket(p, protocol.ECNNon, now); err != nil {
+			return err
+		}
+		if e.local != nil {
+			transferred = true
+			return e.local.sendProbe(buf, nil, addr, info, &path.probeEpoch)
+		}
 		return e.queue.SendProbe(buf, addr, info)
 	}
 	return nil
 }
 
 func (e *packetEmission) clientProbe(connID protocol.ConnectionID, frame ackhandler.Frame, tr *Transport, addr net.Addr, now monotime.Time) error {
-	if e.local != nil {
-		return errLocalPacketRoute
-	}
 	if !(*e.recovery).CanSendPathProbe() {
 		return nil
+	}
+	if e.local != nil {
+		// A refused target costs no packet number; the challenge stays charged.
+		if ready, err := e.local.probeTargetReady(tr); !ready || err != nil {
+			return err
+		}
 	}
 	p, buf, err := e.packer.PackPathProbePacket(connID, []ackhandler.Frame{frame}, e.version)
 	if err != nil {
 		return err
 	}
-	defer buf.Release()
 	e.policy.logPathProbe(p, nil, buf.Len(), 0)
-	e.registerPacket(p, protocol.ECNNon, now)
+	if err := e.registerPacket(p, protocol.ECNNon, now); err != nil {
+		buf.Release()
+		return err
+	}
+	if e.local != nil {
+		var epoch *responseEpoch
+		if handler, ok := frame.Handler.(*pathProbeHandler); ok {
+			epoch = handler.epoch
+		}
+		return e.local.sendProbe(buf, tr, addr, packetInfo{}, epoch)
+	}
+	defer buf.Release()
 	tr.WriteTo(buf.Data, addr)
 	return nil
 }
 
 func (e *packetEmission) mtuProbe(finder *mtuFinder, now monotime.Time) emissionResult {
-	if e.local != nil {
-		return emissionResult{err: errLocalPacketRoute}
-	}
 	if e.queue.WouldBlock() {
 		return emissionResult{stop: emissionQueueFull, available: e.queue.Available()}
 	}
@@ -670,7 +686,13 @@ func (e *packetEmission) mtuProbe(finder *mtuFinder, now monotime.Time) emission
 	}
 	ecn := (*e.recovery).ECNMode(true)
 	e.policy.logShortHeaderPacket(p, ecn, buf.Len())
-	e.registerPacket(p, ecn, now)
+	if err := e.registerPacket(p, ecn, now); err != nil {
+		buf.Release()
+		return emissionResult{err: err}
+	}
+	if handler, ok := ping.Handler.(*mtuFinderAckHandler); ok && e.local != nil {
+		e.local.registerMTUProbe(handler)
+	}
 	e.handoff(buf, 0, ecn, sendMetadata{})
 	return emissionResult{progress: true}
 }

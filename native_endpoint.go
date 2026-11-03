@@ -64,7 +64,8 @@ type endpointRequest struct {
 	destination netip.AddrPort
 	buffers     []*packetBuffer
 	datagram    *endpointDatagram
-	deadline    time.Time // zero selects admission+B; an earlier deadline is allowed
+	epoch       *responseEpoch // nil grants no additional revocation owner
+	deadline    time.Time      // zero selects admission+B; an earlier deadline is allowed
 	oob         []byte
 	gsoSize     uint16
 	nativeGSO   bool
@@ -89,6 +90,11 @@ type endpointAdmission struct {
 	index    int
 	serial   uint64
 	deadline time.Time
+}
+
+// authorized reports whether every owner that can revoke this request permits it.
+func (request endpointRequest) authorized() bool {
+	return request.epoch.valid() && (request.datagram == nil || request.datagram.epoch.valid())
 }
 
 func (request endpointRequest) packetCount() int {
@@ -287,7 +293,7 @@ func (e *nativeEndpoint) offer(p *endpointParticipant, lane int, request endpoin
 		if s.sealed || s.faulted || !s.valid(p) {
 			return
 		}
-		if request.datagram != nil && !request.datagram.epoch.valid() {
+		if !request.authorized() {
 			return
 		}
 		err = errEndpointRequest
@@ -579,7 +585,7 @@ func (s *endpointState) run() {
 		for j := 0; j < len(s.queue); {
 			i := s.queue[j]
 			r := &s.records[i]
-			revoked := r.revoked || (r.request.datagram != nil && !r.request.datagram.epoch.valid())
+			revoked := r.revoked || !r.request.authorized()
 			if s.faulted || !r.participant.active || revoked || !now.Before(r.request.deadline) {
 				err := os.ErrDeadlineExceeded
 				if s.faulted {
@@ -888,7 +894,7 @@ func (r endpointRequest) datagrams() int {
 }
 
 func endpointSubmissionAllowed(token *endpointToken) error {
-	if token.canceled.Load() || (token.request.datagram != nil && !token.request.datagram.epoch.valid()) {
+	if token.canceled.Load() || !token.request.authorized() {
 		return errEndpointRevoked
 	}
 	if !time.Now().Before(token.request.deadline) {
