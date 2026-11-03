@@ -1,0 +1,95 @@
+{
+  "program": "QGF-MP646-20261024",
+  "slice": "E6 #1020",
+  "candidate": "21ee943656ef01583e8ee7c96fca48b966eecaf9",
+  "prior_published_instances": 10,
+  "prior_published_host_seconds": 452,
+  "instances_charged": 58,
+  "regular_instances": 12,
+  "reserve_instances_charged": 46,
+  "conservative_host_seconds_charged": 90,
+  "charge_basis": "Every process invocation and setup attempt, including failures, as in R1. Occupied time summed to about 70 seconds and is rounded up.",
+  "cumulative_instances": 68,
+  "remaining_instances": 112,
+  "remaining_host_seconds": 28258,
+  "reserve_instances_remaining": -14,
+  "remaining_scheduled_instances": 126,
+  "owner_note": "The reserve is overdrawn by 14, so remaining scheduled work exceeds remaining capacity by 14. The owner said on 2026-11-03 that the ceiling can be raised if needed. This receipt doesn't change the ceiling.",
+  "attempts": [
+    {
+      "kind": "method-probe",
+      "candidate": "throwaway program, no fixture",
+      "charged_instances": 7,
+      "cause": "Establish injection, stack observation, thread pinning and real EPERM/EIO triggers before the re-audit."
+    },
+    {
+      "kind": "setup",
+      "candidate": "uncommitted fixture",
+      "charged_instances": 1,
+      "cause": "Fetch Go 1.26.10 on the venue."
+    },
+    {
+      "kind": "setup",
+      "candidate": "uncommitted fixture",
+      "charged_instances": 3,
+      "cause": "One fixture build for each of three smoke invocations."
+    },
+    {
+      "kind": "smoke",
+      "candidate": "uncommitted fixture",
+      "charged_instances": 1,
+      "result": "failed",
+      "cause": "The fixture didn't retry through the endpoint's 1 ms local-backpressure floor."
+    },
+    {
+      "kind": "smoke",
+      "candidate": "uncommitted fixture",
+      "charged_instances": 6,
+      "result": "five passed, one failed",
+      "cause": "request-contention read a zero deadline for a result drained before its deadline was recorded, and it drew no refusals."
+    },
+    {
+      "kind": "smoke",
+      "candidate": "uncommitted fixture",
+      "charged_instances": 1,
+      "result": "passed",
+      "cause": "Recheck the corrected contention class."
+    },
+    {
+      "kind": "setup",
+      "candidate": "4b6e00c0c618bd08ad9a29c9608ee8b949b84ddb",
+      "charged_instances": 1
+    },
+    {
+      "kind": "native-campaign",
+      "candidate": "4b6e00c0c618bd08ad9a29c9608ee8b949b84ddb",
+      "charged_instances": 12,
+      "result": "all passed",
+      "cause": "Superseded, not failed. Stateless and public classes sent 1 each with no attempt counts, so the fixture gained those counters and the whole campaign reran on one candidate. Raw output isn't retained."
+    },
+    {
+      "kind": "setup",
+      "candidate": "0a9f72fe55b0ed559c72a13246d9ed3b63811f3e",
+      "charged_instances": 1
+    },
+    {
+      "kind": "native-campaign",
+      "candidate": "0a9f72fe55b0ed559c72a13246d9ed3b63811f3e",
+      "charged_instances": 12,
+      "result": "all passed",
+      "cause": "Superseded, not failed. Review found that concurrent participants could lower a recorded timing maximum, so its contention timings couldn't be relied on. Raw output isn't retained."
+    },
+    {
+      "kind": "setup",
+      "candidate": "21ee943656ef01583e8ee7c96fca48b966eecaf9",
+      "charged_instances": 1
+    },
+    {
+      "kind": "native-campaign",
+      "candidate": "21ee943656ef01583e8ee7c96fca48b966eecaf9",
+      "charged_instances": 12,
+      "result": "all passed",
+      "regular": true
+    }
+  ]
+}

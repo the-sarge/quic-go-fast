@@ -8570,3 +8570,73 @@ All 33 hosted check runs succeeded on `12ae31120`. macOS arm64 capacity limits m
 ### Next
 
 The committed product state is 8/9 endpoint slices and 16/34 program slices complete. [E6 issue #1020](https://github.com/the-sarge/quic-go-fast/issues/1020) and [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029) have no open blockers. [Endpoint parent #1012](https://github.com/the-sarge/quic-go-fast/issues/1012), [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) own live readiness.
+
+---
+
+## TestCandidateOrdinaryProfileClose backoff flake fixed - 2026-11-03 14:37 EST
+
+**Main:** `5de6184b0900`
+**Actor:** Claude
+
+### Summary
+
+[PR #1138 — Make TestCandidateOrdinaryProfileClose tolerate the close backoff](https://github.com/the-sarge/quic-go-fast/pull/1138) closed [issue #1134](https://github.com/the-sarge/quic-go-fast/issues/1134). Only the test changed. A closed connection answers only the 1st, 2nd, 4th, 8th… packet it receives, and late client packets count too, so the test's single probe could go unanswered. Each probe now resends within the existing 5 s limit.
+
+### Decisions
+
+The test was also weaker than its comment, so it now pins the closed entry and requires the closed ID's reply not to be a stateless reset. The [agent brief](https://github.com/the-sarge/quic-go-fast/issues/1134#issuecomment-6611652059) is the record. Three points went beyond it:
+
+- The probe ID is chosen after the close and must still route to a closed entry. About 1 in 13 initial IDs have the transport's 8-byte length, and that ID can retire before the close, so a length check alone could have added a new flake.
+- Each probe has its own socket, because a late reply to a resend could otherwise be read as the next probe's answer.
+- The unknown-ID probe uses the same resend helper. Its reply must still be a reset.
+
+### Validation
+
+On minimax, under one pinned core, `GOMAXPROCS=1` and four spinners, the unfixed test failed 17 of 1,500 runs with the hosted message. The fixed test failed 0 of 1,500 in each of two runs.
+
+With client writes held 100–500 ms from `Accept` until after the close, the fixed test passed 60 of 60. With resending off, it failed 26 of 30 at 200 and 500 ms. It failed as intended with the close reply muted, with an unregistered 8-byte ID as the closed-ID probe, and with the wrong token expected for the unknown ID.
+
+The brief's example 12-byte mutation can't catch a reset, because the transport computes the token from the first 8 bytes it parses. A first comparison was also invalid: the original test with the hold passed 75 of 75. It has no pinned entry, so a reset probably answered once the entry expired, which wasn't confirmed. The PR records both.
+
+RAS review `20261103T185031-3d12f396411c5f8533143548` listed nothing in Fix First. Its one finding, a race between choosing the ID and installing the closed entries, was rejected from the code: `CloseWithError` returns only after they are installed. No verify or replacement review was needed. All 33 hosted checks passed on `5f9826978`, including the Windows unit jobs.
+
+The Windows failure itself is still not reproduced on Windows and stays attributed by mechanism.
+
+### Next
+
+No follow-ups were filed; the review deferred nothing. The live view of the multipath program stays on [E6 issue #1020](https://github.com/the-sarge/quic-go-fast/issues/1020) and [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029).
+
+---
+
+## Multipath E6 native deadline and join boundary qualified - 2026-11-03 16:48 EST
+
+**Main:** `a19b05ff3b05`
+**Actor:** Claude
+
+### Summary
+
+[PR #1137 — Multipath E6: Qualify the native deadline and join boundary](https://github.com/the-sarge/quic-go-fast/pull/1137) closed [E6 issue #1020](https://github.com/the-sarge/quic-go-fast/issues/1020) as merge `a19b05ff`, after scoped re-audit [PR #1136](https://github.com/the-sarge/quic-go-fast/pull/1136). No production file changed. The endpoint track is complete at 9/9, and the program is at 17/34. The route stays private until R19, and no negotiated multipath traffic ran, so this is no public support claim.
+
+### Decisions
+
+The fixture is a build-tagged root-package test rather than an `integrationtests/self` test, because the grant methods and per-request deadlines aren't reachable from outside the package. The [re-audit](https://github.com/the-sarge/quic-go-fast/blob/a19b05ff3b05a491fac5a41260154d04b8070c35/docs/audits/2026-11-03-e6-native-qualification-reaudit.md) records this and the other method changes. The fallback's GSO `EIO` is simulated by a test wrapper, because this kernel gave no real trigger, and the [receipt](https://github.com/the-sarge/quic-go-fast/blob/a19b05ff3b05a491fac5a41260154d04b8070c35/docs/audits/2026-11-03-multipath-e6-receipt.md) labels it.
+
+### Validation
+
+All 12 instances passed once on candidate `21ee9436` on `minimax`, six classes on each of Go 1.26.10 and 1.27.3, at B = 100 ms. Every uninstrumented value was within the 20 ms tolerance on a busy host, and the slowest was 3.36 ms. In all three injected classes, stacks sampled mid-wait showed the writer in `waitWrite` under `writeEndpointRequest`.
+
+Real socket pressure never produced a wait: 192 stack samples with a 2 KiB send buffer found the writer in the poller zero times, because loopback delivers synchronously. Native poll traversal therefore rests on injection alone.
+
+Two earlier campaigns also passed and were superseded, neither to obtain a pass. One lacked attempt counts. In the other, review found that concurrent participants could lower a recorded timing maximum, which could have hidden a tolerance failure.
+
+RAS review `20261103T183704-cf01b0f95d6941cff10488bc` led to four fix-now findings, and verify came back clear. Replacement review `20261103T185110-d671039b24c7209bfbc95fb5` raised only a stale PR description. `claude-fable` failed in that run and quorum held.
+
+Main advanced by [PR #1138](https://github.com/the-sarge/quic-go-fast/pull/1138) and [PR #1139](https://github.com/the-sarge/quic-go-fast/pull/1139) while the first hosted run finished, so `154d0da4` was not merged. Merge head `ee8a3728` has a PR diff byte-identical to the reviewed head, so it was re-certified with no new review. Four macOS jobs on it were cancelled because no runner was acquired, with zero steps run. The two `pull_request` runs were rerun once on the same head and passed. The `push` copies of the two macOS unit jobs stayed cancelled, and every `pull_request` check passed.
+
+### Next
+
+[Issue #1141](https://github.com/the-sarge/quic-go-fast/issues/1141) records that stateless and public writes were refused about 98–99% of the time under saturated data traffic, even with free capacity. The contract allows this, but it should be decided before public activation in R19.
+
+This slice charged 58 instances, bringing the program to 68 of 180, and the remaining scheduled work exceeds remaining capacity by 14. The owner said the ceiling can be raised if needed, and a later preflight has to record that raise.
+
+E6 makes no successor newly ready, because R16 still requires R11, R13, R14 and R15. [Program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) owns live readiness, with [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029) as the frontier.
