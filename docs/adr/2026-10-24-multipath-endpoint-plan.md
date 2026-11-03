@@ -1,6 +1,6 @@
 # Bounded native endpoint I/O implementation plan
 
-**Status:** E1, E2A, E2B, E2C, E2 #1016, E3 #1017 and E4 #1018 complete; the endpoint route remains inactive in public construction. E5 #1019 is ready; ordinary endpoint integration is complete. Dispatch requires a verified frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012).
+**Status:** E1, E2A, E2B, E2C, E2 #1016, E3 #1017, E4 #1018 and E5 #1019 complete; the endpoint route remains inactive in public construction. E6 #1020 is ready; ordinary endpoint integration is complete. Dispatch requires a verified frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012).
 
 ## Binding contract and operating discipline
 
@@ -213,7 +213,7 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 | [E2](#e2) | complete | Deliver nonfatal ordinary packet completions through recovery | E1, E2C |
 | [E3](#e3) | complete | Transfer validation and MTU probes asynchronously | E2 |
 | [E4](#e4) | complete | Cover transport replies, cached close and public writes | E1 |
-| [E5](#e5) | new | Seal endpoint shutdown and return its grant exactly once | E3, E4 |
+| [E5](#e5) | complete | Seal endpoint shutdown and return its grant exactly once | E3, E4 |
 | [E6](#e6) | new | Qualify the native deadline and join boundary | E5 |
 
 ## Implementation slices
@@ -423,7 +423,7 @@ The existing registration fields own the representation: `packet == nil` already
 
 ### E2 — Deliver nonfatal ordinary packet completions through recovery
 
-**Current state:** complete in [PR #1124](https://github.com/the-sarge/quic-go-fast/pull/1124). The private ordinary adapter reserves endpoint/completion capacity before construction, carries immutable registration mappings and consumes native facts in the connection loop. The four allocated scenarios cover local backpressure, prefix/fallback policy and terminal lifetime; production socket activation remains excluded. E3 #1017 is complete in [PR #1130](https://github.com/the-sarge/quic-go-fast/pull/1130); E4 #1018 is complete in [PR #1125](https://github.com/the-sarge/quic-go-fast/pull/1125).
+**Current state:** complete in [PR #1124](https://github.com/the-sarge/quic-go-fast/pull/1124). The private ordinary adapter reserves endpoint/completion capacity before construction, carries immutable registration mappings and consumes native facts in the connection loop. The four allocated scenarios cover local backpressure, prefix/fallback policy and terminal lifetime; production socket activation remains excluded. E3 #1017 is complete in [PR #1130](https://github.com/the-sarge/quic-go-fast/pull/1130); E4 #1018 is complete in [PR #1125](https://github.com/the-sarge/quic-go-fast/pull/1125); E5 #1019 is complete in [PR #1133](https://github.com/the-sarge/quic-go-fast/pull/1133).
 
 **Identity:** `QGF-MP646-20261024-E2`. **Issue:** [#1016](https://github.com/the-sarge/quic-go-fast/issues/1016). **Blocked by:** E1 and E2C; E2A/E2B are transitive. **Existing work:** retain and rework [PR #1124](https://github.com/the-sarge/quic-go-fast/pull/1124) at `20370f65d6234e3dbd039123f04c7595d5e2ebf6` under the admission re-audit below; the earlier incomplete uncommitted draft remains replaced.
 
@@ -447,7 +447,7 @@ The existing registration fields own the representation: `packet == nil` already
 
 ### E3 — Transfer validation and MTU probes asynchronously
 
-**Current state:** complete in [PR #1130](https://github.com/the-sarge/quic-go-fast/pull/1130). Validation probes, ordinary rebinding and MTU probes use the private endpoint route without a native wait in the connection loop; commitments precede the offer and survive refusal. `native_probe_test.go`, `TestLocalProbeRegistration` and `TestMTUFinderLocalOutcomes` hold the seven allocated test functions. Client `Path.Switch`, live CONNECTION_CLOSE and connection drain stay rejected until E5. No public constructor installs this route. E5 #1019 is ready.
+**Current state:** complete in [PR #1130](https://github.com/the-sarge/quic-go-fast/pull/1130). Validation probes, ordinary rebinding and MTU probes use the private endpoint route without a native wait in the connection loop; commitments precede the offer and survive refusal. `native_probe_test.go`, `TestLocalProbeRegistration` and `TestMTUFinderLocalOutcomes` hold the seven allocated test functions. E5 #1019 later moved client `Path.Switch`, live CONNECTION_CLOSE and connection drain onto the route. No public constructor installs this route.
 
 **Delivers:** Adapt client/server validation, ordinary rebinding and MTU probes through the real emission interface. Reserve amplification and publish challenges before dispatch; conservative charging survives rejection. Connection loops remain responsive during native writes.
 
@@ -475,7 +475,7 @@ The existing registration fields own the representation: `packet == nil` already
 
 ### E4 — Cover transport replies, cached close and public writes
 
-**Current state:** complete. `endpoint_responses.go` and `native_response.go` adapt the named transport/server/public producers to the endpoint in private fixtures. Response epochs fence server, transport and cache retirement; submitted response storage is independently owned, and public bytes stay borrowed through actual native return. The sixteen deterministic scenarios in `native_response_test.go` cover the accepted E4 evidence families. No public constructor installs this route. E5 #1019 is ready now that E3 #1017 is complete.
+**Current state:** complete. `endpoint_responses.go` and `native_response.go` adapt the named transport/server/public producers to the endpoint in private fixtures. Response epochs fence server, transport and cache retirement; submitted response storage is independently owned, and public bytes stay borrowed through actual native return. The sixteen deterministic scenarios in `native_response_test.go` cover the accepted E4 evidence families. No public constructor installs this route. E5 #1019 is complete.
 
 **Delivers:** Adapt stateless reset, Retry, version negotiation, refusal/INVALID_TOKEN, cached close and synchronous public WriteTo to endpoint ownership in private fixtures. Epoch revocation and copied destination metadata prevent stale response submission; buffer aliases remain retained until return.
 
@@ -501,7 +501,7 @@ The existing registration fields own the representation: `packet == nil` already
 
 ### E5 — Seal endpoint shutdown and return its grant exactly once
 
-**Current state:** ready. The [endpoint shutdown re-audit](../audits/2026-11-03-e5-endpoint-shutdown-reaudit.md) governs the seams below. No public constructor installs this route.
+**Current state:** complete in [PR #1133](https://github.com/the-sarge/quic-go-fast/pull/1133). `Transport.configureNativeIO` is the one private activation, and `doDial` and the server install the route. Close seals before logical shutdown, the join returns the grant once, and live close, drain and client `Path.Switch` use the endpoint. The [endpoint shutdown re-audit](../audits/2026-11-03-e5-endpoint-shutdown-reaudit.md) governs the seams below, and `native_shutdown_test.go` holds the 13 scenario tests. No public constructor installs this route. E6 #1020 is ready.
 
 **Delivers:** Integrate all send routes under private endpoint activation; implement Close sealing, asynchronous stop, reserved fault observations and successful write-authority join only after producer/current/deadline actions end. Independent watchdog faults admission without releasing borrowed storage. Migrate ordinary live CONNECTION_CLOSE and connection drain through the same asynchronous ownership boundary; logical destruction cannot wait on a blocking direct write or release its borrowed close payload.
 
