@@ -486,3 +486,110 @@ func TestLocalCompletionTerminalLifetime(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
+func TestLocalProbeRegistration(t *testing.T) {
+	confirmed := func(t *testing.T, now monotime.Time) *sentPacketHandler {
+		t.Helper()
+		h := newLocalTestHandler(t).(*sentPacketHandler)
+		h.DropPackets(protocol.EncryptionInitial, now)
+		h.DropPackets(protocol.EncryptionHandshake, now)
+		h.rttStats.UpdateRTT(5*time.Millisecond, 0)
+		return h
+	}
+	registerPathProbe := func(t *testing.T, h *sentPacketHandler, now monotime.Time, frame Frame) protocol.PacketNumber {
+		t.Helper()
+		require.True(t, h.CanSendPathProbe())
+		pn := h.PopPacketNumber(protocol.Encryption1RTT)
+		require.NoError(t, h.RegisterLocalPathProbe(PacketContext{}, now, pn, []Frame{frame}, 1200))
+		return pn
+	}
+	t.Run("path probe numbers stay out of packet distance", func(t *testing.T) {
+		h := confirmed(t, monotime.Now())
+		now := monotime.Now()
+		var tracker packetTracker
+		_, oldest := registerLocalTestPacket(t, h, now, protocol.Encryption1RTT, []Frame{tracker.NewPingFrame(0)})
+		require.NoError(t, h.CompleteLocalPacket(oldest, LocalPacketAccepted, now))
+		var probes packetTracker
+		registerPathProbe(t, h, now, probes.NewPingFrame(1))
+		registerPathProbe(t, h, now, probes.NewPingFrame(2))
+		newest, token := registerLocalTestPacket(t, h, now, protocol.Encryption1RTT, []Frame{tracker.NewPingFrame(3)})
+		require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now))
+		_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(newest)}, protocol.Encryption1RTT, now.Add(time.Millisecond))
+		require.NoError(t, err)
+		require.Empty(t, tracker.Lost, "unqualified probes cannot supply packet-distance evidence")
+	})
+	t.Run("ACKed path probe is not a packet-distance witness", func(t *testing.T) {
+		h := confirmed(t, monotime.Now())
+		now := monotime.Now()
+		var tracker packetTracker
+		for i := range protocol.PacketNumber(3) {
+			_, token := registerLocalTestPacket(t, h, now, protocol.Encryption1RTT, []Frame{tracker.NewPingFrame(i)})
+			require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now))
+		}
+		var probes packetTracker
+		probe := registerPathProbe(t, h, now, probes.NewPingFrame(3))
+		_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(probe)}, protocol.Encryption1RTT, now.Add(time.Millisecond))
+		require.NoError(t, err)
+		require.Len(t, probes.Acked, 1)
+		require.Empty(t, tracker.Lost, "the time threshold still applies, but the probe's number supplies no distance")
+	})
+	t.Run("path probe holds no flight and ends by timeout", func(t *testing.T) {
+		h := confirmed(t, monotime.Now())
+		now := monotime.Now()
+		var probes packetTracker
+		before := h.bytesInFlight
+		registerPathProbe(t, h, now, probes.NewPingFrame(0))
+		require.Equal(t, before, h.bytesInFlight)
+		require.Empty(t, h.local.records, "no completion identity is retained")
+		_, err := h.OnLossDetectionTimeout(now.Add(2 * pathProbePacketLossTimeout))
+		require.NoError(t, err)
+		require.Len(t, probes.Lost, 1)
+		require.Zero(t, h.appDataPackets.history.pathProbePackets.Len())
+		require.True(t, h.CanSendPathProbe(), "timeout reopens probe capacity")
+	})
+	t.Run("path probe ACK before local completion", func(t *testing.T) {
+		h := confirmed(t, monotime.Now())
+		now := monotime.Now()
+		var probes packetTracker
+		pn := registerPathProbe(t, h, now, probes.NewPingFrame(0))
+		_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pn)}, protocol.Encryption1RTT, now.Add(time.Millisecond))
+		require.NoError(t, err)
+		require.Len(t, probes.Acked, 1)
+		require.Equal(t, 5*time.Millisecond, h.rttStats.LatestRTT(), "a probe supplies no RTT sample")
+	})
+	t.Run("closed route refuses path probes", func(t *testing.T) {
+		now := monotime.Now()
+		h := confirmed(t, now)
+		pn := h.PopPacketNumber(protocol.Encryption1RTT)
+		h.CloseLocal(now)
+		require.False(t, h.CanSendPathProbe())
+		require.Error(t, h.RegisterLocalPathProbe(PacketContext{}, now, pn, []Frame{{Frame: &wire.PingFrame{}}}, 1200))
+	})
+	for _, outcome := range []string{"network loss", "unsubmitted"} {
+		t.Run("MTU probe "+outcome+" leaves congestion control alone", func(t *testing.T) {
+			now := monotime.Now()
+			h := confirmed(t, now)
+			var tracker packetTracker
+			pn := h.PopPacketNumber(protocol.Encryption1RTT)
+			probe, err := h.RegisterLocalMTUProbe(PacketContext{}, now, pn, []Frame{tracker.NewPingFrame(0)}, protocol.ECNNon, 1400)
+			require.NoError(t, err)
+			require.Empty(t, tracker.Lost)
+			window := h.congestion.GetCongestionWindow()
+			if outcome == "unsubmitted" {
+				require.NoError(t, h.CompleteLocalPacket(probe, LocalPacketUnsubmitted, now))
+			} else {
+				require.NoError(t, h.CompleteLocalPacket(probe, LocalPacketAccepted, now))
+				var higher protocol.PacketNumber
+				for i := 1; i <= 3; i++ {
+					n, token := registerLocalTestPacket(t, h, now, protocol.Encryption1RTT, []Frame{{Frame: &wire.PingFrame{}}})
+					require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now))
+					higher = n
+				}
+				_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(higher)}, protocol.Encryption1RTT, now.Add(time.Millisecond))
+				require.NoError(t, err)
+			}
+			require.Len(t, tracker.Lost, 1, "the frame owner learns the probe's fate")
+			require.Equal(t, window, h.congestion.GetCongestionWindow())
+		})
+	}
+}

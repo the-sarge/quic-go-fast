@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/utils"
@@ -346,5 +347,60 @@ func TestMTUDiscovererSettledOnLoss(t *testing.T) {
 			ping.Handler.OnAcked(ping.Frame)
 		}
 		require.False(t, isSettled(settled))
+	})
+}
+
+func TestMTUFinderLocalOutcomes(t *testing.T) {
+	const start, limit protocol.ByteCount = 1000, 2000
+	newProbe := func(now monotime.Time) (*mtuFinder, *mtuFinderAckHandler, ackhandler.Frame) {
+		rttStats := utils.NewRTTStats()
+		rttStats.UpdateRTT(100*time.Millisecond, 0)
+		f := newMTUDiscoverer(rttStats, start, limit, nil)
+		f.Start(now)
+		ping, _ := f.GetPing(now)
+		return f, ping.Handler.(*mtuFinderAckHandler), ping
+	}
+	now := monotime.Now()
+
+	t.Run("disposal is not loss", func(t *testing.T) {
+		f, h, ping := newProbe(now)
+		h.disposeLocal()
+		require.Equal(t, protocol.InvalidByteCount, f.inFlight)
+		h.OnLost(ping.Frame)
+		require.Equal(t, limit, f.max())
+		require.False(t, f.lastProbeWasLost)
+		require.True(t, f.ShouldSendProbe(now.Add(time.Minute)), "the probe delay schedules the next attempt")
+	})
+	t.Run("uncertain probe's ACK raises the size", func(t *testing.T) {
+		f, h, ping := newProbe(now)
+		size := f.inFlight
+		h.markLocalUncertain()
+		require.Equal(t, size, f.inFlight)
+		h.OnAcked(ping.Frame)
+		require.Equal(t, size, f.CurrentSize())
+	})
+	t.Run("uncertain probe's loss is not PMTU evidence", func(t *testing.T) {
+		f, h, ping := newProbe(now)
+		h.markLocalUncertain()
+		h.OnLost(ping.Frame)
+		require.Equal(t, protocol.InvalidByteCount, f.inFlight)
+		require.Equal(t, limit, f.max())
+		require.False(t, f.lastProbeWasLost)
+	})
+	t.Run("late results leave a newer probe alone", func(t *testing.T) {
+		f, h, ping := newProbe(now)
+		h.OnAcked(ping.Frame)
+		_, newer := f.GetPing(now.Add(time.Minute))
+		h.disposeLocal()
+		h.markLocalUncertain()
+		require.Equal(t, newer, f.inFlight)
+	})
+	t.Run("results from before a path reset are ignored", func(t *testing.T) {
+		f, h, _ := newProbe(now)
+		f.Reset(start, limit)
+		newerPing, newer := f.GetPing(now.Add(time.Minute))
+		require.NotNil(t, newerPing.Handler)
+		h.disposeLocal()
+		require.Equal(t, newer, f.inFlight)
 	})
 }

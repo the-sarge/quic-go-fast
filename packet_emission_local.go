@@ -2,6 +2,7 @@ package quic
 
 import (
 	"errors"
+	"net"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
@@ -13,6 +14,9 @@ var errLocalPacketRoute = errors.New("quic: operation excluded from private ordi
 type localPacketSender interface {
 	sender
 	register(ackhandler.LocalCompletionToken, bool)
+	registerMTUProbe(*mtuFinderAckHandler)
+	probeTargetReady(*Transport) (bool, error)
+	sendProbe(*packetBuffer, *Transport, net.Addr, packetInfo, *responseEpoch) error
 	finish()
 	consume() error
 	reset()
@@ -26,10 +30,17 @@ func (e *packetEmission) register(context ackhandler.PacketContext, now monotime
 		(*e.recovery).SentPacketWithContext(context, now, pn, largestAcked, streams, frames, level, ecn, size, mtu, probe)
 		return nil
 	}
-	if mtu || probe {
-		return errLocalPacketRoute
+	recovery := (*e.recovery).(ackhandler.LocalSentPacketHandler)
+	if probe {
+		return recovery.RegisterLocalPathProbe(context, now, pn, frames, size)
 	}
-	token, err := (*e.recovery).(ackhandler.LocalSentPacketHandler).RegisterLocalPacket(context, now, pn, largestAcked, streams, frames, level, ecn, size)
+	var token ackhandler.LocalCompletionToken
+	var err error
+	if mtu {
+		token, err = recovery.RegisterLocalMTUProbe(context, now, pn, frames, ecn, size)
+	} else {
+		token, err = recovery.RegisterLocalPacket(context, now, pn, largestAcked, streams, frames, level, ecn, size)
+	}
 	if err != nil {
 		return err
 	}

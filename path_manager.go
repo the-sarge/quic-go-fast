@@ -50,6 +50,8 @@ type path struct {
 	validationTimeout  time.Duration
 	nextProbeTime      monotime.Time
 	validationDeadline monotime.Time
+	// probeEpoch stops this path's queued endpoint probes once the path retires.
+	probeEpoch responseEpoch
 }
 
 // Saturate policy times instead of wrapping a duration or monotonic deadline.
@@ -80,6 +82,12 @@ func (p *path) clearChallenges() {
 	p.numChallenges = 0
 	p.nextProbeTime = 0
 	p.validationDeadline = 0
+}
+
+// retire ends the path's challenges and any queued submission of its probes.
+func (p *path) retire() {
+	p.clearChallenges()
+	p.probeEpoch.revoked.Store(true)
 }
 
 func (p *path) sendAllowance() protocol.ByteCount {
@@ -174,6 +182,7 @@ func (pm *pathManager) HandlePacket(
 		if evict < 0 {
 			return protocol.ConnectionID{}, nil, false
 		}
+		pm.paths[evict].retire()
 		pm.retireConnID(pm.paths[evict].id)
 		pm.paths = slices.Delete(pm.paths, evict, evict+1)
 	}
@@ -255,8 +264,8 @@ func (pm *pathManager) Expire(now monotime.Time) {
 	for i := 0; i < len(pm.paths); {
 		p := pm.paths[i]
 		if !p.mtuValidated && !now.Before(p.validationDeadline) {
+			p.retire()
 			pm.retireConnID(p.id)
-			p.clearChallenges()
 			pm.paths = slices.Delete(pm.paths, i, i+1)
 		} else {
 			i++
@@ -277,7 +286,7 @@ func (pm *pathManager) NextExpiry() monotime.Time {
 // The connection-ID owner handles retirement on terminal connection cleanup.
 func (pm *pathManager) Close() {
 	for _, p := range pm.paths {
-		p.clearChallenges()
+		p.retire()
 	}
 	clear(pm.paths)
 	pm.paths = pm.paths[:0]
@@ -296,7 +305,7 @@ func (pm *pathManager) getPath(addr net.Addr) *path {
 func (pm *pathManager) SwitchToPath(addr net.Addr) {
 	// retire all other paths
 	for _, path := range pm.paths {
-		path.clearChallenges()
+		path.retire()
 		if addrsEqual(path.addr, addr) {
 			pm.logger.Debugf("switching to path %d (%s)", path.id, addr)
 			continue

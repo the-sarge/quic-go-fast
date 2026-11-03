@@ -109,6 +109,8 @@ type pathOutgoing struct {
 	probeSent      chan struct{} // receives when a PATH_CHALLENGE is sent
 	validated      chan struct{} // closed when the path the corresponding PATH_RESPONSE is received
 	enablePath     func()
+	// probeEpoch stops queued endpoint probes when the path or its target closes.
+	probeEpoch *responseEpoch
 }
 
 type pathManagerOutgoing struct {
@@ -169,6 +171,10 @@ func (pm *pathManagerOutgoing) beginProbe(p *Path) error {
 		probeSent:  make(chan struct{}, 1),
 		validated:  make(chan struct{}),
 		enablePath: p.enablePath,
+		probeEpoch: &responseEpoch{},
+	}
+	if p.tr != nil && p.tr.responses != nil {
+		path.probeEpoch.parent = p.tr.responses.epoch
 	}
 	pm.paths[p.id] = path
 	pm.pathsToProbe = append(pm.pathsToProbe, p.id)
@@ -218,7 +224,8 @@ func (pm *pathManagerOutgoing) closePath(path *Path) error {
 		return nil
 	default:
 	}
-	if _, ok := pm.paths[path.id]; ok {
+	if p, ok := pm.paths[path.id]; ok {
+		p.probeEpoch.revoked.Store(true)
 		pm.retireConnID(path.id)
 		delete(pm.paths, path.id)
 	}
@@ -299,7 +306,7 @@ func (pm *pathManagerOutgoing) NextPathToProbe() (_ protocol.ConnectionID, _ ack
 	}
 	frame := ackhandler.Frame{
 		Frame:   &wire.PathChallengeFrame{Data: b},
-		Handler: (*pathManagerOutgoingAckHandler)(pm),
+		Handler: &pathProbeHandler{epoch: p.probeEpoch},
 	}
 	return connID, frame, p.tr, true
 }
@@ -336,12 +343,13 @@ func (pm *pathManagerOutgoing) ShouldSwitchPath() (*Transport, bool) {
 	return p.tr, true
 }
 
-type pathManagerOutgoingAckHandler pathManagerOutgoing
+// pathProbeHandler carries the probe's submission permission to packet emission.
+type pathProbeHandler struct{ epoch *responseEpoch }
 
-var _ ackhandler.FrameHandler = &pathManagerOutgoingAckHandler{}
+var _ ackhandler.FrameHandler = &pathProbeHandler{}
 
 // OnAcked is called when the PATH_CHALLENGE is acked.
 // This doesn't validate the path, only receiving the PATH_RESPONSE does.
-func (pm *pathManagerOutgoingAckHandler) OnAcked(wire.Frame) {}
+func (h *pathProbeHandler) OnAcked(wire.Frame) {}
 
-func (pm *pathManagerOutgoingAckHandler) OnLost(wire.Frame) {}
+func (h *pathProbeHandler) OnLost(wire.Frame) {}

@@ -1299,7 +1299,7 @@ func (h *sentPacketHandler) localTrackedPackets() int {
 }
 
 func (h *sentPacketHandler) CanSendPathProbe() bool {
-	if h.local != nil {
+	if h.local != nil && h.local.closed {
 		return false
 	}
 	root := h
