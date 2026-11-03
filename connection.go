@@ -1456,7 +1456,7 @@ func (c *Conn) handleShortHeaderPacket(
 	}
 
 	if c.pathCredit != nil && c.pathCredit.hasAdmission() {
-		c.pathCredit.receivedTuple(p.pathID, p.remoteAddr, p.info, p.Size(), pathChallenge, p.rcvTime)
+		c.pathCredit.receivedTuple(p.pathID, p.remoteAddr, p.info, p.Size(), pathChallenge, monotime.Now())
 		return true, nil
 	}
 

@@ -414,6 +414,18 @@ func TestPathAdmissionAbsoluteExpiry(t *testing.T) {
 			require.Contains(t, f.c.pathCredit.terminals, protocol.PathID(1))
 		})
 	})
+	t.Run("a validated tuple handled before expiry service", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveServer)
+			require.True(t, f.receive(t, 1, admissionTupleA, 1200, &wire.PingFrame{}))
+			require.Nil(t, f.c.pathCredit.members[1].candidate)
+			time.Sleep(6 * time.Second)
+			require.True(t, f.receive(t, 1, f.c.RemoteAddr(), 100, &wire.PingFrame{}))
+			require.False(t, f.c.pathCredit.members[1].live, "every activation route honors the deadline")
+			f.pass(t)
+			require.Contains(t, f.c.pathCredit.terminals, protocol.PathID(1))
+		})
+	})
 	t.Run("a committed path with no peer CID", func(t *testing.T) {
 		nativeOrdinaryTest(t, func(t *testing.T) {
 			f := newAdmissionFixture(t, protocol.PerspectiveServer)
@@ -603,6 +615,35 @@ func TestPathAdmissionClientOpen(t *testing.T) {
 }
 
 func TestPathAdmissionTargetTransportRoutes(t *testing.T) {
+	t.Run("a target that refuses attachment", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			endpoint := startNativeProbeEndpoint(t, newNativeProbeSocket())
+			target := &Transport{connIDLen: f.tc.srcConnID.Len(), handlers: make(map[protocol.ConnectionID]packetHandlerEntry), resetTokens: make(map[protocol.StatelessResetToken]packetHandler), logger: utils.DefaultLogger}
+			target.responses = newEndpointResponses(endpoint)
+			endpoint.seal()
+			ctx, cancel := context.WithCancel(context.Background())
+			errs := f.openAsync(ctx, target, admissionTupleA)
+			defer func() {
+				cancel()
+				<-errs
+			}()
+			f.pass(t)
+			require.Equal(t, 1, f.c.pathCredit.members[1].candidate.probe.numChallenges, "the refused challenge stays charged")
+			require.True(t, f.receive(t, 1, admissionTupleA, 100, &wire.PathChallengeFrame{Data: [8]byte{3}}))
+			retries := 0
+			for ; retries < 4; retries++ {
+				result := f.c.triggerSending(monotime.Now())
+				require.NoError(t, result.err)
+				if !result.retry {
+					break
+				}
+			}
+			require.Less(t, retries, 4, "a refused response cannot spin")
+			require.Nil(t, f.c.pathCredit.members[1].response)
+		})
+	})
 	nativeOrdinaryTest(t, func(t *testing.T) {
 		f := newAdmissionFixture(t, protocol.PerspectiveClient)
 		f.supplyPeerCIDs(t)

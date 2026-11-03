@@ -217,9 +217,15 @@ func (p *pathCreditRegistry) recordValidated(addr net.Addr) {
 	p.validated = append(p.validated, addr)
 }
 
-func (p *pathCreditRegistry) activate(m *pathMember, addr net.Addr, info packetInfo, target *Transport) {
+// activate is the one route to a live path. Packets are handled before expiry, so
+// the committed deadline is enforced here for every caller.
+func (p *pathCreditRegistry) activate(m *pathMember, addr net.Addr, info packetInfo, target *Transport, now monotime.Time) bool {
+	if !now.Before(m.deadline) {
+		return false
+	}
 	m.live, m.addr, m.info, m.transport = true, addr, info, target
 	p.recordValidated(addr)
+	return true
 }
 
 func (p *pathCreditRegistry) newCandidate(m *pathMember, addr net.Addr, info packetInfo, target *Transport, connID protocol.ConnectionID, deadline monotime.Time, now monotime.Time) *pathCandidate {
@@ -264,10 +270,9 @@ func (p *pathCreditRegistry) receivedTuple(id protocol.PathID, addr net.Addr, in
 		return // this profile's server never moves a path
 	}
 	if p.tupleValidated(addr) {
-		if !m.live {
-			p.activate(m, addr, info, nil)
+		if m.live || p.activate(m, addr, info, nil, now) {
+			answer()
 		}
-		answer()
 		return
 	}
 	if p.pruneFences(m) {
@@ -312,7 +317,7 @@ func (p *pathCreditRegistry) pathResponse(f *wire.PathResponseFrame, ingress pro
 	if m.live {
 		p.recordValidated(candidate.addr)
 	} else {
-		p.activate(m, candidate.addr, candidate.info, candidate.transport)
+		p.activate(m, candidate.addr, candidate.info, candidate.transport, now)
 	}
 	p.retireCandidate(m)
 	if request != nil {
@@ -426,7 +431,7 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 	}
 	if request.transport == nil && p.tupleValidated(request.addr) {
 		if request.finish(nil) {
-			p.activate(m, request.addr, packetInfo{}, nil)
+			p.activate(m, request.addr, packetInfo{}, nil, now)
 			m.announce = true
 			p.conn.pathOpen.CompareAndSwap(request, nil)
 		}
@@ -587,6 +592,9 @@ func (p *pathCreditRegistry) memberProbe(m *pathMember, now monotime.Time) *path
 				refused: func(now monotime.Time) {
 					if challenged {
 						probe.commitChallenge(data, 0, now)
+					}
+					if answered {
+						m.response = nil // the peer retries; a retained response would spin
 					}
 				},
 			}
