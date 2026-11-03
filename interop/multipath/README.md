@@ -24,3 +24,15 @@ docker rm quic-go-fast-r1-control
 Both `TestPicoquicOrdinaryControl/client` and `TestPicoquicOrdinaryControl/server` must execute and pass exactly once. The runner fails for unavailable prerequisites, a nonzero test exit, missing/duplicate cases, or skips. It retains Go JSON and each peer's output. Each role has a 20-second context, Go has a 90-second test timeout, and the outer runner has a 120-second timeout. Processes are canceled and joined before test cleanup finishes. TLS authentication uses a fresh local CA; workload bytes are fixed and compared in full at the receiver. The picoquic process receives no `-M` option. Ordinary public constructors remain unchanged.
 
 The result is example-level evidence over this fixed scenario and toolchain, not universal protocol coverage or native endpoint qualification. Linux amd64 execution under emulation must be recorded as such. The negotiated-zero oracle gap remains for later normative vectors and a controlled peer; no multipath scenario is stubbed or reported as executed here. R14 and R17 own their later scenarios and any dedicated qualification workflow.
+
+## Native deadline qualification
+
+[E6 (#1020)](https://github.com/the-sarge/quic-go-fast/issues/1020) runs six native classes on real UDP sockets, once each on Go 1.26.10 and 1.27.3: 12 instances. `native_qualification_test.go` in the root package is the fixture, under `//go:build nativequal && linux && amd64`, and `native_qualification.py` is its driver. The transport test suite owns both, and retirement requires equivalent replacement or feature removal.
+
+Run accounting regressions with the discovery command above. Execution needs Linux amd64 with `strace`, `nft`, `ip`, `unshare` and passwordless `sudo`, and it charges the [program ledger](../../docs/adr/2026-10-24-multipath-reno-plan.md#program-qualification-ledger-and-sequencing). This command is one explicit invocation, not a per-push campaign, and it stops at the first failure:
+
+```sh
+python3 interop/multipath/native_qualification.py --candidate "$(git rev-parse HEAD)" --output /path/to/new/results
+```
+
+`EAGAIN-to-deadline`, `retry-fallback` and `queued-expiry` run under strace. Their timing is attributed separately and never compared to the 20 ms tolerance. The other three classes are uninstrumented and are compared to it. The GSO `EIO` in `retry-fallback` is simulated by a test wrapper, because this kernel gave no real trigger. Everything after it is native. See the [re-audit](../../docs/audits/2026-11-03-e6-native-qualification-reaudit.md) for the method and the receipt for the executed identities.
