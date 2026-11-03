@@ -17,12 +17,12 @@ TOLERANCE_MS = 20.0
 EAGAIN_RULE = "inject=sendmsg:error=EAGAIN"
 # Injected classes run under strace, so their timing is attributed, never qualified.
 CLASSES = {
-    "expired-before-dispatch": {"rule": None},
-    "eagain-to-deadline": {"rule": EAGAIN_RULE},
-    "retry-fallback": {"rule": EAGAIN_RULE + ":when=2+", "drop_udp": True},
-    "queued-expiry": {"rule": EAGAIN_RULE},
-    "shutdown-join": {"rule": None},
-    "request-contention": {"rule": None},
+    "expired-before-dispatch": {"rule": None, "timing": {"expiry", "successor_publication"}},
+    "eagain-to-deadline": {"rule": EAGAIN_RULE, "timing": {"injected_native_return", "injected_publication"}},
+    "retry-fallback": {"rule": EAGAIN_RULE + ":when=2+", "drop_udp": True, "timing": {"injected_retry_return", "injected_fallback_return"}},
+    "queued-expiry": {"rule": EAGAIN_RULE, "timing": {"injected_queued_expiry", "injected_current_return"}},
+    "shutdown-join": {"rule": None, "timing": {"public_write_return"}},
+    "request-contention": {"rule": None, "timing": {"native_return_overrun", "publication", "pressure_native_return_overrun", "pressure_publication"}},
 }
 NAMESPACE_SETUP = (
     "ip link set lo up && nft add table inet qual && "
@@ -84,9 +84,10 @@ def check_evidence(name, go, evidence):
         raise ValueError(f"evidence class {evidence.get('class')} is not {name}")
     if evidence.get("go") != go:
         raise ValueError(f"evidence toolchain {evidence.get('go')} is not {go}")
-    timing = evidence.get("timing_ms")
-    if not timing:
-        raise ValueError(f"{name}: no timing recorded")
+    timing = evidence.get("timing_ms") or {}
+    missing = CLASSES[name]["timing"] - timing.keys()
+    if missing:
+        raise ValueError(f"{name}: timing not recorded: {sorted(missing)}")
     if CLASSES[name]["rule"] is not None:
         if evidence.get("traversal") is not True:
             raise ValueError(f"{name}: native poll traversal was not observed")

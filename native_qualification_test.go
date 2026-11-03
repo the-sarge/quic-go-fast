@@ -207,11 +207,17 @@ func (b *nativeQualBlast) note(result endpointResult, deadline, seen time.Time) 
 		return
 	}
 	returned := result.returnedAt.ToTime()
-	if late := int64(returned.Sub(deadline)); late > b.overrun.Load() {
-		b.overrun.Store(late)
-	}
-	if delay := int64(seen.Sub(returned)); delay > b.publication.Load() {
-		b.publication.Store(delay)
+	nativeQualRaise(&b.overrun, int64(returned.Sub(deadline)))
+	nativeQualRaise(&b.publication, int64(seen.Sub(returned)))
+}
+
+// nativeQualRaise keeps the largest value any participant reports.
+func nativeQualRaise(maximum *atomic.Int64, value int64) {
+	for {
+		current := maximum.Load()
+		if value <= current || maximum.CompareAndSwap(current, value) {
+			return
+		}
 	}
 }
 
@@ -284,6 +290,23 @@ func (b *nativeQualBlast) participant(t *testing.T, e *nativeEndpoint, p *endpoi
 			}
 		}
 	}
+}
+
+func TestNativeQualRaiseKeepsMaximum(t *testing.T) {
+	var maximum atomic.Int64
+	var raisers sync.WaitGroup
+	for raiser := range 32 {
+		raisers.Go(func() {
+			for value := range 10000 {
+				nativeQualRaise(&maximum, int64(value))
+				if raiser == 0 && value == 5000 {
+					nativeQualRaise(&maximum, 1<<40)
+				}
+			}
+		})
+	}
+	raisers.Wait()
+	require.EqualValues(t, 1<<40, maximum.Load(), "a smaller concurrent sample can't replace a larger one")
 }
 
 func TestNativeQualification(t *testing.T) {
