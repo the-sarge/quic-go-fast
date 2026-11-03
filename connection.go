@@ -637,6 +637,10 @@ func (c *Conn) run() (err error) {
 		c.undecryptablePacketsToProcess = nil
 	}()
 
+	if c.emission.local != nil {
+		defer c.emission.local.Close()
+	}
+
 	c.timer = time.NewTimer(monotime.Until(c.idleTimeoutStartTime().Add(c.config.HandshakeIdleTimeout)))
 	if c.emission.bbr != nil {
 		c.pacingKick = newPacingKick()

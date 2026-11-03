@@ -376,7 +376,7 @@ The local qualification table remains derived state owned and indexed by the exi
 
 ### E2C — Reconcile local transmission certainty with cumulative ECN evidence
 
-**Current state:** complete. The private Reno and BBR ECN validators consume qualified local transmission facts and bounded cumulative receipt summaries through the real handler. Three `TestLocalECN*` scenarios cover the allocated rows and terminal-authority matrix; the endpoint route remains inactive. E2 #1016 and E4 #1018 are ready. The [re-audit receipt](../audits/2026-11-02-e2c-terminal-reaudit.md) retains execution history.
+**Current state:** complete. The private Reno and BBR ECN validators consume qualified local transmission facts and bounded cumulative receipt summaries through the real handler. Three `TestLocalECN*` scenarios cover the allocated rows and terminal-authority matrix; the endpoint route remains inactive. E2 #1016 is complete in [PR #1124](https://github.com/the-sarge/quic-go-fast/pull/1124); E3 #1017 and E4 #1018 are ready. The [re-audit receipt](../audits/2026-11-02-e2c-terminal-reaudit.md) retains execution history.
 
 **Identity:** `QGF-MP646-20261024-E2C`. **Issue:** [#1086](https://github.com/the-sarge/quic-go-fast/issues/1086). **Blocked by:** E2B; its complete rich local path is needed to exercise both existing controllers through the real handler. **Existing work:** replace the draft under the shared disposition above.
 

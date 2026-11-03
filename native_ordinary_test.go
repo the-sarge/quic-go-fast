@@ -5,6 +5,7 @@ package quic
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"os"
@@ -14,8 +15,11 @@ import (
 	"time"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
+	"github.com/quic-go/quic-go/internal/handshake"
+	"github.com/quic-go/quic-go/internal/mocks"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/qerr"
 	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -287,6 +291,44 @@ func TestNativeOrdinaryTerminalLifetime(t *testing.T) {
 					afterReturn, _ := c.sentPacketHandler.PeekPacketNumber(protocol.EncryptionInitial)
 					require.Equal(t, beforeReturn, afterReturn, "old results cannot mutate replacement packet-number history")
 				}
+			})
+		})
+	}
+	for _, startup := range []string{"start handshake", "handshake event"} {
+		t.Run(startup, func(t *testing.T) {
+			nativeOrdinaryTest(t, func(t *testing.T) {
+				ctrl := gomock.NewController(t)
+				crypto := mocks.NewMockCryptoSetup(ctrl)
+				tc := newClientTestConnection(t, ctrl, &Config{DisablePathMTUDiscovery: true}, false, connectionOptCryptoSetup(crypto))
+				c := tc.conn
+				endpoint := startNativeEndpoint(endpointTestNative{}, 100*time.Millisecond, nil)
+				require.NoError(t, c.useNativeOrdinary(endpoint, netip.MustParseAddrPort("1.2.3.4:4321"), packetInfo{}))
+				queue := c.emission.local.(*nativeOrdinarySender)
+				defer func() { queue.Close(); <-endpoint.stop() }()
+				startupError := errors.New("handshake startup failed")
+				if startup == "start handshake" {
+					crypto.EXPECT().StartHandshake(gomock.Any()).Return(startupError)
+				} else {
+					crypto.EXPECT().StartHandshake(gomock.Any())
+					crypto.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventReceivedTransportParameters, TransportParameters: &wire.TransportParameters{}})
+				}
+				err := c.run()
+				defer c.timer.Stop()
+				if startup == "start handshake" {
+					require.ErrorIs(t, err, startupError)
+				} else {
+					var transportError *qerr.TransportError
+					require.ErrorAs(t, err, &transportError)
+					require.Equal(t, qerr.TransportParameterError, transportError.ErrorCode)
+				}
+				require.ErrorIs(t, context.Cause(c.Context()), err)
+				synctest.Wait()
+				select {
+				case <-queue.participant.retired:
+				default:
+					t.Fatal("startup failure must retire the attached native participant")
+				}
+				require.False(t, queue.recovery.CanRegisterLocalPackets(1), "startup failure must seal local recovery")
 			})
 		})
 	}
