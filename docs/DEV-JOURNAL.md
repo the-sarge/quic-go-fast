@@ -8570,3 +8570,38 @@ All 33 hosted check runs succeeded on `12ae31120`. macOS arm64 capacity limits m
 ### Next
 
 The committed product state is 8/9 endpoint slices and 16/34 program slices complete. [E6 issue #1020](https://github.com/the-sarge/quic-go-fast/issues/1020) and [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029) have no open blockers. [Endpoint parent #1012](https://github.com/the-sarge/quic-go-fast/issues/1012), [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) own live readiness.
+
+---
+
+## TestCandidateOrdinaryProfileClose backoff flake fixed - 2026-11-03 14:37 EST
+
+**Main:** `5de6184b0900`
+**Actor:** Claude
+
+### Summary
+
+[PR #1138 — Make TestCandidateOrdinaryProfileClose tolerate the close backoff](https://github.com/the-sarge/quic-go-fast/pull/1138) closed [issue #1134](https://github.com/the-sarge/quic-go-fast/issues/1134). Only the test changed. A closed connection answers only the 1st, 2nd, 4th, 8th… packet it receives, and late client packets count too, so the test's single probe could go unanswered. Each probe now resends within the existing 5 s limit.
+
+### Decisions
+
+The test was also weaker than its comment, so it now pins the closed entry and requires the closed ID's reply not to be a stateless reset. The [agent brief](https://github.com/the-sarge/quic-go-fast/issues/1134#issuecomment-6611652059) is the record. Three points went beyond it:
+
+- The probe ID is chosen after the close and must still route to a closed entry. About 1 in 13 initial IDs have the transport's 8-byte length, and that ID can retire before the close, so a length check alone could have added a new flake.
+- Each probe has its own socket, because a late reply to a resend could otherwise be read as the next probe's answer.
+- The unknown-ID probe uses the same resend helper. Its reply must still be a reset.
+
+### Validation
+
+On minimax, under one pinned core, `GOMAXPROCS=1` and four spinners, the unfixed test failed 17 of 1,500 runs with the hosted message. The fixed test failed 0 of 1,500 in each of two runs.
+
+With client writes held 100–500 ms from `Accept` until after the close, the fixed test passed 60 of 60. With resending off, it failed 26 of 30 at 200 and 500 ms. It failed as intended with the close reply muted, with an unregistered 8-byte ID as the closed-ID probe, and with the wrong token expected for the unknown ID.
+
+The brief's example 12-byte mutation can't catch a reset, because the transport computes the token from the first 8 bytes it parses. A first comparison was also invalid: the original test with the hold passed 75 of 75. It has no pinned entry, so a reset probably answered once the entry expired, which wasn't confirmed. The PR records both.
+
+RAS review `20261103T185031-3d12f396411c5f8533143548` listed nothing in Fix First. Its one finding, a race between choosing the ID and installing the closed entries, was rejected from the code: `CloseWithError` returns only after they are installed. No verify or replacement review was needed. All 33 hosted checks passed on `5f9826978`, including the Windows unit jobs.
+
+The Windows failure itself is still not reproduced on Windows and stays attributed by mechanism.
+
+### Next
+
+No follow-ups were filed; the review deferred nothing. The live view of the multipath program stays on [E6 issue #1020](https://github.com/the-sarge/quic-go-fast/issues/1020) and [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029).
