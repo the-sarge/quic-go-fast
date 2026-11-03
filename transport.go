@@ -548,6 +548,11 @@ func (t *Transport) WriteTo(b []byte, addr net.Addr) (int, error) {
 		if closed {
 			return 0, net.ErrClosed
 		}
+		// A public write is the route's first use when no connection preceded it, so
+		// it seals configuration without starting the reader.
+		if err := t.beginPacketIO(); err != nil {
+			return 0, err
+		}
 		return t.responses.backend.writePublic(b, addr, t.responses.epoch)
 	}
 	if err := t.init(false); err != nil {

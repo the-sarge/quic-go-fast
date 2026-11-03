@@ -17,6 +17,10 @@ var (
 	// ErrMultipathUncertainV1 identifies a native result that cannot prove non-submission.
 	// Neither this error nor a zero byte count authorizes replay.
 	ErrMultipathUncertainV1 = errors.New("quic: native endpoint transmission uncertain")
+
+	// The identities below belong to the same private route: until its public
+	// activation, only private fixtures can receive them.
+
 	// ErrMultipathInvalidConfigV1 identifies a refused native endpoint grant:
 	// a budget outside its range, a repeated grant or a late one.
 	ErrMultipathInvalidConfigV1 = errors.New("quic: invalid native endpoint configuration")

@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/netip"
 	"os"
-	"sync/atomic"
 	"syscall"
 	"testing"
 	"testing/synctest"
@@ -22,6 +21,7 @@ import (
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/testdata"
+	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/quic-go/quic-go/qlogwriter"
 	"github.com/stretchr/testify/require"
@@ -147,6 +147,41 @@ func TestNativeIOGrantValidation(t *testing.T) {
 		defer tr.Close()
 		tr.Conn = socket(t)
 		require.ErrorIs(t, tr.init(false), ErrMultipathUnsupportedV1)
+	})
+	t.Run("public write enforces exclusions", func(t *testing.T) {
+		for name, configure := range map[string]func(*Transport, *net.UDPConn) error{
+			"fixed peer": func(tr *Transport, conn *net.UDPConn) error {
+				return tr.ConfigureFixedPeerV1(conn.LocalAddr().(*net.UDPAddr))
+			},
+			"network admission": func(tr *Transport, conn *net.UDPConn) error {
+				allow := func(netip.AddrPort, netip.AddrPort, []byte) bool { return true }
+				return tr.ConfigureNetworkAdmissionV1(conn, allow, allow, false)
+			},
+		} {
+			t.Run(name, func(t *testing.T) {
+				conn, receiver := socket(t), socket(t)
+				tr := &Transport{Conn: conn}
+				require.NoError(t, tr.configureNativeIO(time.Second))
+				defer tr.Close()
+				require.NoError(t, configure(tr, conn))
+				written, err := tr.WriteTo([]byte("around the policy"), receiver.LocalAddr())
+				require.Zero(t, written)
+				require.ErrorIs(t, err, ErrMultipathUnsupportedV1)
+				require.NoError(t, receiver.SetReadDeadline(time.Now().Add(50*time.Millisecond)))
+				_, _, err = receiver.ReadFromUDP(make([]byte, 32))
+				require.ErrorIs(t, err, os.ErrDeadlineExceeded, "nothing was submitted")
+			})
+		}
+		t.Run("sealed by the first write", func(t *testing.T) {
+			conn, receiver := socket(t), socket(t)
+			tr := &Transport{Conn: conn}
+			require.NoError(t, tr.configureNativeIO(time.Second))
+			defer tr.Close()
+			written, err := tr.WriteTo([]byte("public"), receiver.LocalAddr())
+			require.NoError(t, err)
+			require.Equal(t, len("public"), written)
+			require.Error(t, tr.ConfigureFixedPeerV1(receiver.LocalAddr().(*net.UDPAddr)), "configuration can't change under a live route")
+		})
 	})
 	t.Run("late", func(t *testing.T) {
 		tr := &Transport{Conn: socket(t)}
@@ -526,6 +561,65 @@ func TestNativePathSwitch(t *testing.T) {
 	})
 }
 
+// A connection can return to an endpoint it left, whose participant it kept. A write
+// from the earlier visit is still from a retired generation.
+func TestNativePathSwitchBack(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		tc := newEmissionTestConnection(t, false)
+		c := tc.conn
+		release := make(chan struct{})
+		first := true
+		var written [][]byte
+		endpoint := startNativeEndpoint(endpointTestNative{send: func(data []byte) (int, error) {
+			if first {
+				first = false
+				<-release
+				return 0, &os.SyscallError{Syscall: "sendmsg", Err: syscall.ECONNREFUSED}
+			}
+			written = append(written, bytes.Clone(data))
+			if bytes.Contains(data, []byte("current failure")) {
+				return 0, &os.SyscallError{Syscall: "sendmsg", Err: syscall.ECONNREFUSED}
+			}
+			return len(data), nil
+		}}, time.Second, nil)
+		defer func() { <-endpoint.stop() }()
+		other := startNativeEndpoint(endpointTestNative{}, time.Second, nil)
+		defer func() { <-other.stop() }()
+		require.NoError(t, c.useNativeOrdinary(endpoint, netip.MustParseAddrPort("1.2.3.4:4321"), packetInfo{}))
+		queue := c.emission.local.(*nativeOrdinarySender)
+		defer queue.Close()
+		original := queue.participant
+		send := func(payload string) {
+			t.Helper()
+			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte(payload)}))
+			require.True(t, c.emission.send(monotime.Now(), true).progress)
+			synctest.Wait()
+		}
+		send("first visit")
+
+		next := NewMockSendConn(gomock.NewController(t))
+		next.EXPECT().capabilities().Return(connCapabilities{}).AnyTimes()
+		require.NotNil(t, c.emission.replaceLocalPath(&Transport{responses: newEndpointResponses(other)}, next))
+		require.NotNil(t, c.emission.replaceLocalPath(&Transport{responses: newEndpointResponses(endpoint)}, next))
+		require.Same(t, original, queue.participant, "back on the first endpoint")
+
+		// The first visit's destination error settles its record and nothing else.
+		close(release)
+		synctest.Wait()
+		require.NoError(t, queue.consume())
+		for _, record := range queue.records {
+			require.Zero(t, record.admission.serial)
+		}
+		send("second visit")
+		require.NoError(t, queue.consume())
+		require.Len(t, written, 1)
+
+		// A failure in the current generation still has its ordinary consequence.
+		send("current failure")
+		require.ErrorIs(t, queue.consume(), syscall.ECONNREFUSED)
+	})
+}
+
 // take on one endpoint must not swallow another endpoint's signal on the shared
 // wake channel. Only the connection's select receives from it.
 func TestNativeSharedWakeSurvivesOtherEndpoint(t *testing.T) {
@@ -669,29 +763,28 @@ func TestNativeParticipantLimit(t *testing.T) {
 		}
 	})
 	t.Run("server refusal with full response class", func(t *testing.T) {
-		release := make(chan struct{})
-		var writes atomic.Int32
-		e, tr := start(t, endpointTestNative{send: func(data []byte) (int, error) {
-			writes.Add(1)
-			<-release
-			return len(data), nil
-		}})
-		fill(t, e)
-		for range 8 {
-			require.NoError(t, e.writeResponse([]byte("occupy"), nativeShutdownAddress, packetInfo{}, nil))
-		}
-		listener, err := tr.Listen(nativeServerTLS(), nil)
-		require.NoError(t, err)
-		defer listener.Close()
-		sendInitial(t, tr)
-		require.EqualValues(t, 1, writes.Load())
-		close(release)
-		require.Eventually(t, func() bool {
-			idle := false
-			e.do(func(s *endpointState) { idle = s.classCount[endpointStateless] == 0 })
-			return idle
-		}, time.Second, time.Millisecond)
-		require.EqualValues(t, 8, writes.Load(), "the refusal was dropped under its existing best-effort rule")
+		synctest.Test(t, func(t *testing.T) {
+			release := make(chan struct{})
+			writes := 0
+			e := startNativeEndpoint(endpointTestNative{send: func(data []byte) (int, error) {
+				writes++
+				<-release
+				return len(data), nil
+			}}, time.Second, nil)
+			defer func() { <-e.stop() }()
+			for range 8 {
+				require.NoError(t, e.writeResponse([]byte("occupy"), nativeShutdownAddress, packetInfo{}, nil))
+			}
+			synctest.Wait()
+			server := &baseServer{responses: newEndpointResponses(e), logger: utils.DefaultLogger}
+			header := &wire.Header{Version: protocol.Version1, SrcConnectionID: protocol.ParseConnectionID([]byte{1, 2}), DestConnectionID: protocol.ParseConnectionID([]byte{3, 4, 5, 6, 7, 8, 9, 10})}
+
+			// This call completes its offer while the class is still full.
+			server.sendConnectionRefused(rejectedPacket{hdr: header, receivedPacket: receivedPacket{buffer: getPacketBuffer(), remoteAddr: nativeShutdownAddress}})
+			close(release)
+			synctest.Wait()
+			require.Equal(t, 8, writes, "the refusal was dropped under its existing best-effort rule")
+		})
 	})
 }
 

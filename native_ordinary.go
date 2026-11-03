@@ -41,15 +41,19 @@ type ordinaryLocalRecord struct {
 }
 
 type nativeOrdinarySender struct {
-	endpoint         *nativeEndpoint
-	participant      *endpointParticipant
-	recovery         ackhandler.LocalSentPacketHandler
-	connection       *Conn
-	destination      netip.AddrPort
-	oob              []byte
-	writeState       *endpointWriteState // the current path's; each conn owns its own
-	nativeGSO        bool
-	generation       uint64
+	endpoint    *nativeEndpoint
+	participant *endpointParticipant
+	recovery    ackhandler.LocalSentPacketHandler
+	connection  *Conn
+	destination netip.AddrPort
+	oob         []byte
+	writeState  *endpointWriteState // the current path's; each conn owns its own
+	nativeGSO   bool
+	generation  uint64
+	// switchGeneration is the generation the latest path switch began. A result
+	// below it belongs to a path the connection left, even on an endpoint it has
+	// since returned to.
+	switchGeneration uint64
 	records          [4]ordinaryLocalRecord
 	pending          *ordinaryLocalRecord
 	err              error
@@ -399,9 +403,9 @@ func (s *nativeOrdinarySender) finish() {
 }
 
 func (s *nativeOrdinarySender) consume() error {
-	s.consumeParticipant(s.participant, true)
+	s.consumeParticipant(s.participant)
 	for _, target := range s.targets {
-		s.consumeParticipant(target, false)
+		s.consumeParticipant(target)
 	}
 	select {
 	case <-s.endpoint.fault:
@@ -411,16 +415,16 @@ func (s *nativeOrdinarySender) consume() error {
 	return s.err
 }
 
-// consumeParticipant reconciles one endpoint's results. Only the primary endpoint's
-// results carry connection policy: a result from another endpoint settles its
-// tokens, so a path the connection left can't end it.
-func (s *nativeOrdinarySender) consumeParticipant(participant *endpointParticipant, primary bool) {
+// consumeParticipant reconciles one endpoint's results. A result from before the
+// latest path switch settles its tokens and nothing else, so a path the connection
+// left can't end it or affect its replacement.
+func (s *nativeOrdinarySender) consumeParticipant(participant *endpointParticipant) {
 	for {
 		result, ok := participant.endpoint.take(participant)
 		if !ok {
 			return
 		}
-		if primary {
+		if participant == s.participant {
 			s.connection.scheduleSending()
 		}
 		identity := result.identity
@@ -449,7 +453,7 @@ func (s *nativeOrdinarySender) consumeParticipant(participant *endpointParticipa
 				}
 				s.completePacket(packet, outcome, result.returnedAt, isSendMsgSizeErr(result.err))
 			}
-			if !primary {
+			if identity.generation < s.switchGeneration {
 				s.connection.scheduleSending()
 			} else if isSendMsgSizeErr(result.err) {
 				if record.metadata.handshake && record.datagrams == 1 && record.bytes > protocol.MinInitialPacketSize {
@@ -506,6 +510,7 @@ func (s *nativeOrdinarySender) replacePath(target *Transport, conn sendConn) sen
 		return nil
 	}
 	s.reset()
+	s.switchGeneration = s.generation
 	if participant != s.participant {
 		s.targets = slices.DeleteFunc(s.targets, func(p *endpointParticipant) bool { return p == participant })
 		s.targets = append(s.targets, s.participant)
