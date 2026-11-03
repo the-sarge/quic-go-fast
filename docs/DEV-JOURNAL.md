@@ -8640,3 +8640,41 @@ Main advanced by [PR #1138](https://github.com/the-sarge/quic-go-fast/pull/1138)
 This slice charged 58 instances, bringing the program to 68 of 180, and the remaining scheduled work exceeds remaining capacity by 14. The owner said the ceiling can be raised if needed, and a later preflight has to record that raise.
 
 E6 makes no successor newly ready, because R16 still requires R11, R13, R14 and R15. [Program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) owns live readiness, with [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029) as the frontier.
+
+---
+
+## Dial-admission refusal test synchronized - 2026-11-03 18:09 EST
+
+**Main:** `d5525f5ae84c`
+**Actor:** Claude
+
+### Summary
+
+[PR #1140 — Synchronize dial A's admission before issuing B](https://github.com/the-sarge/quic-go-fast/pull/1140) closed [issue #1090](https://github.com/the-sarge/quic-go-fast/issues/1090) as merge `d5525f5a`. `TestDialSetupAdmissionRefusesBeforeConstruction` now waits until dial A's admission is recorded and its connection is constructed before issuing dial B. Only the test changed; the refusal assertions and production admission are untouched.
+
+### Decisions
+
+The issue offered an unordered comparison or explicit synchronization, and the owner approved synchronization. An unordered comparison would have fixed only the observed reversal. A's record could still be absent at the assertion, and the constructor count could still read 0 or fail to distinguish A from B. The wait also covers the constructor count, which goes slightly beyond the recorder the issue names, because the assertions read both facts.
+
+The owner made two exceptions to the re-gate rule after `main` advanced:
+
+- **Replacement review skipped.** [PR #1137](https://github.com/the-sarge/quic-go-fast/pull/1137), [PR #1139](https://github.com/the-sarge/quic-go-fast/pull/1139) and [PR #1142](https://github.com/the-sarge/quic-go-fast/pull/1142) landed after the review, so `main` was merged in as head `48cd79f1`. The PR's own diff was unchanged and the incoming commits didn't touch the test, its helpers or the dial path, so the owner had the replacement review stopped. It reported nothing and doesn't count as evidence.
+- **Merged without a final update.** [PR #1143](https://github.com/the-sarge/quic-go-fast/pull/1143), which changes only two Markdown files, landed after the hosted checks finished. The owner chose to merge the green head rather than run another round, so the merged tree differs from the tested head by those two files.
+
+### Validation
+
+A one-shot `go test -overlay` run delayed dial A, with nothing committed:
+
+| Delay injected for A | Before | After |
+| --- | --- | --- |
+| None | pass | pass |
+| 50 ms before recording | fail: reversed `[b, a]` | pass |
+| 300 ms before the constructor count | fail: count 0 | pass |
+
+RAS review `20261103T193959-48a3622f9667bd15c50ea417` at `486e3b4c` reported zero findings from all four reviewers. `codex-astra` failed once with a process error and completed on retry.
+
+Local certification passed at both `486e3b4c` and `48cd79f1`, on darwin: `go vet .`, `go mod tidy -diff`, the root package tests, and `go test -race` over `TestDialSetupAdmission*` and `TestDialCapture*`. All 33 hosted checks passed on `48cd79f1`.
+
+### Next
+
+[Issue #1145](https://github.com/the-sarge/quic-go-fast/issues/1145) records that the capture fixture's child filter, `^TestDial/DialAddr$`, runs 24 top-level tests rather than one, which is why this failure surfaced inside `TestDialCaptureFixture/passing`. It is pre-existing and awaits triage.
