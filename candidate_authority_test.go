@@ -740,10 +740,13 @@ func TestCandidateCancelRacesSelection(t *testing.T) {
 }
 
 // Ungrouped transports keep ordinary closing: the peer observes the close, a
-// closed connection ID retransmits it, and unknown IDs still get a reset.
+// closed connection ID answers with the close rather than a stateless reset,
+// and unknown IDs get a stateless reset.
 func TestCandidateOrdinaryProfileClose(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
+	// Without this, a stateless reset answers once the closed entry expires.
+	retainClosedEntries(t, time.Minute)
 	tr := &Transport{Conn: newUDPConnLocalhost(t), ConnectionIDLength: 8, StatelessResetKey: &StatelessResetKey{1}}
 	t.Cleanup(func() { tr.Close() })
 	ln, err := tr.Listen(testdata.GetTLSConfig(), nil)
@@ -754,17 +757,57 @@ func TestCandidateOrdinaryProfileClose(t *testing.T) {
 	require.NoError(t, server.CloseWithError(7, "done"))
 	requireRemoteCandidateClose(t, client)
 
-	late := newUDPConnLocalhost(t)
-	b := make([]byte, 1500)
-	for _, cid := range []protocol.ConnectionID{ids[0], protocol.ParseConnectionID([]byte{9, 9, 9, 9, 9, 9, 9, 9})} {
+	// Choose after the close: an ID of another length never reaches its closed
+	// entry on this transport, and the initial ID, which can have this length,
+	// may have retired before the close.
+	var closedID protocol.ConnectionID
+	tr.mutex.Lock()
+	for _, id := range ids {
+		if h, ok := tr.handlers[id]; ok && id.Len() == tr.ConnectionIDLength {
+			if _, closed := h.handler.(*closedLocalConn); closed {
+				closedID = id
+				break
+			}
+		}
+	}
+	tr.mutex.Unlock()
+	require.NotZero(t, closedID.Len(), "no routable connection ID kept its closed entry")
+
+	// A closed connection answers only every power-of-two arrival, and late
+	// client packets count too, so one probe can go unanswered. Each probe has
+	// its own socket because a resend's reply can arrive after the loop ends.
+	probe := func(cid protocol.ConnectionID) []byte {
+		t.Helper()
+		late := newUDPConnLocalhost(t)
 		short := append([]byte{0x40}, cid.Bytes()...)
 		short = append(short, make([]byte, 64)...)
-		_, err := late.WriteTo(short, tr.Conn.LocalAddr())
-		require.NoError(t, err)
-		require.NoError(t, late.SetReadDeadline(time.Now().Add(5*time.Second)))
-		_, _, err = late.ReadFrom(b)
-		require.NoError(t, err, "ordinary closing must answer connection ID %s", cid)
+		b := make([]byte, 1500)
+		limit := time.Now().Add(5 * time.Second)
+		for {
+			_, err := late.WriteTo(short, tr.Conn.LocalAddr())
+			require.NoError(t, err)
+			deadline := time.Now().Add(50 * time.Millisecond)
+			if deadline.After(limit) {
+				deadline = limit
+			}
+			require.NoError(t, late.SetReadDeadline(deadline))
+			n, _, err := late.ReadFrom(b)
+			if err == nil {
+				return b[:n]
+			}
+			var ne net.Error
+			require.ErrorAs(t, err, &ne)
+			require.True(t, ne.Timeout())
+			require.True(t, time.Now().Before(limit), "ordinary closing must answer connection ID %s", cid)
+		}
 	}
+	resetter := newStatelessResetter(tr.StatelessResetKey)
+	isReset := func(reply []byte, cid protocol.ConnectionID) bool {
+		return len(reply) >= 16 && protocol.StatelessResetToken(reply[len(reply)-16:]) == resetter.GetStatelessResetToken(cid)
+	}
+	require.False(t, isReset(probe(closedID), closedID), "a closed connection ID must answer with its close")
+	unknownID := protocol.ParseConnectionID([]byte{9, 9, 9, 9, 9, 9, 9, 9})
+	require.True(t, isReset(probe(unknownID), unknownID), "an unknown connection ID must get a stateless reset")
 }
 
 func TestCandidateGroupContract(t *testing.T) {
