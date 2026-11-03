@@ -423,7 +423,7 @@ The existing registration fields own the representation: `packet == nil` already
 
 ### E2 — Deliver nonfatal ordinary packet completions through recovery
 
-**Current state:** complete in [PR #1124](https://github.com/the-sarge/quic-go-fast/pull/1124). The private ordinary adapter reserves endpoint/completion capacity before construction, carries immutable registration mappings and consumes native facts in the connection loop. The four allocated scenarios cover local backpressure, prefix/fallback policy and terminal lifetime; production socket activation remains excluded. E3 #1017 is ready; E4 #1018 remains independently ready.
+**Current state:** complete in [PR #1124](https://github.com/the-sarge/quic-go-fast/pull/1124). The private ordinary adapter reserves endpoint/completion capacity before construction, carries immutable registration mappings and consumes native facts in the connection loop. The four allocated scenarios cover local backpressure, prefix/fallback policy and terminal lifetime; production socket activation remains excluded. E3 #1017 is ready; E4 #1018 is complete in [PR #1125](https://github.com/the-sarge/quic-go-fast/pull/1125).
 
 **Identity:** `QGF-MP646-20261024-E2`. **Issue:** [#1016](https://github.com/the-sarge/quic-go-fast/issues/1016). **Blocked by:** E1 and E2C; E2A/E2B are transitive. **Existing work:** replace the incomplete draft under the shared disposition above.
 
