@@ -54,7 +54,8 @@ type baseServer struct {
 	tlsConf *tls.Config
 	config  *Config
 
-	conn rawConn
+	conn      rawConn
+	responses *endpointResponses
 
 	tokenGenerator *handshake.TokenGenerator
 	maxTokenAge    time.Duration
@@ -306,6 +307,9 @@ func newServer(
 	if acceptEarly {
 		s.zeroRTTQueues = map[protocol.ConnectionID]*zeroRTTQueue{}
 	}
+	if tr != nil {
+		s.responses = (*Transport)(tr).responses.child()
+	}
 	if setupAdmission != nil {
 		s.refusedInitials = newRefusedInitials(maxRefusedInitials)
 	}
@@ -453,6 +457,7 @@ func (s *baseServer) close(e error, transportClose bool) {
 		return
 	}
 	s.closeErr = e
+	s.responses.revoke()
 	s.receivedPacketsMx.Lock()
 	close(s.errorChan)
 	s.receivedPacketsMx.Unlock()
@@ -1134,7 +1139,7 @@ func (s *baseServer) sendRetryPacket(p rejectedPacket) error {
 			},
 		})
 	}
-	return writeUnfencedResponse(s.candidates(), s.conn, buf.Data, p.remoteAddr, p.info)
+	return s.responses.send(s.candidates(), s.conn, buf.Data, p.remoteAddr, p.info)
 }
 
 func (s *baseServer) maybeSendInvalidToken(p rejectedPacket) {
@@ -1246,7 +1251,7 @@ func (s *baseServer) sendError(remoteAddr net.Addr, hdr *wire.Header, sealer han
 			Frames: []qlog.Frame{{Frame: ccf}},
 		})
 	}
-	return writeUnfencedResponse(s.candidates(), s.conn, b.Data, remoteAddr, info)
+	return s.responses.send(s.candidates(), s.conn, b.Data, remoteAddr, info)
 }
 
 func (s *baseServer) enqueueVersionNegotiationPacket(p receivedPacket) (bufferInUse bool) {
@@ -1292,7 +1297,7 @@ func (s *baseServer) maybeSendVersionNegotiationPacket(p receivedPacket) {
 			SupportedVersions: s.config.Versions,
 		})
 	}
-	if err := writeUnfencedResponse(s.candidates(), s.conn, data, p.remoteAddr, p.info); err != nil {
+	if err := s.responses.send(s.candidates(), s.conn, data, p.remoteAddr, p.info); err != nil {
 		s.logger.Debugf("Error sending Version Negotiation: %s", err)
 	}
 }
