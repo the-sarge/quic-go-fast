@@ -144,9 +144,12 @@ func TestMultipathRetiredPathProtection(t *testing.T) {
 	require.NoError(t, server.retirePath(0))
 	_, err = ShortHeaderSealerForPath(server, 0)
 	require.ErrorIs(t, err, ErrKeysDropped)
+	// The schedule outlives path zero, so a survivor can still reach its own keys.
 	cs := &cryptoSetup{aead: server, has1RTTSealer: true}
-	_, err = cs.Get1RTTSealer()
-	require.ErrorIs(t, err, ErrKeysDropped)
+	schedule, err := cs.Get1RTTSealer()
+	require.NoError(t, err)
+	_, err = schedule.Seal(nil, []byte(msg), 11, []byte(ad))
+	require.ErrorIs(t, err, ErrKeysDropped, "but path zero itself no longer seals")
 	ordinary, _ := multipathEndpoints(t)
 	cs = &cryptoSetup{aead: ordinary, has1RTTSealer: true}
 	_, err = cs.Get1RTTSealer()

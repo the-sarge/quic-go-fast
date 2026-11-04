@@ -632,7 +632,9 @@ func (h *cryptoSetup) Get1RTTSealer() (ShortHeaderSealer, error) {
 	if !h.has1RTTSealer {
 		return nil, ErrKeysNotYetAvailable
 	}
-	return ShortHeaderSealerForPath(h.aead, 0)
+	// The schedule outlives path zero. Packing refuses per context, and sealing on a
+	// retired path is refused in sealPath.
+	return h.aead, nil
 }
 
 func (h *cryptoSetup) GetInitialOpener() (LongHeaderOpener, error) {

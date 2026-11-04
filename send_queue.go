@@ -21,7 +21,7 @@ type sender interface {
 
 // sendMetadata is captured by the connection loop, never read from it by the worker.
 type sendMetadata struct {
-	terminalReceipts [2]*pathAbandonReceipt
+	terminalReceipts []*pathAbandonReceipt // nil unless the packet carries PATH_ABANDON
 	credit           *sendReservation
 	handshake        bool
 	pathGeneration   uint64

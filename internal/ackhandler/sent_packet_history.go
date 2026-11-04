@@ -201,6 +201,20 @@ func (h *sentPacketHistory) RemovePathProbe(pn protocol.PacketNumber) *packet {
 	return p
 }
 
+// releaseRetained drops a retired path's whole span at its final reclamation. No
+// outstanding packet remains. The highest packet number stays, because it is what the
+// shared tracking ceiling measures the next packet number against.
+func (h *sentPacketHistory) releaseRetained() {
+	for pn := range h.PathProbes() {
+		h.RemovePathProbe(pn)
+	}
+	clear(h.packets)
+	h.packets = h.packets[:0]
+	h.unqualifiedLocal = nil
+	h.numOutstanding = 0
+	h.firstPacketNumber = protocol.InvalidPacketNumber
+}
+
 // getIndex gets the index of packet p in the packets slice.
 func (h *sentPacketHistory) getIndex(p protocol.PacketNumber) (int, bool) {
 	if len(h.packets) == 0 {

@@ -151,9 +151,9 @@ func (p *pathCreditRegistry) reselect(now monotime.Time) {
 		current = nil
 	}
 	var best *pathMember
-	for id := protocol.PathID(0); id <= p.localMax; id++ {
-		m := p.members[id]
-		if m == nil || m == current || !p.primaryEligible(m) {
+	var ordered [maxPathHistoryUnits + 1]*pathMember
+	for _, m := range p.orderedMembers(ordered[:0]) {
+		if m == current || !p.primaryEligible(m) {
 			continue
 		}
 		if current != nil && (m.backup || !current.backup) {
@@ -194,11 +194,12 @@ func (p *pathCreditRegistry) syncObservation() {
 }
 
 // heldRoute carries ACKs while nothing may carry ordinary work: the lowest path
-// that isn't suspect, otherwise path zero.
+// that isn't suspect, otherwise path zero, unless path zero has retired.
 func (p *pathCreditRegistry) heldRoute() *pathRoute {
-	for id := protocol.PathID(0); id <= p.localMax; id++ {
-		if m := p.members[id]; m != nil && !m.suspect && p.eligible(m) {
-			return p.routeOf(id)
+	var ordered [maxPathHistoryUnits + 1]*pathMember
+	for _, m := range p.orderedMembers(ordered[:0]) {
+		if !m.suspect && p.eligible(m) {
+			return p.routeOf(m.id)
 		}
 	}
 	return nil

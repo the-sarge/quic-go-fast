@@ -110,9 +110,11 @@ func (a *updatableAEAD) retirePath(id protocol.PathID) error {
 	if p == nil || p.retired {
 		return ErrKeysDropped
 	}
+	// A retired path zero keeps the legacy accessors' entry for good, so it isn't
+	// one of the four retained paths that removal returns.
 	retained := 0
-	for _, p := range a.paths {
-		if p.retired {
+	for other, p := range a.paths {
+		if p.retired && other != 0 {
 			retained++
 		}
 	}

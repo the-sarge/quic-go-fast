@@ -23,7 +23,7 @@ type packetEmission struct {
 	route            *pathRoute // the current opportunity's; nil is path zero
 	steered          bool       // the route was chosen to carry the next DATAGRAM
 	held             bool       // no path may carry ordinary work now
-	terminalReceipts [2]*pathAbandonReceipt
+	terminalReceipts []*pathAbandonReceipt
 	bbr              *bbrSendPolicy
 	reservation      *sendReservation // connection-owned until handoff
 	paceReservation  bool
@@ -816,6 +816,10 @@ func (e *packetEmission) rebindPath(addr net.Addr, info packetInfo) {
 }
 
 func (e *packetEmission) close(cause error) ([]byte, error) {
+	// R14 closes via survivors. Until then, reading released CID state would be wrong.
+	if e.pathCredit != nil && e.pathCredit.zeroRetired() {
+		return nil, errPathZeroRetired
+	}
 	var packet *coalescedPacket
 	var err error
 	if transportErr, ok := errors.AsType[*qerr.TransportError](cause); ok {
