@@ -373,6 +373,11 @@ func TestPathFailureMigrateAway(t *testing.T) {
 			errs = f.openAsync(context.Background(), origin, admissionTupleB)
 			f.pass(t)
 			require.ErrorIs(t, <-errs, net.ErrClosed, "an open refuses the same way")
+
+			f.c.peerParams.DisableActiveMigration = true
+			errs = f.openAsync(context.Background(), origin, p.handshakeAddr)
+			f.pass(t)
+			require.ErrorIs(t, <-errs, net.ErrClosed, "ahead of the peer's migration refusal")
 			require.Equal(t, units, p.historyUnits)
 			require.Equal(t, refs, p.attachments[nil].refs)
 		})

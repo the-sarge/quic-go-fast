@@ -825,12 +825,12 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 	if request.transport != nil && request.transport.responses == nil {
 		return p.refuseRequest(request, ErrMultipathUnsupportedV1)
 	}
-	if p.migrationForbidden(request.addr) {
-		return p.refuseRequest(request, fmt.Errorf("%w: the peer disabled migration to its handshake address", ErrMultipathUnsupportedV1))
-	}
 	target := p.attachmentKey(request.transport)
 	if p.targetFailed(target) {
 		return p.refuseRequest(request, errPathTargetFailed)
+	}
+	if p.migrationForbidden(request.addr) {
+		return p.refuseRequest(request, fmt.Errorf("%w: the peer disabled migration to its handshake address", ErrMultipathUnsupportedV1))
 	}
 	id, ok := p.unusedID()
 	if !ok {
