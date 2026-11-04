@@ -16,6 +16,8 @@ func (c *Conn) installNativeRoute(*Transport, net.Addr, packetInfo) error { retu
 // isEndpointFault has no native endpoint to report here.
 func isEndpointFault(error) bool { return false }
 
+func endpointFaulted(*Transport) bool { return false }
+
 // No platform here holds a native grant, so these stay refusals.
 func (t *Transport) configureNativeIO(time.Duration) error { return ErrMultipathUnsupportedV1 }
 

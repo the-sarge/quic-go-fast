@@ -4,8 +4,11 @@ package quic
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"net"
+	"slices"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -192,6 +195,8 @@ func TestMultipathExplicitGrantLifecycle(t *testing.T) {
 	require.False(t, state.Primary)
 	require.Len(t, p.client.PathsV1(), 1, "the last snapshot stays readable")
 	require.Error(t, paths[0].SetLocalUseV1("backup"), "the terminal error, not a hang")
+	require.Empty(t, p.client.pathSurface.commands, "a late mutation isn't retained")
+	require.NotEqual(t, "endpoint-fault", state.LastOutcome, "an explicit close isn't a fault")
 }
 
 func TestMultipathAddrOwnedLifecycle(t *testing.T) {
@@ -246,12 +251,36 @@ func TestMultipathAddrOwnedLifecycle(t *testing.T) {
 	require.Eventually(t, func() bool { return !granted(sockets[0]) }, 5*time.Second, time.Millisecond)
 }
 
+// socketTouchCounter reports whether a refused constructor read from a caller's socket or
+// changed its read deadline.
+type socketTouchCounter struct {
+	net.PacketConn
+	touches atomic.Int32
+}
+
+func (c *socketTouchCounter) ReadFrom(b []byte) (int, net.Addr, error) {
+	c.touches.Add(1)
+	return c.PacketConn.ReadFrom(b)
+}
+
+func (c *socketTouchCounter) SetReadDeadline(deadline time.Time) error {
+	c.touches.Add(1)
+	return c.PacketConn.SetReadDeadline(deadline)
+}
+
 func TestMultipathCallerSocketRefusal(t *testing.T) {
 	activateMultipathProfile(t)
 	socket := newUDPConnLocalhost(t)
 	addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 9}
 	conf := multipathConfig(t)
-	_, err := Dial(t.Context(), socket, addr, nativeClientTLS(), conf)
+	counted := &socketTouchCounter{PacketConn: newUDPConnLocalhost(t)}
+	_, err := Dial(t.Context(), counted, addr, nativeClientTLS(), conf)
+	require.ErrorIs(t, err, ErrMultipathUnsupportedV1)
+	_, err = DialEarly(t.Context(), counted, addr, nativeClientTLS(), conf)
+	require.ErrorIs(t, err, ErrMultipathUnsupportedV1)
+	time.Sleep(scaleDuration(5 * time.Millisecond))
+	require.Zero(t, counted.touches.Load(), "a refusal starts no reader and moves no deadline")
+	_, err = Dial(t.Context(), socket, addr, nativeClientTLS(), conf)
 	require.ErrorIs(t, err, ErrMultipathUnsupportedV1)
 	_, err = DialEarly(t.Context(), socket, addr, nativeClientTLS(), conf)
 	require.ErrorIs(t, err, ErrMultipathUnsupportedV1)
@@ -378,6 +407,24 @@ func TestMultipathPeerZeroLengthCID(t *testing.T) {
 	err := f.c.checkTransportParameters(&wire.TransportParameters{InitialMaxPathID: &maximum})
 	require.ErrorContains(t, err, "zero-length")
 	require.NotContains(t, errString(f.c.checkTransportParameters(&wire.TransportParameters{})), "zero-length", "an ordinary peer with the same CID is fine")
+
+	// A server never advertises to that client, but the client's offer is still an error.
+	server := newAdmissionFixture(t, protocol.PerspectiveServer)
+	server.c.pathCredit, server.c.pathSurface = nil, nil
+	server.c.config.multipath = multipathSelection{enabled: true, maxPaths: 2}
+	server.c.handshakeDestConnID = protocol.ConnectionID{}
+	params := &wire.TransportParameters{}
+	server.c.advertiseMultipath(params)
+	require.Nil(t, params.InitialMaxPathID)
+	require.Nil(t, server.c.pathSurface)
+	require.ErrorContains(t, server.c.checkTransportParameters(&wire.TransportParameters{InitialMaxPathID: &maximum}), "zero-length")
+}
+
+func errString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 func TestMultipathOrdinaryPeerFallback(t *testing.T) {
@@ -402,6 +449,21 @@ func TestMultipathOrdinaryPeerFallback(t *testing.T) {
 	_, err = client.AddPath(grantedTransport(t))
 	require.NoError(t, err, "legacy migration stays available once the result is known")
 
+	t.Run("a zero-length client CID sees no advertisement", func(t *testing.T) {
+		enabled := grantedTransport(t)
+		ln, err := enabled.Listen(nativeServerTLS(), multipathConfig(t))
+		require.NoError(t, err)
+		defer ln.Close()
+		ordinary, err := Dial(ctx, newUDPConnLocalhost(t), enabled.Conn.LocalAddr(), nativeClientTLS(), nil)
+		require.NoError(t, err)
+		defer ordinary.CloseWithError(0, "")
+		require.Zero(t, ordinary.srcConnIDLen)
+		require.Nil(t, ordinary.peerParams.InitialMaxPathID)
+		server, err := ln.Accept(ctx)
+		require.NoError(t, err)
+		require.Nil(t, server.pathSurface)
+	})
+
 	t.Run("a v2 client of an enabled server stays ordinary", func(t *testing.T) {
 		enabled := grantedTransport(t)
 		ln, err := enabled.Listen(nativeServerTLS(), multipathConfig(t))
@@ -421,32 +483,32 @@ func TestMultipathOrdinaryPeerFallback(t *testing.T) {
 	})
 }
 
-func TestMultipathPendingAndDisabled(t *testing.T) {
-	f := newAdmissionFixtureUnactivated(t)
-	f.c.config.multipath = multipathSelection{enabled: true, maxPaths: 2}
-	f.c.advertiseMultipath(&wire.TransportParameters{})
-	_, err := f.c.MultipathNegotiatedV1()
-	require.ErrorIs(t, err, ErrMultipathHandshakeIncompleteV1)
-	_, err = f.c.AddPath(&Transport{Conn: newUDPConnLocalhost(t)})
-	require.ErrorIs(t, err, ErrMultipathHandshakeIncompleteV1)
-	_, err = f.c.OpenPathV1(t.Context(), nil, &net.UDPAddr{})
-	require.ErrorIs(t, err, ErrMultipathHandshakeIncompleteV1)
-	require.ErrorIs(t, f.c.WaitTransportDetachedV1(t.Context(), &Transport{}), ErrMultipathHandshakeIncompleteV1)
-	require.Empty(t, f.c.PathsV1())
-	require.ErrorIs(t, f.c.WaitTransportDetachedV1(t.Context(), nil), ErrMultipathInvalidConfigV1)
-
-	disabled := newAdmissionFixtureUnactivated(t)
-	negotiated, err := disabled.c.MultipathNegotiatedV1()
-	require.NoError(t, err)
-	require.False(t, negotiated)
-	select {
-	case <-disabled.c.PathChangesV1():
-		t.Fatal("a disabled connection has no path changes")
-	default:
-	}
-}
-
 func TestMultipathLegacyModes(t *testing.T) {
+	t.Run("pending and disabled", func(t *testing.T) {
+		f := newAdmissionFixtureUnactivated(t)
+		f.c.config.multipath = multipathSelection{enabled: true, maxPaths: 2}
+		f.c.advertiseMultipath(&wire.TransportParameters{})
+		_, err := f.c.MultipathNegotiatedV1()
+		require.ErrorIs(t, err, ErrMultipathHandshakeIncompleteV1)
+		_, err = f.c.AddPath(&Transport{Conn: newUDPConnLocalhost(t)})
+		require.ErrorIs(t, err, ErrMultipathHandshakeIncompleteV1)
+		_, err = f.c.OpenPathV1(t.Context(), nil, &net.UDPAddr{})
+		require.ErrorIs(t, err, ErrMultipathHandshakeIncompleteV1)
+		require.ErrorIs(t, f.c.WaitTransportDetachedV1(t.Context(), &Transport{}), ErrMultipathHandshakeIncompleteV1)
+		require.Empty(t, f.c.PathsV1())
+		require.ErrorIs(t, f.c.WaitTransportDetachedV1(t.Context(), nil), ErrMultipathInvalidConfigV1)
+
+		disabled := newAdmissionFixtureUnactivated(t)
+		negotiated, err := disabled.c.MultipathNegotiatedV1()
+		require.NoError(t, err)
+		require.False(t, negotiated)
+		select {
+		case <-disabled.c.PathChangesV1():
+			t.Fatal("a disabled connection has no path changes")
+		default:
+		}
+	})
+
 	p := newMultipathPair(t)
 	_, err := p.client.AddPath(&Transport{Conn: newUDPConnLocalhost(t)})
 	require.ErrorIs(t, err, ErrMultipathWrongModeV1)
@@ -550,13 +612,6 @@ func TestMultipathOpenSnapshotsAndAbandon(t *testing.T) {
 	require.NotZero(t, final.RTT, "the last observation stays")
 }
 
-func errString(err error) string {
-	if err == nil {
-		return ""
-	}
-	return err.Error()
-}
-
 // An incompatible target refuses on the caller's goroutine: the connection stays healthy,
 // no ID is consumed and no route exists. This is R9's deferred target question.
 func TestMultipathOpenRefusesTargetUnharmed(t *testing.T) {
@@ -567,8 +622,14 @@ func TestMultipathOpenRefusesTargetUnharmed(t *testing.T) {
 	require.ErrorIs(t, err, ErrMultipathInvalidConfigV1)
 	_, err = p.client.OpenPathV1(ctx, grantedTransport(t), nil)
 	require.ErrorIs(t, err, ErrMultipathInvalidConfigV1)
-	_, err = p.client.OpenPathV1(ctx, &Transport{Conn: newUDPConnLocalhost(t)}, p.serverAddr)
-	require.ErrorIs(t, err, ErrMultipathUnsupportedV1)
+	for _, remote := range []*net.UDPAddr{{}, {IP: net.IPv4(127, 0, 0, 1)}, {IP: net.IPv4zero, Port: 443}} {
+		_, err = p.client.OpenPathV1(ctx, grantedTransport(t), remote)
+		require.ErrorIs(t, err, ErrMultipathInvalidConfigV1, "%v", remote)
+	}
+	ungranted := &Transport{Conn: newUDPConnLocalhost(t)}
+	_, err = p.client.OpenPathV1(ctx, ungranted, p.serverAddr)
+	require.ErrorIs(t, err, ErrMultipathNotConfiguredV1)
+	require.ErrorIs(t, p.client.PathsV1()[0].MigrateV1(ctx, ungranted), ErrMultipathNotConfiguredV1)
 	mismatched := &Transport{Conn: newUDPConnLocalhost(t), ConnectionIDLength: 8}
 	require.NoError(t, mismatched.ConfigureMultipathIOV1(time.Second))
 	defer mismatched.Close()
@@ -582,11 +643,106 @@ func TestMultipathOpenRefusesTargetUnharmed(t *testing.T) {
 	require.NoError(t, p.client.Context().Err())
 	require.Len(t, p.client.PathsV1(), 1)
 
-	path, err := p.client.OpenPathV1(ctx, grantedTransport(t), p.serverAddr)
+	remote := &net.UDPAddr{IP: slices.Clone(p.serverAddr.IP), Port: p.serverAddr.Port}
+	path, err := p.client.OpenPathV1(ctx, grantedTransport(t), remote)
 	require.NoError(t, err)
 	id, err := path.PathIDV1()
 	require.NoError(t, err)
 	require.Equal(t, uint32(1), id, "the refusals consumed no ID")
+	state, err := path.StateV1()
+	require.NoError(t, err)
+	want := state.Remote
+	remote.IP[len(remote.IP)-1]++
+	remote.Port++
+	require.NoError(t, path.SetLocalUseV1("backup"))
+	state, err = path.StateV1()
+	require.NoError(t, err)
+	require.Equal(t, want, state.Remote, "the connection holds its own copy of the address")
+}
+
+// What ended a connection stays visible: a pending operation reports the terminal error
+// with its identity, and the final observation of an endpoint fault says so, though the
+// sender's route check assumes the connection's own endpoint is healthy (R20 changes that).
+func TestMultipathTerminalObservations(t *testing.T) {
+	t.Run("pending open", func(t *testing.T) {
+		p := newMultipathPair(t)
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		silent := newUDPConnLocalhost(t)
+		pending := make(chan error, 1)
+		go func() {
+			_, err := p.client.OpenPathV1(ctx, grantedTransport(t), silent.LocalAddr().(*net.UDPAddr))
+			pending <- err
+		}()
+		require.Eventually(t, func() bool { return len(p.client.PathsV1()) == 2 }, 5*time.Second, time.Millisecond)
+		require.NoError(t, p.server.CloseWithError(42, "bye"))
+		var appErr *ApplicationError
+		require.ErrorAs(t, <-pending, &appErr)
+		require.Equal(t, ApplicationErrorCode(42), appErr.ErrorCode)
+		require.True(t, appErr.Remote)
+	})
+	t.Run("endpoint fault", func(t *testing.T) {
+		p := newMultipathPair(t)
+		zero := p.client.PathsV1()[0]
+		nativeTransportEndpoint(p.clientTr).do(func(s *endpointState) { s.fail(endpointFaultOverdue, errors.New("injected")) })
+		str, err := p.client.OpenUniStream()
+		require.NoError(t, err)
+		_, _ = str.Write([]byte("local work finds the fault"))
+		final := waitPathState(t, zero, func(s MultipathPathStateV1) bool { return s.Lifecycle == "closed" })
+		require.Equal(t, "endpoint-fault", final.LastOutcome)
+		require.False(t, final.Primary)
+	})
+}
+
+// A session ticket doesn't record multipath, so resumption must not issue the ordinary
+// CID window before activation learns the peer's offer.
+func TestMultipathZeroRTTResumption(t *testing.T) {
+	activateMultipathProfile(t)
+	srv := grantedTransport(t)
+	serverConf := multipathConfig(t)
+	serverConf.Allow0RTT = true
+	ln, err := srv.ListenEarly(nativeServerTLS(), serverConf)
+	require.NoError(t, err)
+	defer ln.Close()
+	tlsConf := nativeClientTLS()
+	tickets := &ticketWaitCache{ClientSessionCache: tls.NewLRUClientSessionCache(1), put: make(chan struct{}, 4)}
+	tlsConf.ClientSessionCache = tickets
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	first, err := grantedTransport(t).Dial(ctx, srv.Conn.LocalAddr(), tlsConf, multipathConfig(t))
+	require.NoError(t, err)
+	select {
+	case <-tickets.put:
+	case <-ctx.Done():
+		t.Fatal("no session ticket")
+	}
+	require.NoError(t, first.CloseWithError(0, ""))
+
+	resumed, err := grantedTransport(t).DialEarly(ctx, srv.Conn.LocalAddr(), tlsConf, multipathConfig(t))
+	require.NoError(t, err)
+	defer resumed.CloseWithError(0, "")
+	select {
+	case <-resumed.HandshakeComplete():
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	require.True(t, resumed.ConnectionState().Used0RTT)
+	negotiated, err := resumed.MultipathNegotiatedV1()
+	require.NoError(t, err)
+	require.True(t, negotiated)
+	require.NoError(t, resumed.Context().Err())
+}
+
+type ticketWaitCache struct {
+	tls.ClientSessionCache
+	put chan struct{}
+}
+
+func (c *ticketWaitCache) Put(key string, state *tls.ClientSessionState) {
+	c.ClientSessionCache.Put(key, state)
+	if state != nil {
+		c.put <- struct{}{}
+	}
 }
 
 func TestMultipathMigrateAndDetach(t *testing.T) {

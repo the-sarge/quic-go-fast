@@ -183,6 +183,7 @@ type multipathSurface struct {
 	handles  map[protocol.PathID]*Path
 	snapshot []*Path // replaced, never edited; bounded by the path slots
 	commands []*pathCommand
+	sealed   bool // the connection ended, and runs no more commands
 }
 
 // pathCommand runs on the connection goroutine. Open and migrate keep their one local
@@ -252,10 +253,17 @@ func (c *Conn) OpenPathV1(ctx context.Context, t *Transport, remote *net.UDPAddr
 	if err := c.requireMultipath(); err != nil {
 		return nil, err
 	}
-	if t == nil || remote == nil {
-		return nil, fmt.Errorf("%w: a nil target transport or remote address", ErrMultipathInvalidConfigV1)
+	if t == nil {
+		return nil, fmt.Errorf("%w: a nil target transport", ErrMultipathInvalidConfigV1)
 	}
-	id, err := c.openPathPrivate(ctx, t, remote)
+	if remote == nil {
+		return nil, fmt.Errorf("%w: a nil remote address", ErrMultipathInvalidConfigV1)
+	}
+	// An address nothing can send to would consume an ID and then fail the connection.
+	if destination := remote.AddrPort(); !destination.IsValid() || destination.Port() == 0 || destination.Addr().Unmap().IsUnspecified() {
+		return nil, fmt.Errorf("%w: remote address %s", ErrMultipathInvalidConfigV1, remote)
+	}
+	id, err := c.openPathPrivate(ctx, t, &net.UDPAddr{IP: slices.Clone(remote.IP), Port: remote.Port, Zone: remote.Zone})
 	if err != nil {
 		return nil, err
 	}
@@ -379,6 +387,11 @@ func (c *Conn) runPathCommand(run func(*pathCreditRegistry, monotime.Time) error
 	surface := c.pathSurface
 	command := &pathCommand{run: run, done: make(chan error, 1)}
 	surface.mu.Lock()
+	if surface.sealed {
+		surface.mu.Unlock()
+		<-c.ctx.Done()
+		return context.Cause(c.ctx)
+	}
 	surface.commands = append(surface.commands, command)
 	surface.mu.Unlock()
 	c.scheduleSending()
@@ -504,7 +517,8 @@ func (p *pathCreditRegistry) publishPaths() {
 	}
 }
 
-// publishClosed is the connection's last publication. The final snapshot stays readable.
+// publishClosed is the connection's last publication, with what ended it visible. The
+// final snapshot stays readable, and a caller still waiting leaves on the connection's end.
 func (p *pathCreditRegistry) publishClosed() {
 	surface := p.conn.pathSurface
 	if surface == nil {
@@ -512,8 +526,12 @@ func (p *pathCreditRegistry) publishClosed() {
 	}
 	surface.mu.Lock()
 	defer surface.mu.Unlock()
-	for _, handle := range surface.handles {
+	surface.sealed, surface.commands = true, nil
+	for id, handle := range surface.handles {
 		closed := *handle.state.Load()
+		if m := p.members[id]; m != nil {
+			closed = p.observation(m)
+		}
 		closed.Lifecycle, closed.Primary = "closed", false
 		handle.state.Store(&closed)
 	}
@@ -543,6 +561,9 @@ func (p *pathCreditRegistry) observation(m *pathMember) MultipathPathStateV1 {
 	if local != nil && local.Conn != nil {
 		state.Local = addrPortOf(local.Conn.LocalAddr())
 	}
+	if local != nil && endpointFaulted(local) {
+		state.LastOutcome = "endpoint-fault"
+	}
 	if rtt := p.rttOf(m.id); rtt != nil {
 		state.RTT = rtt.SmoothedRTT()
 	}
@@ -557,9 +578,6 @@ func (p *pathCreditRegistry) observation(m *pathMember) MultipathPathStateV1 {
 	}
 	if state.LastOutcome == "" {
 		state.LastOutcome = "none"
-	}
-	if !p.conn.emission.local.routeUsable(m.transport) {
-		state.LastOutcome = "endpoint-fault"
 	}
 	terminal := p.terminals[m.id]
 	switch {

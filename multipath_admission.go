@@ -1081,9 +1081,9 @@ func (p *pathCreditRegistry) memberProbe(m *pathMember, now monotime.Time) *path
 
 // closeAdmission ends the local operation and revokes every queued probe. The
 // endpoint's detach owns anything already claimed.
-func (p *pathCreditRegistry) closeAdmission() {
+func (p *pathCreditRegistry) closeAdmission(cause error) {
 	if request := p.conn.pathOpen.Load(); request != nil {
-		request.finish(net.ErrClosed)
+		request.finish(cause)
 		p.conn.pathOpen.CompareAndSwap(request, nil)
 	}
 	for _, m := range p.members {

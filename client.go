@@ -83,6 +83,10 @@ func DialEarly(ctx context.Context, c net.PacketConn, addr net.Addr, tlsConf *tl
 	if err != nil {
 		return nil, err
 	}
+	// A refusal returns before the cleanup below could start reading the caller's socket.
+	if err := dl.admitMultipath(conf); err != nil {
+		return nil, err
+	}
 	conn, err := dl.DialEarly(ctx, addr, tlsConf, conf)
 	if err != nil {
 		dl.Close()
@@ -103,6 +107,10 @@ func DialEarly(ctx context.Context, c net.PacketConn, addr net.Addr, tlsConf *tl
 func Dial(ctx context.Context, c net.PacketConn, addr net.Addr, tlsConf *tls.Config, conf *Config) (*Conn, error) {
 	dl, err := setupTransport(c, tlsConf, false)
 	if err != nil {
+		return nil, err
+	}
+	// A refusal returns before the cleanup below could start reading the caller's socket.
+	if err := dl.admitMultipath(conf); err != nil {
 		return nil, err
 	}
 	conn, err := dl.Dial(ctx, addr, tlsConf, conf)

@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"net"
 	"slices"
 	"sync"
 
@@ -81,11 +82,15 @@ func (m sendMetadata) hasTerminalReceipt() bool {
 	return len(m.terminalReceipts) != 0
 }
 
-func (p *pathCreditRegistry) close() {
+func (p *pathCreditRegistry) close() { p.closeFor(net.ErrClosed) }
+
+// closeFor ends the registry. A pending local operation learns cause, which is the
+// connection's terminal error, before the connection's context carries it.
+func (p *pathCreditRegistry) closeFor(cause error) {
 	p.closed = true
 	for _, terminal := range p.terminals {
 		terminal.receipt.seal()
 	}
-	p.closeAdmission()
+	p.closeAdmission(cause)
 	p.publishClosed()
 }

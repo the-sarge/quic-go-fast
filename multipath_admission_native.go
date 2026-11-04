@@ -71,7 +71,7 @@ func (c *Conn) prepareTarget(target *Transport) error {
 		return fmt.Errorf("%w: a nil target transport", ErrMultipathInvalidConfigV1)
 	}
 	if nativeTransportEndpoint(target) == nil {
-		return fmt.Errorf("%w: the target has no native grant", ErrMultipathUnsupportedV1)
+		return fmt.Errorf("%w: the target has no native grant", ErrMultipathNotConfiguredV1)
 	}
 	if err := target.nativeIOConflict(); err != nil {
 		return err
@@ -157,4 +157,15 @@ func (p *pathCreditRegistry) noteOutcome(id protocol.PathID, tuple uint64, accep
 	default:
 		m.lastOutcome = "accepted"
 	}
+}
+
+// endpointFaulted reads the endpoint itself, since the sender's route check assumes the
+// connection's own endpoint is healthy until a fault ends the connection.
+func endpointFaulted(t *Transport) bool {
+	endpoint := nativeTransportEndpoint(t)
+	if endpoint == nil {
+		return false
+	}
+	_, faulted := endpoint.faultObservation()
+	return faulted
 }

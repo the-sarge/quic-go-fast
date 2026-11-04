@@ -2601,7 +2601,11 @@ func (c *Conn) closeWithTransportError(code TransportErrorCode) {
 
 func (c *Conn) handleCloseError(closeErr *closeError) {
 	if c.pathCredit != nil {
-		c.pathCredit.close()
+		cause := closeErr.err
+		if cause == nil {
+			cause = &qerr.ApplicationError{}
+		}
+		c.pathCredit.closeFor(cause)
 	}
 	if closeErr.immediate {
 		if nerr, ok := closeErr.err.(net.Error); ok && nerr.Timeout() {
@@ -2783,7 +2787,9 @@ func (c *Conn) restoreTransportParameters(params *wire.TransportParameters) {
 	}
 
 	c.peerParams = params
-	if !c.negotiatesMultipath(params) { // activation issues path zero's CIDs
+	// A session ticket doesn't record multipath, so this waits for the peer's parameters:
+	// activation issues path zero's CIDs, and an ordinary peer gets them when they apply.
+	if c.pathSurface == nil {
 		c.connIDGenerator.SetMaxActiveConnIDs(params.ActiveConnectionIDLimit)
 	}
 	c.connFlowController.UpdateSendWindow(params.InitialMaxData)
@@ -2830,7 +2836,7 @@ func (c *Conn) checkTransportParameters(params *wire.TransportParameters) error 
 		return fmt.Errorf("expected initial_source_connection_id to equal %s, is %s", c.handshakeDestConnID, params.InitialSourceConnectionID)
 	}
 	// Draft section 2.1: a peer can't offer multipath from a zero-length connection ID.
-	if c.negotiatesMultipath(params) && params.InitialSourceConnectionID.Len() == 0 {
+	if c.multipathSelected() && params.InitialMaxPathID != nil && params.InitialSourceConnectionID.Len() == 0 {
 		return errors.New("initial_max_path_id with a zero-length connection ID")
 	}
 

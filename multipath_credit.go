@@ -105,10 +105,16 @@ func (c *Conn) enableMultipathCredit(capacity int, peerMax protocol.PathID, peer
 	return &wire.TransportParameters{InitialMaxPathID: &localMax, ActiveConnectionIDLimit: 4}, nil
 }
 
-// advertiseMultipath offers the extension on a QUIC v1 connection whose Config passed the
-// gate. A connection of another version stays ordinary.
+// multipathSelected is a QUIC v1 connection whose Config passed the gate. A connection of
+// another version stays ordinary.
+func (c *Conn) multipathSelected() bool {
+	return c.config.multipath.enabled && c.version == protocol.Version1
+}
+
+// advertiseMultipath offers the extension, unless a server already sees the client's
+// zero-length connection ID, which can only stay ordinary.
 func (c *Conn) advertiseMultipath(params *wire.TransportParameters) {
-	if c.config.multipath.enabled && c.version == protocol.Version1 {
+	if c.multipathSelected() && (c.perspective == protocol.PerspectiveClient || c.handshakeDestConnID.Len() != 0) {
 		maximum := protocol.PathID(c.config.multipath.maxPaths - 1)
 		params.InitialMaxPathID = &maximum
 		c.pathSurface = newMultipathSurface()
