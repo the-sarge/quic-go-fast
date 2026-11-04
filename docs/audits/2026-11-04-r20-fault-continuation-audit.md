@@ -16,12 +16,15 @@ During [R13 #1033](https://github.com/the-sarge/quic-go-fast/issues/1033), the R
 | `routeUsable(nil)` assumes the primary is healthy | `native_ordinary.go:316` | Path zero would stay eligible on a failed endpoint |
 | A primary's fatal result fails the connection | `participant == s.participant` (`native_ordinary.go:673`) | A late result could end it even with the fault handled |
 | Detachment refuses any closed transport | `detachRoutes` tests `transportClosed` (`transport.go`) | A spared connection could never publish detachment |
+| Sealing discards a participant's later results | `run` revokes active participants once sealed, and `publish` clears the record of an inactive one (`native_endpoint.go`) | A spared connection needs its own settlement, as uncertain, after the participant retires |
+| An explicit close after a read failure is a no-op | `close` returns at `transportClosed` (`transport.go:660`) | Explicit closure has to be its own fact |
+| Reusing an attachment skips the closed-target check | `attach` returns early on an existing entry (`multipath_migration.go:73`) | Operations need a target check before commitment |
 | R17 and R18 pin the complete Reno candidate, and R19 stops if changed code invalidates a candidate | The plan's candidate ledger, and R19's stop | R20 has to precede those two, not only R19 |
 
 ## Graph decisions
 
-R20 has no open blockers, since R13 and R14 are complete. It blocks R17 and R18 for the candidate reason above, and R19 only transitively. It doesn't touch R16's API surface, so the two are parallel-safe, with whichever lands second reconciling against current main. Rejected split and merge alternatives are in the contract.
+R20 has no open blockers, since R13, R14 and R15 are complete. It blocks R17 and R18 for the candidate reason above, and R19 only transitively. It doesn't touch R16's API surface, so the two are parallel-safe, with whichever lands second reconciling against current main. Rejected split and merge alternatives are in the contract.
 
 ## Review record
 
-Pending.
+RAS consideration `20261104T163006-80bb852e7e8f90d4de28b890` failed in synthesis because the model was at capacity, so it isn't review evidence. Its rerun `20261104T170535-714433170851deac0620db26` on `b56a0d2a3b875bac14f992e9bd09146708dffce3` is the initial review. C-007 with C-009, C-002 with C-005 and C-006, C-004 (narrowed), C-010 and C-003 were fix-now and are corrected in the contract. C-001 was rejected, because a non-returning native call is outside the progress guarantee and its fence must hold. C-008 was rejected, because a validating path hasn't proved healthy; its dissent is recorded and the contract states the outcome.
