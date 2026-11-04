@@ -1,6 +1,6 @@
 # Reno-first QUIC multipath implementation plan
 
-**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8/R9/R10/R11 complete (11/19 slices); R12 #1032 and R15 #1035 are ready. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
+**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8/R9/R10/R11/R15 complete (12/19 slices); R12 #1032 is ready. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
 
 ## Binding contract and operating discipline
 
@@ -383,7 +383,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 | [R12](#r12) | new | Replenish retired path credit and reconcile late delivery | R10 |
 | [R13](#r13) | new | Migrate one path and observe safe transport detachment | R12 |
 | [R14](#r14) | new | Close via surviving paths and publish path-qualified diagnostics | R1, R12 |
-| [R15](#r15) | new | Apply sticky primary and bounded backup promotion policy | R10 |
+| [R15](#r15) | complete | Apply sticky primary and bounded backup promotion policy | R10 |
 | [R16](#r16) | new | Complete additive APIs and constructor gates behind disablement | E6, R11, R13, R14, R15 |
 | [R17](#r17) | new | Complete the independent interoperability matrix | R16 |
 | [R18](#r18) | new | Measure ordinary-peer costs on granted endpoints | R16 |
@@ -829,6 +829,8 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 ### R15 — Apply sticky primary and bounded backup promotion policy
 
+**State:** complete. `multipath_policy.go` holds the policy, `packet_emission_path.go` the scheduler's hold, and `multipath_policy_test.go` the 12 scenarios. Public negotiation remains disabled.
+
 **Delivers:** Implement the selected active/backup preference and qualified PTO-attempt detector. Local backpressure never promotes or marks failed; suspect paths keep bounded probes. Revalidate stale backups, preserve all-backup progress and keep recovered paths as backups. Apply the selected native destination-error table, atomic designated-primary succession and recovered-path local-use demotion; preserve local timeout as backpressure.
 
 **Blocked by:** R10. **Existing work:** new slice; no unmerged implementation accepted.
@@ -848,6 +850,12 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 **Slice decision audit:** Counter and selection consumers must be one policy slice; do not overload recovery ptoCount. R10 supplies real acceptance/ACK facts. No need to block on DATAGRAM or migration implementation; their identities satisfy the same input contract. Rejected split/merge alternatives have no revisit trigger except the stated context/contract stop. Direct blockers supply the interfaces or evidence named here; transitive blockers need not be repeated and convenience ordering is excluded.
 
 **Stop:** Representation, ownership, public boundary or one-PR context changes; any untraced effect or need to exceed the declared evidence budget.
+
+**Current design:** `reselect` is the one owner of the designated primary, and it runs at every policy transition and each service pass. Recovery supplies two facts: a PTO's `Accepted` flag with its tuple, gated by a packet-number watermark so a packet qualifies one attempt, and the newest tuple an ACK proved for its target path. Recovery's `ptoCount` is untouched. Destination results reach `sendFailed` with their `identity.tuple`, so an old tuple's result is ignored, and endpoint-fatal errors stay with the endpoint. A suspect path leaves ordinary scheduling, and its pending PTO alone keeps it in view. Each service pass drains its reliable work through R10's existing queue, so a promoted path doesn't wait out a backed-off PTO, and one revalidation candidate at a time challenges its tuple. With no primary, `selectPath` holds ordinary work and ACKs still leave. A DATAGRAM with no eligible path drops under the selected-value rule. `PATH_STATUS` is recorded by sequence number and only breaks ties below local use.
+
+**Declared seams:** `setLocalUsePrivate` is the private driver behind R16's `SetLocalUseV1`, and advertising status stays with R16's `AdvertiseStatusV1`. `cutTuple` only advances a member's generation and resets its attempts, until R13 owns the cutover. An ACK of a packet already drained as lost is not liveness, so a drained suspect path recovers through its `PATH_RESPONSE`. A `PATH_STATUS` for an ID with no member yet is dropped, since a new path starts as a backup anyway. An idle backup keeps its validated PMTU, because this policy adds no backup traffic, which answers the question R11 left open; it holds the common DATAGRAM limit down until the path carries traffic. R14 still owns close via survivors, and R13/R14 a fault on the primary endpoint.
+
+**Current enforcement and finite evidence:** The 12 deterministic scenarios and one focused race run terminate this evidence scope. The tests were written after the policy, so a stubbed policy supplied their red state, and one guard mutation per owner (the recovery watermark and the policy's tuple check) confirmed the two negative cases a stub can't turn red. Ordinary connections keep their baseline fatal error under the existing native tests.
 
 <a id="r16"></a>
 

@@ -42,6 +42,10 @@ func (h *sentPacketHandler) AddPathWithRTT(id protocol.PathID, size protocol.Byt
 	return nil
 }
 
+// multipath reports that a second recovery context exists, which is the only time
+// the connection's path policy reads recovery's liveness facts.
+func (h *sentPacketHandler) multipath() bool { return h.pathRoot != nil || len(h.paths) != 0 }
+
 func (h *sentPacketHandler) path(id protocol.PathID) *sentPacketHandler {
 	if id == h.pathID {
 		return h
@@ -85,4 +89,12 @@ func (h *sentPacketHandler) PathLossDetectionTimeout(id protocol.PathID) monotim
 		return path.alarm.Time
 	}
 	return 0
+}
+
+// TakeAckedTuple reports the newest tuple whose ACK-eliciting traffic an ACK has
+// newly acknowledged since the last call, whichever path carried that ACK.
+func (h *sentPacketHandler) TakeAckedTuple() (uint64, bool) {
+	tuple, live := h.ackedTuple, h.ackedLive
+	h.ackedTuple, h.ackedLive = 0, false
+	return tuple, live
 }

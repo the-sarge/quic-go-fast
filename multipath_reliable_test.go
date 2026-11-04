@@ -728,3 +728,18 @@ func TestPathReliableClientOpenPathCarriesData(t *testing.T) {
 		require.Empty(t, f.parseWrites(t, 0))
 	})
 }
+
+// selectPrimaryPrivate moves the primary through local use, as R16's API will.
+func (p *pathCreditRegistry) selectPrimaryPrivate(id protocol.PathID) {
+	now := monotime.Now()
+	for other := protocol.PathID(0); other <= p.localMax; other++ {
+		if other != id && p.members[other] != nil && p.members[other].live {
+			if err := p.setLocalUsePrivate(other, true, now); err != nil {
+				panic(err)
+			}
+		}
+	}
+	if err := p.setLocalUsePrivate(id, false, now); err != nil {
+		panic(err)
+	}
+}

@@ -1,0 +1,365 @@
+//go:build darwin || linux || freebsd
+
+package quic
+
+import (
+	"os"
+	"syscall"
+	"testing"
+	"testing/synctest"
+	"time"
+
+	"github.com/quic-go/quic-go/internal/monotime"
+	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/utils"
+	"github.com/quic-go/quic-go/internal/wire"
+
+	"github.com/stretchr/testify/require"
+)
+
+// policyPTO fires the aggregated timer until id's PTO expires, through the same two
+// calls as the connection loop, and sends its probes.
+func (f *reliableFixture) policyPTO(t *testing.T, id protocol.PathID) {
+	t.Helper()
+	for range 8 {
+		time.Sleep(time.Until(f.c.sentPacketHandler.GetLossDetectionTimeout().ToTime()) + time.Millisecond)
+		outcome, err := f.c.sentPacketHandler.OnLossDetectionTimeout(monotime.Now())
+		require.NoError(t, err)
+		f.c.pathCredit.notePTO(outcome, monotime.Now())
+		if outcome.PTO && outcome.PathID == id {
+			f.pass(t)
+			return
+		}
+	}
+	t.Fatalf("path %d's PTO did not fire", id)
+}
+
+// suspectAfterPTOs makes id suspect with three known-accepted attempts.
+func (f *reliableFixture) suspectAfterPTOs(t *testing.T, id protocol.PathID) {
+	t.Helper()
+	f.write(t, 1000)
+	f.pass(t)
+	for range suspectPTOAttempts {
+		f.policyPTO(t, id)
+	}
+	require.True(t, f.c.pathCredit.members[id].suspect)
+}
+
+// answerChallenge answers path id's newest PATH_CHALLENGE from its current tuple.
+func (f *reliableFixture) answerChallenge(t *testing.T, id protocol.PathID) {
+	t.Helper()
+	challenges := policyChallenges(f.parseWrites(t, id))
+	require.NotEmpty(t, challenges)
+	addr := f.c.pathCredit.members[id].addr
+	require.True(t, f.receive(t, id, addr, 1200, &wire.PathResponseFrame{Data: challenges[len(challenges)-1]}))
+}
+
+func policyChallenges(writes []reliableWrite) [][8]byte {
+	var challenges [][8]byte
+	for _, write := range writes {
+		for _, frame := range write.frames {
+			if challenge, ok := frame.(*wire.PathChallengeFrame); ok {
+				challenges = append(challenges, challenge.Data)
+			}
+		}
+	}
+	return challenges
+}
+
+func (f *reliableFixture) observed() *utils.RTTStats { return f.c.observedRTT() }
+
+func destinationError(cause syscall.Errno) func([]byte) (int, error) {
+	return func([]byte) (int, error) { return 0, &os.SyscallError{Syscall: "sendmsg", Err: cause} }
+}
+
+func TestPathPolicyThreeAcceptedPTOsPromoteBackup(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		p := f.c.pathCredit
+		require.True(t, p.members[1].backup, "a newly validated path starts as a backup")
+		require.Zero(t, p.primary, "initial path zero is the sticky primary")
+
+		f.write(t, 1000)
+		f.pass(t)
+		f.policyPTO(t, 0)
+		f.policyPTO(t, 0)
+		require.False(t, p.members[0].suspect, "two attempts are not enough")
+		require.Equal(t, 2, p.members[0].attempts)
+		f.socket.writes = nil
+		f.policyPTO(t, 0)
+
+		require.True(t, p.members[0].suspect)
+		require.Equal(t, protocol.PathID(1), p.primary)
+		require.True(t, p.members[1].backup, "promotion doesn't rewrite local use")
+		require.Same(t, p.rtt[1], f.observed())
+		require.Nil(t, p.terminals[0], "suspicion spends no wire ID")
+		f.pass(t)
+		onZero := f.parseWrites(t, 0)
+		for _, write := range onZero {
+			for _, frame := range write.frames {
+				_, abandon := frame.(*wire.PathAbandonFrame)
+				require.False(t, abandon, "and sends no PATH_ABANDON")
+			}
+		}
+		require.NotEmpty(t, policyChallenges(onZero), "a suspect path keeps bounded probes")
+
+		// The work stranded on the suspect path returns to the logical owners, so the
+		// promoted path carries it without waiting out the backed-off PTO.
+		require.Equal(t, 1000, reliableBytes(f.parseWrites(t, 1)))
+	})
+}
+
+func TestPathPolicyLocalResultsDoNotCountTowardSuspicion(t *testing.T) {
+	for name, nativeError := range map[string]error{"timeout": os.ErrDeadlineExceeded, "capacity": syscall.ENOBUFS} {
+		t.Run(name, func(t *testing.T) {
+			nativeOrdinaryTest(t, func(t *testing.T) {
+				f := newReliableFixture(t, protocol.PerspectiveServer)
+				p := f.c.pathCredit
+				source := f.observed()
+
+				// One accepted flight qualifies one attempt, though packets from it stay
+				// outstanding for later PTOs. Everything sent after it stays local.
+				f.write(t, 8000)
+				f.pass(t)
+				f.socket.result = func([]byte) (int, error) { return 0, nativeError }
+				for range suspectPTOAttempts + 2 {
+					f.policyPTO(t, 0)
+				}
+				require.Equal(t, 1, p.members[0].attempts)
+				require.False(t, p.members[0].suspect)
+				require.Zero(t, p.primary)
+				require.Same(t, source, f.observed())
+				require.NoError(t, f.c.emission.consumeLocal())
+			})
+		})
+	}
+}
+
+func TestPathPolicyCrossPathAckEstablishesLiveness(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		p := f.c.pathCredit
+		f.c.pathCredit.selectPrimaryPrivate(1)
+		f.write(t, 1000)
+		f.pass(t)
+		f.policyPTO(t, 1)
+		f.policyPTO(t, 1)
+		require.Equal(t, 2, p.members[1].attempts)
+		sent := f.parseWrites(t, 1) // the newest is the last probe, still outstanding
+
+		// Unrelated traffic on path zero says nothing about path 1.
+		before := p.members[1].livenessAt
+		require.True(t, f.receive(t, 0, f.c.RemoteAddr(), 0, &wire.PingFrame{}))
+		require.Equal(t, 2, p.members[1].attempts)
+		require.Equal(t, before, p.members[1].livenessAt)
+
+		time.Sleep(time.Millisecond)
+		f.ackPath(t, 1, 0, sent[len(sent)-1:])
+		require.Zero(t, p.members[1].attempts, "the ACK came home on another path")
+		require.Greater(t, p.members[1].livenessAt, before)
+	})
+}
+
+func TestPathPolicyOldTupleEvidenceDoesNotCount(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		p := f.c.pathCredit
+		f.c.pathCredit.selectPrimaryPrivate(1)
+		f.write(t, 1000)
+		f.pass(t)
+		sent := f.parseWrites(t, 1)
+		f.policyPTO(t, 1)
+		require.Equal(t, 1, p.members[1].attempts)
+
+		p.cutTuple(p.members[1])
+		require.Zero(t, p.members[1].attempts, "cutover resets the attempts")
+		before := p.members[1].livenessAt
+		time.Sleep(time.Millisecond)
+		f.ackPath(t, 1, 1, sent[:1])
+		require.Equal(t, before, p.members[1].livenessAt, "an old-tuple ACK restores nothing")
+	})
+}
+
+func TestPathPolicyStaleBackupRevalidatesBeforePromotion(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		p := f.c.pathCredit
+		time.Sleep(minBackupFreshness + time.Second)
+		f.pass(t)
+		source := f.observed()
+		f.socket.writes = nil
+
+		f.suspectAfterPTOs(t, 0)
+		require.Equal(t, noPrimary, p.primary, "a stale backup isn't promoted")
+		require.Same(t, source, f.observed(), "with no eligible primary the last observation stays")
+		require.Zero(t, reliableBytes(f.parseWrites(t, 1)), "and carries no application data")
+
+		f.answerChallenge(t, 1)
+		require.Equal(t, protocol.PathID(1), p.primary)
+		require.Same(t, p.rtt[1], f.observed())
+		f.socket.writes = nil
+		f.pass(t)
+		require.Equal(t, 1000, reliableBytes(f.parseWrites(t, 1)))
+	})
+}
+
+func TestPathPolicyAllBackupKeepsTraffic(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		p := f.c.pathCredit
+		source := f.observed()
+		require.NoError(t, p.setLocalUsePrivate(0, true, monotime.Now()))
+		require.Zero(t, p.primary, "all backup keeps the healthy current primary")
+		require.Same(t, source, f.observed())
+
+		f.write(t, 1000)
+		f.pass(t)
+		require.Equal(t, 1000, reliableBytes(f.parseWrites(t, 0)), "backup is no prohibition on useful traffic")
+
+		f.socket.writes = nil
+		require.NoError(t, p.setLocalUsePrivate(1, false, monotime.Now()))
+		require.Equal(t, protocol.PathID(1), p.primary, "an explicit active path is preferred")
+		require.Same(t, source, f.observed(), "path zero stays the observation while it is eligible")
+	})
+}
+
+func TestPathPolicyRecoveryDemotesWithoutOscillation(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		p := f.c.pathCredit
+		observation := f.c.rttObservation
+		f.socket.writes = nil
+		f.suspectAfterPTOs(t, 0)
+		require.Equal(t, protocol.PathID(1), p.primary)
+		require.Same(t, p.rtt[1], f.observed())
+
+		f.answerChallenge(t, 0)
+		require.False(t, p.members[0].suspect)
+		require.True(t, p.members[0].backup, "a recovered path comes back as a backup, though it was active")
+		require.Equal(t, protocol.PathID(1), p.primary, "and leaves the promoted primary alone")
+		require.Same(t, f.c.rttStats, f.observed(), "a live, eligible path zero is the legacy observation")
+		require.Same(t, observation, f.c.rttObservation)
+
+		// An explicit choice overrides the demotion.
+		require.NoError(t, p.setLocalUsePrivate(0, false, monotime.Now()))
+		require.Zero(t, p.primary)
+		require.False(t, p.members[0].backup)
+	})
+}
+
+func TestPathPolicyDestinationErrorMovesToSurvivor(t *testing.T) {
+	for _, cause := range []syscall.Errno{syscall.ECONNREFUSED, syscall.EHOSTUNREACH, syscall.ENETUNREACH, syscall.EACCES, syscall.EPERM} {
+		t.Run(cause.Error(), func(t *testing.T) {
+			nativeOrdinaryTest(t, func(t *testing.T) {
+				f := newReliableFixture(t, protocol.PerspectiveServer)
+				p := f.c.pathCredit
+				f.socket.result = destinationError(cause)
+				f.write(t, 1000)
+				f.pass(t)
+				f.socket.result = nil
+
+				require.True(t, p.members[0].suspect)
+				require.False(t, p.members[1].suspect, "only the matching tuple")
+				require.Equal(t, protocol.PathID(1), p.primary)
+				require.Nil(t, p.terminals[0])
+				f.socket.writes = nil
+				f.pass(t)
+				require.Equal(t, 1000, reliableBytes(f.parseWrites(t, 1)))
+			})
+		})
+	}
+}
+
+func TestPathPolicyDestinationErrorWithoutSurvivorRetainsValidation(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		p := f.c.pathCredit
+		f.socket.result = destinationError(syscall.EHOSTUNREACH)
+		f.write(t, 1000)
+		f.pass(t)
+		f.c.pathCredit.selectPrimaryPrivate(1)
+		f.pass(t)
+		require.True(t, p.members[0].suspect)
+		require.True(t, p.members[1].suspect)
+		require.Equal(t, noPrimary, p.primary)
+		source := f.observed()
+		f.socket.result = nil
+
+		// Nothing ordinary leaves, and the peer's packets are still acknowledged.
+		f.socket.writes = nil
+		f.write(t, 500)
+		require.True(t, f.receive(t, 0, f.c.RemoteAddr(), 0, &wire.PingFrame{}))
+		require.True(t, f.receive(t, 0, f.c.RemoteAddr(), 0, &wire.PingFrame{}))
+		f.pass(t)
+		require.Zero(t, reliableBytes(f.parseWrites(t, 0))+reliableBytes(f.parseWrites(t, 1)))
+		acked := false
+		for _, write := range f.parseWrites(t, 0) {
+			acked = acked || len(write.acks) != 0
+		}
+		require.True(t, acked)
+		require.NoError(t, f.c.emission.consumeLocal(), "this isn't a connection error")
+		require.Same(t, source, f.observed())
+
+		f.answerChallenge(t, 1)
+		require.Equal(t, protocol.PathID(1), p.primary)
+		f.socket.writes = nil
+		f.pass(t)
+		require.Equal(t, 1500, reliableBytes(f.parseWrites(t, 1)))
+	})
+}
+
+func TestPathPolicyStaleDestinationResultDoesNotDemote(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		p := f.c.pathCredit
+		f.c.pathCredit.selectPrimaryPrivate(1)
+		f.socket.hold = func([]byte) bool { return true }
+		f.socket.result = destinationError(syscall.ECONNREFUSED)
+		f.write(t, 1000)
+		f.pass(t)
+
+		// The tuple moves on while the old one's native result is outstanding.
+		p.cutTuple(p.members[1])
+		f.socket.hold = nil
+		close(f.socket.gate)
+		synctest.Wait()
+		f.socket.result = nil
+		require.NoError(t, f.c.emission.consumeLocal())
+		require.False(t, p.members[1].suspect)
+		require.Equal(t, protocol.PathID(1), p.primary)
+	})
+}
+
+func TestPathPolicyEndpointFatalStaysWithEndpoint(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		f.socket.result = destinationError(syscall.EBADF)
+		f.write(t, 1000)
+		synctest.Wait()
+		require.NoError(t, f.c.pathCredit.expire(monotime.Now()))
+		f.c.triggerSending(monotime.Now())
+		synctest.Wait()
+		require.Error(t, f.c.emission.consumeLocal(), "the primary endpoint's fault keeps failing the connection until R13/R14")
+		require.False(t, f.c.pathCredit.members[0].suspect, "and is not a destination failure")
+	})
+}
+
+func TestPathPolicyPeerStatusIsAdvisory(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		p := f.c.pathCredit
+		addr := f.c.RemoteAddr()
+		require.True(t, f.receive(t, 0, addr, 0, &wire.PathStatusFrame{PathID: 0, SequenceNumber: 2, Backup: true}))
+		require.True(t, p.members[0].peerBackup)
+		require.False(t, p.members[0].backup, "the peer can't change local use")
+		require.Zero(t, p.primary, "nor move a healthy primary")
+
+		require.True(t, f.receive(t, 0, addr, 0, &wire.PathStatusFrame{PathID: 0, SequenceNumber: 1, Backup: false}))
+		require.True(t, p.members[0].peerBackup, "a stale sequence number is ignored")
+
+		// A backup-preferring peer can't hold back the only surviving path.
+		require.True(t, f.receive(t, 0, addr, 0, &wire.PathStatusFrame{PathID: 1, SequenceNumber: 3, Backup: true}))
+		f.suspectAfterPTOs(t, 0)
+		require.Equal(t, protocol.PathID(1), p.primary)
+	})
+}

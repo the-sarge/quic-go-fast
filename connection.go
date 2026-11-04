@@ -783,6 +783,9 @@ runLoop:
 				break runLoop
 			}
 			c.countHandshakeTimeout(outcome)
+			if c.pathCredit != nil {
+				c.pathCredit.notePTO(outcome, now)
+			}
 		}
 
 		if keepAliveTime := c.nextKeepAliveTime(); !keepAliveTime.IsZero() && !now.Before(keepAliveTime) {
@@ -2203,9 +2206,8 @@ func (c *Conn) handleFrame(
 			err = c.pathCredit.receiveCID(frame, rcvTime)
 		}
 	case *wire.PathStatusFrame:
-		// R15 owns the preference. Only the ID is checked here.
 		if c.pathCredit != nil {
-			err = c.pathCredit.validateID(frame.PathID)
+			err = c.pathCredit.peerStatus(frame)
 		}
 	case *wire.MaxPathIDFrame:
 		if c.pathCredit != nil {
@@ -2477,6 +2479,7 @@ func (c *Conn) handleAckFrame(frame *wire.AckFrame, encLevel protocol.Encryption
 	}
 	if c.pathCredit != nil {
 		c.pathCredit.notePMTU()
+		c.pathCredit.noteAck(frame, rcvTime)
 	}
 	if !acked1RTTPacket.Valid {
 		return nil
