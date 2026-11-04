@@ -367,7 +367,7 @@ func (p *pathCreditRegistry) beginTerminal(id protocol.PathID, code uint64, err 
 	p.terminals[id] = terminal
 	p.nextID = max(p.nextID, id+1)
 	p.retireMember(id, err)
-	p.moveObservation(id)
+	p.reselect(monotime.Now())
 	p.signalTerminal(id, terminal)
 	return terminal
 }

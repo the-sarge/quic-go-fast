@@ -572,7 +572,7 @@ func (s *nativeOrdinarySender) consumeParticipant(participant *endpointParticipa
 				if record.metadata.handshake && record.datagrams == 1 && record.bytes > protocol.MinInitialPacketSize {
 					s.connection.handshakeSendFeedback.publish(record.metadata.pathGeneration)
 				}
-			} else if result.err != nil && !localEndpointBackpressure(result.err) && !errors.Is(result.err, errEndpointRevoked) && (participant == s.participant || !participant.endpoint.quarantined()) {
+			} else if result.err != nil && !localEndpointBackpressure(result.err) && !errors.Is(result.err, errEndpointRevoked) && !s.pathSendFailed(participant, identity, result.err) && (participant == s.participant || !participant.endpoint.quarantined()) {
 				// A target's fault stays on its endpoint, whose routes the registry drains.
 				s.err = errors.Join(s.err, result.err)
 			}
@@ -580,6 +580,18 @@ func (s *nativeOrdinarySender) consumeParticipant(participant *endpointParticipa
 			break
 		}
 	}
+}
+
+// pathSendFailed hands a final non-timeout result to the path policy, once path
+// admission exists. A result with endpoint-wide evidence stays the endpoint's, and
+// a connection without admission keeps its baseline error.
+func (s *nativeOrdinarySender) pathSendFailed(participant *endpointParticipant, identity endpointIdentity, err error) bool {
+	credit := s.connection.pathCredit
+	if credit == nil || !credit.hasAdmission() || endpointFatalWrite(err) || participant.endpoint.quarantined() {
+		return false
+	}
+	credit.sendFailed(protocol.PathID(identity.path), identity.tuple, monotime.Now())
+	return true
 }
 
 func (s *nativeOrdinarySender) reject() {

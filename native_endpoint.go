@@ -1007,7 +1007,7 @@ func (e *nativeEndpoint) write(native endpointNativeIO) {
 			result.err, fault = err, true
 		} else {
 			result = writeEndpointRequest(native, token)
-			fault = errors.Is(result.err, net.ErrClosed) || errors.Is(result.err, syscall.EBADF) || errors.Is(result.err, syscall.ENOTSOCK)
+			fault = endpointFatalWrite(result.err)
 		}
 		if err := native.SetWriteDeadline(time.Time{}); err != nil {
 			result.err, fault = errors.Join(result.err, err), true
@@ -1041,6 +1041,12 @@ func endpointSubmissionAllowed(token *endpointToken) error {
 		return os.ErrDeadlineExceeded
 	}
 	return nil
+}
+
+// endpointFatalWrite is concrete evidence that the socket itself is gone. Every
+// other write error says nothing about another destination on this endpoint.
+func endpointFatalWrite(err error) bool {
+	return errors.Is(err, net.ErrClosed) || errors.Is(err, syscall.EBADF) || errors.Is(err, syscall.ENOTSOCK)
 }
 
 func localEndpointBackpressure(err error) bool {

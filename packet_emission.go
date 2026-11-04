@@ -22,6 +22,7 @@ type packetEmission struct {
 	pathCredit       *pathCreditRegistry
 	route            *pathRoute // the current opportunity's; nil is path zero
 	steered          bool       // the route was chosen to carry the next DATAGRAM
+	held             bool       // no path may carry ordinary work now
 	terminalReceipts []*pathAbandonReceipt
 	bbr              *bbrSendPolicy
 	reservation      *sendReservation // connection-owned until handoff
@@ -158,9 +159,10 @@ func (e *packetEmission) send(now monotime.Time, confirmed bool) (result emissio
 				return emissionResult{err: err, retry: err == nil, progress: progress}
 			}
 			e.selectRoute(now)
-			if e.route == nil && e.pathCredit.zeroRetired() {
-				// A nil route is path zero, whose keys no longer seal.
-				return emissionResult{stop: emissionHardBlocked, blocked: blockModeHardBlocked, progress: progress}
+			if e.held {
+				result = e.heldOpportunity(now, confirmed)
+				result.progress = result.progress || progress
+				return result
 			}
 		}
 		result = e.dispatch(now, confirmed)

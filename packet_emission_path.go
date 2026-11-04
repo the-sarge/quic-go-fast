@@ -2,6 +2,7 @@ package quic
 
 import (
 	"net"
+	"slices"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
@@ -33,33 +34,31 @@ type pathView struct {
 	room    protocol.ByteCount // frame length a fresh packet here holds, once read
 }
 
-// selectPath takes views in path ID order, and path zero is always first. A
-// pending PTO goes first so the probe elicits its ACK on the path that needs one,
-// then the primary, then the lowest eligible ID. When the next DATAGRAM doesn't fit
-// that choice, it also names a fitting path to try. A congestion-limited one isn't
-// named, so the choice's traffic continues while the DATAGRAM stays queued until an
-// ACK. A paced one is named, and its deadline wakes the connection.
-func selectPath(views []pathView, primary protocol.PathID) (chosen, steerTo protocol.PathID, steering bool) {
+// selectPath takes views in path ID order. A pending PTO goes first so the probe
+// elicits its ACK on the path that needs one, then the primary. With no primary in
+// view, ordinary work is held. When the next DATAGRAM doesn't fit the choice, it also
+// names a fitting path to try. A congestion-limited one isn't named, so the choice's
+// traffic continues while the DATAGRAM stays queued until an ACK. A paced one is
+// named, and its deadline wakes the connection.
+func selectPath(views []pathView, primary protocol.PathID) (chosen, steerTo protocol.PathID, steering, held bool) {
 	for _, view := range views {
 		if view.probing {
-			return view.id, 0, false
+			return view.id, 0, false, false
 		}
 	}
-	first := views[0]
-	for _, view := range views {
-		if view.id == primary {
-			first = view
-			break
-		}
+	index := slices.IndexFunc(views, func(view pathView) bool { return view.id == primary })
+	if index < 0 {
+		return 0, 0, false, true
 	}
+	first := views[index]
 	if !first.fits {
 		for _, view := range views {
 			if view.fits && view.ready {
-				return first.id, view.id, true
+				return first.id, view.id, true, false
 			}
 		}
 	}
-	return first.id, 0, false
+	return first.id, 0, false, false
 }
 
 // selectRoute binds this opportunity before any capacity read or destructive
@@ -68,7 +67,8 @@ func (e *packetEmission) selectRoute(now monotime.Time) {
 	if e.pathCredit == nil || e.local == nil {
 		return
 	}
-	route, steerTo, steering := e.pathCredit.selectRoute(now)
+	route, steerTo, steering, held := e.pathCredit.selectRoute(now)
+	e.held = held
 	// Steering also needs endpoint capacity, so a saturated fitting endpoint holds
 	// the DATAGRAM and not the chosen route's traffic. Its completions wake the loop.
 	if steering {
@@ -87,6 +87,25 @@ func (e *packetEmission) useRoute(route *pathRoute) {
 		e.route = route
 		e.local.useRoute(route)
 	}
+}
+
+// heldOpportunity keeps ACKs flowing while no path may carry ordinary work, so the
+// loop keeps their alarms, as it does when congestion-limited. Admission probes have
+// already had their turn, and a path's recovery wakes the connection.
+func (e *packetEmission) heldOpportunity(now monotime.Time, confirmed bool) emissionResult {
+	if e.route == nil && e.pathCredit.zeroRetired() {
+		// A nil route is path zero, whose keys no longer seal.
+		return emissionResult{stop: emissionHardBlocked, blocked: blockModeHardBlocked}
+	}
+	if e.queue.WouldBlock() {
+		return emissionResult{stop: emissionQueueFull, available: e.queue.Available()}
+	}
+	if e.selected().SendMode(now) == ackhandler.SendNone {
+		return emissionResult{stop: emissionHardBlocked, blocked: blockModeHardBlocked}
+	}
+	result := emissionResult{stop: emissionCongestionLimited, blocked: blockModeCongestionLimited}
+	result.progress, result.err = e.maybeSendAckOnlyPacket(now, confirmed)
+	return result
 }
 
 // steeredDatagram sends the next DATAGRAM alone, so no stream data follows it off

@@ -254,6 +254,17 @@ func (h *sentPacketHandler) retireLocal(p *packet, acked bool) {
 	}
 }
 
+// qualifyPTO looks for a known-accepted packet no earlier PTO counted. Local
+// rejection, queued expiry and uncertain submission never qualify an attempt.
+func (h *sentPacketHandler) qualifyPTO(ps *packetNumberSpace) (accepted bool, tuple uint64) {
+	for pn, p := range ps.history.Packets() {
+		if pn >= h.nextQualifiedPN && p.Outstanding() && p.local != nil && p.local.outcome == LocalPacketAccepted {
+			accepted, tuple, h.nextQualifiedPN = true, p.Context.TupleGeneration, pn+1
+		}
+	}
+	return accepted, tuple
+}
+
 func (p *packet) networkEligible() bool {
 	return p.local == nil || p.local.outcome == LocalPacketAccepted || p.local.outcome == LocalPacketUncertain
 }

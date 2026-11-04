@@ -57,6 +57,7 @@ type pathMember struct {
 	route       pathRoute
 	// pmtu is the size this path's congestion accounting already uses.
 	pmtu protocol.ByteCount
+	pathPolicy
 }
 
 type pathCandidate struct {
@@ -128,12 +129,17 @@ func (p *pathCreditRegistry) enableAdmission() {
 	}
 	addr := p.conn.RemoteAddr()
 	zero := &pathMember{id: 0, live: true, addr: addr, established: path{validated: true, mtuValidated: true}}
+	zero.tuple = p.conn.emission.packer.pathZeroContext().TupleGeneration
+	zero.livenessAt = monotime.Now()
 	zero.fences = []pathFence{{epoch: &zero.established.probeEpoch}}
 	p.members = map[protocol.PathID]*pathMember{0: zero}
 	p.conn.emission.packer.holdDatagrams = true
 	p.validated = []net.Addr{addr}
 	p.rtt = map[protocol.PathID]*utils.RTTStats{0: p.conn.rttStats}
 	p.attachments = make(map[*Transport]int)
+	if recovery, ok := p.conn.sentPacketHandler.(interface{ EnablePathPolicy() }); ok {
+		recovery.EnablePathPolicy()
+	}
 }
 
 func (p *pathCreditRegistry) hasAdmission() bool { return p.members != nil }
@@ -162,27 +168,6 @@ func (p *pathCreditRegistry) orderedMembers(buf []*pathMember) []*pathMember {
 	return buf
 }
 
-// moveObservation runs at a terminal transition. A retiring primary passes to the
-// lowest live survivor, and the stable RTT observation follows the primary once
-// path zero has retired. With no survivor it keeps its last source.
-func (p *pathCreditRegistry) moveObservation(id protocol.PathID) {
-	if !p.hasAdmission() {
-		return
-	}
-	if p.primary == id {
-		var storage [maxPathHistoryUnits + 1]*pathMember
-		for _, m := range p.orderedMembers(storage[:0]) {
-			if m.id != id && m.live && p.terminals[m.id] == nil {
-				p.primary = m.id
-				break
-			}
-		}
-	}
-	if rtt := p.rtt[p.primary]; rtt != nil && p.zeroRetired() && p.primary != 0 && p.conn.rttObservation != nil {
-		p.conn.rttObservation.observe(rtt)
-	}
-}
-
 // recoveryOn resolves a path's own recovery, which admission has already installed.
 func (p *pathCreditRegistry) recoveryOn(id protocol.PathID) ackhandler.SentPacketHandler {
 	return p.conn.sentPacketHandler.(interface {
@@ -193,42 +178,47 @@ func (p *pathCreditRegistry) recoveryOn(id protocol.PathID) ackhandler.SentPacke
 // selectRoute reads each eligible path into an immutable view and asks the
 // scheduler. Congestion, pacing and local capacity never choose the primary. They
 // only tell whether a path the next DATAGRAM needs could carry it now.
-func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pathRoute, steering bool) {
+func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pathRoute, steering, held bool) {
 	if !p.hasAdmission() || p.closed {
-		return nil, nil, false
+		return nil, nil, false, false
 	}
 	var storage [2]pathView
 	views := storage[:0]
 	limit := protocol.MaxByteCount
-	if !p.zeroRetired() {
-		views = append(views, pathViewFor(0, p.conn.sentPacketHandler.SendMode(now)))
-		limit = datagramPayloadLimit(p.conn.maxPacketSize(), p.conn.connIDManager.Get())
-	}
 	var ordered [maxPathHistoryUnits + 1]*pathMember
 	for _, m := range p.orderedMembers(ordered[:0]) {
-		if m.id != 0 && p.eligible(m) {
-			id := m.id
+		id := m.id
+		if !p.primaryEligible(m) {
+			continue // a suspect path's only probes are its revalidation challenges
+		}
+		var view pathView
+		var size protocol.ByteCount
+		if id == 0 {
+			view = pathViewFor(id, p.conn.sentPacketHandler.SendMode(now))
+			size = datagramPayloadLimit(p.conn.maxPacketSize(), p.conn.connIDManager.Get())
+		} else {
 			connID, _ := p.conn.connIDManager.pathDestination(id, false)
-			m.route.context, m.route.connID, m.route.recovery = ackhandler.PacketContext{PathID: id}, connID, p.recoveryOn(id)
+			m.route.context, m.route.connID, m.route.recovery = ackhandler.PacketContext{PathID: id, TupleGeneration: m.tuple}, connID, p.recoveryOn(id)
 			m.route.addr, m.route.info, m.route.transport, m.route.epoch = m.addr, m.info, m.transport, &m.established.probeEpoch
-			views = append(views, pathViewFor(id, m.route.recovery.SendMode(now)))
-			limit = min(limit, datagramPayloadLimit(protocol.ByteCount(p.pmtuObservation(id)), connID))
+			view = pathViewFor(id, m.route.recovery.SendMode(now))
+			size = datagramPayloadLimit(protocol.ByteCount(p.pmtuObservation(id)), connID)
+		}
+		limit = min(limit, size)
+		views = append(views, view)
+	}
+	if limit != protocol.MaxByteCount {
+		p.conn.pathPayloadLimit.Store(uint32(limit))
+		if p.zeroRetired() {
+			// SendDatagram also bounds by path zero's estimate, which retired with it.
+			p.conn.maxPayloadSizeEstimate.Store(uint32(limit))
 		}
 	}
-	if len(views) == 0 {
-		// Path zero retired, and no survivor can take a packet now. Nothing can carry
-		// a queued DATAGRAM, which is dropped rather than held for future eligibility.
-		p.placeDatagram(views)
-		return nil, nil, false
-	}
-	p.conn.pathPayloadLimit.Store(uint32(limit))
-	if p.zeroRetired() {
-		// SendDatagram also bounds by path zero's estimate, which retired with it.
-		p.conn.maxPayloadSizeEstimate.Store(uint32(limit))
-	}
 	p.placeDatagram(views)
-	chosen, steer, steering := selectPath(views, p.primary)
-	return p.routeOf(chosen), p.routeOf(steer), steering
+	chosen, steer, steering, held := selectPath(views, p.primary)
+	if held {
+		return p.heldRoute(), nil, false, true
+	}
+	return p.routeOf(chosen), p.routeOf(steer), steering, false
 }
 
 // routeOf is a selected path's route. Path zero's is nil.
@@ -331,6 +321,9 @@ func (p *pathCreditRegistry) eligible(m *pathMember) bool {
 	if !m.live || p.terminals[m.id] != nil || !p.conn.emission.local.routeUsable(m.transport) {
 		return false
 	}
+	if m.id == 0 {
+		return true // path zero's route is the connection's own
+	}
 	_, ok := p.conn.connIDManager.pathDestination(m.id, false)
 	return ok
 }
@@ -350,10 +343,11 @@ func (p *pathCreditRegistry) rescheduleUnusable(id protocol.PathID, now monotime
 	}
 }
 
-// largestPTO is the largest measured PTO over path zero's observation and members.
+// largestPTO is the largest measured PTO over path zero, the observation and members.
 // An unmeasured path contributes nothing, so its default cannot inflate retention.
 func (p *pathCreditRegistry) largestPTO(includeMaxAckDelay bool) time.Duration {
-	largest := p.conn.observedRTT().PTO(includeMaxAckDelay)
+	// Path zero stays in, though the observation may have moved to the primary.
+	largest := max(p.conn.observedRTT().PTO(includeMaxAckDelay), p.conn.rttStats.PTO(includeMaxAckDelay))
 	for id := range p.members {
 		if rtt := p.rtt[id]; rtt != nil && rtt.HasMeasurement() {
 			largest = max(largest, rtt.PTO(includeMaxAckDelay))
@@ -468,6 +462,7 @@ func (p *pathCreditRegistry) activate(m *pathMember, addr net.Addr, info packetI
 		return false
 	}
 	m.live, m.addr, m.info, m.transport = true, addr, info, target
+	m.backup, m.livenessAt = true, now
 	p.startPMTU(m, target, now)
 	p.recordValidated(addr)
 	return true
@@ -570,6 +565,10 @@ func (p *pathCreditRegistry) pathResponse(f *wire.PathResponseFrame, ingress pro
 		return
 	}
 	p.conn.scheduleSending()
+	if m.live && addrsEqual(candidate.addr, m.addr) {
+		p.noteLiveness(m, now)
+		return
+	}
 	if !candidate.probe.mtuValidated {
 		return
 	}
@@ -605,6 +604,9 @@ func (p *pathCreditRegistry) service(now monotime.Time) error {
 		if m.live && id != 0 && !p.conn.emission.local.routeUsable(m.transport) {
 			p.rescheduleUnusable(id, now)
 		}
+		if m.live && m.suspect {
+			p.rescheduleUnusable(id, now)
+		}
 		if !m.live {
 			if !now.Before(m.deadline) {
 				p.decline(id, 0, errPathValidationTimeout)
@@ -614,8 +616,12 @@ func (p *pathCreditRegistry) service(now monotime.Time) error {
 		if m.candidate != nil && !now.Before(m.candidate.probe.validationDeadline) {
 			p.retireCandidate(m)
 		}
+		if m.suspect {
+			p.startRevalidation(m, now)
+		}
 		p.pruneFences(m)
 	}
+	p.reselect(now)
 	for id, terminal := range p.terminals {
 		p.signalTerminal(id, terminal)
 	}
@@ -843,7 +849,7 @@ func (p *pathCreditRegistry) nextProbe(now monotime.Time) *pathProbeIntent {
 }
 
 func (p *pathCreditRegistry) memberProbe(m *pathMember, now monotime.Time) *pathProbeIntent {
-	context := ackhandler.PacketContext{PathID: m.id}
+	context := ackhandler.PacketContext{PathID: m.id, TupleGeneration: m.tuple}
 	if m.id == 0 {
 		context = p.conn.emission.packer.pathZeroContext()
 	}

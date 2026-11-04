@@ -52,7 +52,7 @@ func (f *reliableFixture) openValidated(t *testing.T, id protocol.PathID) {
 	f.pass(t)
 	require.NoError(t, <-errs)
 	require.True(t, f.c.pathCredit.members[id].live)
-	f.c.pathCredit.primary = id
+	f.c.pathCredit.selectPrimaryPrivate(id)
 }
 
 // finishRetirement sends the local retirement of id through the fence, answers it
@@ -86,7 +86,7 @@ func replacementMaxPathIDs(writes []reliableWrite) []protocol.PathID {
 func TestPathReplacementAfterCutoff(t *testing.T) {
 	nativeOrdinaryTest(t, func(t *testing.T) {
 		f := newReliableFixture(t, protocol.PerspectiveClient)
-		f.c.pathCredit.primary = 1
+		f.c.pathCredit.selectPrimaryPrivate(1)
 		f.socket.hold = nativeProbeHoldAll
 		f.write(t, 4000)
 		f.pass(t)
@@ -146,7 +146,7 @@ func TestPathReplacementRemoteAbandonDuringReplenishment(t *testing.T) {
 func TestPathReplacementOldAckAfterReplacement(t *testing.T) {
 	nativeOrdinaryTest(t, func(t *testing.T) {
 		f := newReliableFixture(t, protocol.PerspectiveClient)
-		f.c.pathCredit.primary = 1
+		f.c.pathCredit.selectPrimaryPrivate(1)
 		f.write(t, 1000)
 		f.pass(t)
 		old := f.parseWrites(t, 1)
@@ -373,7 +373,7 @@ func TestPathReplacementReclamationAwaitsResult(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			nativeOrdinaryTest(t, func(t *testing.T) {
 				f := newReliableFixture(t, protocol.PerspectiveClient)
-				f.c.pathCredit.primary = 1
+				f.c.pathCredit.selectPrimaryPrivate(1)
 				f.socket.writes = nil
 				f.write(t, 1000)
 				f.admissionFixture.pass(t) // the result stays unconsumed

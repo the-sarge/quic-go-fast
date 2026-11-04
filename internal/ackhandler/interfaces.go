@@ -54,4 +54,9 @@ type TimeoutOutcome struct {
 	PTO bool
 	// EncLevel is the packet number space whose probe timeout expired. It is only set if PTO is set.
 	EncLevel protocol.EncryptionLevel
+	// Accepted is set if an ACK-eliciting packet the socket is known to have accepted
+	// is outstanding and no earlier PTO has counted it. TupleGeneration is that
+	// packet's tuple. Recovery's own backoff doesn't depend on either.
+	Accepted        bool
+	TupleGeneration uint64
 }
