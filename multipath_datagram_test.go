@@ -3,6 +3,7 @@
 package quic
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"testing"
@@ -295,6 +296,36 @@ func TestPathDatagramSendLimitFollowsEligiblePaths(t *testing.T) {
 		f.pass(t)
 		requireLimit(estimateMaxPayloadSize(1400))
 		require.Zero(t, c.datagramQueue.sendDrops.Load())
+	})
+}
+
+// With a long CID on every eligible path, the limit is what those paths can carry,
+// so an admitted message at the limit is never dropped for its size.
+func TestPathDatagramSendLimitReservesLongCID(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		c := f.c
+		c.peerParams.MaxDatagramFrameSize = wire.MaxDatagramSize
+		long := protocol.ParseConnectionID(bytes.Repeat([]byte{0xc}, protocol.MaxConnIDLen))
+		for _, id := range []protocol.PathID{0, 1} {
+			set := c.connIDManager.pathCIDs[id]
+			record := set.records[set.active]
+			record.ConnectionID = long
+			set.records[set.active] = record
+		}
+		c.emission.selectRoute(monotime.Now())
+		const limit = 1200 - (1 + protocol.MaxConnIDLen + 4) - 16 - 3
+		var tooLarge *DatagramTooLargeError
+		require.True(t, errors.As(c.SendDatagram(make([]byte, limit+1)), &tooLarge))
+		require.EqualValues(t, limit, tooLarge.MaxDatagramPayloadSize)
+		require.NoError(t, c.SendDatagram(make([]byte, limit)))
+		f.pass(t)
+		require.Nil(t, c.datagramQueue.Peek())
+		require.Zero(t, c.datagramQueue.sendDrops.Load(), "it left in a fresh packet")
+		require.NotEmpty(t, f.socket.writes)
+		for _, write := range f.socket.writes {
+			require.LessOrEqual(t, len(write.data), int(protocol.MinInitialPacketSize))
+		}
 	})
 }
 

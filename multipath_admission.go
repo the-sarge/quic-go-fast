@@ -150,16 +150,14 @@ func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pat
 	}
 	var storage [2]pathView
 	views := append(storage[:0], pathViewFor(0, p.conn.sentPacketHandler.SendMode(now)))
-	var limit protocol.ByteCount
+	limit := datagramPayloadLimit(p.conn.maxPacketSize(), p.conn.connIDManager.Get())
 	for id := protocol.PathID(1); id <= p.localMax; id++ {
 		if m := p.members[id]; m != nil && p.eligible(m) {
 			connID, _ := p.conn.connIDManager.pathDestination(id, false)
 			m.route.context, m.route.connID, m.route.recovery = ackhandler.PacketContext{PathID: id}, connID, p.recoveryOn(id)
 			m.route.addr, m.route.info, m.route.transport, m.route.epoch = m.addr, m.info, m.transport, &m.established.probeEpoch
 			views = append(views, pathViewFor(id, m.route.recovery.SendMode(now)))
-			if payload := estimateMaxPayloadSize(protocol.ByteCount(p.pmtuObservation(id))); limit == 0 || payload < limit {
-				limit = payload
-			}
+			limit = min(limit, datagramPayloadLimit(protocol.ByteCount(p.pmtuObservation(id)), connID))
 		}
 	}
 	p.conn.pathPayloadLimit.Store(uint32(limit))
@@ -174,6 +172,14 @@ func (p *pathCreditRegistry) routeOf(id protocol.PathID) *pathRoute {
 		return nil
 	}
 	return &p.members[id].route
+}
+
+// datagramPayloadLimit is a payload this path can always carry in a fresh packet. It
+// reserves the longest packet number, since one can grow while a message is queued,
+// and never exceeds the estimate an ordinary connection admits at.
+func datagramPayloadLimit(mtu protocol.ByteCount, connID protocol.ConnectionID) protocol.ByteCount {
+	const tag, frameHeader = 16, 1 + 2 // type and a two-byte length
+	return min(estimateMaxPayloadSize(mtu), mtu-wire.ShortHeaderLen(connID, protocol.PacketNumberLen4)-tag-frameHeader)
 }
 
 func pathViewFor(id protocol.PathID, mode ackhandler.SendMode) pathView {

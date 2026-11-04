@@ -187,8 +187,8 @@ type Conn struct {
 	handshakeTimeoutsPath uint64 // the pathGeneration that handshakeTimeouts counts for
 
 	maxPayloadSizeEstimate atomic.Uint32
-	// pathPayloadLimit is the smallest payload estimate over the eligible paths
-	// besides the first, and zero when there are none. Emission stores it.
+	// pathPayloadLimit is the smallest DATAGRAM payload limit over the eligible paths,
+	// and stays zero without path admission. Emission stores it.
 	pathPayloadLimit atomic.Uint32
 	pathMTUSettled   pathMTUSettled // see PathMTUSettledV1
 

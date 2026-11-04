@@ -711,7 +711,7 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 ### R11 — Schedule DATAGRAMs with path-qualified PMTU
 
-**State:** complete. `multipath_admission.go` holds per-path PMTU and DATAGRAM placement, `packet_emission_path.go` the steering, and `multipath_datagram_test.go` the 11 scenarios. R12 #1032 and R15 #1035 remain ready. Public negotiation remains disabled.
+**State:** complete. `multipath_admission.go` holds per-path PMTU and DATAGRAM placement, `packet_emission_path.go` the steering, and `multipath_datagram_test.go` the 12 scenarios. R12 #1032 and R15 #1035 remain ready. Public negotiation remains disabled.
 
 **Delivers:** Add per-path PMTU state and immutable observations, common eligible payload admission and non-destructive queue selection. Keep DATAGRAM single-shot; drop with bounded observation when no eligible path can carry an admitted message. Preserve PathMTUSettledV1 meaning.
 
@@ -731,16 +731,16 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 **Slice decision audit:** Queue admission and packing consumers must change together. R10 supplies path selection; retirement need not block this path-local behavior. No merge with failure policy. Rejected split/merge alternatives have no revisit trigger except the stated context/contract stop. Direct blockers supply the interfaces or evidence named here; transitive blockers need not be repeated and convenience ordering is excluded.
 
-**Current design:** Each path that goes live gets its own finder at `MinInitialPacketSize`, with no first-path signal and no qlog event, and path zero's finder and `maxPayloadSizeEstimate` keep their meaning. `selectRoute` publishes the smallest estimate over eligible nonzero paths in `pathPayloadLimit`, and `SendDatagram` admits at the minimum of that and path zero's. With admission on, the packer holds a frame that doesn't fit. `placeDatagram` is the one drop owner: a frame no eligible fresh packet can carry leaves at once and counts in `sendDrops`, a private counter R16 can publish. A frame that fits only another path leaves there in a datagram-only packet, so no stream data follows it. A congested fitting path, or a fitting path whose endpoint has no capacity, holds the frame while the primary keeps sending, and its ACK or completion wakes the connection. A paced fitting path is steered to, and its deadline wakes the connection.
+**Current design:** Each path that goes live gets its own finder at `MinInitialPacketSize`, with no first-path signal and no qlog event, and path zero's finder and `maxPayloadSizeEstimate` keep their meaning. `selectRoute` publishes the smallest limit over eligible paths in `pathPayloadLimit`, reserving each path's CID and the longest packet number, and `SendDatagram` admits at the minimum of that and path zero's estimate. With admission on, the packer holds a frame that doesn't fit. `placeDatagram` is the one drop owner: a frame no eligible fresh packet can carry leaves at once and counts in `sendDrops`, a private counter R16 can publish. A frame that fits only another path leaves there in a datagram-only packet, so no stream data follows it. A congested fitting path, or a fitting path whose endpoint has no capacity, holds the frame while the primary keeps sending, and its ACK or completion wakes the connection. A paced fitting path is steered to, and its deadline wakes the connection.
 
 **Declared seams:** Discovery runs only on the selected path, so an idle backup stays at its validated size and holds the common limit down until R15 decides backup liveness cost. `MTUUpdated` stays first-path until R14 qualifies it. Size rejection of a non-probe packet keeps the existing local disposal, with no PMTU reduction. A route change cancels endpoint readiness, as in R10, so a frame held because other connections saturate a shared fitting endpoint waits for the connection's next wake, undropped.
 
-**Current enforcement and finite evidence:** The 11 scenarios, the rewritten `TestPathReliableMTUTimerFollowsRoute` and one focused race run terminate this evidence scope. The ordinary discard is covered by the existing packer tests.
+**Current enforcement and finite evidence:** The 12 scenarios, the rewritten `TestPathReliableMTUTimerFollowsRoute` and one focused race run terminate this evidence scope. The ordinary discard is covered by the existing packer tests.
 
 | Accepted semantic class | Enforcement owner | Terminating regression evidence |
 | --- | --- | --- |
 | Per-path size, probe identity and limit | Member finder; registry | `TestPathMTUDiscoveryOnSelectedPath`, `TestPathDatagramSmallerMTUSurvivor`, `TestPathDatagramShortSegmentsFollowRoute` |
-| Public limit and error agree with eligible paths | Connection, from the registry's observation | `TestPathDatagramSendLimitFollowsEligiblePaths` |
+| Public limit and error agree with eligible paths | Connection, from the registry's observation | `TestPathDatagramSendLimitFollowsEligiblePaths`, `TestPathDatagramSendLimitReservesLongCID` |
 | Non-destructive selection, ACK pressure, fitting path | Scheduler; packer hold | `TestSelectPathForDatagram`, `TestPathDatagramFreshPacketAfterAckPressure`, `TestPathDatagramAnotherEligiblePathFits`, `TestPathDatagramHeldWhileFittingPathCongested` |
 | Single-shot drop and no retransmission | Registry's `placeDatagram`; queue | `TestPathDatagramEligibilityLossDropsOnce`, `TestPathDatagramNoRetransmissionOnUncertainSend` |
 | First-path observation unchanged | Connection; `PathMTUSettledV1` | `TestPathDatagramLegacyObservationUnchanged` |
