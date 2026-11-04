@@ -34,6 +34,43 @@ func TestSentPathIndependentLoss(t *testing.T) {
 	require.EqualValues(t, 38400, h.congestion.GetCongestionWindow())
 }
 
+func TestSentPathClearProbeCreditKeepsBackoff(t *testing.T) {
+	h := NewSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger).(*sentPacketHandler)
+	now := monotime.Time(time.Second)
+	h.DropPackets(protocol.EncryptionInitial, now)
+	h.DropPackets(protocol.EncryptionHandshake, now)
+	require.NoError(t, h.AddPath(17, 1200))
+	path := h.path(17)
+	var tracker packetTracker
+	for range 2 {
+		pn := path.PopPacketNumber(protocol.Encryption1RTT)
+		h.SentPacketWithContext(PacketContext{PathID: 17}, now, pn, protocol.InvalidPacketNumber, nil, []Frame{tracker.NewPingFrame(pn)}, protocol.Encryption1RTT, protocol.ECNNon, 1200, false, false)
+	}
+	expire := func() {
+		t.Helper()
+		outcome, err := h.OnLossDetectionTimeout(path.alarm.Time)
+		require.NoError(t, err)
+		require.True(t, outcome.PTO)
+		require.Equal(t, protocol.PathID(17), outcome.PathID)
+	}
+
+	expire()
+	require.Equal(t, SendPTOAppData, path.SendMode(now))
+	require.EqualValues(t, 1, path.ptoCount)
+	alarm := path.alarm
+
+	path.ClearProbeCredit()
+	require.Equal(t, SendAny, path.SendMode(now), "the owed probes are gone")
+	require.EqualValues(t, 1, path.ptoCount, "the backoff stays")
+	require.Equal(t, alarm, path.alarm)
+	require.False(t, alarm.Time.IsZero())
+
+	expire()
+	require.Equal(t, SendPTOAppData, path.SendMode(now), "and a later PTO requests new ones")
+	require.EqualValues(t, 2, path.ptoCount)
+	require.Equal(t, 2, path.numProbesToSend)
+}
+
 func TestSentPathAckedTupleFact(t *testing.T) {
 	h := NewSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger).(*sentPacketHandler)
 	now := monotime.Time(time.Second)

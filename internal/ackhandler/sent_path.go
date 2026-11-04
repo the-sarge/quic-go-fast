@@ -161,3 +161,9 @@ func (h *sentPacketHandler) TakeAckedTuple() (uint64, bool) {
 	h.ackedTuple, h.ackedLive = 0, false
 	return tuple, live
 }
+
+// ClearProbeCredit forgets the probes PTOs requested but this path hasn't sent. It
+// keeps the PTO count and the alarm, so backoff and the next PTO are unaffected.
+func (h *sentPacketHandler) ClearProbeCredit() {
+	h.numProbesToSend = 0
+}
