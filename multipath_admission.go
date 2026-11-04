@@ -800,6 +800,9 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 	if p.conn.perspective != protocol.PerspectiveClient {
 		return p.refuseRequest(request, ErrMultipathUnsupportedV1)
 	}
+	if !p.conn.handshakeConfirmed {
+		return nil // recovery refuses a new path before confirmation; the context bounds this wait
+	}
 	if request.transport != nil && request.transport.responses == nil {
 		return p.refuseRequest(request, ErrMultipathUnsupportedV1)
 	}

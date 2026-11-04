@@ -50,7 +50,7 @@ func (c *Conn) waitTransportDetachedPrivate(ctx context.Context, t *Transport) e
 	case <-attachment.detached:
 		return nil
 	case <-ctx.Done():
-		return context.Cause(ctx)
+		return ctx.Err()
 	case <-c.ctx.Done():
 		return context.Cause(c.ctx)
 	}
@@ -108,12 +108,14 @@ func (c *Conn) awaitPathOperation(ctx context.Context, request *pathOpenRequest)
 			case err := <-request.done:
 				return err
 			case <-c.ctx.Done():
+				c.pathOpen.CompareAndSwap(request, nil)
 				return context.Cause(c.ctx)
 			}
 		}
 		c.scheduleSending()
-		return context.Cause(ctx)
+		return ctx.Err()
 	case <-c.ctx.Done():
+		c.pathOpen.CompareAndSwap(request, nil) // installed too late for the connection to end it
 		return context.Cause(c.ctx)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"net"
+	"net/netip"
 	"slices"
 	"sync/atomic"
 	"testing"
@@ -640,6 +641,17 @@ func TestMultipathOpenRefusesTargetUnharmed(t *testing.T) {
 	_, err = p.client.OpenPathV1(ctx, conflicted, p.serverAddr)
 	require.ErrorIs(t, err, ErrMultipathUnsupportedV1)
 	require.Nil(t, mismatched.handlers, "the refused target never started")
+	// A full endpoint refuses at once, for open and for a move, with no routes.
+	full := grantedTransport(t)
+	require.NoError(t, full.init(false))
+	for id := range uint64(endpointParticipants) {
+		_, err := nativeTransportEndpoint(full).attach(id + 1)
+		require.NoError(t, err)
+	}
+	_, err = p.client.OpenPathV1(ctx, full, p.serverAddr)
+	require.ErrorIs(t, err, ErrMultipathResourceLimitV1)
+	require.ErrorIs(t, p.client.PathsV1()[0].MigrateV1(ctx, full), ErrMultipathResourceLimitV1)
+	require.Empty(t, (*packetHandlerMap)(full).handlers)
 	require.NoError(t, p.client.Context().Err())
 	require.Len(t, p.client.PathsV1(), 1)
 
@@ -675,11 +687,28 @@ func TestMultipathTerminalObservations(t *testing.T) {
 			pending <- err
 		}()
 		require.Eventually(t, func() bool { return len(p.client.PathsV1()) == 2 }, 5*time.Second, time.Millisecond)
+		attempt := p.client.PathsV1()[1]
+		state, err := attempt.StateV1()
+		require.NoError(t, err)
+		require.Equal(t, "validating", state.Lifecycle)
+		require.Equal(t, silent.LocalAddr().(*net.UDPAddr).AddrPort(), state.Remote, "the attempted tuple")
 		require.NoError(t, p.server.CloseWithError(42, "bye"))
 		var appErr *ApplicationError
 		require.ErrorAs(t, <-pending, &appErr)
 		require.Equal(t, ApplicationErrorCode(42), appErr.ErrorCode)
 		require.True(t, appErr.Remote)
+		state = waitPathState(t, attempt, func(s MultipathPathStateV1) bool { return s.Lifecycle == "closed" })
+		require.Equal(t, silent.LocalAddr().(*net.UDPAddr).AddrPort(), state.Remote, "the failed attempt keeps it")
+
+		// Nothing new starts: no target initializes, and no operation stays installed.
+		late := grantedTransport(t)
+		for range 2 {
+			_, err = p.client.OpenPathV1(ctx, late, p.serverAddr)
+			require.ErrorAs(t, err, &appErr)
+			require.ErrorAs(t, p.client.PathsV1()[0].MigrateV1(ctx, late), &appErr)
+		}
+		require.Nil(t, late.handlers)
+		require.Nil(t, p.client.pathOpen.Load())
 	})
 	t.Run("an internal error is classified first", func(t *testing.T) {
 		nativeOrdinaryTest(t, func(t *testing.T) {
@@ -690,6 +719,18 @@ func TestMultipathTerminalObservations(t *testing.T) {
 			var transportErr *TransportError
 			require.ErrorAs(t, <-pending, &transportErr, "the identity streams and the context report")
 			require.Equal(t, InternalError, transportErr.ErrorCode)
+		})
+	})
+	t.Run("a wildcard socket reports the packets' source", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveServer)
+			origin := &Transport{Conn: newUDPConnLocalhost(t)}
+			f.c.pathCredit.origin = origin
+			zero := f.c.pathCredit.members[0]
+			zero.info = packetInfo{addr: netip.MustParseAddr("192.0.2.1")}
+			state := f.c.pathCredit.observation(zero)
+			require.Equal(t, netip.MustParseAddr("192.0.2.1"), state.Local.Addr())
+			require.Equal(t, origin.Conn.LocalAddr().(*net.UDPAddr).AddrPort().Port(), state.Local.Port())
 		})
 	})
 	t.Run("endpoint fault", func(t *testing.T) {
@@ -784,6 +825,21 @@ func TestMultipathMigrateAndDetach(t *testing.T) {
 	require.NoError(t, p.client.WaitTransportDetachedV1(ctx, second), "routing retention ended")
 	require.NoError(t, second.Close(), "safe once detached")
 	require.NoError(t, p.client.Context().Err(), "the connection survives")
+
+	// A caller's cancellation keeps its identity, whatever cause it carries.
+	canceled, cancelWith := context.WithCancelCause(ctx)
+	cancelWith(errors.New("the caller's reason"))
+	require.ErrorIs(t, p.client.WaitTransportDetachedV1(canceled, third), context.Canceled)
+	_, err = p.client.OpenPathV1(canceled, grantedTransport(t), p.serverAddr)
+	require.ErrorIs(t, err, context.Canceled)
+
+	// An idle connection still publishes reclamation, with no traffic or command to wake it.
+	require.NoError(t, path.AbandonV1(0))
+	require.NoError(t, p.client.WaitTransportDetachedV1(ctx, third))
+	state := waitPathState(t, path, func(s MultipathPathStateV1) bool { return s.Lifecycle == "closed" })
+	require.Equal(t, after.Remote, state.Remote)
+	require.Len(t, p.client.PathsV1(), 1)
+	require.NoError(t, p.client.Context().Err())
 }
 
 // Every identity is distinct, and a backpressure cause matches only its own set.

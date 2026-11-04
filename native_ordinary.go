@@ -4,6 +4,7 @@ package quic
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/netip"
 	"runtime"
@@ -541,6 +542,23 @@ func (s *nativeOrdinarySender) probeParticipant(endpoint *nativeEndpoint) *endpo
 	}
 	s.targets = append(s.targets, target)
 	return target
+}
+
+// reserveTarget takes this connection's participant on a target before its routes exist,
+// and classifies a refusal. A later probe or send reuses the participant.
+func (s *nativeOrdinarySender) reserveTarget(target *Transport) error {
+	if s.transportParticipant(target) != nil {
+		return nil
+	}
+	participant, err := nativeTransportEndpoint(target).attachShared(s.participant.id, s.participant.completed)
+	if errors.Is(err, errEndpointCapacity) {
+		return fmt.Errorf("%w: %w", ErrMultipathResourceLimitV1, err)
+	}
+	if err != nil {
+		return err
+	}
+	s.targets = append(s.targets, participant)
+	return nil
 }
 
 // sendProbe consumes the buffer. All commitments precede it, so refusal keeps

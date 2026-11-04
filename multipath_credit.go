@@ -312,7 +312,12 @@ func (p *pathCreditRegistry) expire(now monotime.Time) error {
 		}
 	}
 	if p.hasAdmission() {
-		return p.replenish() // reclamation can free the unit or slot a grant waits for
+		// Reclamation can free a transport, a handle's state, and the unit or slot a grant
+		// waits for, and an idle connection may have no later pass to notice.
+		p.serviceDetachments()
+		err := p.replenish()
+		p.publishPaths()
+		return err
 	}
 	return nil
 }

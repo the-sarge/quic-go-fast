@@ -228,7 +228,8 @@ func (c *Conn) requireMultipath() error {
 	if !negotiated {
 		return ErrMultipathNotNegotiatedV1
 	}
-	return nil
+	// Negotiation stays reported after the end, but nothing new starts.
+	return context.Cause(c.ctx)
 }
 
 // legacyPathsBlocked is the mode check of the existing migration API. An unsupported peer
@@ -330,6 +331,9 @@ func (p *Path) StateV1() (MultipathPathStateV1, error) {
 func (p *Path) MigrateV1(ctx context.Context, t *Transport) error {
 	if p.conn == nil {
 		return ErrMultipathWrongModeV1
+	}
+	if err := p.conn.requireMultipath(); err != nil {
+		return err
 	}
 	if err := p.conn.migratePathPrivate(ctx, p.wireID, t); err != nil {
 		return err
@@ -492,6 +496,9 @@ func (p *pathCreditRegistry) publishPaths() {
 		current = append(current, handle)
 		state := p.observation(m)
 		last := handle.state.Load()
+		if !state.Remote.IsValid() {
+			state.Remote, state.Local = last.Remote, last.Local // a failed attempt's tuple
+		}
 		if state != *last {
 			handle.state.Store(&state)
 			lastWithRTT := *last
@@ -531,7 +538,11 @@ func (p *pathCreditRegistry) publishClosed() {
 	for id, handle := range surface.handles {
 		closed := *handle.state.Load()
 		if m := p.members[id]; m != nil {
+			last := closed
 			closed = p.observation(m)
+			if !closed.Remote.IsValid() {
+				closed.Remote, closed.Local = last.Remote, last.Local
+			}
 		}
 		closed.Lifecycle, closed.Primary = "closed", false
 		handle.state.Store(&closed)
@@ -546,7 +557,6 @@ func (p *pathCreditRegistry) observation(m *pathMember) MultipathPathStateV1 {
 	state := MultipathPathStateV1{
 		WireID:          uint32(m.id),
 		TupleGeneration: m.tuple,
-		Remote:          addrPortOf(m.addr),
 		Lifecycle:       "live",
 		LocalUse:        "active",
 		PeerPreference:  "unknown",
@@ -555,12 +565,22 @@ func (p *pathCreditRegistry) observation(m *pathMember) MultipathPathStateV1 {
 		PMTU:            p.pmtuObservation(m.id),
 		LastOutcome:     m.lastOutcome,
 	}
-	local := m.transport
+	// A validating path's tuple is its candidate. A migration's stays the established one
+	// until commit, since this path's established tuple is what still carries it.
+	remote, info, local := m.addr, m.info, m.transport
+	if !m.live && m.candidate != nil {
+		remote, info, local = m.candidate.addr, m.candidate.info, m.candidate.transport
+	}
+	state.Remote = addrPortOf(remote)
 	if local == nil {
 		local = p.origin
 	}
 	if local != nil && local.Conn != nil {
 		state.Local = addrPortOf(local.Conn.LocalAddr())
+		// A wildcard socket's real source is what the packets carry.
+		if info.addr.IsValid() {
+			state.Local = netip.AddrPortFrom(info.addr.Unmap(), state.Local.Port())
+		}
 	}
 	if local != nil && endpointFaulted(local) {
 		state.LastOutcome = "endpoint-fault"

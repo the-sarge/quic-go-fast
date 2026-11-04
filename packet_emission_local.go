@@ -19,6 +19,7 @@ type localPacketSender interface {
 	steer(*pathRoute) bool
 	releaseReadiness()
 	routeUsable(*Transport) bool
+	reserveTarget(*Transport) error
 	finish()
 	drain()
 	sendClose(*packetBuffer, protocol.ECN) error
