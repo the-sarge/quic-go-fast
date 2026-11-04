@@ -20,6 +20,7 @@ import (
 // temporary storage. The closed handler retains an immutable close payload.
 type packetEmission struct {
 	pathCredit       *pathCreditRegistry
+	route            *pathRoute // the current opportunity's; nil is path zero
 	terminalReceipts [2]*pathAbandonReceipt
 	bbr              *bbrSendPolicy
 	reservation      *sendReservation // connection-owned until handoff
@@ -102,7 +103,6 @@ type emissionIntent struct {
 	frame     ackhandler.Frame
 	addr      net.Addr
 	mtu       *mtuFinder
-	path      *pathProbeIntent
 }
 
 func (e *packetEmission) setToken(token []byte) { e.packer.SetToken(token) }
@@ -117,6 +117,9 @@ func (e *packetEmission) drain() {
 }
 
 func (e *packetEmission) capacity() <-chan struct{} {
+	if e.pathCredit != nil {
+		e.selectRoute(monotime.Now())
+	}
 	if e.queue.WouldBlock() {
 		return e.queue.Available()
 	}
@@ -148,6 +151,13 @@ func (e *packetEmission) send(now monotime.Time, confirmed bool) (result emissio
 		if !confirmed {
 			e.policy.applyHandshakeMTUFallback()
 		}
+		if e.pathCredit != nil {
+			sent, err := e.pathProbeOpportunity(now)
+			if err != nil || sent {
+				return emissionResult{err: err, retry: err == nil, progress: progress}
+			}
+			e.selectRoute(now)
+		}
 		result = e.dispatch(now, confirmed)
 		if result.err != nil {
 			return result
@@ -175,13 +185,6 @@ func (e *packetEmission) send(now monotime.Time, confirmed bool) (result emissio
 
 func (e *packetEmission) sendAny(now monotime.Time, confirmed bool) emissionResult {
 	intent := e.policy.prepareEmission(now)
-	if intent.path != nil {
-		sent, err := e.admissionProbe(intent.path, now)
-		if err != nil || sent {
-			return emissionResult{err: err, retry: err == nil}
-		}
-		// Nothing fit this tuple's allowance, so ordinary work keeps its turn.
-	}
 	if intent.transport != nil {
 		err := e.clientProbe(intent.connID, intent.frame, intent.transport, intent.addr, now)
 		return emissionResult{err: err, retry: err == nil}
@@ -200,6 +203,10 @@ func (e *packetEmission) sendAny(now monotime.Time, confirmed bool) emissionResu
 func (e *packetEmission) advance(now monotime.Time, gso bool) emissionResult {
 	if e.pathCredit != nil && e.pathCredit.needsReceipt() {
 		gso = false // no accepted-prefix ambiguity for terminal control datagrams
+	}
+	// A target's capability isn't the primary's, and each tuple owns its fallback.
+	if e.route != nil && (e.route.transport != nil || e.route.writeState.gsoDisabled.Load()) {
+		gso = false
 	}
 	if e.queue.WouldBlock() {
 		return emissionResult{stop: emissionQueueFull, available: e.queue.Available()}
@@ -224,7 +231,7 @@ func emissionRecoveryStop(mode ackhandler.SendMode) emissionStop {
 }
 
 func (e *packetEmission) pacingDeadline() monotime.Time {
-	deadline := (*e.recovery).TimeUntilSend()
+	deadline := e.selected().TimeUntilSend()
 	if deadline.IsZero() {
 		return deadlineSendImmediately
 	}
@@ -241,7 +248,7 @@ func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCo
 	if datagramOnly {
 		p, err = e.packer.AppendDatagramPacket(buf, maxSize, e.version)
 	} else {
-		p, err = e.packer.AppendPacket(buf, maxSize, now, e.version)
+		p, err = e.packer.appendPacket(e.route, buf, false, maxSize, now, e.version)
 	}
 	if err != nil {
 		return shortHeaderPacket{}, 0, err
@@ -260,8 +267,8 @@ func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCo
 func (e *packetEmission) withoutGSO(now monotime.Time) (result emissionResult) {
 	for {
 		buf := getPacketBuffer()
-		ecn := (*e.recovery).ECNMode(true)
-		if _, _, err := e.appendPacket(buf, e.policy.maxPacketSize(), false, ecn, now); err != nil {
+		ecn := e.selected().ECNMode(true)
+		if _, _, err := e.appendPacket(buf, e.packetSize(), false, ecn, now); err != nil {
 			if err == errNothingToPack {
 				buf.Release()
 				return result
@@ -276,7 +283,7 @@ func (e *packetEmission) withoutGSO(now monotime.Time) (result emissionResult) {
 			result.stop, result.available = emissionQueueFull, e.queue.Available()
 			return result
 		}
-		mode := (*e.recovery).SendMode(now)
+		mode := e.selected().SendMode(now)
 		if mode == ackhandler.SendPacingLimited {
 			result.stop, result.deadline = emissionPaced, e.pacingDeadline()
 			return result
@@ -294,8 +301,8 @@ func (e *packetEmission) withoutGSO(now monotime.Time) (result emissionResult) {
 
 func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 	buf := getLargePacketBuffer()
-	maxSize := e.policy.maxPacketSize()
-	ecn := (*e.recovery).ECNMode(true)
+	maxSize := e.packetSize()
+	ecn := e.selected().ECNMode(true)
 	batch := newGSOBatch(maxSize, e.shortSegments)
 	for {
 		var done, more bool
@@ -316,7 +323,7 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 			done = !datagramOnly
 		} else {
 			more = batch.add(size, p.Frames)
-			mode := (*e.recovery).SendMode(now)
+			mode := e.selected().SendMode(now)
 			if mode == ackhandler.SendPacingLimited {
 				result.stop, result.deadline = emissionPaced, e.pacingDeadline()
 			} else if mode != ackhandler.SendAny {
@@ -324,7 +331,7 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 			}
 			done = mode != ackhandler.SendAny
 		}
-		nextECN := (*e.recovery).ECNMode(true)
+		nextECN := e.selected().ECNMode(true)
 		if !done && more && nextECN == ecn && batch.fits(buf.Len(), buf.Cap()) {
 			continue
 		}
@@ -384,14 +391,24 @@ func (e *packetEmission) registerPacket(p shortHeaderPacket, ecn protocol.ECN, n
 	); err != nil {
 		return err
 	}
-	e.policy.noteEmissionRegistration()
+	e.noteRegistration(p)
 	return nil
+}
+
+// A nonzero path's CID use belongs to that path, and path zero's rotation counts
+// only its own packets.
+func (e *packetEmission) noteRegistration(p shortHeaderPacket) {
+	if p.Context.PathID != 0 {
+		e.pathCredit.conn.connIDManager.notePathProbe(p.Context.PathID, p.DestConnID)
+		return
+	}
+	e.policy.noteEmissionRegistration()
 }
 
 // dispatch interprets recovery's opportunity before any destructive packing.
 // The module consumes SendAny and PTO continuation internally.
 func (e *packetEmission) dispatch(now monotime.Time, confirmed bool) emissionResult {
-	mode := (*e.recovery).SendMode(now)
+	mode := e.selected().SendMode(now)
 	if mode != ackhandler.SendAny && e.queue.WouldBlock() {
 		return emissionResult{stop: emissionQueueFull, available: e.queue.Available()}
 	}
@@ -456,8 +473,8 @@ func (e *packetEmission) maybeSendAckOnlyPacket(now monotime.Time, confirmed boo
 		return true, e.sendCoalesced(packet, ecn, now)
 	}
 
-	ecn := (*e.recovery).ECNMode(true)
-	p, buf, err := e.packer.PackAckOnlyPacket(e.policy.maxPacketSize(), now, e.version)
+	ecn := e.selected().ECNMode(true)
+	p, buf, err := e.packer.packAckOnlyPacket(e.route, e.packetSize(), now, e.version)
 	if err != nil {
 		if err == errNothingToPack {
 			return false, nil
@@ -489,27 +506,28 @@ func (e *packetEmission) sendProbePacket(sendMode ackhandler.SendMode, now monot
 	// Queue probe packets until we actually send out a packet,
 	// or until there are no more packets to queue.
 	var packet *coalescedPacket
+	recovery := e.selected()
 	for packet == nil {
 		var wasQueued bool
-		if h, ok := (*e.recovery).(interface {
+		if h, ok := recovery.(interface {
 			QueueProbePacketAt(protocol.EncryptionLevel, monotime.Time) bool
 		}); ok {
 			wasQueued = h.QueueProbePacketAt(encLevel, now)
 		} else {
-			wasQueued = (*e.recovery).QueueProbePacket(encLevel)
+			wasQueued = recovery.QueueProbePacket(encLevel)
 		}
 		if !wasQueued {
 			break
 		}
 		var err error
-		packet, err = e.packer.PackPTOProbePacket(encLevel, e.policy.maxPacketSize(), false, now, e.version)
+		packet, err = e.packer.packPTOProbePacket(e.route, encLevel, e.packetSize(), false, now, e.version)
 		if err != nil {
 			return err
 		}
 	}
 	if packet == nil {
 		var err error
-		packet, err = e.packer.PackPTOProbePacket(encLevel, e.policy.maxPacketSize(), true, now, e.version)
+		packet, err = e.packer.packPTOProbePacket(e.route, encLevel, e.packetSize(), true, now, e.version)
 		if err != nil {
 			return err
 		}
@@ -517,7 +535,7 @@ func (e *packetEmission) sendProbePacket(sendMode ackhandler.SendMode, now monot
 	if packet == nil || (len(packet.longHdrPackets) == 0 && packet.shortHdrPacket == nil) {
 		return fmt.Errorf("connection BUG: couldn't pack %s probe packet: %v", encLevel, packet)
 	}
-	return e.sendCoalesced(packet, (*e.recovery).ECNMode(packet.IsOnlyShortHeaderPacket()), now)
+	return e.sendCoalesced(packet, recovery.ECNMode(packet.IsOnlyShortHeaderPacket()), now)
 }
 
 func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN, now monotime.Time) error {
@@ -587,7 +605,11 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 			return err
 		}
 	}
-	e.policy.noteEmissionRegistration()
+	if p := packet.shortHdrPacket; p != nil && p.Context.PathID != 0 {
+		e.noteRegistration(*p)
+	} else {
+		e.policy.noteEmissionRegistration()
+	}
 	e.handoff(packet.buffer, 0, ecn, e.policy.coalescedSendMetadata(hasHandshakePacket))
 	handed = true
 	return nil

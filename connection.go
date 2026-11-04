@@ -1036,17 +1036,24 @@ func (c *Conn) maybeResetTimer() {
 	}
 	// An idle connection still needs to advance path MTU discovery. Respect
 	// pacing here; blocked connections returned above and must not busy-wake.
-	if c.handshakeConfirmed && c.mtuDiscoverer != nil {
-		if next := c.mtuDiscoverer.NextProbeTime(); !next.IsZero() {
-			if !c.pacingDeadline.IsZero() && c.pacingDeadline.After(next) {
-				next = c.pacingDeadline
-			}
-			if next.Before(deadline) {
-				deadline = next
-			}
+	if next := c.mtuProbeTime(); !next.IsZero() {
+		if !c.pacingDeadline.IsZero() && c.pacingDeadline.After(next) {
+			next = c.pacingDeadline
+		}
+		if next.Before(deadline) {
+			deadline = next
 		}
 	}
 	c.timer.Reset(monotime.Until(deadline))
+}
+
+// mtuProbeTime suspends the path-zero finder while another path is selected, so an
+// overdue deadline can't busy-wake the loop. R11 owns per-path discovery.
+func (c *Conn) mtuProbeTime() monotime.Time {
+	if !c.handshakeConfirmed || c.mtuDiscoverer == nil || c.emission.route != nil {
+		return 0
+	}
+	return c.mtuDiscoverer.NextProbeTime()
 }
 
 func (c *Conn) idleTimeoutStartTime() monotime.Time {
@@ -2889,11 +2896,6 @@ func (c *Conn) triggerSending(now monotime.Time) emissionResult {
 
 // The connection produces path and control intent; emission selects packet shapes.
 func (c *Conn) prepareEmission(now monotime.Time) emissionIntent {
-	if c.pathCredit != nil {
-		if intent := c.pathCredit.nextProbe(now); intent != nil {
-			return emissionIntent{path: intent}
-		}
-	}
 	if c.perspective == protocol.PerspectiveClient && c.handshakeConfirmed {
 		if pm := c.pathManagerOutgoing.Load(); pm != nil {
 			connID, frame, tr, ok := pm.NextPathToProbe()
@@ -2902,7 +2904,7 @@ func (c *Conn) prepareEmission(now monotime.Time) emissionIntent {
 			}
 		}
 	}
-	if c.handshakeConfirmed && c.mtuDiscoverer != nil && c.mtuDiscoverer.ShouldSendProbe(now) {
+	if c.handshakeConfirmed && c.mtuDiscoverer != nil && c.emission.route == nil && c.mtuDiscoverer.ShouldSendProbe(now) {
 		return emissionIntent{mtu: c.mtuDiscoverer}
 	}
 	if offset := c.connFlowController.GetWindowUpdate(now); offset > 0 {

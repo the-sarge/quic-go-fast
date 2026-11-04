@@ -15,6 +15,8 @@ type localPacketSender interface {
 	probeTargetReady(*Transport) (bool, error)
 	sendProbe(*packetBuffer, *Transport, net.Addr, packetInfo, *responseEpoch) error
 	probesPending(*Transport, *responseEpoch) bool
+	useRoute(*pathRoute)
+	routeUsable(*Transport) bool
 	finish()
 	drain()
 	sendClose(*packetBuffer, protocol.ECN) error

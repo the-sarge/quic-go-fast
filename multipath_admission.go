@@ -50,6 +50,7 @@ type pathMember struct {
 	// established accounts for sends to a validated tuple, whose amplification
 	// limit is lifted, and revokes them at retirement.
 	established path
+	route       pathRoute
 }
 
 type pathCandidate struct {
@@ -129,6 +130,77 @@ func (p *pathCreditRegistry) enableAdmission() {
 }
 
 func (p *pathCreditRegistry) hasAdmission() bool { return p.members != nil }
+
+// selectPrimaryPrivate is the private primary-only driver. R15 replaces its source.
+func (p *pathCreditRegistry) selectPrimaryPrivate(id protocol.PathID) { p.primary = id }
+
+// recoveryOn resolves a path's own recovery, which admission has already installed.
+func (p *pathCreditRegistry) recoveryOn(id protocol.PathID) ackhandler.SentPacketHandler {
+	return p.conn.sentPacketHandler.(interface {
+		RecoveryOnPath(protocol.PathID) ackhandler.SentPacketHandler
+	}).RecoveryOnPath(id)
+}
+
+// selectRoute reads each eligible path into an immutable view and asks the
+// scheduler. Congestion, pacing and local capacity are deliberately not inputs.
+func (p *pathCreditRegistry) selectRoute(now monotime.Time) *pathRoute {
+	if !p.hasAdmission() || p.closed {
+		return nil
+	}
+	var storage [2]pathView
+	views := append(storage[:0], pathView{probing: p.conn.sentPacketHandler.SendMode(now) == ackhandler.SendPTOAppData})
+	for id := protocol.PathID(1); id <= p.localMax; id++ {
+		if m := p.members[id]; m != nil && p.eligible(m) {
+			views = append(views, pathView{id: id, probing: p.recoveryOn(id).SendMode(now) == ackhandler.SendPTOAppData})
+		}
+	}
+	id := selectPath(views, p.primary)
+	if id == 0 {
+		return nil
+	}
+	m := p.members[id]
+	connID, _ := p.conn.connIDManager.pathDestination(id, false)
+	m.route.context, m.route.connID, m.route.recovery = ackhandler.PacketContext{PathID: id}, connID, p.recoveryOn(id)
+	m.route.addr, m.route.info, m.route.transport, m.route.epoch = m.addr, m.info, m.transport, &m.established.probeEpoch
+	return &m.route
+}
+
+// eligible never reads congestion or capacity. A quarantined endpoint affects its
+// paths alone, and neither signals abandonment nor promotes anything.
+func (p *pathCreditRegistry) eligible(m *pathMember) bool {
+	if !m.live || p.terminals[m.id] != nil || !p.conn.emission.local.routeUsable(m.transport) {
+		return false
+	}
+	_, ok := p.conn.connIDManager.pathDestination(m.id, false)
+	return ok
+}
+
+// rescheduleUnusable returns a path's outstanding reliable work to its logical
+// owners, once no packet on it can reach the peer. Retained evidence stays, so a
+// late ACK retires nothing twice. A packet still pending locally waits for its result.
+func (p *pathCreditRegistry) rescheduleUnusable(id protocol.PathID, now monotime.Time) {
+	recovery := p.recoveryOn(id)
+	if recovery == nil {
+		return
+	}
+	queue := recovery.(interface {
+		QueueProbePacketAt(protocol.EncryptionLevel, monotime.Time) bool
+	})
+	for queue.QueueProbePacketAt(protocol.Encryption1RTT, now) { //nolint:revive // each call consumes one packet
+	}
+}
+
+// largestPTO is the largest measured PTO over path zero's observation and members.
+// An unmeasured path contributes nothing, so its default cannot inflate retention.
+func (p *pathCreditRegistry) largestPTO(includeMaxAckDelay bool) time.Duration {
+	largest := p.conn.observedRTT().PTO(includeMaxAckDelay)
+	for id := range p.members {
+		if rtt := p.rtt[id]; rtt != nil && rtt.HasMeasurement() {
+			largest = max(largest, rtt.PTO(includeMaxAckDelay))
+		}
+	}
+	return largest
+}
 
 // admitIssuedKeys runs before the window's CIDs are published, so the first
 // authenticated packet finds its keys and no packet ever allocates them.
@@ -336,7 +408,13 @@ func (p *pathCreditRegistry) service(now monotime.Time) error {
 	}
 	for id, m := range p.members {
 		if p.terminals[id] != nil {
+			if id != 0 {
+				p.rescheduleUnusable(id, now)
+			}
 			continue
+		}
+		if m.live && id != 0 && !p.conn.emission.local.routeUsable(m.transport) {
+			p.rescheduleUnusable(id, now)
 		}
 		if !m.live {
 			if !now.Before(m.deadline) {

@@ -256,3 +256,25 @@ func TestSentPathAdmissionPreservesExistingFlight(t *testing.T) {
 	require.Zero(t, h.bytesInFlight)
 	require.Equal(t, SendAny, h.RecoveryOnPath(17).SendMode(now))
 }
+
+func TestSentPathLocalECNEvidence(t *testing.T) {
+	handler, err := NewLocalSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, true, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger)
+	require.NoError(t, err)
+	h := handler.(*sentPacketHandler)
+	now := monotime.Time(time.Second)
+	h.DropPackets(protocol.EncryptionInitial, now)
+	h.DropPackets(protocol.EncryptionHandshake, now)
+	require.NoError(t, h.AddPath(1, 1200))
+	path := h.RecoveryOnPath(1)
+
+	ecn := path.ECNMode(true)
+	require.Equal(t, protocol.ECT0, ecn, "a path validates ECN of its own")
+	pn := path.PopPacketNumber(protocol.Encryption1RTT)
+	var tracker packetTracker
+	token, err := h.RegisterLocalPacket(PacketContext{PathID: 1}, now, pn, protocol.InvalidPacketNumber, nil, []Frame{tracker.NewPingFrame(pn)}, protocol.Encryption1RTT, ecn, 1200)
+	require.NoError(t, err, "the mark registers on the path that chose it")
+	require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now))
+	_, err = h.ReceivedAck(&wire.AckFrame{HasPathID: true, PathID: 1, ECT0: 1, AckRanges: ackRanges(pn)}, protocol.Encryption1RTT, now.Add(time.Millisecond))
+	require.NoError(t, err)
+	require.Equal(t, protocol.ECT0, h.ECNMode(true), "the root's evidence is unaffected")
+}

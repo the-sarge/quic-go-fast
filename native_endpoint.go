@@ -982,6 +982,15 @@ func (s *endpointState) fail(cause endpointFaultCause, err error) {
 			s.endpoint.faultRecord.identity = s.current.request.identity
 		}
 		close(s.endpoint.fault)
+		// An idle shared participant has no result to wake its connection with.
+		for _, p := range s.participants {
+			if p != nil {
+				select {
+				case p.completed <- struct{}{}:
+				default:
+				}
+			}
+		}
 		if s.current != nil {
 			s.current.canceled.Store(true)
 		}
