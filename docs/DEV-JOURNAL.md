@@ -8964,3 +8964,37 @@ R13 [#1033](https://github.com/the-sarge/quic-go-fast/issues/1033) and R14 [#103
 ### Next
 
 R13 [#1033](https://github.com/the-sarge/quic-go-fast/issues/1033) and R14 [#1034](https://github.com/the-sarge/quic-go-fast/issues/1034) remain the ready slices, and [#1159](https://github.com/the-sarge/quic-go-fast/issues/1159) stays separate. The [program index](adr/2026-10-24-multipath-program.md) is the live view.
+
+---
+
+## Multipath stale PTO credit cleared on recovery - 2026-11-04 01:45 EST
+
+**Main:** `99a024120091`
+**Actor:** Joshua Sargent with Claude
+
+### Summary
+
+[Issue #1159](https://github.com/the-sarge/quic-go-fast/issues/1159) landed in [PR #1166](https://github.com/the-sarge/quic-go-fast/pull/1166) as `99a024120091b1dbc5b375a6d61e82d3f89964e6`. A path recovering from suspicion no longer spends probe credit it couldn't send while suspect, so it sends no ordinary data ahead of the primary.
+
+### Completed
+
+- `noteLiveness` calls the new `ClearProbeCredit` in its `if m.suspect` branch, the only place suspicion ends. `ptoCount` and the alarm stay, so backoff and later PTOs are unchanged.
+- R15's declared seams in the [Reno plan](adr/2026-10-24-multipath-reno-plan.md) record that any later transition ending suspicion owes the same clear.
+
+### Decisions
+
+- The clear sits at recovery rather than suspicion, because a packet the socket accepts late can trigger another PTO during suspicion and add new credit.
+- The issue said an ACK arriving first prevents the burst. Measurement narrowed that: only an ACK that newly acknowledges a packet clears the credit. An ACK covering only data already drained as lost left it, and the burst still happened.
+- Hosted-check exception: `main` moved from `61a86a2c5` to `77ca96b82` by `docs/DEV-JOURNAL.md` alone ([PR #1164](https://github.com/the-sarge/quic-go-fast/pull/1164)) while this PR waited. Under the owner's standing rule for this run, relayed by the CI sequencing session, head `80c56a503779d8587a18946e04d31b5526b8e35f` merged with no rerun. Its 33 checks ran against base `61a86a2c5`.
+
+### Validation
+
+- `TestPathPolicyRecoveryDemotesWithoutOscillation` now runs three arrival orders. Before the fix, `PATH_RESPONSE` first and an ACK of drained data first each put 1,000 of 1,000 bytes on the backup, and an ACK of the challenge first put none. All three now put none there.
+- `TestPathPolicyLivenessKeepsHealthyPathPTO` and `TestSentPathClearProbeCreditKeepsBackoff` are new, and `TestPathPolicySoleAdmittedPathReachesSuspicion` now checks that held work leaves after recovery.
+- Two mutations each failed the intended test: bypassing the `if m.suspect` guard, and making the clear also reset `ptoCount`.
+- RAS review `20261104T062809-c4f35e80e0889e278d4795d3` at the merged head had no findings. `claude-fable` failed with a process error, and the other three reviewers completed. With no accepted fixes, no replacement review ran.
+- At merged head: `go test -shuffle=on` on the root and `internal/ackhandler` packages, one focused `-race` run, `go vet`, `go mod tidy -diff`, and lint on darwin, `GOOS=windows` and `GOOS=openbsd`.
+
+### Next
+
+R13 [#1033](https://github.com/the-sarge/quic-go-fast/issues/1033) and R14 [#1034](https://github.com/the-sarge/quic-go-fast/issues/1034) remain the ready slices. The [program issue #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) is the live view.
