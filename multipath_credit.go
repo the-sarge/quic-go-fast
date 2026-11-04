@@ -260,6 +260,9 @@ func (p *pathCreditRegistry) expire(now monotime.Time) error {
 			p.reclaim(id, terminal, now)
 		}
 	}
+	if p.hasAdmission() {
+		return p.replenish() // reclamation can free the unit or slot a grant waits for
+	}
 	return nil
 }
 

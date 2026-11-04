@@ -216,9 +216,16 @@ func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pat
 		}
 	}
 	if len(views) == 0 {
-		return nil, nil, false // path zero retired, and no survivor can take a packet now
+		// Path zero retired, and no survivor can take a packet now. Nothing can carry
+		// a queued DATAGRAM, which is dropped rather than held for future eligibility.
+		p.placeDatagram(views)
+		return nil, nil, false
 	}
 	p.conn.pathPayloadLimit.Store(uint32(limit))
+	if p.zeroRetired() {
+		// SendDatagram also bounds by path zero's estimate, which retired with it.
+		p.conn.maxPayloadSizeEstimate.Store(uint32(limit))
+	}
 	p.placeDatagram(views)
 	chosen, steer, steering := selectPath(views, p.primary)
 	return p.routeOf(chosen), p.routeOf(steer), steering

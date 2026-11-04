@@ -197,9 +197,12 @@ func TestPathReplacementRetainedCapBlocksOpening(t *testing.T) {
 		time.Sleep(2 * time.Second)
 		f.pass(t)
 		require.ErrorIs(t, <-errs, context.DeadlineExceeded)
-		f.c.pathCredit.historyUnits-- // a retained record's charge is released
-		f.pass(t)
-		require.Equal(t, protocol.PathID(2), f.c.pathCredit.localMax, "the freed unit restores the grant")
+		require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathAbandonFrame{PathID: 1}))
+		time.Sleep(time.Until(f.c.pathCredit.terminals[1].expiry.ToTime()) + time.Millisecond)
+		require.NoError(t, f.c.emission.consumeLocal())
+		require.NoError(t, f.c.pathCredit.expire(monotime.Now()))
+		require.Equal(t, maxPathHistoryUnits-1, f.c.pathCredit.historyUnits)
+		require.Equal(t, protocol.PathID(2), f.c.pathCredit.localMax, "the pass that frees a unit restores the grant")
 	})
 }
 
@@ -312,6 +315,14 @@ func TestPathZeroNoEligibleSurvivor(t *testing.T) {
 		require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathAbandonFrame{PathID: 0}))
 		f.pass(t)
 		f.pass(t)
+		f.c.peerParams.MaxDatagramFrameSize = wire.MaxDatagramSize
+		f.setPathMTU(1, 1400)
+		f.c.emission.selectRoute(monotime.Now())
+		limit := estimateMaxPayloadSize(1400)
+		require.NoError(t, f.c.SendDatagram(make([]byte, limit)), "zero's smaller estimate retired with it")
+		var tooLarge *DatagramTooLargeError
+		require.ErrorAs(t, f.c.SendDatagram(make([]byte, limit+1)), &tooLarge)
+
 		f.c.connIDManager.pathCIDs[1].records = nil
 		f.socket.writes = nil
 		f.write(t, 1000)
@@ -320,6 +331,8 @@ func TestPathZeroNoEligibleSurvivor(t *testing.T) {
 		require.Equal(t, blockModeHardBlocked, result.blocked)
 		synctest.Wait()
 		require.Empty(t, f.socket.writes)
+		require.Nil(t, f.c.datagramQueue.Peek(), "nothing can carry the queued DATAGRAM")
+		require.EqualValues(t, 1, f.c.datagramQueue.sendDrops.Load())
 	})
 }
 
@@ -344,32 +357,45 @@ func TestPathZeroCloseAfterRetirement(t *testing.T) {
 
 // TestPathReplacementReclamationAwaitsResult publishes a result after the connection
 // consumed its results and before retention's pass reads the fence. The fence is
-// resolved, but the Accepted packet's frames still need the terminal's final drain.
+// resolved, but the Accepted packet's frames still need the terminal's final drain,
+// and an early ACK's token still needs its context.
 func TestPathReplacementReclamationAwaitsResult(t *testing.T) {
-	nativeOrdinaryTest(t, func(t *testing.T) {
-		f := newReliableFixture(t, protocol.PerspectiveClient)
-		f.c.pathCredit.primary = 1
-		f.socket.writes = nil
-		f.write(t, 1000)
-		f.admissionFixture.pass(t) // the result stays unconsumed
-		require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathAbandonFrame{PathID: 1}))
-		terminal := f.c.pathCredit.terminals[1]
-		require.NoError(t, f.c.pathCredit.expire(monotime.Now()))
-		require.True(t, terminal.signaled, "the endpoint reports the fence resolved")
-		time.Sleep(time.Until(terminal.expiry.ToTime()) + time.Millisecond)
-		require.NoError(t, f.c.pathCredit.expire(monotime.Now()))
-		require.NotNil(t, f.c.pathCredit.members[1], "an unconsumed result holds reclamation")
-		require.NotNil(t, f.recovery(1))
-		next := f.c.pathCredit.nextExpiry()
-		require.True(t, next == 0 || next.After(monotime.Now()), "a pending result arms no elapsed timer")
+	for name, earlyACK := range map[string]bool{"accepted": false, "early ACK": true} {
+		t.Run(name, func(t *testing.T) {
+			nativeOrdinaryTest(t, func(t *testing.T) {
+				f := newReliableFixture(t, protocol.PerspectiveClient)
+				f.c.pathCredit.primary = 1
+				f.socket.writes = nil
+				f.write(t, 1000)
+				f.admissionFixture.pass(t) // the result stays unconsumed
+				if earlyACK {
+					pn := f.parseWrites(t, 1)[0].pn
+					require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.AckFrame{HasPathID: true, PathID: 1, AckRanges: []wire.AckRange{{Smallest: pn, Largest: pn}}}))
+				}
+				require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathAbandonFrame{PathID: 1}))
+				terminal := f.c.pathCredit.terminals[1]
+				require.NoError(t, f.c.pathCredit.expire(monotime.Now()))
+				require.True(t, terminal.signaled, "the endpoint reports the fence resolved")
+				time.Sleep(time.Until(terminal.expiry.ToTime()) + time.Millisecond)
+				require.NoError(t, f.c.pathCredit.expire(monotime.Now()))
+				require.NotNil(t, f.c.pathCredit.members[1], "an unconsumed result holds reclamation")
+				require.NotNil(t, f.recovery(1))
+				next := f.c.pathCredit.nextExpiry()
+				require.True(t, next == 0 || next.After(monotime.Now()), "a pending result arms no elapsed timer")
 
-		f.socket.writes = nil
-		require.NoError(t, f.c.emission.consumeLocal())
-		require.NoError(t, f.c.pathCredit.expire(monotime.Now()))
-		require.Nil(t, f.c.pathCredit.members[1], "the final drain lets it reclaim")
-		f.pass(t)
-		require.Equal(t, 1000, reliableBytes(f.parseWrites(t, 0)), "the drained frames were not stranded")
-	})
+				f.socket.writes = nil
+				require.NoError(t, f.c.emission.consumeLocal(), "the token still finds its context")
+				require.NoError(t, f.c.pathCredit.expire(monotime.Now()))
+				require.Nil(t, f.c.pathCredit.members[1], "the final drain lets it reclaim")
+				f.pass(t)
+				want := 1000
+				if earlyACK {
+					want = 0
+				}
+				require.Equal(t, want, reliableBytes(f.parseWrites(t, 0)), "drained frames aren't stranded, and ACKed ones aren't resent")
+			})
+		})
+	}
 }
 
 // TestPathReplacementTerminalWithoutUnit lets zero's retention elapse with the pool

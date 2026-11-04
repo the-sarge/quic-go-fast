@@ -74,13 +74,14 @@ func (h *sentPacketHandler) RetirePath(id protocol.PathID) {
 }
 
 // PathQuiescent reports that a context has no unconsumed local result and no frames
-// left to return to their logical owners, so reclamation can strand nothing.
+// left to return to their logical owners, so reclamation can strand nothing. An early
+// ACK clears a registration's packet but not its record, whose token still arrives.
 func (h *sentPacketHandler) PathQuiescent(id protocol.PathID) bool {
 	path := h.path(id)
 	if path == nil {
 		return true
 	}
-	if path.hasPendingLocal() {
+	if path.local != nil && len(path.local.records) != 0 {
 		return false
 	}
 	for _, p := range path.appDataPackets.history.Packets() {
