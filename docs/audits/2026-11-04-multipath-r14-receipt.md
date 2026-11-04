@@ -17,7 +17,7 @@ Execution used Docker Desktop on LinuxKit with amd64 emulation on a Darwin arm64
 
 ## Applicability to the merged candidate
 
-Commits after `abdd55927` change no runtime owner on the smoke's path. A later change to its close, activation or transfer path requires a recorded reason and another charge.
+Commits after `abdd55927` change no runtime owner on the smoke's path, except to add a path identity to one qlog event. A later change to its close, activation or transfer path requires a recorded reason and another charge.
 
 ## Operational ledger
 

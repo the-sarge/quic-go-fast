@@ -11,6 +11,8 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/ackhandler"
+	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/quic-go/quic-go/qlog"
@@ -154,7 +156,28 @@ func TestPathQlogLossAndMTUAttribution(t *testing.T) {
 		}
 		require.NotZero(t, lost)
 		require.Equal(t, map[int]uint64{1300: 0, 1400: 1}, mtus)
-		require.Equal(t, &qlog.PathIdentity{PathID: 0, TupleGeneration: 4}, f.c.qlogPath(0, 4), "a long header packet names path zero after activation")
+
+		// A client's Handshake traffic can outlast activation, until it is confirmed.
+		header := &wire.ExtendedHeader{Header: wire.Header{Type: protocol.PacketTypeHandshake, Version: protocol.Version1}}
+		f.c.logLongHeaderPacket(&longHeaderPacket{context: ackhandler.PacketContext{TupleGeneration: 4}, header: header}, protocol.ECNNon, 0)
+		ping := []byte{0x1} // a PING frame
+		require.NoError(t, f.c.handleUnpackedLongHeaderPacket(&unpackedPacket{hdr: header, encryptionLevel: protocol.Encryption1RTT, data: ping}, protocol.ECNNon, monotime.Now(), 0, 100))
+		synctest.Wait()
+		var sentLong, receivedLong *qlog.PathIdentity
+		for _, event := range sink.recorded() {
+			switch e := event.(type) {
+			case qlog.PacketSent:
+				if e.Header.PacketType == qlog.PacketTypeHandshake {
+					sentLong = e.Path
+				}
+			case qlog.PacketReceived:
+				if e.Header.PacketType == qlog.PacketTypeHandshake {
+					receivedLong = e.Path
+				}
+			}
+		}
+		require.Equal(t, &qlog.PathIdentity{PathID: 0, TupleGeneration: 4}, sentLong)
+		require.Equal(t, &qlog.PathIdentity{PathID: 0}, receivedLong)
 	})
 }
 
