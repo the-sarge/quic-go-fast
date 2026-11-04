@@ -77,6 +77,7 @@ func (p *receivedPacket) Clone() *receivedPacket {
 		ecn:        p.ecn,
 		info:       p.info,
 		pathID:     p.pathID,
+		transport:  p.transport,
 	}
 }
 

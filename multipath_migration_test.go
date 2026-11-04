@@ -87,6 +87,26 @@ func migrate(t *testing.T, f *admissionFixture, id protocol.PathID, target *Tran
 }
 
 func TestPathMigrationTargetRefusal(t *testing.T) {
+	t.Run("no path moves before confirmation", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			target, socket := migrationTarget(t, f)
+			f.c.handshakeConfirmed = false
+			errs := migrateAsync(context.Background(), f, 0, target)
+			require.NoError(t, f.c.pathCredit.service(monotime.Now()))
+			require.Empty(t, errs)
+			require.Empty(t, (*packetHandlerMap)(target).handlers)
+			require.Zero(t, f.c.pathCredit.historyUnits)
+			f.c.handshakeConfirmed = true
+			f.pass(t)
+			challenges := socketChallenges(t, f, socket, 0)
+			require.NotEmpty(t, challenges, "normal progress afterward")
+			require.True(t, f.receive(t, 0, f.c.pathCredit.members[0].addr, 1200, &wire.PathResponseFrame{Data: challenges[0]}))
+			f.pass(t)
+			require.NoError(t, <-errs)
+		})
+	})
 	t.Run("a nil target", func(t *testing.T) {
 		nativeOrdinaryTest(t, func(t *testing.T) {
 			f := newAdmissionFixture(t, protocol.PerspectiveClient)
@@ -235,6 +255,38 @@ func TestPathMigrationExhaustedCredit(t *testing.T) {
 		f.pass(t)
 		require.Greater(t, announced(), first, "a refusal doesn't discharge the obligation")
 
+		m := p.members[1]
+		m.announces = maxPathAnnounceBackoff + 4
+		p.noteAnnounced(m, monotime.Now())
+		require.True(t, m.announcing, "a long run of refusals keeps it too")
+		require.LessOrEqual(t, m.announces, maxPathAnnounceBackoff)
+
+		// While the path can't announce, its elapsed deadline arms no timer.
+		time.Sleep(m.announceAt.Sub(monotime.Now()) + time.Millisecond)
+		p.markSuspect(m, monotime.Now())
+		require.NoError(t, p.service(monotime.Now()))
+		if next := p.nextAdmissionExpiry(); next != 0 {
+			require.True(t, next.After(monotime.Now()), "no immediate wake")
+		}
+		m.suspect = false
+
+		// A saturated backup endpoint doesn't hold the healthy primary's work.
+		socket.hold = nativeProbeHoldAll
+		p.selectPrimaryPrivate(1)
+		f.write(t, 6000)
+		f.pass(t)
+		p.selectPrimaryPrivate(0)
+		m.announceAt = monotime.Now()
+		f.socket.writes = nil
+		f.write(t, 1000)
+		f.pass(t)
+		require.NotZero(t, reliableBytes(f.parseWrites(t, 0)), "the primary keeps sending")
+		require.True(t, m.announceAt.After(monotime.Now()), "and the announcement backs off")
+		socket.hold = nil
+		socket.release()
+		synctest.Wait()
+		f.pass(t)
+
 		original := f.socket
 		f.socket = socket
 		writes := f.parseWrites(t, 1)
@@ -257,6 +309,7 @@ func TestPathMigrationAnswersOnNewTuple(t *testing.T) {
 		remote := p.members[0].addr
 		packet := f.peerPacket(t, 0, remote, 1200, false, &wire.PathChallengeFrame{Data: [8]byte{7}})
 		packet.transport = target
+		require.Same(t, target, packet.Clone().transport, "a coalesced component keeps it")
 		_, err := f.c.handleShortHeaderPacket(packet, false, 0)
 		require.NoError(t, err)
 		require.True(t, p.members[0].live)
@@ -372,6 +425,35 @@ func TestPathMigrationFenceBeforeCommit(t *testing.T) {
 }
 
 func TestPathMigrationCancelBeforeCommit(t *testing.T) {
+	t.Run("the peer retires the chosen CID during the fence", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newReliableFixture(t, protocol.PerspectiveClient)
+			withFirstPathFinder(f.admissionFixture)
+			p := f.c.pathCredit
+			target, socket := migrationTarget(t, f.admissionFixture)
+			errs := migrateAsync(context.Background(), f.admissionFixture, 0, target)
+			f.pass(t)
+			challenges := socketChallenges(t, f.admissionFixture, socket, 0)
+			f.socket.hold = nativeProbeHoldAll
+			f.write(t, 1000)
+			f.pass(t)
+			tuple, revoked := p.members[0].tuple, p.members[0].established
+			require.True(t, f.receive(t, 0, p.members[0].addr, 1200, &wire.PathResponseFrame{Data: challenges[0]}))
+			f.pass(t)
+			cid := make([]byte, f.tc.destConnID.Len())
+			cid[0] = 0xe0
+			require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathNewConnectionIDFrame{PathID: 0, SequenceNumber: 9, RetirePriorTo: 9, ConnectionID: protocol.ParseConnectionID(cid), StatelessResetToken: protocol.StatelessResetToken{0xe0}}))
+			f.socket.hold = nil
+			f.socket.release()
+			synctest.Wait()
+			f.pass(t)
+			require.ErrorIs(t, <-errs, errPathCandidateCIDRetired)
+			require.Equal(t, tuple, p.members[0].tuple)
+			require.Nil(t, p.members[0].transport)
+			require.NotSame(t, revoked, p.members[0].established, "a fresh old-tuple epoch")
+			require.False(t, p.members[0].established.probeEpoch.revoked.Load())
+		})
+	})
 	t.Run("during validation", func(t *testing.T) {
 		nativeOrdinaryTest(t, func(t *testing.T) {
 			f := newAdmissionFixture(t, protocol.PerspectiveClient)
@@ -493,10 +575,46 @@ func TestPathMigrationIncomingRebinding(t *testing.T) {
 		require.Equal(t, admissionTupleB.AddrPort().Port(), sender.destination.Port(), "path zero's sends follow")
 		require.Equal(t, 1, p.historyUnits)
 
-		// A later packet from the old address is older evidence and moves nothing back.
-		require.True(t, f.receive(t, 0, old, 100, &wire.PingFrame{}))
+		// The packet that created a candidate counts, and newer traffic on the current
+		// tuple makes it stale. C is validated while A's packet is the highest.
+		tupleC := &net.UDPAddr{IP: net.IPv4(192, 0, 2, 12), Port: 1002}
+		tupleD := &net.UDPAddr{IP: net.IPv4(192, 0, 2, 13), Port: 1003}
+		cid := func(seq uint64) {
+			c := make([]byte, f.tc.destConnID.Len())
+			c[0], c[1] = 0xd0, byte(seq)
+			require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathNewConnectionIDFrame{PathID: 0, SequenceNumber: seq, ConnectionID: protocol.ParseConnectionID(c), StatelessResetToken: protocol.StatelessResetToken{0xd0, byte(seq)}}))
+		}
+		cid(5)
+		time.Sleep(time.Until(p.retained[0].expiry.ToTime()) + time.Millisecond)
 		f.pass(t)
-		require.Equal(t, admissionTupleB, p.members[0].addr)
+		f.socket.writes = nil
+		require.True(t, f.receive(t, 0, tupleC, 1200, &wire.PingFrame{}))
+		f.pass(t)
+		require.True(t, f.receive(t, 0, admissionTupleB, 100, &wire.PingFrame{}), "newer on the current tuple")
+		stale := admissionChallenges(f.peerWrites(t, 0))
+		require.NotEmpty(t, stale)
+		require.True(t, f.receive(t, 0, tupleC, 1200, &wire.PathResponseFrame{Data: stale[0]}))
+		f.pass(t)
+		f.pass(t)
+		require.Equal(t, admissionTupleB, p.members[0].addr, "stale evidence moves nothing")
+
+		cid(6)
+		f.socket.writes = nil
+		f.tc.sendConn.EXPECT().ChangeRemoteAddr(tupleD, gomock.Any())
+		require.True(t, f.receive(t, 0, tupleD, 1200, &wire.PingFrame{}))
+		f.pass(t)
+		fresh := admissionChallenges(f.peerWrites(t, 0))
+		require.NotEmpty(t, fresh)
+		require.True(t, f.receive(t, 0, tupleD, 1200, &wire.PathResponseFrame{Data: fresh[0]}))
+		f.pass(t)
+		f.pass(t)
+		require.Equal(t, tupleD, p.members[0].addr, "the creating packet is enough while it stays highest")
+		old = admissionTupleB
+
+		// A probing packet from the old address moves nothing back.
+		require.True(t, f.receive(t, 0, old, 100, &wire.PathChallengeFrame{Data: [8]byte{2}}))
+		f.pass(t)
+		require.Equal(t, tupleD, p.members[0].addr)
 	})
 }
 
@@ -528,7 +646,16 @@ func TestPathMigrationContention(t *testing.T) {
 			require.Same(t, revalidation, m.candidate, "an admitted candidate isn't displaced")
 			require.Empty(t, errs)
 			time.Sleep(time.Until(revalidation.probe.validationDeadline.ToTime()) + time.Millisecond)
+			select {
+			case <-f.c.sendingScheduled:
+			default:
+			}
 			f.pass(t)
+			select {
+			case <-f.c.sendingScheduled:
+			default:
+				t.Fatal("the released slot wakes the waiting migration")
+			}
 			f.pass(t)
 			require.NotNil(t, m.candidate)
 			require.Equal(t, target, m.candidate.transport, "revalidation doesn't renew ahead of it")
@@ -561,6 +688,9 @@ func TestPathMigrationFifthRefused(t *testing.T) {
 		require.ErrorIs(t, <-errs, ErrMultipathResourceLimitV1)
 		require.Empty(t, (*packetHandlerMap)(target).handlers, "it fails before attaching")
 		require.Equal(t, maxPathHistoryUnits, p.historyUnits)
+
+		// The connection's own timer reaches retention, with no other traffic.
+		require.Equal(t, p.retained[0].expiry, p.nextAdmissionExpiry())
 
 		// One generation's expiry frees exactly one unit.
 		time.Sleep(time.Until(p.retained[0].expiry.ToTime()) + time.Millisecond)
@@ -655,6 +785,11 @@ func TestPathDetachAuthority(t *testing.T) {
 			_, attached := f.c.connIDGenerator.connRunners[f.route]
 			require.False(t, attached)
 			require.False(t, origin.maybeSendStatelessReset(receivedPacket{data: make([]byte, 100)}), "a surviving CID must draw no valid reset")
+
+			errs := f.openAsync(context.Background(), nil, admissionTupleA)
+			f.pass(t)
+			require.ErrorIs(t, <-errs, ErrMultipathInvalidConfigV1, "no member can use the transport it left")
+			require.False(t, p.paths[1], "no ID is consumed")
 
 			(*Transport)(f.route).transportClosed = true
 			sender := f.c.emission.local.(*nativeOrdinarySender)

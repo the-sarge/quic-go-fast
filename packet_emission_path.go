@@ -156,8 +156,12 @@ func (e *packetEmission) announcePath(now monotime.Time) (bool, error) {
 	if m == nil {
 		return false, nil
 	}
+	selected := e.route
 	e.useRoute(e.pathCredit.routeOf(m.id))
 	if e.queue.WouldBlock() {
+		// This endpoint's capacity is no reason to hold the selected route's work.
+		e.pathCredit.noteAnnounced(m, now)
+		e.useRoute(selected)
 		return false, nil
 	}
 	packet, err := e.packer.packPTOProbePacket(e.route, protocol.Encryption1RTT, e.packetSize(), true, now, e.version)

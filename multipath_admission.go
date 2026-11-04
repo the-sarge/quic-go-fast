@@ -59,9 +59,9 @@ type pathMember struct {
 	// standby is the last validated tuple that isn't current, with the path-local CID
 	// that validated it.
 	standby *pathStandby
-	// largestPN is the highest packet number authenticated on this path, for a server's
-	// cutover, which follows only the highest-numbered non-probing packet.
-	largestPN protocol.PacketNumber
+	// largestNonProbing is the highest non-probing packet number on this path, which
+	// is the only packet a server's cutover may follow. RFC 9000 section 9.3.
+	largestNonProbing protocol.PacketNumber
 	// announcing owes the new tuple a non-probing packet, until one is acknowledged.
 	announcing bool
 	announceAt monotime.Time
@@ -82,7 +82,10 @@ type pathCandidate struct {
 	// release. fencing means it validated and the old tuple's fence is resolving.
 	migrating, fencing bool
 	keepCID            bool // the CID stays with the tuple's standby at retirement
-	nonProbing         bool // a non-probing packet already arrived from this tuple
+	// movePN is the non-probing packet from this tuple that could move the path, while
+	// it stays the path's highest. Valid only if moves is set.
+	moves  bool
+	movePN protocol.PacketNumber
 }
 
 type pathStandby struct {
@@ -422,6 +425,9 @@ func (p *pathCreditRegistry) admitIssuedKeys(id protocol.PathID) error {
 // admitMember commits an ID after authentication or a local decision. Every
 // capacity is reserved before recovery, routes or submission exist.
 func (p *pathCreditRegistry) admitMember(id protocol.PathID, target *Transport, now monotime.Time) (*pathMember, error) {
+	if target == nil && p.attachments[nil] == nil {
+		return nil, fmt.Errorf("%w: the connection has left its own transport", ErrMultipathInvalidConfigV1)
+	}
 	if p.historyUnits >= maxPathHistoryUnits {
 		return nil, fmt.Errorf("%w: retained path history is full", ErrMultipathResourceLimitV1)
 	}
@@ -557,8 +563,10 @@ func (p *pathCreditRegistry) receivedTuple(id protocol.PathID, pn protocol.Packe
 		return
 	}
 	via = p.attachmentKey(via)
-	moving := nonProbing && pn >= m.largestPN
-	m.largestPN = max(m.largestPN, pn)
+	moving := nonProbing && pn >= m.largestNonProbing
+	if moving {
+		m.largestNonProbing = pn
+	}
 	answer := func() {
 		if challenge != nil {
 			m.response = &pathResponseDue{data: challenge.Data, addr: addr, info: info, transport: via}
@@ -572,7 +580,9 @@ func (p *pathCreditRegistry) receivedTuple(id protocol.PathID, pn protocol.Packe
 	if candidate := m.candidate; candidate != nil {
 		if via == candidate.transport && addrsEqual(candidate.addr, addr) {
 			candidate.probe.bytesReceived += size
-			candidate.nonProbing = candidate.nonProbing || moving
+			if moving {
+				candidate.moves, candidate.movePN = true, pn
+			}
 			answer()
 			p.conn.scheduleSending()
 		}
@@ -601,7 +611,9 @@ func (p *pathCreditRegistry) receivedTuple(id protocol.PathID, pn protocol.Packe
 	if m.live {
 		deadline = pathDeadline(now, pathTimeout)
 	}
-	p.newCandidate(m, addr, info, nil, connID, deadline, now).probe.bytesReceived = size
+	candidate := p.newCandidate(m, addr, info, nil, connID, deadline, now)
+	candidate.probe.bytesReceived = size
+	candidate.moves, candidate.movePN = moving, pn
 	answer()
 	p.conn.scheduleSending()
 }
@@ -647,7 +659,7 @@ func (p *pathCreditRegistry) pathResponse(f *wire.PathResponseFrame, ingress pro
 	} else {
 		p.activate(m, candidate.addr, candidate.info, candidate.transport, now)
 	}
-	moving := m.live && candidate.nonProbing
+	moving := m.live && candidate.moves && candidate.movePN == m.largestNonProbing
 	addr, info := candidate.addr, candidate.info
 	p.retireCandidate(m)
 	if request != nil {
@@ -714,6 +726,9 @@ func (p *pathCreditRegistry) retireCandidate(m *pathMember) {
 	}
 	candidate.probe.retire()
 	m.candidate = nil
+	if p.migrationWaiting(m.id) {
+		p.conn.scheduleSending() // it takes this slot on its next pass
+	}
 	expiry := pathDeadline(monotime.Now(), threePathPTO(p.largestPTO(false)))
 	if !candidate.keepCID && candidate.connID.Len() != 0 {
 		p.conn.connIDManager.retirePathDestination(m.id, candidate.connID, expiry)
@@ -931,7 +946,8 @@ func (p *pathCreditRegistry) nextAdmissionExpiry() monotime.Time {
 		if !m.live {
 			take(m.deadline)
 		}
-		if m.announcing {
+		// A due one waits for its next pass, so a blocked attempt can't spin this timer.
+		if m.announcing && m.announceAt.After(p.now) {
 			take(m.announceAt)
 		}
 		if candidate := m.candidate; candidate != nil {
@@ -940,6 +956,12 @@ func (p *pathCreditRegistry) nextAdmissionExpiry() monotime.Time {
 			if t := candidate.probe.nextProbeTime; candidate.probe.canProbe(t) && t.After(p.now) {
 				take(t)
 			}
+		}
+	}
+	for _, entry := range p.retained {
+		// An elapsed entry waits on its fence, which wakes through endpoint completion.
+		if entry.expiry.After(p.now) {
+			take(entry.expiry)
 		}
 	}
 	return next

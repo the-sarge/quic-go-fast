@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"slices"
@@ -11,9 +12,10 @@ import (
 	"github.com/quic-go/quic-go/internal/utils"
 )
 
-// maxPathAnnouncements bounds a cutover's announcement retries. A path that never
-// answers becomes suspect through its own recovery.
-const maxPathAnnouncements = 8
+// maxPathAnnounceBackoff caps the doubling of a cutover's announcement retries.
+const maxPathAnnounceBackoff = 6
+
+var errPathCandidateCIDRetired = errors.New("quic: the peer retired the migration's connection ID")
 
 // pathAttachment charges one transport's routing to this connection. References are
 // members, candidates and retained entries. At zero it can detach.
@@ -185,6 +187,9 @@ func (p *pathCreditRegistry) serviceMigration(request *pathOpenRequest, now mono
 	if p.conn.perspective != protocol.PerspectiveClient {
 		return p.refuseRequest(request, ErrMultipathUnsupportedV1)
 	}
+	if !p.conn.handshakeConfirmed {
+		return nil // no path moves before confirmation; the context bounds this wait
+	}
 	if m == nil || !m.live || p.terminals[request.id] != nil {
 		return p.refuseRequest(request, ErrPathClosed)
 	}
@@ -277,6 +282,14 @@ func (p *pathCreditRegistry) serviceCutover(m *pathMember, now monotime.Time) {
 		return
 	}
 	request := candidate.request
+	if !p.conn.connIDManager.pathDestinationUsable(m.id, candidate.connID) {
+		// The peer retired it during the fence, so this attempt has nothing to cut over to.
+		if request != nil {
+			request.finish(errPathCandidateCIDRetired)
+		}
+		p.retireCandidate(m)
+		return
+	}
 	if request != nil && !request.finish(nil) {
 		p.retireCandidate(m)
 		return
@@ -352,14 +365,10 @@ func (p *pathCreditRegistry) nextAnnouncement(now monotime.Time) *pathMember {
 	return nil
 }
 
-// noteAnnounced schedules the retry. Enqueue discharges nothing, since a local refusal
-// leaves nothing outstanding for recovery's PTO to probe.
+// noteAnnounced schedules the retry, for an attempt sent or one the endpoint couldn't
+// take. Only a current-tuple acknowledgment or the path's end discharges the obligation,
+// since a local refusal leaves nothing outstanding for recovery's PTO to probe.
 func (p *pathCreditRegistry) noteAnnounced(m *pathMember, now monotime.Time) {
-	m.announces++
-	if m.announces >= maxPathAnnouncements {
-		m.announcing = false
-		return
-	}
-	pto := p.rttOf(m.id).PTO(true)
-	m.announceAt = pathDeadline(now, pto<<min(m.announces, 6))
+	m.announces = min(m.announces+1, maxPathAnnounceBackoff)
+	m.announceAt = pathDeadline(now, p.rttOf(m.id).PTO(true)<<m.announces)
 }
