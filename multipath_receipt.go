@@ -82,15 +82,18 @@ func (m sendMetadata) hasTerminalReceipt() bool {
 	return len(m.terminalReceipts) != 0
 }
 
-func (p *pathCreditRegistry) close() { p.closeFor(net.ErrClosed) }
+func (p *pathCreditRegistry) close() {
+	p.seal()
+	p.endOperation(net.ErrClosed)
+}
 
-// closeFor ends the registry. A pending local operation learns cause, which is the
-// connection's terminal error, before the connection's context carries it.
-func (p *pathCreditRegistry) closeFor(cause error) {
+// seal ends the registry. The pending local operation waits for endOperation, because the
+// connection classifies its terminal error only afterward.
+func (p *pathCreditRegistry) seal() {
 	p.closed = true
 	for _, terminal := range p.terminals {
 		terminal.receipt.seal()
 	}
-	p.closeAdmission(cause)
+	p.closeAdmission()
 	p.publishClosed()
 }

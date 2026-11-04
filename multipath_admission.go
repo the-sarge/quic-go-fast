@@ -1079,13 +1079,18 @@ func (p *pathCreditRegistry) memberProbe(m *pathMember, now monotime.Time) *path
 	}
 }
 
-// closeAdmission ends the local operation and revokes every queued probe. The
-// endpoint's detach owns anything already claimed.
-func (p *pathCreditRegistry) closeAdmission(cause error) {
+// endOperation gives the pending local operation the connection's terminal error, the one
+// its streams and context report.
+func (p *pathCreditRegistry) endOperation(cause error) {
 	if request := p.conn.pathOpen.Load(); request != nil {
 		request.finish(cause)
 		p.conn.pathOpen.CompareAndSwap(request, nil)
 	}
+}
+
+// closeAdmission revokes every queued probe. The endpoint's detach owns anything already
+// claimed.
+func (p *pathCreditRegistry) closeAdmission() {
 	for _, m := range p.members {
 		m.established.retire()
 		p.retireCandidate(m)

@@ -622,7 +622,7 @@ func TestMultipathOpenRefusesTargetUnharmed(t *testing.T) {
 	require.ErrorIs(t, err, ErrMultipathInvalidConfigV1)
 	_, err = p.client.OpenPathV1(ctx, grantedTransport(t), nil)
 	require.ErrorIs(t, err, ErrMultipathInvalidConfigV1)
-	for _, remote := range []*net.UDPAddr{{}, {IP: net.IPv4(127, 0, 0, 1)}, {IP: net.IPv4zero, Port: 443}} {
+	for _, remote := range []*net.UDPAddr{{}, {IP: net.IPv4(127, 0, 0, 1)}, {IP: net.IPv4(127, 0, 0, 1), Port: -1}, {IP: net.IPv4(127, 0, 0, 1), Port: 65537}, {IP: net.IPv4zero, Port: 443}} {
 		_, err = p.client.OpenPathV1(ctx, grantedTransport(t), remote)
 		require.ErrorIs(t, err, ErrMultipathInvalidConfigV1, "%v", remote)
 	}
@@ -680,6 +680,17 @@ func TestMultipathTerminalObservations(t *testing.T) {
 		require.ErrorAs(t, <-pending, &appErr)
 		require.Equal(t, ApplicationErrorCode(42), appErr.ErrorCode)
 		require.True(t, appErr.Remote)
+	})
+	t.Run("an internal error is classified first", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			pending := f.openAsync(context.Background(), nil, admissionTupleA)
+			f.pass(t)
+			f.c.handleCloseError(&closeError{err: errors.New("generator failed")})
+			var transportErr *TransportError
+			require.ErrorAs(t, <-pending, &transportErr, "the identity streams and the context report")
+			require.Equal(t, InternalError, transportErr.ErrorCode)
+		})
 	})
 	t.Run("endpoint fault", func(t *testing.T) {
 		p := newMultipathPair(t)

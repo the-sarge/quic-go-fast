@@ -1016,6 +1016,7 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 			result := c.triggerSending(monotime.Now())
 			require.NoError(t, result.err)
 			require.Nil(t, c.datagramQueue.Peek(), "the frame left")
+			synctest.Wait() // the target's writer submits it on its own goroutine
 			own := r.socket
 			r.socket = socket
 			require.Equal(t, []int{1300}, reliableDatagrams(r.parseWrites(t, 1)))

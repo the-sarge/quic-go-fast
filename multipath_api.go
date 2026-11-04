@@ -260,7 +260,8 @@ func (c *Conn) OpenPathV1(ctx context.Context, t *Transport, remote *net.UDPAddr
 		return nil, fmt.Errorf("%w: a nil remote address", ErrMultipathInvalidConfigV1)
 	}
 	// An address nothing can send to would consume an ID and then fail the connection.
-	if destination := remote.AddrPort(); !destination.IsValid() || destination.Port() == 0 || destination.Addr().Unmap().IsUnspecified() {
+	// The range check comes first, since AddrPort truncates an out-of-range port.
+	if destination := remote.AddrPort(); remote.Port < 1 || remote.Port > 65535 || !destination.IsValid() || destination.Addr().Unmap().IsUnspecified() {
 		return nil, fmt.Errorf("%w: remote address %s", ErrMultipathInvalidConfigV1, remote)
 	}
 	id, err := c.openPathPrivate(ctx, t, &net.UDPAddr{IP: slices.Clone(remote.IP), Port: remote.Port, Zone: remote.Zone})

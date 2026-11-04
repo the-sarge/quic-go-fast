@@ -2601,11 +2601,7 @@ func (c *Conn) closeWithTransportError(code TransportErrorCode) {
 
 func (c *Conn) handleCloseError(closeErr *closeError) {
 	if c.pathCredit != nil {
-		cause := closeErr.err
-		if cause == nil {
-			cause = &qerr.ApplicationError{}
-		}
-		c.pathCredit.closeFor(cause)
+		c.pathCredit.seal()
 	}
 	if closeErr.immediate {
 		if nerr, ok := closeErr.err.(net.Error); ok && nerr.Timeout() {
@@ -2678,6 +2674,9 @@ func (c *Conn) handleCloseError(closeErr *closeError) {
 	c.streamsMap.CloseWithError(e)
 	if c.datagramQueue != nil {
 		c.datagramQueue.CloseWithError(e)
+	}
+	if c.pathCredit != nil {
+		c.pathCredit.endOperation(e)
 	}
 
 	// In rare instances, the connection ID manager might switch to a new connection ID
