@@ -570,7 +570,7 @@ func (s *nativeOrdinarySender) consumeParticipant(participant *endpointParticipa
 				if record.metadata.handshake && record.datagrams == 1 && record.bytes > protocol.MinInitialPacketSize {
 					s.connection.handshakeSendFeedback.publish(record.metadata.pathGeneration)
 				}
-			} else if result.err != nil && !localEndpointBackpressure(result.err) && !errors.Is(result.err, errEndpointRevoked) && !(participant != s.participant && participant.endpoint.quarantined()) {
+			} else if result.err != nil && !localEndpointBackpressure(result.err) && !errors.Is(result.err, errEndpointRevoked) && (participant == s.participant || !participant.endpoint.quarantined()) {
 				// A target's fault stays on its endpoint, whose routes the registry drains.
 				s.err = errors.Join(s.err, result.err)
 			}
