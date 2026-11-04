@@ -204,24 +204,31 @@ func (s *nativeOrdinarySender) WouldBlock() bool {
 	if s.pending != nil {
 		return false
 	}
+	s.pending = s.reserve(s.route)
+	return s.pending == nil
+}
+
+// reserve takes a record and endpoint capacity for a route's next packet, without
+// binding that route. It returns nil when anything refuses.
+func (s *nativeOrdinarySender) reserve(route *pathRoute) *ordinaryLocalRecord {
 	packets := 1
 	if !s.connection.handshakeConfirmed {
 		packets = 3
 	}
 	if !s.recovery.CanRegisterLocalPackets(packets) {
-		return true
+		return nil
 	}
 	for index := range s.records {
 		record := &s.records[index]
 		if record.admission.serial != 0 {
 			continue
 		}
-		participant := s.routeParticipant()
+		participant := s.participantOf(route)
 		if participant == nil {
-			return true
+			return nil
 		}
 		if s.routeSaturated(participant.endpoint) {
-			return true
+			return nil
 		}
 		admission, err := participant.endpoint.prepare(participant, 0, int(protocol.MaxLargePacketBufferSize))
 		if err != nil {
@@ -229,17 +236,16 @@ func (s *nativeOrdinarySender) WouldBlock() bool {
 			if !s.refused && !errors.Is(err, net.ErrClosed) {
 				s.err = err
 			}
-			return true
+			return nil
 		}
 		identity := endpointIdentity{connection: s.participant.id, generation: s.generation, pathGeneration: s.connection.pathGeneration, tuple: s.connection.pathGeneration, registration: admission.serial}
-		if s.route != nil {
-			identity.path, identity.pathGeneration, identity.tuple = uint64(s.route.context.PathID), s.route.context.TupleGeneration, s.route.context.TupleGeneration
+		if route != nil {
+			identity.path, identity.pathGeneration, identity.tuple = uint64(route.context.PathID), route.context.TupleGeneration, route.context.TupleGeneration
 		}
 		*record = ordinaryLocalRecord{admission: admission, endpoint: participant.endpoint, identity: identity}
-		s.pending = record
-		return false
+		return record
 	}
-	return true
+	return nil
 }
 
 func (s *nativeOrdinarySender) Available() <-chan struct{} { return s.participant.completed }
@@ -249,13 +255,17 @@ func (s *nativeOrdinarySender) Run() error                 { return nil }
 
 // routeParticipant is where the selected path's packets are reserved and submitted.
 func (s *nativeOrdinarySender) routeParticipant() *endpointParticipant {
-	if s.route == nil {
+	return s.participantOf(s.route)
+}
+
+func (s *nativeOrdinarySender) participantOf(route *pathRoute) *endpointParticipant {
+	if route == nil {
 		return s.participant
 	}
-	if s.route.transport == nil {
+	if route.transport == nil {
 		return s.origin
 	}
-	endpoint := nativeTransportEndpoint(s.route.transport)
+	endpoint := nativeTransportEndpoint(route.transport)
 	if endpoint == nil {
 		return nil
 	}
@@ -288,14 +298,48 @@ func (s *nativeOrdinarySender) useRoute(route *pathRoute) {
 	s.route = route
 }
 
-// holdReadiness keeps the current route's registration across the fallback when its
-// endpoint's capacity refused the DATAGRAM. Other connections can fill that endpoint
-// with no result of this one's to wake it, so its turn is what wakes the loop. Any
-// other refusal is this connection's own, and its completions wake the loop.
-func (s *nativeOrdinarySender) holdReadiness() {
+// steer reserves on the route that fits the next DATAGRAM and binds it. A refusal
+// leaves the current route's registration and reservation alone, so that route still
+// uses a turn it was woken for. A success gives them up, and costs the current route
+// one turn. A route already bound with its reservation keeps it, because selection
+// runs again before the packet is built.
+func (s *nativeOrdinarySender) steer(route *pathRoute) bool {
+	s.refused = false
+	if s.drained || s.closed || s.err != nil {
+		return false
+	}
+	if s.route == route && s.pending != nil {
+		return true
+	}
+	record := s.reserve(route)
+	target, current := s.participantOf(route), s.routeParticipant()
+	if record == nil {
+		s.holdReadiness(target)
+		if !s.refused && target != nil && target != current {
+			target.endpoint.cancelReadiness(target, 0)
+		}
+		return false
+	}
+	s.finish()
+	if current != nil && current != target {
+		current.endpoint.cancelReadiness(current, 0)
+	}
+	s.route, s.pending = route, record
 	s.releaseReadiness()
+	return true
+}
+
+// holdReadiness keeps target's registration across the fallback when its endpoint's
+// capacity refused the DATAGRAM. Other connections can fill that endpoint with no
+// result of this one's to wake it, so its turn is what wakes the loop. Any other
+// refusal is this connection's own, and its completions wake the loop.
+func (s *nativeOrdinarySender) holdReadiness(target *endpointParticipant) {
+	if s.fitting != target {
+		s.releaseReadiness()
+	}
+	s.fitting = nil
 	if s.refused {
-		s.fitting = s.routeParticipant()
+		s.fitting = target
 	}
 }
 

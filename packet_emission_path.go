@@ -74,13 +74,15 @@ func (e *packetEmission) selectRoute(now monotime.Time) {
 	// the DATAGRAM and not the chosen route's traffic. Its readiness wakes the loop,
 	// and selection keeps that registration only while it names the same need.
 	if steering {
-		e.useRoute(steerTo)
-		if !e.queue.WouldBlock() {
-			e.local.releaseReadiness()
-			e.steered = true
+		// A route selection has left gives up its place. The attempt leaves the chosen
+		// route's alone, and one already bound to steerTo keeps its reservation.
+		if e.route != steerTo {
+			e.useRoute(route)
+		}
+		if e.local.steer(steerTo) {
+			e.route, e.steered = steerTo, true
 			return
 		}
-		e.local.holdReadiness()
 	}
 	e.steered = false
 	e.useRoute(route)
