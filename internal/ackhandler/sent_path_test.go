@@ -404,3 +404,62 @@ func TestSentPathReplacement(t *testing.T) {
 	require.Len(t, second, 1, "and the other waits for the next")
 	require.NotEqual(t, first[0].Frame.(*wire.AckFrame).PathID, second[0].Frame.(*wire.AckFrame).PathID)
 }
+
+// TestSentPathTupleECN restarts validation for a new tuple. Cumulative counts persist,
+// because the peer's do, while testing length and mangling count from the cutover.
+func TestSentPathTupleECN(t *testing.T) {
+	newCapable := func(t *testing.T) *ecnTracker {
+		e := newECNTracker(utils.DefaultLogger, nil)
+		require.Equal(t, protocol.ECT0, e.Mode())
+		for pn := range protocol.PacketNumber(numECNTestingPackets) {
+			e.SentPacket(pn, protocol.ECT0)
+		}
+		require.False(t, e.handleCounts(10, 0, true, 10, 0, 0))
+		require.Equal(t, ecnStateCapable, e.state)
+		for pn := protocol.PacketNumber(numECNTestingPackets); pn < 40; pn++ {
+			e.SentPacket(pn, protocol.ECT0)
+		}
+		return e
+	}
+	t.Run("a whole testing run after substantial old traffic", func(t *testing.T) {
+		e := newCapable(t)
+		e.restartTuple()
+		require.Equal(t, int64(40), e.numSentECT0, "cumulative counts persist")
+		require.Equal(t, protocol.ECT0, e.Mode())
+		for pn := protocol.PacketNumber(40); pn < 40+numECNTestingPackets-1; pn++ {
+			e.SentPacket(pn, protocol.ECT0)
+			require.Equal(t, ecnStateTesting, e.state)
+		}
+		e.SentPacket(40+numECNTestingPackets-1, protocol.ECT0)
+		require.Equal(t, ecnStateUnknown, e.state)
+	})
+	t.Run("mangling counts from the cutover", func(t *testing.T) {
+		e := newCapable(t)
+		e.restartTuple()
+		require.Equal(t, protocol.ECT0, e.Mode())
+		for pn := protocol.PacketNumber(40); pn < 40+numECNTestingPackets; pn++ {
+			e.SentPacket(pn, protocol.ECT0)
+		}
+		require.False(t, e.handleCounts(numECNTestingPackets, 0, true, 10, 0, numECNTestingPackets))
+		require.Equal(t, ecnStateFailed, e.state, "every testing packet came back CE")
+	})
+	t.Run("mixed feedback certifies early, and the next ACK corrects a bleaching tuple", func(t *testing.T) {
+		e := newCapable(t)
+		e.restartTuple()
+		require.Equal(t, protocol.ECT0, e.Mode())
+		e.SentPacket(40, protocol.ECT0)
+		e.SentPacket(41, protocol.ECT0)
+		require.False(t, e.handleCounts(1, 0, true, 11, 0, 0), "an old packet's count raised this")
+		require.Equal(t, ecnStateCapable, e.state)
+		require.False(t, e.handleCounts(1, 0, false, 11, 0, 0))
+		require.Equal(t, ecnStateFailed, e.state)
+		require.Equal(t, protocol.ECNNon, e.Mode())
+	})
+	t.Run("a failure stays failed", func(t *testing.T) {
+		e := newCapable(t)
+		e.state = ecnStateFailed
+		e.restartTuple()
+		require.Equal(t, ecnStateFailed, e.state)
+		require.Equal(t, protocol.ECNNon, e.Mode())
+	})
+}

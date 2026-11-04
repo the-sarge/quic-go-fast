@@ -227,29 +227,38 @@ func (m *connIDGenerator) closingConnIDs() []protocol.ConnectionID {
 	return append(connIDs, m.extraPathCIDs()...)
 }
 
-// addPathRunner attaches a transport under private multipath, retaining each
-// issued CID's path binding. Failure leaves obligations for ordinary close to clean.
-func (m *connIDGenerator) addPathRunner(runner connRunner, r connRunnerCallbacks) error {
-	if _, ok := m.connRunners[runner]; ok {
-		return nil
-	}
-	if r.AddPathConnectionID == nil {
-		return fmt.Errorf("transport cannot route path connection IDs")
-	}
-	m.connRunners[runner] = r
+// addPathRunner attaches a transport under private multipath, retaining each issued
+// CID's path binding. A refusal leaves the transport and this generator untouched.
+func (m *connIDGenerator) addPathRunner(runner *packetHandlerMap, r connRunnerCallbacks, tokens []protocol.StatelessResetToken, handler packetHandler) error {
+	var routes []pathRouteEntry
 	for id, set := range m.pathCIDs {
 		for _, cid := range set.active {
-			if !r.AddPathConnectionID(cid, id) {
-				return fmt.Errorf("cannot register path %d connection ID", id)
-			}
+			routes = append(routes, pathRouteEntry{id: cid, path: id})
 		}
 		for _, entry := range set.retiring {
-			if !r.AddPathConnectionID(entry.connID, id) {
-				return fmt.Errorf("cannot register path %d connection ID", id)
-			}
+			routes = append(routes, pathRouteEntry{id: entry.connID, path: id})
 		}
 	}
+	if err := runner.attachRoutes(routes, tokens, handler); err != nil {
+		return err
+	}
+	m.connRunners[runner] = r
 	return nil
+}
+
+// routedCIDs lists every CID a runner of this connection holds.
+func (m *connIDGenerator) routedCIDs() []protocol.ConnectionID {
+	ids := m.extraPathCIDs()
+	for _, cid := range m.activeSrcConnIDs {
+		ids = append(ids, cid)
+	}
+	for _, entry := range m.connIDsToRetire {
+		ids = append(ids, entry.connID)
+	}
+	if m.initialClientDestConnID != nil {
+		ids = append(ids, *m.initialClientDestConnID)
+	}
+	return ids
 }
 
 func (m *connIDGenerator) AddConnRunner(runner connRunner, r connRunnerCallbacks) error {

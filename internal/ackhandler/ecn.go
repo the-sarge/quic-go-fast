@@ -62,6 +62,9 @@ type ecnTracker struct {
 
 	numSentECT0, numSentECT1                  int64
 	numAckedECT0, numAckedECT1, numAckedECNCE int64
+	// tupleSent and tupleCE are the cumulative counts at the last tuple cutover. The
+	// peer's counters keep rising across it, so only this tuple's testing starts over.
+	tupleSent, tupleCE int64
 
 	qlogger qlogwriter.Recorder
 	logger  utils.Logger
@@ -109,7 +112,7 @@ func (e *ecnTracker) SentPacket(pn protocol.PacketNumber, ecn protocol.ECN) {
 	if e.firstTestingPacket == protocol.InvalidPacketNumber {
 		e.firstTestingPacket = pn
 	}
-	if e.numSentECT0+e.numSentECT1 >= numECNTestingPackets || (e.local != nil && e.numSentTesting >= numECNTestingPackets) {
+	if e.numSentECT0+e.numSentECT1-e.tupleSent >= numECNTestingPackets || (e.local != nil && e.numSentTesting >= numECNTestingPackets) {
 		if e.qlogger != nil {
 			e.qlogger.RecordEvent(qlog.ECNStateUpdated{
 				State: qlog.ECNStateUnknown,
@@ -118,6 +121,18 @@ func (e *ecnTracker) SentPacket(pn protocol.PacketNumber, ecn protocol.ECN) {
 		e.state = ecnStateUnknown
 		e.lastTestingPacket = pn
 	}
+}
+
+// restartTuple validates a new tuple from here. A failure stays, so a tuple doesn't
+// mark after one on the path, and marking less is always safe.
+func (e *ecnTracker) restartTuple() {
+	if e.state == ecnStateFailed {
+		return
+	}
+	e.state = ecnStateInitial
+	e.numSentTesting, e.numLostTesting = 0, 0
+	e.firstTestingPacket, e.lastTestingPacket, e.firstCapablePacket = protocol.InvalidPacketNumber, protocol.InvalidPacketNumber, protocol.InvalidPacketNumber
+	e.tupleSent, e.tupleCE = e.numSentECT0+e.numSentECT1, e.numAckedECNCE
 }
 
 func (e *ecnTracker) Mode() protocol.ECN {
@@ -309,8 +324,8 @@ func (e *ecnTracker) failIfMangled() {
 	if e.local != nil && e.local.testingPending != 0 {
 		return
 	}
-	numAckedECNCE := e.numAckedECNCE + int64(e.numLostTesting)
-	if e.numSentECT0+e.numSentECT1 > numAckedECNCE {
+	numAckedECNCE := e.numAckedECNCE - e.tupleCE + int64(e.numLostTesting)
+	if e.numSentECT0+e.numSentECT1-e.tupleSent > numAckedECNCE {
 		return
 	}
 	if e.qlogger != nil {

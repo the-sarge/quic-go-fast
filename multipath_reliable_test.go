@@ -471,7 +471,8 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 	newTarget := func(t *testing.T, f *admissionFixture) (*Transport, *nativeProbeSocket, *nativeEndpoint) {
 		socket := newNativeProbeSocket()
 		endpoint := startNativeProbeEndpoint(t, socket)
-		target := &Transport{connIDLen: f.tc.srcConnID.Len(), handlers: make(map[protocol.ConnectionID]packetHandlerEntry), resetTokens: make(map[protocol.StatelessResetToken]packetHandler), logger: utils.DefaultLogger}
+		target := &Transport{ConnectionIDLength: f.tc.srcConnID.Len(), connIDLen: f.tc.srcConnID.Len(), handlers: make(map[protocol.ConnectionID]packetHandlerEntry), resetTokens: make(map[protocol.StatelessResetToken]packetHandler), logger: utils.DefaultLogger}
+		target.initOnce.Do(func() {})
 		target.responses = newEndpointResponses(endpoint)
 		return target, socket, endpoint
 	}

@@ -579,9 +579,10 @@ func TestPathAdmissionResourceSaturation(t *testing.T) {
 			f := newAdmissionFixture(t, protocol.PerspectiveClient)
 			f.supplyPeerCIDs(t)
 			for range maxPathAttachments {
-				f.c.pathCredit.attachments[&Transport{}] = 1
+				f.c.pathCredit.attachments[&Transport{}] = &pathAttachment{refs: 1}
 			}
-			target := &Transport{connIDLen: f.tc.srcConnID.Len(), handlers: make(map[protocol.ConnectionID]packetHandlerEntry), resetTokens: make(map[protocol.StatelessResetToken]packetHandler), logger: utils.DefaultLogger}
+			target := &Transport{ConnectionIDLength: f.tc.srcConnID.Len(), connIDLen: f.tc.srcConnID.Len(), handlers: make(map[protocol.ConnectionID]packetHandlerEntry), resetTokens: make(map[protocol.StatelessResetToken]packetHandler), logger: utils.DefaultLogger}
+			target.initOnce.Do(func() {})
 			target.responses = newEndpointResponses(startNativeProbeEndpoint(t, newNativeProbeSocket()))
 			errs := f.openAsync(context.Background(), target, admissionTupleA)
 			f.pass(t)
@@ -645,7 +646,8 @@ func TestPathAdmissionTargetTransportRoutes(t *testing.T) {
 			f := newAdmissionFixture(t, protocol.PerspectiveClient)
 			f.supplyPeerCIDs(t)
 			endpoint := startNativeProbeEndpoint(t, newNativeProbeSocket())
-			target := &Transport{connIDLen: f.tc.srcConnID.Len(), handlers: make(map[protocol.ConnectionID]packetHandlerEntry), resetTokens: make(map[protocol.StatelessResetToken]packetHandler), logger: utils.DefaultLogger}
+			target := &Transport{ConnectionIDLength: f.tc.srcConnID.Len(), connIDLen: f.tc.srcConnID.Len(), handlers: make(map[protocol.ConnectionID]packetHandlerEntry), resetTokens: make(map[protocol.StatelessResetToken]packetHandler), logger: utils.DefaultLogger}
+			target.initOnce.Do(func() {})
 			target.responses = newEndpointResponses(endpoint)
 			endpoint.seal()
 			ctx, cancel := context.WithCancel(context.Background())
@@ -673,7 +675,8 @@ func TestPathAdmissionTargetTransportRoutes(t *testing.T) {
 		f := newAdmissionFixture(t, protocol.PerspectiveClient)
 		f.supplyPeerCIDs(t)
 		targetSocket := newNativeProbeSocket()
-		target := &Transport{connIDLen: f.tc.srcConnID.Len(), handlers: make(map[protocol.ConnectionID]packetHandlerEntry), resetTokens: make(map[protocol.StatelessResetToken]packetHandler), logger: utils.DefaultLogger}
+		target := &Transport{ConnectionIDLength: f.tc.srcConnID.Len(), connIDLen: f.tc.srcConnID.Len(), handlers: make(map[protocol.ConnectionID]packetHandlerEntry), resetTokens: make(map[protocol.StatelessResetToken]packetHandler), logger: utils.DefaultLogger}
+		target.initOnce.Do(func() {})
 		target.responses = newEndpointResponses(startNativeProbeEndpoint(t, targetSocket))
 		ctx, cancel := context.WithCancel(context.Background())
 		errs := f.openAsync(ctx, target, admissionTupleA)
@@ -686,7 +689,7 @@ func TestPathAdmissionTargetTransportRoutes(t *testing.T) {
 		require.Len(t, targetSocket.writes, 1, "the probe uses the target endpoint")
 		entry := (*packetHandlerMap)(target).handlers[f.issuedCID(1)]
 		require.Equal(t, protocol.PathID(1), entry.pathID, "the target routes path CIDs with their binding")
-		require.Equal(t, 1, f.c.pathCredit.attachments[target])
+		require.Equal(t, 1, f.c.pathCredit.attachments[target].refs)
 	})
 }
 

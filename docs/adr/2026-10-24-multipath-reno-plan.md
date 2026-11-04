@@ -1,6 +1,6 @@
 # Reno-first QUIC multipath implementation plan
 
-**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8/R9/R10/R11/R12/R14/R15 complete (14/19 slices); R13 #1033 is ready. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
+**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8/R9/R10/R11/R12/R13/R14/R15 complete (15/19 slices); R16 #1036 is ready. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
 
 ## Binding contract and operating discipline
 
@@ -792,6 +792,8 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 <a id="r13"></a>
 
 ### R13 — Migrate one path and observe safe transport detachment
+
+**State:** complete. `multipath_migration.go` holds cutover, retention and detachment, and `multipath_migration_test.go` the 15 connection scenarios, with `TestSentPathTupleECN` the sixteenth. R16 #1036 is ready. Public negotiation remains disabled.
 
 **Delivers:** Validate a target native transport with matching CID length, fence the old tuple and commit same-wire-ID cutover without resetting PN/ECN continuity. Retain old routing for the selected interval; publish detachment only after routing/captured callbacks/submissions can no longer destroy or send for this connection. Reserve retained-generation and distinct-attachment capacity before migration; reused transports still consume generation history.
 

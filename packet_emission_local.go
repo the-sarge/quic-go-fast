@@ -31,6 +31,11 @@ type localPacketSender interface {
 	faulted() <-chan struct{}
 	reject()
 	replacePath(*Transport, sendConn) sendConn
+	moveZero(*Transport, net.Addr, packetInfo, sendConn) sendConn
+	rebindZero(net.Addr, packetInfo, sendConn)
+	resetWriteState(*pathRoute)
+	detachReady(*Transport) bool
+	detachTransport(*Transport)
 }
 
 // localRouteConn marks a send connection that writes only through its endpoint.

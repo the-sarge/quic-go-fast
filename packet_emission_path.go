@@ -99,8 +99,8 @@ func (e *packetEmission) useRoute(route *pathRoute) {
 // loop keeps their alarms, as it does when congestion-limited. Admission probes have
 // already had their turn, and a path's recovery wakes the connection.
 func (e *packetEmission) heldOpportunity(now monotime.Time, confirmed bool) emissionResult {
-	if e.route == nil && e.pathCredit.zeroRetired() {
-		// A nil route is path zero, whose keys no longer seal.
+	if e.route == nil && (e.pathCredit.zeroRetired() || e.pathCredit.zeroFencing()) {
+		// A nil route is path zero, whose keys no longer seal or whose epoch is revoked.
 		return emissionResult{stop: emissionHardBlocked, blocked: blockModeHardBlocked}
 	}
 	if e.queue.WouldBlock() {
@@ -147,6 +147,25 @@ func (e *packetEmission) packetSize() protocol.ByteCount {
 		return e.route.mtu.CurrentSize()
 	}
 	return e.policy.maxPacketSize()
+}
+
+// announcePath sends the non-probing packet a cutover owes on its new tuple. It is an
+// ordinary registered packet, so recovery tracks it and an acknowledgment discharges it.
+func (e *packetEmission) announcePath(now monotime.Time) (bool, error) {
+	m := e.pathCredit.nextAnnouncement(now)
+	if m == nil {
+		return false, nil
+	}
+	e.useRoute(e.pathCredit.routeOf(m.id))
+	if e.queue.WouldBlock() {
+		return false, nil
+	}
+	packet, err := e.packer.packPTOProbePacket(e.route, protocol.Encryption1RTT, e.packetSize(), true, now, e.version)
+	if err != nil {
+		return false, err
+	}
+	e.pathCredit.noteAnnounced(m, now)
+	return true, e.sendCoalesced(packet, e.selected().ECNMode(true), now)
 }
 
 // pathProbeOpportunity gives admission its own turn before dispatch, so sustained

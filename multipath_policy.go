@@ -93,6 +93,7 @@ func (p *pathCreditRegistry) noteAck(frame *wire.AckFrame, now monotime.Time) {
 		return
 	}
 	if tuple, live := acked.TakeAckedTuple(); live && tuple == m.tuple && m.live && p.terminals[target] == nil {
+		m.announcing = false
 		p.noteLiveness(m, now)
 	}
 }
@@ -103,7 +104,7 @@ func (p *pathCreditRegistry) noteAck(frame *wire.AckFrame, now monotime.Time) {
 // primary. A packet still outstanding keeps its PTO, which grants new ones.
 func (p *pathCreditRegistry) noteLiveness(m *pathMember, now monotime.Time) {
 	m.attempts, m.livenessAt = 0, now
-	if candidate := m.candidate; candidate != nil && addrsEqual(candidate.addr, m.addr) {
+	if candidate := m.candidate; candidate != nil && !candidate.migrating && candidate.transport == m.transport && addrsEqual(candidate.addr, m.addr) {
 		p.retireCandidate(m)
 	}
 	if m.suspect {
@@ -131,7 +132,7 @@ func (p *pathCreditRegistry) markSuspect(m *pathMember, now monotime.Time) {
 // and the candidate's own challenge cap and deadline as the bound. A response is the
 // only way this ends in liveness, and the candidate's fence covers its submissions.
 func (p *pathCreditRegistry) startRevalidation(m *pathMember, now monotime.Time) {
-	if m.candidate != nil || p.terminals[m.id] != nil || !m.live || p.pruneFences(m) {
+	if m.candidate != nil || p.terminals[m.id] != nil || !m.live || p.pruneFences(m) || p.migrationWaiting(m.id) {
 		return
 	}
 	connID, ok := p.conn.connIDManager.pathDestination(m.id, false)
@@ -203,7 +204,7 @@ func (p *pathCreditRegistry) syncObservation() {
 func (p *pathCreditRegistry) heldRoute() *pathRoute {
 	var ordered [maxPathHistoryUnits + 1]*pathMember
 	for _, m := range p.orderedMembers(ordered[:0]) {
-		if !m.suspect && p.eligible(m) {
+		if !m.suspect && !m.fencing() && p.eligible(m) {
 			return p.routeOf(m.id)
 		}
 	}
