@@ -63,8 +63,9 @@ func (h *connIDManager) addPathCID(f *wire.PathNewConnectionIDFrame, expiry mono
 	}
 	floor := max(set.retirePrior, f.RetirePriorTo)
 	active := 0
-	for seq := range set.records {
-		if seq >= floor {
+	// A retired record awaits its expiry, and the peer no longer counts it as active.
+	for seq, entry := range set.records {
+		if seq >= floor && !entry.retired {
 			active++
 		}
 	}
@@ -143,6 +144,58 @@ func (h *connIDManager) pathDestination(id protocol.PathID, fresh bool) (protoco
 	return selected, found
 }
 
+// armedResetTokens lists the tokens a newly attached transport has to detect.
+func (h *connIDManager) armedResetTokens() []protocol.StatelessResetToken {
+	var tokens []protocol.StatelessResetToken
+	for _, set := range h.pathCIDs {
+		for _, entry := range set.records {
+			if entry.detectsReset() {
+				tokens = append(tokens, entry.StatelessResetToken)
+			}
+		}
+	}
+	return tokens
+}
+
+// retirePathDestination retires a CID a tuple no longer uses, so the peer can issue
+// another. The path's current CID stays, as does any record already retired.
+func (h *connIDManager) retirePathDestination(id protocol.PathID, cid protocol.ConnectionID, expiry monotime.Time) {
+	set := h.pathCIDs[id]
+	if set == nil {
+		return
+	}
+	for seq, entry := range set.records {
+		if entry.ConnectionID == cid && !entry.retired && seq != set.active {
+			if entry.detectsReset() {
+				h.removeStatelessResetToken(entry.StatelessResetToken)
+			}
+			entry.retired, entry.expiry = true, expiry
+			set.records[seq] = entry
+			h.queueControlFrame(&wire.PathRetireConnectionIDFrame{PathID: id, SequenceNumber: seq})
+			return
+		}
+	}
+}
+
+// activatePathDestination makes cid current at a cutover and retires the old one. A
+// CID retired since it was chosen stays out, and the path keeps its current CID.
+func (h *connIDManager) activatePathDestination(id protocol.PathID, cid protocol.ConnectionID, expiry monotime.Time) {
+	set := h.pathCIDs[id]
+	if set == nil {
+		return
+	}
+	for seq, entry := range set.records {
+		if entry.ConnectionID == cid && !entry.retired {
+			old := set.records[set.active].ConnectionID
+			set.active = seq
+			if old != cid {
+				h.retirePathDestination(id, old, expiry)
+			}
+			return
+		}
+	}
+}
+
 // pathDestinationUsable refuses a CID that was retired after a candidate chose it.
 func (h *connIDManager) pathDestinationUsable(id protocol.PathID, cid protocol.ConnectionID) bool {
 	if set := h.pathCIDs[id]; set != nil {
@@ -211,9 +264,6 @@ func (m *connIDGenerator) retirePathCID(f *wire.PathRetireConnectionIDFrame, des
 	}
 	delete(set.active, f.SequenceNumber)
 	set.retiring = append(set.retiring, connIDToRetire{t: expiry, connID: cid})
-	if f.PathID == 0 && f.SequenceNumber == 0 {
-		return nil
-	}
 	return m.issuePathCIDs(f.PathID, uint64(len(set.active))+1)
 }
 

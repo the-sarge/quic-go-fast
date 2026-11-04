@@ -159,6 +159,9 @@ func (e *packetEmission) send(now monotime.Time, confirmed bool) (result emissio
 				return emissionResult{err: err, retry: err == nil, progress: progress}
 			}
 			e.selectRoute(now)
+			if sent, err := e.announcePath(now); err != nil || sent {
+				return emissionResult{err: err, retry: err == nil, progress: progress}
+			}
 			if e.held {
 				result = e.heldOpportunity(now, confirmed)
 				result.progress = result.progress || progress
@@ -807,6 +810,26 @@ func (e *packetEmission) replaceLocalPath(tr *Transport, conn sendConn) sender {
 		e.connMutex.Unlock()
 	}
 	return e.local
+}
+
+// moveLocalZero publishes path zero's new tuple on another transport.
+func (e *packetEmission) moveLocalZero(target *Transport, addr net.Addr, info packetInfo, conn sendConn) {
+	if next := e.local.moveZero(target, addr, info, conn); next != nil {
+		e.connMutex.Lock()
+		*e.conn = next
+		e.connMutex.Unlock()
+	}
+}
+
+// rebindLocalZero publishes a peer's new address for path zero, cancelling nothing.
+func (e *packetEmission) rebindLocalZero(addr net.Addr, info packetInfo) {
+	e.local.rebindZero(addr, info, *e.conn)
+}
+
+// leaveRoute returns any reservation before a route's tuple changes under it.
+func (e *packetEmission) leaveRoute() {
+	e.route = nil
+	e.local.useRoute(nil)
 }
 
 // In-place rebinding deliberately retains the active queue: pending writes use

@@ -54,8 +54,18 @@ type pathMember struct {
 	fences []pathFence
 	// established accounts for sends to a validated tuple, whose amplification
 	// limit is lifted, and revokes them at retirement.
-	established path
+	established *path
 	route       pathRoute
+	// standby is the last validated tuple that isn't current, with the path-local CID
+	// that validated it.
+	standby *pathStandby
+	// largestNonProbing is the highest non-probing packet number on this path, which
+	// is the only packet a server's cutover may follow. RFC 9000 section 9.3.
+	largestNonProbing protocol.PacketNumber
+	// announcing owes the new tuple a non-probing packet, until one is acknowledged.
+	announcing bool
+	announceAt monotime.Time
+	announces  int
 	// pmtu is the size this path's congestion accounting already uses.
 	pmtu protocol.ByteCount
 	pathPolicy
@@ -68,6 +78,20 @@ type pathCandidate struct {
 	transport *Transport
 	connID    protocol.ConnectionID
 	request   *pathOpenRequest
+	// migrating holds a history unit and an attachment reference until commit or
+	// release. fencing means it validated and the old tuple's fence is resolving.
+	migrating, fencing bool
+	keepCID            bool // the CID stays with the tuple's standby at retirement
+	// movePN is the non-probing packet from this tuple that could move the path, while
+	// it stays the path's highest. Valid only if moves is set.
+	moves  bool
+	movePN protocol.PacketNumber
+}
+
+type pathStandby struct {
+	addr   net.Addr
+	info   packetInfo
+	connID protocol.ConnectionID
 }
 
 type pathFence struct {
@@ -79,6 +103,8 @@ type pathResponseDue struct {
 	data [8]byte
 	addr net.Addr
 	info packetInfo
+	// transport delivered the challenge, and the response has to leave through it.
+	transport *Transport
 }
 
 // pathOpenRequest crosses from the caller to the connection goroutine. It is
@@ -92,6 +118,8 @@ type pathOpenRequest struct {
 	accepted  bool
 	id        protocol.PathID
 	use       *pathLocalUse // set when the operation is a local-use change
+	migrate   bool          // id names the path to move to transport
+	retained  *pathRetained // an aborted migration's charges, which hold the operation
 }
 
 type pathLocalUse struct {
@@ -108,11 +136,17 @@ const (
 // finish publishes the connection's result unless cancellation already won. A
 // false return means the caller was told it canceled, so nothing may activate.
 func (r *pathOpenRequest) finish(err error) bool {
-	if !r.outcome.CompareAndSwap(pathOpenPending, pathOpenFinished) {
+	if !r.claim() {
 		return false
 	}
 	r.done <- err
 	return true
+}
+
+// claim decides the outcome without telling the caller, who learns only once the work
+// the outcome promises is complete. A caller that lost the race waits for the send.
+func (r *pathOpenRequest) claim() bool {
+	return r.outcome.CompareAndSwap(pathOpenPending, pathOpenFinished)
 }
 
 func (r *pathOpenRequest) canceled() bool { return r.outcome.Load() == pathOpenCanceled }
@@ -135,7 +169,7 @@ func (p *pathCreditRegistry) enableAdmission() {
 		return
 	}
 	addr := p.conn.RemoteAddr()
-	zero := &pathMember{id: 0, live: true, addr: addr, info: p.conn.emission.local.routeInfo(), established: path{validated: true, mtuValidated: true}}
+	zero := &pathMember{id: 0, live: true, addr: addr, info: p.conn.emission.local.routeInfo(), established: &path{validated: true, mtuValidated: true}}
 	zero.tuple = p.conn.emission.packer.pathZeroContext().TupleGeneration
 	zero.livenessAt = monotime.Now()
 	zero.fences = []pathFence{{epoch: &zero.established.probeEpoch}}
@@ -143,7 +177,12 @@ func (p *pathCreditRegistry) enableAdmission() {
 	p.conn.emission.packer.holdDatagrams = true
 	p.validated = []net.Addr{addr}
 	p.rtt = map[protocol.PathID]*utils.RTTStats{0: p.conn.rttStats}
-	p.attachments = make(map[*Transport]int)
+	p.attachments = map[*Transport]*pathAttachment{nil: {refs: 1, detached: make(chan struct{})}}
+	p.handshakeAddr = addr
+	if runner, ok := p.conn.connIDGenerator.ownRunner.(*packetHandlerMap); ok {
+		p.origin = (*Transport)(runner)
+	}
+	p.fanOutResetTokens()
 	if recovery, ok := p.conn.sentPacketHandler.(interface{ EnablePathPolicy() }); ok {
 		recovery.EnablePathPolicy()
 	}
@@ -226,6 +265,9 @@ func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pat
 	} else {
 		p.placeDatagram(views)
 	}
+	// A fencing path counted for placement above, so a fence drops nothing, and it
+	// keeps the primary, but nothing may pack against its revoked epoch.
+	views = slices.DeleteFunc(views, func(view pathView) bool { return p.members[view.id].fencing() })
 	chosen, steer, steering, held := selectPath(views, p.primary)
 	if held {
 		return p.heldRoute(), nil, false, true
@@ -389,11 +431,11 @@ func (p *pathCreditRegistry) admitIssuedKeys(id protocol.PathID) error {
 // admitMember commits an ID after authentication or a local decision. Every
 // capacity is reserved before recovery, routes or submission exist.
 func (p *pathCreditRegistry) admitMember(id protocol.PathID, target *Transport, now monotime.Time) (*pathMember, error) {
+	if target == nil && p.attachments[nil] == nil {
+		return nil, fmt.Errorf("%w: the connection has left its own transport", ErrMultipathInvalidConfigV1)
+	}
 	if p.historyUnits >= maxPathHistoryUnits {
 		return nil, fmt.Errorf("%w: retained path history is full", ErrMultipathResourceLimitV1)
-	}
-	if _, attached := p.attachments[target]; target != nil && !attached && len(p.attachments)+1 > maxPathAttachments {
-		return nil, fmt.Errorf("%w: transport attachments are full", ErrMultipathResourceLimitV1)
 	}
 	recovery, ok := p.conn.sentPacketHandler.(interface {
 		AddPathWithRTT(protocol.PathID, protocol.ByteCount, *utils.RTTStats) error
@@ -411,7 +453,10 @@ func (p *pathCreditRegistry) admitMember(id protocol.PathID, target *Transport, 
 		return nil, fmt.Errorf("%w: path ID %d is not available", ErrMultipathResourceLimitV1, id)
 	}
 	p.reserveHistory()
-	member := &pathMember{id: id, transport: target, deadline: pathDeadline(now, pathTimeout), established: path{validated: true, mtuValidated: true}}
+	if target == nil {
+		p.attachments[nil].refs++ // a target's reference came with its attachment
+	}
+	member := &pathMember{id: id, transport: target, deadline: pathDeadline(now, pathTimeout), established: &path{validated: true, mtuValidated: true}}
 	member.fences = []pathFence{{transport: target, epoch: &member.established.probeEpoch}}
 	p.members[id] = member
 	p.observe(member, "admitted")
@@ -518,24 +563,32 @@ func (p *pathCreditRegistry) newCandidate(m *pathMember, addr net.Addr, info pac
 
 // receivedTuple accounts one authenticated packet to its tuple. Additional tuples
 // get no candidate or borrowed budget, and traffic never moves a deadline.
-func (p *pathCreditRegistry) receivedTuple(id protocol.PathID, addr net.Addr, info packetInfo, size protocol.ByteCount, challenge *wire.PathChallengeFrame, now monotime.Time) {
+func (p *pathCreditRegistry) receivedTuple(id protocol.PathID, pn protocol.PacketNumber, via *Transport, addr net.Addr, info packetInfo, size protocol.ByteCount, challenge *wire.PathChallengeFrame, nonProbing bool, now monotime.Time) {
 	m := p.members[id]
 	if m == nil || p.closed || p.terminals[id] != nil {
 		return
 	}
+	via = p.attachmentKey(via)
+	moving := nonProbing && pn >= m.largestNonProbing
+	if moving {
+		m.largestNonProbing = pn
+	}
 	answer := func() {
 		if challenge != nil {
-			m.response = &pathResponseDue{data: challenge.Data, addr: addr, info: info}
+			m.response = &pathResponseDue{data: challenge.Data, addr: addr, info: info, transport: via}
 			p.conn.scheduleSending()
 		}
 	}
-	if m.live && addrsEqual(m.addr, addr) {
+	if m.live && via == m.transport && addrsEqual(m.addr, addr) {
 		answer()
 		return
 	}
 	if candidate := m.candidate; candidate != nil {
-		if addrsEqual(candidate.addr, addr) {
+		if via == candidate.transport && addrsEqual(candidate.addr, addr) {
 			candidate.probe.bytesReceived += size
+			if moving {
+				candidate.moves, candidate.movePN = true, pn
+			}
 			answer()
 			p.conn.scheduleSending()
 		}
@@ -547,6 +600,9 @@ func (p *pathCreditRegistry) receivedTuple(id protocol.PathID, addr net.Addr, in
 	if p.tupleValidated(addr) {
 		if m.live || p.activate(m, addr, info, nil, now) {
 			answer()
+		}
+		if moving {
+			p.beginIncomingCutover(m, addr, info, pn, now)
 		}
 		return
 	}
@@ -561,7 +617,9 @@ func (p *pathCreditRegistry) receivedTuple(id protocol.PathID, addr net.Addr, in
 	if m.live {
 		deadline = pathDeadline(now, pathTimeout)
 	}
-	p.newCandidate(m, addr, info, nil, connID, deadline, now).probe.bytesReceived = size
+	candidate := p.newCandidate(m, addr, info, nil, connID, deadline, now)
+	candidate.probe.bytesReceived = size
+	candidate.moves, candidate.movePN = moving, pn
 	answer()
 	p.conn.scheduleSending()
 }
@@ -578,15 +636,23 @@ func (p *pathCreditRegistry) pathResponse(f *wire.PathResponseFrame, ingress pro
 	if !now.Before(candidate.probe.validationDeadline) || (candidate.request != nil && candidate.request.canceled()) {
 		return
 	}
+	deadline := candidate.probe.validationDeadline
 	if !candidate.probe.matchResponse(f.Data, now) {
 		return
 	}
 	p.conn.scheduleSending()
-	if m.live && addrsEqual(candidate.addr, m.addr) {
+	if m.live && candidate.transport == m.transport && addrsEqual(candidate.addr, m.addr) {
 		p.noteLiveness(m, now)
 		return
 	}
 	if !candidate.probe.mtuValidated {
+		return
+	}
+	if candidate.migrating {
+		// The commit waits for the old tuple's fence, on the next service, and the
+		// attempt's deadline still bounds that wait.
+		candidate.fencing, candidate.probe.validationDeadline = true, deadline
+		m.established.retire()
 		return
 	}
 	request := candidate.request
@@ -595,12 +661,18 @@ func (p *pathCreditRegistry) pathResponse(f *wire.PathResponseFrame, ingress pro
 	}
 	if m.live {
 		p.recordValidated(candidate.addr)
+		p.keepStandby(m, candidate)
 	} else {
 		p.activate(m, candidate.addr, candidate.info, candidate.transport, now)
 	}
+	moving := m.live && candidate.moves && candidate.movePN == m.largestNonProbing
+	addr, info, movePN := candidate.addr, candidate.info, candidate.movePN
 	p.retireCandidate(m)
 	if request != nil {
 		p.conn.pathOpen.CompareAndSwap(request, nil)
+	}
+	if moving {
+		p.beginIncomingCutover(m, addr, info, movePN, now)
 	}
 }
 
@@ -630,9 +702,13 @@ func (p *pathCreditRegistry) service(now monotime.Time) error {
 			}
 			continue
 		}
-		if m.candidate != nil && !now.Before(m.candidate.probe.validationDeadline) {
+		if candidate := m.candidate; candidate != nil && !now.Before(candidate.probe.validationDeadline) {
+			if candidate.request != nil {
+				candidate.request.finish(errPathValidationTimeout)
+			}
 			p.retireCandidate(m)
 		}
+		p.serviceCutover(m, now)
 		if m.suspect {
 			p.startRevalidation(m, now)
 		}
@@ -642,15 +718,39 @@ func (p *pathCreditRegistry) service(now monotime.Time) error {
 	for id, terminal := range p.terminals {
 		p.signalTerminal(id, terminal)
 	}
+	p.serviceRetained(now)
+	p.serviceDetachments()
 	return p.replenish()
 }
 
 // retireCandidate revokes the candidate's queued probes. Its fence entry keeps
 // target and epoch for whatever is already claimed.
 func (p *pathCreditRegistry) retireCandidate(m *pathMember) {
-	if m.candidate != nil {
-		m.candidate.probe.retire()
-		m.candidate = nil
+	candidate := m.candidate
+	if candidate == nil {
+		return
+	}
+	candidate.probe.retire()
+	m.candidate = nil
+	if p.migrationWaiting(m.id) {
+		p.conn.scheduleSending() // it takes this slot on its next pass
+	}
+	expiry := pathDeadline(monotime.Now(), threePathPTO(p.largestPTO(false)))
+	if !candidate.keepCID && candidate.connID.Len() != 0 {
+		p.conn.connIDManager.retirePathDestination(m.id, candidate.connID, expiry)
+	}
+	if !candidate.migrating {
+		return
+	}
+	entry := p.retain(candidate.transport, 0, &candidate.probe.probeEpoch)
+	if candidate.request != nil {
+		candidate.request.retained = entry
+	}
+	if candidate.fencing && m.live && p.terminals[m.id] == nil {
+		// The old tuple stays selected, on an epoch nothing has revoked.
+		m.established = &path{validated: true, mtuValidated: true}
+		m.fences = append(m.fences, pathFence{transport: m.transport, epoch: &m.established.probeEpoch})
+		p.conn.scheduleSending()
 	}
 }
 
@@ -682,6 +782,9 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 		p.conn.pathOpen.CompareAndSwap(request, nil)
 		return nil
 	}
+	if request.migrate {
+		return p.serviceMigration(request, now)
+	}
 	if request.accepted {
 		if request.outcome.Load() == pathOpenPending {
 			return nil
@@ -704,6 +807,9 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 	if request.transport != nil && request.transport.responses == nil {
 		return p.refuseRequest(request, ErrMultipathUnsupportedV1)
 	}
+	if p.migrationForbidden(request.addr) {
+		return p.refuseRequest(request, fmt.Errorf("%w: the peer disabled migration to its handshake address", ErrMultipathUnsupportedV1))
+	}
 	id, ok := p.unusedID()
 	if !ok {
 		return nil // no credit yet; the caller's context bounds this wait
@@ -712,19 +818,25 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 	if !ok {
 		return nil // no peer CID yet; a later control frame wakes this pass
 	}
-	m, err := p.admitMember(id, request.transport, now)
+	target := p.attachmentKey(request.transport)
+	if p.historyUnits >= maxPathHistoryUnits {
+		return p.refuseRequest(request, fmt.Errorf("%w: retained path history is full", ErrMultipathResourceLimitV1))
+	}
+	if target != nil {
+		// The ID stays unconsumed unless the target can route.
+		if err := p.attach(target); err != nil {
+			return p.refuseRequest(request, err)
+		}
+	}
+	m, err := p.admitMember(id, target, now)
 	if err != nil {
+		if target != nil {
+			p.unref(target)
+		}
 		return p.refuseRequest(request, err)
 	}
 	request.accepted, request.id = true, id
-	if request.transport != nil {
-		p.attachments[request.transport]++
-		runner := (*packetHandlerMap)(request.transport)
-		if err := p.conn.connIDGenerator.addPathRunner(runner, connectionRunnerCallbacks(runner, p.conn)); err != nil {
-			return &qerr.TransportError{ErrorCode: qerr.InternalError, ErrorMessage: err.Error()}
-		}
-	}
-	if request.transport == nil && p.tupleValidated(request.addr) {
+	if target == nil && p.tupleValidated(request.addr) {
 		if request.finish(nil) {
 			p.activate(m, request.addr, packetInfo{}, nil, now)
 			m.announce = true
@@ -737,7 +849,8 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 			m.deadline = limit
 		}
 	}
-	candidate := p.newCandidate(m, request.addr, packetInfo{}, request.transport, connID, m.deadline, now)
+	candidate := p.newCandidate(m, request.addr, packetInfo{}, target, connID, m.deadline, now)
+	candidate.keepCID = true // an initiation's CID is the path's own
 	candidate.probe.unlimited = true
 	candidate.request = request
 	return nil
@@ -822,9 +935,7 @@ func (p *pathCreditRegistry) releaseMember(id protocol.PathID) {
 		return
 	}
 	delete(p.members, id)
-	if m.transport != nil {
-		p.attachments[m.transport]--
-	}
+	p.unref(m.transport)
 }
 
 func (p *pathCreditRegistry) nextAdmissionExpiry() monotime.Time {
@@ -841,12 +952,22 @@ func (p *pathCreditRegistry) nextAdmissionExpiry() monotime.Time {
 		if !m.live {
 			take(m.deadline)
 		}
+		// A due one waits for its next pass, so a blocked attempt can't spin this timer.
+		if m.announcing && m.announceAt.After(p.now) {
+			take(m.announceAt)
+		}
 		if candidate := m.candidate; candidate != nil {
 			take(candidate.probe.validationDeadline)
 			// A due probe that couldn't be sent waits for the next wake, not a spin.
 			if t := candidate.probe.nextProbeTime; candidate.probe.canProbe(t) && t.After(p.now) {
 				take(t)
 			}
+		}
+	}
+	for _, entry := range p.retained {
+		// An elapsed entry waits on its fence, which wakes through endpoint completion.
+		if entry.expiry.After(p.now) {
+			take(entry.expiry)
 		}
 	}
 	return next
@@ -875,6 +996,9 @@ func (p *pathCreditRegistry) memberProbe(m *pathMember, now monotime.Time) *path
 	if m.id == 0 {
 		context = p.conn.emission.packer.pathZeroContext()
 	}
+	if m.response != nil && m.response.transport != m.transport && (m.candidate == nil || m.response.transport != m.candidate.transport) {
+		m.response = nil // that tuple is gone, and the peer retries on the current one
+	}
 	if candidate := m.candidate; candidate != nil {
 		probe := &candidate.probe
 		var frames []ackhandler.Frame
@@ -887,9 +1011,15 @@ func (p *pathCreditRegistry) memberProbe(m *pathMember, now monotime.Time) *path
 			_, _ = rand.Read(data[:])
 			frames = append(frames, ackhandler.Frame{Frame: &wire.PathChallengeFrame{Data: data}, Handler: emptyHandler{}})
 		}
-		answered := m.response != nil && addrsEqual(m.response.addr, candidate.addr) && probe.sendAllowance() >= minPathProbeAllowance
+		answered := m.response != nil && m.response.transport == candidate.transport && addrsEqual(m.response.addr, candidate.addr) && probe.sendAllowance() >= minPathProbeAllowance
 		if answered {
 			frames = append(frames, ackhandler.Frame{Frame: &wire.PathResponseFrame{Data: m.response.data}, Handler: emptyHandler{}})
+		}
+		if len(frames) != 0 && !p.conn.connIDManager.pathDestinationUsable(m.id, candidate.connID) {
+			// The peer retired this CID since it was chosen.
+			if connID, ok := p.conn.connIDManager.pathDestination(m.id, candidate.transport != m.transport || !addrsEqual(candidate.addr, m.addr)); ok {
+				candidate.connID = connID
+			}
 		}
 		if len(frames) != 0 && p.conn.connIDManager.pathDestinationUsable(m.id, candidate.connID) {
 			connID := candidate.connID
@@ -913,12 +1043,22 @@ func (p *pathCreditRegistry) memberProbe(m *pathMember, now monotime.Time) *path
 			}
 		}
 	}
-	if m.response == nil && !m.announce {
+	if (m.response == nil && !m.announce) || m.fencing() {
 		return nil
+	}
+	if m.response != nil && m.response.transport != m.transport {
+		return nil // only its own tuple may answer; the candidate retries, or the peer does
 	}
 	connID, ok := p.conn.connIDManager.pathDestination(m.id, false)
 	if !ok {
 		return nil
+	}
+	if m.response != nil && !addrsEqual(m.response.addr, m.addr) {
+		// A validated tuple that isn't current answers on its own path-local CID.
+		if connID, ok = p.standbyCID(m, m.response.addr, m.response.info); !ok {
+			m.response = nil
+			return nil
+		}
 	}
 	var frames []ackhandler.Frame
 	addr, info := m.addr, m.info
@@ -934,7 +1074,7 @@ func (p *pathCreditRegistry) memberProbe(m *pathMember, now monotime.Time) *path
 	}
 	return &pathProbeIntent{
 		context: context, transport: m.transport, connID: connID, frames: frames,
-		probe: &m.established, addr: addr, info: info,
+		probe: m.established, addr: addr, info: info,
 		sent: func() {
 			p.conn.connIDManager.notePathProbe(m.id, connID)
 			m.response, m.announce = nil, false

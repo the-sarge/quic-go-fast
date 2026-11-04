@@ -320,7 +320,8 @@ func newTargetPathFixture(t *testing.T) (*targetPathFixture, *nativeProbeSocket)
 	admission.supplyPeerCIDs(t)
 	stream := reliableStream(t, admission.c)
 	targetSocket := newNativeProbeSocket()
-	target := &Transport{connIDLen: admission.tc.srcConnID.Len(), handlers: make(map[protocol.ConnectionID]packetHandlerEntry), resetTokens: make(map[protocol.StatelessResetToken]packetHandler), logger: utils.DefaultLogger}
+	target := &Transport{ConnectionIDLength: admission.tc.srcConnID.Len(), connIDLen: admission.tc.srcConnID.Len(), handlers: make(map[protocol.ConnectionID]packetHandlerEntry), resetTokens: make(map[protocol.StatelessResetToken]packetHandler), logger: utils.DefaultLogger}
+	target.initOnce.Do(func() {})
 	target.responses = newEndpointResponses(startNativeProbeEndpoint(t, targetSocket))
 	errs := admission.openAsync(context.Background(), target, admissionTupleA)
 	admission.pass(t)

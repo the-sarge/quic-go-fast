@@ -503,13 +503,13 @@ func TestPathReplacementSharedCharges(t *testing.T) {
 		require.True(t, charged, "the ID stays unused and issued")
 
 		departed := &Transport{}
-		p.attachments[departed] = 0
+		p.attachments[departed] = &pathAttachment{detached: make(chan struct{})}
 		for len(p.attachments) < maxPathAttachments {
-			p.attachments[&Transport{}] = 0
+			p.attachments[&Transport{}] = &pathAttachment{refs: 1}
 		}
 		p.releaseHistory()
-		_, err := p.admitMember(2, &Transport{}, monotime.Now())
-		require.ErrorIs(t, err, ErrMultipathResourceLimitV1, "zero references still hold the attachment charge")
+		fresh := &Transport{}
+		require.ErrorIs(t, p.attach(fresh), ErrMultipathResourceLimitV1, "zero references still hold the attachment charge")
 		_, attached := p.attachments[departed]
 		require.True(t, attached)
 	})

@@ -106,6 +106,14 @@ func (h *sentPacketHandler) RemovePath(id protocol.PathID) {
 	delete(h.paths, id)
 }
 
+// RestartTupleECN starts this path's ECN validation over for a new tuple. Cumulative
+// accounting and the PN space persist.
+func (h *sentPacketHandler) RestartTupleECN() {
+	if t, ok := h.ecnTracker.(*ecnTracker); ok {
+		t.restartTuple()
+	}
+}
+
 // EnablePathPolicy starts the liveness facts, from private admission on. Ordinary
 // connections never pay for them.
 func (h *sentPacketHandler) EnablePathPolicy() { h.pathPolicy = true }

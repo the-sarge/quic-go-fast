@@ -67,6 +67,9 @@ type nativeOrdinarySender struct {
 	targets []*endpointParticipant
 	// route is the selected nonzero path; nil submits on path zero's fields above.
 	route *pathRoute
+	// origin is where a member with a nil transport sends: the connection's own
+	// endpoint, which path zero's fields stop naming once path zero moves.
+	origin *endpointParticipant
 	// fitting stays registered at its endpoint while selection holds a DATAGRAM for
 	// that endpoint's capacity. refused says the latest WouldBlock met that capacity.
 	fitting *endpointParticipant
@@ -99,6 +102,7 @@ func (c *Conn) useNativeOrdinary(endpoint *nativeEndpoint, destination netip.Add
 		endpoint: endpoint, participant: participant, recovery: handler, connection: c,
 		destination: destination, info: info, oob: info.OOB(), nativeGSO: runtime.GOOS == "linux", generation: 1,
 	}
+	queue.origin = participant
 	c.emission.local, c.emission.queue = queue, queue
 	conn := &nativeOrdinaryConn{sendConn: c.conn, sender: queue}
 	queue.writeState = &conn.writeState
@@ -245,8 +249,11 @@ func (s *nativeOrdinarySender) Run() error                 { return nil }
 
 // routeParticipant is where the selected path's packets are reserved and submitted.
 func (s *nativeOrdinarySender) routeParticipant() *endpointParticipant {
-	if s.route == nil || s.route.transport == nil {
+	if s.route == nil {
 		return s.participant
+	}
+	if s.route.transport == nil {
+		return s.origin
 	}
 	endpoint := nativeTransportEndpoint(s.route.transport)
 	if endpoint == nil {
@@ -305,7 +312,8 @@ func (s *nativeOrdinarySender) releaseReadiness() {
 // fault or close quarantines that endpoint and its paths; other paths continue.
 func (s *nativeOrdinarySender) routeUsable(target *Transport) bool {
 	if target == nil {
-		return true
+		// Path zero's own endpoint faults the connection, until a slice changes that.
+		return s.origin == s.participant || (s.origin != nil && !s.origin.endpoint.quarantined())
 	}
 	endpoint := nativeTransportEndpoint(target)
 	return endpoint != nil && !endpoint.quarantined()
@@ -421,7 +429,7 @@ const pathCloseLimit = 2
 // A target attached only now joins the drain before it holds the close.
 func (s *nativeOrdinarySender) sendPathClose(buffer *packetBuffer, ecn protocol.ECN, route *pathRoute) error {
 	s.drain()
-	participant := s.participant
+	participant := s.origin
 	if route.transport != nil {
 		participant = s.probeParticipant(nativeTransportEndpoint(route.transport))
 	}
@@ -447,9 +455,11 @@ func (s *nativeOrdinarySender) routeInfo() packetInfo { return s.info }
 // closeUsable also inspects the connection's own endpoint, which routeUsable assumes
 // healthy, because a fault there is what can bring a connection to this close.
 func (s *nativeOrdinarySender) closeUsable(target *Transport) bool {
-	endpoint := s.endpoint
+	var endpoint *nativeEndpoint
 	if target != nil {
 		endpoint = nativeTransportEndpoint(target)
+	} else if s.origin != nil {
+		endpoint = s.origin.endpoint
 	}
 	return endpoint != nil && !endpoint.quarantined()
 }
@@ -493,7 +503,7 @@ func (s *nativeOrdinarySender) probeParticipant(endpoint *nativeEndpoint) *endpo
 // every charge and leaves the next attempt to the validation budget. Results stay
 // best effort; the endpoint fault channel reports endpoint-wide failure.
 func (s *nativeOrdinarySender) sendProbe(buffer *packetBuffer, target *Transport, address net.Addr, info packetInfo, epoch *responseEpoch) error {
-	participant := s.participant
+	participant := s.origin
 	if target != nil {
 		participant = s.probeParticipant(nativeTransportEndpoint(target))
 	}
@@ -520,9 +530,11 @@ func (s *nativeOrdinarySender) sendProbe(buffer *packetBuffer, target *Transport
 // probesPending reports whether a probe under epoch can still reach the socket.
 // It reads the endpoint's records and never waits for a native return.
 func (s *nativeOrdinarySender) probesPending(target *Transport, epoch *responseEpoch) bool {
-	endpoint := s.endpoint
+	var endpoint *nativeEndpoint
 	if target != nil {
 		endpoint = nativeTransportEndpoint(target)
+	} else if s.origin != nil {
+		endpoint = s.origin.endpoint
 	}
 	return endpoint != nil && endpoint.epochPending(epoch)
 }
@@ -732,6 +744,127 @@ func (s *nativeOrdinarySender) replacePath(target *Transport, conn sendConn) sen
 	next := &nativeOrdinaryConn{sendConn: conn, sender: s}
 	s.writeState = &next.writeState
 	return next
+}
+
+// moveZero makes target and address path zero's current tuple. Unlike replacePath it
+// cancels nothing: the old tuple's fence has resolved, and other paths' work is theirs.
+func (s *nativeOrdinarySender) moveZero(target *Transport, address net.Addr, info packetInfo, conn sendConn) sendConn {
+	destination, ok := nativeDestination(address)
+	participant := s.origin
+	if target != nil {
+		participant = s.probeParticipant(nativeTransportEndpoint(target))
+	}
+	if participant == nil || !ok {
+		s.reject()
+		return nil
+	}
+	s.finish()
+	s.participant.endpoint.cancelReadiness(s.participant, 0)
+	if participant != s.participant {
+		s.targets = slices.DeleteFunc(s.targets, func(p *endpointParticipant) bool { return p == participant })
+		s.targets = append(s.targets, s.participant)
+		s.participant, s.endpoint = participant, participant.endpoint
+	}
+	s.destination, s.oob, s.info = destination, info.OOB(), info
+	next := &nativeOrdinaryConn{sendConn: conn, sender: s}
+	s.writeState = &next.writeState
+	return next
+}
+
+// rebindZero is moveZero for a peer's new address on the same endpoint.
+func (s *nativeOrdinarySender) rebindZero(address net.Addr, info packetInfo, conn sendConn) {
+	destination, ok := nativeDestination(address)
+	if !ok {
+		s.reject()
+		return
+	}
+	s.finish()
+	s.destination, s.oob, s.info = destination, info.OOB(), info
+	s.writeState.wroteFirstPacket = false
+	s.writeState.gsoDisabled.Store(false)
+	if native, ok := conn.(*nativeOrdinaryConn); ok {
+		native.sendConn.ChangeRemoteAddr(address, info)
+	}
+}
+
+// resetWriteState starts a new tuple's fallback. The old tuple's fence has resolved,
+// so no request still reads it.
+func (s *nativeOrdinarySender) resetWriteState(route *pathRoute) {
+	route.writeState.wroteFirstPacket = false
+	route.writeState.gsoDisabled.Store(false)
+}
+
+// transportParticipant finds a transport's participant without attaching one.
+func (s *nativeOrdinarySender) transportParticipant(target *Transport) *endpointParticipant {
+	if target == nil {
+		return s.origin
+	}
+	endpoint := nativeTransportEndpoint(target)
+	if endpoint != nil && endpoint == s.endpoint {
+		return s.participant
+	}
+	for _, participant := range s.targets {
+		if participant.endpoint == endpoint {
+			return participant
+		}
+	}
+	return nil
+}
+
+// detachReady consumes a transport's results, and reports that it holds no request
+// or record. Revocation drops unconsumed results, so an earlier detach would strand
+// their recovery tokens. It never waits for native I/O.
+func (s *nativeOrdinarySender) detachReady(target *Transport) bool {
+	participant := s.transportParticipant(target)
+	if participant == nil {
+		return true
+	}
+	if s.pending != nil && s.pending.endpoint == participant.endpoint {
+		s.finish()
+	}
+	participant.endpoint.cancelReadiness(participant, 0)
+	s.consumeParticipant(participant)
+	for index := range s.records {
+		if s.records[index].admission.serial != 0 && s.records[index].endpoint == participant.endpoint {
+			return false
+		}
+	}
+	return !participant.endpoint.participantBusy(participant)
+}
+
+func (e *nativeEndpoint) participantBusy(p *endpointParticipant) bool {
+	busy := false
+	e.do(func(s *endpointState) {
+		for index := range s.records {
+			if s.records[index].used && s.records[index].participant == p {
+				busy = true
+				return
+			}
+		}
+	})
+	return busy
+}
+
+// detachTransport ends a participant. A primary with path zero gone hands its place
+// to another, so the transport's later close can't fault this connection.
+func (s *nativeOrdinarySender) detachTransport(target *Transport) {
+	participant := s.transportParticipant(target)
+	if participant == nil {
+		return
+	}
+	if participant == s.participant {
+		if len(s.targets) == 0 {
+			return
+		}
+		s.participant, s.endpoint = s.targets[0], s.targets[0].endpoint
+		s.targets = s.targets[1:]
+	} else {
+		s.targets = slices.DeleteFunc(s.targets, func(p *endpointParticipant) bool { return p == participant })
+	}
+	if s.origin == participant {
+		s.origin = nil
+	}
+	participant.endpoint.detach(participant)
 }
 
 func (s *nativeOrdinarySender) Close() {

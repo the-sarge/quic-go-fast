@@ -15,7 +15,80 @@ import (
 // context error says nothing about wire retirement, which continues on the
 // connection. Public activation belongs to R16 and R19.
 func (c *Conn) openPathPrivate(ctx context.Context, target *Transport, addr net.Addr) error {
-	request := &pathOpenRequest{ctx: ctx, transport: target, addr: addr, done: make(chan error, 1)}
+	if target != nil {
+		if err := c.prepareTarget(target); err != nil {
+			return err
+		}
+	}
+	return c.awaitPathOperation(ctx, &pathOpenRequest{ctx: ctx, transport: target, addr: addr, done: make(chan error, 1)})
+}
+
+// migratePathPrivate is the private driver behind R16's MigrateV1. It moves one path
+// to target under the same wire ID, and returns success only after cutover.
+func (c *Conn) migratePathPrivate(ctx context.Context, id protocol.PathID, target *Transport) error {
+	if err := c.prepareTarget(target); err != nil {
+		return err
+	}
+	return c.awaitPathOperation(ctx, &pathOpenRequest{ctx: ctx, transport: target, migrate: true, id: id, done: make(chan error, 1)})
+}
+
+// waitTransportDetachedPrivate is the private driver behind R16's
+// WaitTransportDetachedV1. It observes publication and changes nothing. A connection
+// that ends first reports its cause, since that is what a winning close looks like.
+func (c *Conn) waitTransportDetachedPrivate(ctx context.Context, t *Transport) error {
+	if t == nil {
+		return fmt.Errorf("%w: a nil transport", ErrMultipathInvalidConfigV1)
+	}
+	attachment := c.pathCredit.detachmentOf(t)
+	if attachment == nil {
+		return nil
+	}
+	select {
+	case <-attachment.detached:
+		return nil
+	case <-ctx.Done():
+		return context.Cause(ctx)
+	case <-c.ctx.Done():
+		return context.Cause(c.ctx)
+	}
+}
+
+// detachmentOf is the waiter's view: nil means no attachment, so already detached.
+func (p *pathCreditRegistry) detachmentOf(t *Transport) *pathAttachment {
+	p.attachMu.Lock()
+	defer p.attachMu.Unlock()
+	return p.attachments[p.attachmentKey(t)]
+}
+
+// prepareTarget runs on the caller's goroutine, because initialization can touch the
+// socket. The effective length comes from configuration, so a mismatch refuses before
+// the target starts, and initialization selects that same length.
+func (c *Conn) prepareTarget(target *Transport) error {
+	if target == nil {
+		return fmt.Errorf("%w: a nil target transport", ErrMultipathInvalidConfigV1)
+	}
+	if nativeTransportEndpoint(target) == nil {
+		return fmt.Errorf("%w: the target has no native grant", ErrMultipathUnsupportedV1)
+	}
+	if length := target.effectiveConnIDLen(); length != c.srcConnIDLen {
+		return fmt.Errorf("%w: the target routes %d-byte connection IDs, not %d", ErrMultipathInvalidConfigV1, length, c.srcConnIDLen)
+	}
+	return target.init(false)
+}
+
+// effectiveConnIDLen is the routing length init(false) selects.
+func (t *Transport) effectiveConnIDLen() int {
+	if t.ConnectionIDGenerator != nil {
+		return t.ConnectionIDGenerator.ConnectionIDLen()
+	}
+	if t.ConnectionIDLength == 0 {
+		return protocol.DefaultConnectionIDLength
+	}
+	return t.ConnectionIDLength
+}
+
+// awaitPathOperation runs the connection's one local path operation.
+func (c *Conn) awaitPathOperation(ctx context.Context, request *pathOpenRequest) error {
 	if !c.pathOpen.CompareAndSwap(nil, request) {
 		return fmt.Errorf("%w: a local path operation is in progress", ErrMultipathBackpressureV1)
 	}
@@ -73,7 +146,8 @@ func (p *pathCreditRegistry) sendFailed(id protocol.PathID, tuple uint64, now mo
 	p.markSuspect(m, now)
 }
 
-// cutTuple starts a new generation on a member. R13 owns the cutover itself.
+// cutTuple starts a new generation on a member. Only policy fixtures call it, since a
+// real cutover goes through commitTuple.
 func (p *pathCreditRegistry) cutTuple(m *pathMember) {
 	m.tuple++
 	m.attempts = 0

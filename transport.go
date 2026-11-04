@@ -147,6 +147,12 @@ type Transport struct {
 	mutex       sync.Mutex
 	handlers    map[protocol.ConnectionID]packetHandlerEntry
 	resetTokens map[protocol.StatelessResetToken]packetHandler
+	// capturedResets counts stateless reset callbacks that have left the map and not
+	// yet returned, per handler, so detachment can't be published ahead of them.
+	capturedResets map[packetHandler]int
+	// resetsStopped is set for good when a multipath connection detaches, because its
+	// live CIDs would then read as unknown, and a reset under this key is valid for them.
+	resetsStopped atomic.Bool
 
 	packetIO packetIOConfig
 
@@ -874,7 +880,7 @@ func (t *Transport) handlePacket(p receivedPacket) {
 }
 
 func (t *Transport) maybeSendStatelessReset(p receivedPacket) (statelessResetQueued bool) {
-	if t.StatelessResetKey == nil {
+	if t.StatelessResetKey == nil || t.resetsStopped.Load() {
 		return false
 	}
 
@@ -895,6 +901,9 @@ func (t *Transport) maybeSendStatelessReset(p receivedPacket) (statelessResetQue
 
 func (t *Transport) sendStatelessReset(p receivedPacket) {
 	defer p.buffer.Release()
+	if t.resetsStopped.Load() {
+		return // queued before a detachment, which must not be answered for
+	}
 
 	connID, err := wire.ParseConnectionID(p.data, t.connIDLen)
 	if err != nil {
@@ -924,6 +933,13 @@ func (t *Transport) maybeHandleStatelessReset(data []byte) bool {
 	token := protocol.StatelessResetToken(data[len(data)-16:])
 	t.mutex.Lock()
 	conn, ok := t.resetTokens[token]
+	captured := ok && handlerAuthority(conn).permitsWork()
+	if captured {
+		if t.capturedResets == nil {
+			t.capturedResets = make(map[packetHandler]int)
+		}
+		t.capturedResets[conn]++
+	}
 	t.mutex.Unlock()
 
 	if ok && !handlerAuthority(conn).permitsWork() {
@@ -931,7 +947,14 @@ func (t *Transport) maybeHandleStatelessReset(data []byte) bool {
 	}
 	if ok {
 		t.logger.Debugf("Received a stateless reset with token %#x. Closing connection.", token)
-		go conn.destroy(&StatelessResetError{})
+		go func() {
+			conn.destroy(&StatelessResetError{})
+			t.mutex.Lock()
+			if t.capturedResets[conn]--; t.capturedResets[conn] == 0 {
+				delete(t.capturedResets, conn)
+			}
+			t.mutex.Unlock()
+		}()
 		return true
 	}
 	return false
@@ -1038,6 +1061,58 @@ func (h *packetHandlerMap) add(id protocol.ConnectionID, pathID protocol.PathID,
 	return true
 }
 
+// pathRouteEntry is one locally issued CID and the path it binds.
+type pathRouteEntry struct {
+	id   protocol.ConnectionID
+	path protocol.PathID
+}
+
+// attachRoutes registers a connection's CIDs and armed tokens as one step. A closed
+// transport refuses in the same critical section, so an attached handler always
+// precedes close's destruction pass. Any refusal leaves nothing behind.
+func (h *packetHandlerMap) attachRoutes(routes []pathRouteEntry, tokens []protocol.StatelessResetToken, handler packetHandler) error {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+	if (*Transport)(h).transportClosed {
+		return fmt.Errorf("%w: the target transport is closed", net.ErrClosed)
+	}
+	for _, route := range routes {
+		if _, ok := h.handlers[route.id]; ok || route.id.Len() != h.connIDLen {
+			return fmt.Errorf("%w: cannot route connection ID %s", ErrMultipathInvalidConfigV1, route.id)
+		}
+	}
+	for _, route := range routes {
+		h.handlers[route.id] = packetHandlerEntry{handler: handler, pathID: route.path}
+	}
+	for _, token := range tokens {
+		h.resetTokens[token] = handler
+	}
+	return nil
+}
+
+// detachRoutes removes a connection's CIDs and tokens as one step, serialized with
+// close's snapshot. It refuses while close has begun or a reset callback this map
+// captured is still running: both end in the connection's destruction. The stop mark
+// precedes the removal, so a CID that now misses can't draw a reset.
+func (h *packetHandlerMap) detachRoutes(handler packetHandler, ids []protocol.ConnectionID, tokens []protocol.StatelessResetToken) bool {
+	t := (*Transport)(h)
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+	if t.transportClosed || h.capturedResets[handler] != 0 {
+		return false
+	}
+	if t.StatelessResetKey != nil {
+		t.resetsStopped.Store(true)
+	}
+	for _, id := range ids {
+		delete(h.handlers, id)
+	}
+	for _, token := range tokens {
+		delete(h.resetTokens, token)
+	}
+	return true
+}
+
 func (h *packetHandlerMap) Get(connID protocol.ConnectionID) (packetHandler, bool) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
@@ -1093,6 +1168,7 @@ func (h *packetHandlerMap) deliverPermitted(connID protocol.ConnectionID, p rece
 	}
 	handler := entry.handler
 	p.pathID = entry.pathID
+	p.transport = (*Transport)(h)
 	if h.candidates != nil && !handlerAuthority(handler).permitsWork() {
 		p.buffer.Release()
 		return true

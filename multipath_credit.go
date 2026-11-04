@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/quic-go/quic-go/internal/monotime"
@@ -33,9 +34,16 @@ type pathCreditRegistry struct {
 	validated    []net.Addr
 	rtt          map[protocol.PathID]*utils.RTTStats
 	historyUnits int
-	attachments  map[*Transport]int
-	now          monotime.Time
-	primary      protocol.PathID
+	attachments  map[*Transport]*pathAttachment // nil is the origin; see attachmentKey
+	// attachMu lets a detachment waiter read attachments and origin. Only the
+	// connection goroutine writes them.
+	attachMu       sync.Mutex
+	origin         *Transport // the connection's own transport
+	originDetached bool
+	handshakeAddr  net.Addr
+	retained       []*pathRetained // bounded by the history units each one holds
+	now            monotime.Time
+	primary        protocol.PathID
 }
 
 type issuedPathCIDs struct {

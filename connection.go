@@ -54,6 +54,9 @@ type receivedPacket struct {
 	ecn protocol.ECN
 
 	pathID protocol.PathID // supplied by the destination-CID routing entry, before authentication
+	// transport delivered this packet. Only multipath reads it, to tell tuples apart
+	// when the remote address is the same on both.
+	transport *Transport
 
 	info packetInfo // only valid if the contained IP address is valid
 }
@@ -74,6 +77,7 @@ func (p *receivedPacket) Clone() *receivedPacket {
 		ecn:        p.ecn,
 		info:       p.info,
 		pathID:     p.pathID,
+		transport:  p.transport,
 	}
 }
 
@@ -1488,7 +1492,7 @@ func (c *Conn) handleShortHeaderPacket(
 	}
 
 	if c.pathCredit != nil && c.pathCredit.hasAdmission() {
-		c.pathCredit.receivedTuple(p.pathID, p.remoteAddr, p.info, p.Size(), pathChallenge, monotime.Now())
+		c.pathCredit.receivedTuple(p.pathID, pn, p.transport, p.remoteAddr, p.info, p.Size(), pathChallenge, isNonProbing, monotime.Now())
 		return true, nil
 	}
 
