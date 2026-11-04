@@ -2,6 +2,7 @@ package quic
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/netip"
 	"strings"
@@ -88,22 +89,36 @@ func TestPathCloseAfterZeroReclaimed(t *testing.T) {
 	})
 }
 
-// TestPathCloseEveryLivePath sends each path its own packet, on its own tuple.
+// TestPathCloseEveryLivePath sends each path its own packet, on its own tuple. When a
+// write is outstanding, both closes wait for it on the one endpoint.
 func TestPathCloseEveryLivePath(t *testing.T) {
-	nativeOrdinaryTest(t, func(t *testing.T) {
-		f := newReliableFixture(t, protocol.PerspectiveClient)
-		f.socket.writes = nil
+	for name, held := range map[string]bool{"idle": false, "outstanding write": true} {
+		t.Run(name, func(t *testing.T) {
+			nativeOrdinaryTest(t, func(t *testing.T) {
+				f := newReliableFixture(t, protocol.PerspectiveClient)
+				if held {
+					f.socket.hold = nativeProbeHoldAll
+					f.write(t, 1000)
+					f.pass(t)
+				}
+				f.socket.writes = nil
 
-		f.closeLocally(t, "both")
+				f.closeLocally(t, "both")
+				if held {
+					f.socket.hold = nil
+					f.socket.release()
+					synctest.Wait()
+				}
 
-		require.Len(t, f.socket.writes, 2)
-		zero, one := f.closeWrites(t, 0), f.closeWrites(t, 1)
-		require.Len(t, zero, 1)
-		require.Len(t, one, 1)
-		require.Equal(t, nativeProbePeer, zero[0].destination)
-		requireTuple(t, admissionTupleA, one[0].destination)
-		require.NotEqual(t, zero[0].data, one[0].data)
-	})
+				zero, one := f.closeWrites(t, 0), f.closeWrites(t, 1)
+				require.Len(t, zero, 1)
+				require.Len(t, one, 1)
+				requireTuple(t, nativeProbePeerAddr(), zero[0].destination)
+				requireTuple(t, admissionTupleA, one[0].destination)
+				require.NotEqual(t, zero[0].data, one[0].data)
+			})
+		})
+	}
 }
 
 // TestPathCloseOversizedReasonCostsOneContext keeps the path that can carry the reason.
@@ -152,24 +167,35 @@ func TestPathCloseCachedResponses(t *testing.T) {
 	})
 }
 
-// TestPathCloseTriggerOnRetiredPath answers through the survivor: an abandoned
-// context never carries a cached reply.
+// TestPathCloseTriggerOnRetiredPath answers through the survivor, whichever path
+// was abandoned: an abandoned context carries neither the close nor a cached reply.
 func TestPathCloseTriggerOnRetiredPath(t *testing.T) {
-	nativeOrdinaryTest(t, func(t *testing.T) {
-		f := newReliableFixture(t, protocol.PerspectiveClient)
-		f.route.closeQueue = make(chan closePacket, 4)
-		zeroCID := f.c.connIDGenerator.activeSrcConnIDs[0]
-		require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathAbandonFrame{PathID: 0}))
-		f.pass(t)
-		f.pass(t)
-		f.socket.writes = nil
-		f.closeLocally(t, "retired")
+	for retired, survivor := range map[protocol.PathID]protocol.PathID{0: 1, 1: 0} {
+		t.Run(fmt.Sprintf("path %d", retired), func(t *testing.T) {
+			nativeOrdinaryTest(t, func(t *testing.T) {
+				f := newReliableFixture(t, protocol.PerspectiveClient)
+				f.route.closeQueue = make(chan closePacket, 4)
+				cid := f.c.connIDGenerator.activeSrcConnIDs[0]
+				if retired == 1 {
+					cid = f.issuedCID(1)
+				}
+				tuple := map[protocol.PathID]string{0: nativeProbePeerAddr().String(), 1: admissionTupleA.String()}[survivor]
+				require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathAbandonFrame{PathID: retired}))
+				f.pass(t)
+				f.pass(t)
+				f.socket.writes = nil
+				f.closeLocally(t, "retired")
+				require.Empty(t, f.closeWrites(t, retired))
+				closes := f.closeWrites(t, survivor)
+				require.Len(t, closes, 1)
 
-		f.trigger(t, f.route, zeroCID, nativeProbePeerAddr())
-		reply := <-f.route.closeQueue
-		require.Equal(t, admissionTupleA.String(), reply.addr.String())
-		require.Equal(t, f.closeWrites(t, 1)[0].data, reply.payload)
-	})
+				f.trigger(t, f.route, cid, nativeProbePeerAddr())
+				reply := <-f.route.closeQueue
+				require.Equal(t, tuple, reply.addr.String())
+				require.Equal(t, closes[0].data, reply.payload)
+			})
+		})
+	}
 }
 
 // TestPathCloseRetentionIsNotRefreshed holds routing for one snapshot of the largest
@@ -183,17 +209,21 @@ func TestPathCloseRetentionIsNotRefreshed(t *testing.T) {
 		require.Greater(t, largest, f.c.observedRTT().PTO(false), "the slower path sets retention")
 		oneCID := f.issuedCID(1)
 		f.closeLocally(t, "retention")
-		start := time.Now()
-		for time.Since(start) < 3*largest-time.Millisecond {
+		for range 5 {
 			time.Sleep(largest / 2)
-			if time.Since(start) < 3*largest-time.Millisecond {
-				f.trigger(t, f.route, oneCID, nativeProbePeerAddr())
-			}
+			f.trigger(t, f.route, oneCID, nativeProbePeerAddr())
 		}
-		require.Contains(t, f.route.handlers, oneCID, "still retained just before expiry")
+		time.Sleep(largest/2 - time.Millisecond)
+		routed := func() bool {
+			f.route.mutex.Lock()
+			defer f.route.mutex.Unlock()
+			_, ok := f.route.handlers[oneCID]
+			return ok
+		}
+		require.True(t, routed(), "still retained just before expiry")
 		time.Sleep(2 * time.Millisecond)
 		synctest.Wait()
-		require.NotContains(t, f.route.handlers, oneCID, "traffic did not extend the timer")
+		require.False(t, routed(), "traffic did not extend the timer")
 	})
 }
 
