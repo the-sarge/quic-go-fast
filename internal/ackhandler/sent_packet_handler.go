@@ -114,6 +114,8 @@ type sentPacketHandler struct {
 
 	ackedPackets []packetWithPacketNumber // to avoid allocations in detectAndRemoveAckedPackets
 
+	// pathPolicy is set while the connection's path policy reads the facts below.
+	pathPolicy bool
 	// nextQualifiedPN is the lowest packet number a later PTO may still count, so a
 	// packet accepted once can't qualify two attempts.
 	nextQualifiedPN protocol.PacketNumber
@@ -630,7 +632,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 	}
 	var acked1RTTPacket protocol.ApplicationKeyReceipt
 	for _, p := range ackedPackets {
-		if p.EncryptionLevel == protocol.Encryption1RTT && h.multipath() && p.Outstanding() {
+		if h.pathPolicy && p.EncryptionLevel == protocol.Encryption1RTT && !p.isPathProbePacket && p.IsAckEliciting() {
 			h.ackedTuple, h.ackedLive = max(h.ackedTuple, p.Context.TupleGeneration), true
 		}
 		if p.includedInBytesInFlight {
@@ -1225,7 +1227,7 @@ func (h *sentPacketHandler) OnLossDetectionTimeout(now monotime.Time) (TimeoutOu
 		return TimeoutOutcome{}, fmt.Errorf("PTO timer in unexpected encryption level: %s", encLevel)
 	}
 	outcome := TimeoutOutcome{PTO: true, EncLevel: encLevel, PathID: h.pathID}
-	if encLevel == protocol.Encryption1RTT && h.multipath() {
+	if encLevel == protocol.Encryption1RTT && h.pathPolicy {
 		outcome.Accepted, outcome.TupleGeneration = h.qualifyPTO(ps)
 	}
 	return outcome, nil

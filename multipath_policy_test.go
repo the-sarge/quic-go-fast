@@ -106,6 +106,52 @@ func TestPathPolicyThreeAcceptedPTOsPromoteBackup(t *testing.T) {
 		// The work stranded on the suspect path returns to the logical owners, so the
 		// promoted path carries it without waiting out the backed-off PTO.
 		require.Equal(t, 1000, reliableBytes(f.parseWrites(t, 1)))
+
+		// New ordinary work never leaves on the suspect path, though its last PTO's
+		// probe credit is still pending.
+		f.socket.writes = nil
+		f.c.peerParams.MaxDatagramFrameSize = wire.MaxDatagramSize
+		f.queueDatagram(t, 100)
+		f.write(t, 700)
+		f.pass(t)
+		onZero = f.parseWrites(t, 0)
+		require.Zero(t, reliableBytes(onZero))
+		for _, write := range onZero {
+			require.Empty(t, write.datagrams)
+		}
+		onOne := f.parseWrites(t, 1)
+		require.Equal(t, 700, reliableBytes(onOne))
+		carried := 0
+		for _, write := range onOne {
+			carried += len(write.datagrams)
+		}
+		require.Equal(t, 1, carried)
+
+		// The observation follows the survivor, and retention still counts a slower zero.
+		p.rtt[1].UpdateRTT(time.Millisecond, 0)
+		f.c.rttStats.UpdateRTT(2*time.Second, 0)
+		require.Same(t, p.rtt[1], f.observed())
+		require.Equal(t, f.c.rttStats.PTO(true), p.largestPTO(true))
+	})
+}
+
+func TestPathPolicySoleAdmittedPathReachesSuspicion(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newAdmissionFixture(t, protocol.PerspectiveServer)
+		f.supplyPeerCIDs(t)
+		r := &reliableFixture{admissionFixture: f, stream: reliableStream(t, f.c)}
+		r.pass(t)
+		r.ackPath(t, 0, 0, r.parseWrites(t, 0))
+		r.pass(t)
+		f.socket.writes = nil
+		p := f.c.pathCredit
+		require.Nil(t, p.members[1], "path zero is the only member")
+
+		r.suspectAfterPTOs(t, 0)
+		require.Equal(t, noPrimary, p.primary)
+		r.answerChallenge(t, 0)
+		require.False(t, p.members[0].suspect)
+		require.Zero(t, p.primary)
 	})
 }
 
@@ -289,7 +335,9 @@ func TestPathPolicyDestinationErrorWithoutSurvivorRetainsValidation(t *testing.T
 		f.socket.writes = nil
 		f.write(t, 500)
 		require.True(t, f.receive(t, 0, f.c.RemoteAddr(), 0, &wire.PingFrame{}))
-		require.True(t, f.receive(t, 0, f.c.RemoteAddr(), 0, &wire.PingFrame{}))
+		f.pass(t)
+		require.Equal(t, blockModeCongestionLimited, f.c.blocked, "the hold keeps the ACK and loss alarms")
+		time.Sleep(time.Until(f.c.receivedPacketHandler.GetAlarmTimeout().ToTime()) + time.Millisecond)
 		f.pass(t)
 		require.Zero(t, reliableBytes(f.parseWrites(t, 0))+reliableBytes(f.parseWrites(t, 1)))
 		acked := false

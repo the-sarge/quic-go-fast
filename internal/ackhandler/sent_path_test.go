@@ -34,6 +34,40 @@ func TestSentPathIndependentLoss(t *testing.T) {
 	require.EqualValues(t, 38400, h.congestion.GetCongestionWindow())
 }
 
+func TestSentPathAckedTupleFact(t *testing.T) {
+	h := NewSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger).(*sentPacketHandler)
+	now := monotime.Time(time.Second)
+	h.DropPackets(protocol.EncryptionInitial, now)
+	h.DropPackets(protocol.EncryptionHandshake, now)
+	ctx := PacketContext{TupleGeneration: 2}
+	send := func(pn protocol.PacketNumber, frames []Frame, mtuProbe, pathProbe bool) {
+		h.SentPacketWithContext(ctx, now, pn, protocol.InvalidPacketNumber, nil, frames, protocol.Encryption1RTT, protocol.ECNNon, 1200, mtuProbe, pathProbe)
+	}
+	ack := func(pn protocol.PacketNumber) {
+		_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: pn, Largest: pn}}}, protocol.Encryption1RTT, now)
+		require.NoError(t, err)
+	}
+
+	send(0, []Frame{{Frame: &wire.PingFrame{}}}, false, false)
+	ack(0)
+	_, live := h.TakeAckedTuple()
+	require.False(t, live, "without path policy, an ordinary connection keeps no fact")
+
+	h.EnablePathPolicy()
+	send(1, []Frame{{Frame: &wire.PingFrame{}}}, true, false)
+	ack(1)
+	tuple, live := h.TakeAckedTuple()
+	require.True(t, live, "a PMTU probe is ACK-eliciting traffic on the current tuple")
+	require.Equal(t, uint64(2), tuple)
+	_, live = h.TakeAckedTuple()
+	require.False(t, live, "the fact is taken once")
+
+	send(2, []Frame{{Frame: &wire.PingFrame{}}}, false, true)
+	ack(2)
+	_, live = h.TakeAckedTuple()
+	require.False(t, live, "a path validation packet can be probing another tuple")
+}
+
 func TestSentPathLocalCompletion(t *testing.T) {
 	handler, err := NewLocalSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger)
 	require.NoError(t, err)

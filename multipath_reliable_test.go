@@ -25,16 +25,22 @@ type reliableFixture struct {
 	stream *SendStream
 }
 
-func newReliableFixture(t *testing.T, perspective protocol.Perspective) *reliableFixture {
+func reliableStream(t *testing.T, c *Conn) *SendStream {
 	t.Helper()
-	f := newAdmissionFixture(t, perspective)
-	f.supplyPeerCIDs(t)
-	c := f.c
 	c.peerParams = &wire.TransportParameters{InitialMaxData: 1 << 24, InitialMaxStreamDataUni: 1 << 24, InitialMaxStreamDataBidiRemote: 1 << 24, InitialMaxStreamDataBidiLocal: 1 << 24, MaxUniStreamNum: 16, MaxBidiStreamNum: 16}
 	c.streamsMap.HandleTransportParameters(c.peerParams)
 	c.connFlowController.UpdateSendWindow(1 << 24)
 	stream, err := c.OpenUniStream()
 	require.NoError(t, err)
+	return stream
+}
+
+func newReliableFixture(t *testing.T, perspective protocol.Perspective) *reliableFixture {
+	t.Helper()
+	f := newAdmissionFixture(t, perspective)
+	f.supplyPeerCIDs(t)
+	c := f.c
+	stream := reliableStream(t, c)
 	if perspective == protocol.PerspectiveServer {
 		require.True(t, f.receive(t, 1, admissionTupleA, 1200, &wire.PingFrame{}))
 		f.pass(t)

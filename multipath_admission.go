@@ -133,6 +133,9 @@ func (p *pathCreditRegistry) enableAdmission() {
 	p.validated = []net.Addr{addr}
 	p.rtt = make(map[protocol.PathID]*utils.RTTStats)
 	p.attachments = make(map[*Transport]int)
+	if recovery, ok := p.conn.sentPacketHandler.(interface{ EnablePathPolicy() }); ok {
+		recovery.EnablePathPolicy()
+	}
 }
 
 func (p *pathCreditRegistry) hasAdmission() bool { return p.members != nil }
@@ -156,8 +159,8 @@ func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pat
 	limit := protocol.MaxByteCount
 	for id := protocol.PathID(0); id <= p.localMax; id++ {
 		m := p.members[id]
-		if m == nil || !p.eligible(m) {
-			continue
+		if m == nil || !p.primaryEligible(m) {
+			continue // a suspect path's only probes are its revalidation challenges
 		}
 		var view pathView
 		var size protocol.ByteCount
@@ -171,14 +174,7 @@ func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pat
 			view = pathViewFor(id, m.route.recovery.SendMode(now))
 			size = datagramPayloadLimit(protocol.ByteCount(p.pmtuObservation(id)), connID)
 		}
-		if m.suspect {
-			if !view.probing {
-				continue // only a pending PTO keeps a suspect path in view
-			}
-			view.suspect = true
-		} else {
-			limit = min(limit, size)
-		}
+		limit = min(limit, size)
 		views = append(views, view)
 	}
 	if limit != protocol.MaxByteCount {
@@ -234,10 +230,6 @@ func (p *pathCreditRegistry) placeDatagram(views []pathView) {
 		size, fits := f.Length(p.conn.version), false
 		for i := range views {
 			view := &views[i]
-			if view.suspect {
-				view.fits = false
-				continue
-			}
 			if view.room == 0 {
 				var route *pathRoute
 				limit := p.conn.maxPacketSize()
@@ -318,10 +310,11 @@ func (p *pathCreditRegistry) rescheduleUnusable(id protocol.PathID, now monotime
 	}
 }
 
-// largestPTO is the largest measured PTO over path zero's observation and members.
+// largestPTO is the largest measured PTO over path zero, the observation and members.
 // An unmeasured path contributes nothing, so its default cannot inflate retention.
 func (p *pathCreditRegistry) largestPTO(includeMaxAckDelay bool) time.Duration {
-	largest := p.conn.observedRTT().PTO(includeMaxAckDelay)
+	// Path zero stays in, though the observation may have moved to the primary.
+	largest := max(p.conn.observedRTT().PTO(includeMaxAckDelay), p.conn.rttStats.PTO(includeMaxAckDelay))
 	for id := range p.members {
 		if rtt := p.rtt[id]; rtt != nil && rtt.HasMeasurement() {
 			largest = max(largest, rtt.PTO(includeMaxAckDelay))

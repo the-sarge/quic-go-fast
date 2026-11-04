@@ -77,9 +77,9 @@ func TestSelectPathHoldsWithoutPrimary(t *testing.T) {
 	require.True(t, held, "with no primary, a stale path in view carries nothing ordinary")
 	_, _, _, held = selectPath(nil, noPrimary)
 	require.True(t, held)
-	chosen, _, _, held := selectPath([]pathView{{id: 0, suspect: true, probing: true}}, noPrimary)
-	require.False(t, held, "a suspect path's pending PTO still goes")
-	require.Zero(t, chosen)
+	chosen, _, _, held := selectPath([]pathView{{id: 1, probing: true}}, noPrimary)
+	require.False(t, held, "a stale path's pending PTO still goes")
+	require.Equal(t, protocol.PathID(1), chosen)
 }
 
 func TestPathDatagramSmallerMTUSurvivor(t *testing.T) {

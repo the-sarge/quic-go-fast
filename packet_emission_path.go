@@ -32,7 +32,6 @@ type pathView struct {
 	fits    bool               // a fresh packet can carry the next DATAGRAM, or none is queued
 	ready   bool               // not congestion-limited, so that DATAGRAM could leave here now
 	room    protocol.ByteCount // frame length a fresh packet here holds, once read
-	suspect bool               // only its pending PTO keeps it in view; it carries no DATAGRAM
 }
 
 // selectPath takes views in path ID order. A pending PTO goes first so the probe
@@ -90,17 +89,18 @@ func (e *packetEmission) useRoute(route *pathRoute) {
 	}
 }
 
-// heldOpportunity keeps ACKs flowing while no path may carry ordinary work. Probes
-// have already had their turn, and a path's recovery or revalidation wakes the
-// connection.
+// heldOpportunity keeps ACKs flowing while no path may carry ordinary work, so the
+// loop keeps their alarms, as it does when congestion-limited. Admission probes have
+// already had their turn, and a path's recovery wakes the connection.
 func (e *packetEmission) heldOpportunity(now monotime.Time, confirmed bool) emissionResult {
 	if e.queue.WouldBlock() {
 		return emissionResult{stop: emissionQueueFull, available: e.queue.Available()}
 	}
-	result := emissionResult{stop: emissionHardBlocked, blocked: blockModeHardBlocked}
-	if e.selected().SendMode(now) != ackhandler.SendNone {
-		result.progress, result.err = e.maybeSendAckOnlyPacket(now, confirmed)
+	if e.selected().SendMode(now) == ackhandler.SendNone {
+		return emissionResult{stop: emissionHardBlocked, blocked: blockModeHardBlocked}
 	}
+	result := emissionResult{stop: emissionCongestionLimited, blocked: blockModeCongestionLimited}
+	result.progress, result.err = e.maybeSendAckOnlyPacket(now, confirmed)
 	return result
 }
 
