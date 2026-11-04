@@ -565,6 +565,19 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 			}
 		})
 	})
+	t.Run("an ordinary connection keeps every record after attaching a target", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			_, sender, _ := nativeProbeRecoveryConnection(t, "reno")
+			sender.targets = append(sender.targets, sender.participant)
+			for index := range sender.records {
+				sender.records[index].endpoint = sender.endpoint
+				sender.records[index].admission.serial = uint64(index + 1)
+			}
+			require.False(t, sender.routeSaturated(sender.endpoint))
+			sender.targets = nil
+			clear(sender.records[:])
+		})
+	})
 	t.Run("a saturated previous endpoint does not hold a pending PTO back", func(t *testing.T) {
 		nativeOrdinaryTest(t, func(t *testing.T) {
 			f := newAdmissionFixture(t, protocol.PerspectiveClient)

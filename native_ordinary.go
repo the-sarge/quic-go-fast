@@ -242,9 +242,9 @@ func (s *nativeOrdinarySender) routeParticipant() *endpointParticipant {
 
 // routeSaturated keeps one of the connection's records free for another endpoint, so
 // a slow socket can't hold back a path on an independent one. The total is unchanged,
-// and a connection with one endpoint keeps every record.
+// and a connection without path admission keeps every record.
 func (s *nativeOrdinarySender) routeSaturated(endpoint *nativeEndpoint) bool {
-	if len(s.targets) == 0 {
+	if credit := s.connection.pathCredit; len(s.targets) == 0 || credit == nil || !credit.hasAdmission() {
 		return false
 	}
 	held := 0
