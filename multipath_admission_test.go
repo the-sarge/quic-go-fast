@@ -330,15 +330,15 @@ func TestPathAdmissionTwoCandidates(t *testing.T) {
 		f := newAdmissionFixture(t, protocol.PerspectiveServer)
 		f.supplyPeerCIDs(t)
 		require.True(t, f.receive(t, 1, admissionTupleA, 1200, &wire.PingFrame{}))
-		require.True(t, f.receive(t, 0, admissionTupleB, 1200, &wire.PingFrame{}))
+		require.True(t, f.receive(t, 0, admissionTupleB, 1200, &wire.PathChallengeFrame{Data: [8]byte{9}}))
 		members := f.c.pathCredit.members
 		require.NotNil(t, members[1].candidate)
 		require.NotNil(t, members[0].candidate, "rebinding on an established path takes its own slot")
 		f.pass(t)
 		require.NotEmpty(t, admissionChallenges(f.peerWrites(t, 1)))
 		require.NotEmpty(t, admissionChallenges(f.peerWrites(t, 0)))
-		// The same tuple on both IDs stays two candidates, and a validated extra
-		// tuple records validation with no cutover.
+		// The same tuple on both IDs stays two candidates, and a tuple that has only
+		// probed records validation with no cutover.
 		require.True(t, f.receive(t, 0, admissionTupleB, 1200, &wire.PathResponseFrame{Data: admissionChallenges(f.peerWrites(t, 0))[0]}))
 		require.Nil(t, members[0].candidate)
 		require.True(t, f.c.pathCredit.tupleValidated(admissionTupleB))
