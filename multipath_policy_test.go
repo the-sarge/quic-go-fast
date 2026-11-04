@@ -4,6 +4,7 @@ package quic
 
 import (
 	"os"
+	"slices"
 	"syscall"
 	"testing"
 	"testing/synctest"
@@ -153,6 +154,11 @@ func TestPathPolicySoleAdmittedPathReachesSuspicion(t *testing.T) {
 		r.answerChallenge(t, 0)
 		require.False(t, p.members[0].suspect)
 		require.Zero(t, p.primary)
+
+		// The work held while it was suspect leaves without the probes it gave up.
+		f.socket.writes = nil
+		r.pass(t)
+		require.Equal(t, 1000, reliableBytes(r.parseWrites(t, 0)))
 	})
 }
 
@@ -302,26 +308,66 @@ func TestPathPolicyAllBackupKeepsTraffic(t *testing.T) {
 }
 
 func TestPathPolicyRecoveryDemotesWithoutOscillation(t *testing.T) {
+	for _, order := range []struct {
+		name  string
+		acked func(reliableWrite) bool // what an ACK covers before the response; nil sends none
+	}{
+		{name: "response first"},
+		{name: "ack of drained data first", acked: func(write reliableWrite) bool { return len(write.streams) != 0 }},
+		{name: "ack of the challenge first", acked: func(write reliableWrite) bool { return len(policyChallenges([]reliableWrite{write})) != 0 }},
+	} {
+		t.Run(order.name, func(t *testing.T) {
+			nativeOrdinaryTest(t, func(t *testing.T) {
+				f := newReliableFixture(t, protocol.PerspectiveServer)
+				p := f.c.pathCredit
+				observation := f.c.rttObservation
+				f.socket.writes = nil
+				f.suspectAfterPTOs(t, 0)
+				require.Equal(t, protocol.PathID(1), p.primary)
+				require.Same(t, p.rtt[1], f.observed())
+
+				if order.acked != nil {
+					f.ackPath(t, 0, 0, slices.DeleteFunc(f.parseWrites(t, 0), func(write reliableWrite) bool { return !order.acked(write) }))
+					require.True(t, p.members[0].suspect, "neither ACK is liveness")
+				}
+				f.answerChallenge(t, 0)
+				require.False(t, p.members[0].suspect)
+				require.True(t, p.members[0].backup, "a recovered path comes back as a backup, though it was active")
+				require.Equal(t, protocol.PathID(1), p.primary, "and leaves the promoted primary alone")
+				require.Same(t, f.c.rttStats, f.observed(), "a live, eligible path zero is the legacy observation")
+				require.Same(t, observation, f.c.rttObservation)
+
+				// The probes it couldn't send while suspect don't put it ahead of the primary.
+				f.socket.writes = nil
+				f.write(t, 1000)
+				f.pass(t)
+				require.Zero(t, reliableBytes(f.parseWrites(t, 0)))
+				require.Equal(t, 1000, reliableBytes(f.parseWrites(t, 1)))
+
+				// An explicit choice overrides the demotion.
+				require.NoError(t, p.setLocalUsePrivate(0, false, monotime.Now()))
+				require.Zero(t, p.primary)
+				require.False(t, p.members[0].backup)
+			})
+		})
+	}
+}
+
+func TestPathPolicyLivenessKeepsHealthyPathPTO(t *testing.T) {
 	nativeOrdinaryTest(t, func(t *testing.T) {
 		f := newReliableFixture(t, protocol.PerspectiveServer)
 		p := f.c.pathCredit
-		observation := f.c.rttObservation
+		f.write(t, 1000)
+		f.pass(t)
 		f.socket.writes = nil
-		f.suspectAfterPTOs(t, 0)
-		require.Equal(t, protocol.PathID(1), p.primary)
-		require.Same(t, p.rtt[1], f.observed())
+		f.expirePTO(t, 0)
+		require.Equal(t, ackhandler.SendPTOAppData, f.recovery(0).SendMode(monotime.Now()))
 
-		f.answerChallenge(t, 0)
-		require.False(t, p.members[0].suspect)
-		require.True(t, p.members[0].backup, "a recovered path comes back as a backup, though it was active")
-		require.Equal(t, protocol.PathID(1), p.primary, "and leaves the promoted primary alone")
-		require.Same(t, f.c.rttStats, f.observed(), "a live, eligible path zero is the legacy observation")
-		require.Same(t, observation, f.c.rttObservation)
-
-		// An explicit choice overrides the demotion.
-		require.NoError(t, p.setLocalUsePrivate(0, false, monotime.Now()))
-		require.Zero(t, p.primary)
-		require.False(t, p.members[0].backup)
+		// Only suspicion strands probes, so a path that never left the scheduler still owes its own.
+		p.noteLiveness(p.members[0], monotime.Now())
+		require.Equal(t, ackhandler.SendPTOAppData, f.recovery(0).SendMode(monotime.Now()))
+		f.pass(t)
+		require.Equal(t, 1000, reliableBytes(f.parseWrites(t, 0)))
 	})
 }
 
