@@ -121,7 +121,8 @@ func TestPathMigrationTargetRefusal(t *testing.T) {
 			target, _ := migrationTarget(t, f)
 			target.ConnectionIDLength = f.tc.srcConnID.Len() + 2
 			require.ErrorIs(t, f.c.migratePathPrivate(context.Background(), 0, target), ErrMultipathInvalidConfigV1)
-			require.ErrorIs(t, f.c.openPathPrivate(context.Background(), target, admissionTupleA), ErrMultipathInvalidConfigV1)
+			_, openErr := f.c.openPathPrivate(context.Background(), target, admissionTupleA)
+			require.ErrorIs(t, openErr, ErrMultipathInvalidConfigV1)
 			require.Empty(t, (*packetHandlerMap)(target).handlers)
 			require.False(t, f.c.pathCredit.paths[1], "no ID is consumed")
 			require.Nil(t, f.c.pathCredit.members[0].transport)

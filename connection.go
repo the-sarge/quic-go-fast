@@ -133,6 +133,8 @@ const (
 //   - [VersionNegotiationError]: returned by the client, when there's no version overlap between the peers
 type Conn struct {
 	pathCredit *pathCreditRegistry
+	// pathSurface is set before the connection runs, and only if it advertises multipath.
+	pathSurface *multipathSurface
 	// pathOpen holds the one local path operation, from request until its fence resolves.
 	pathOpen atomic.Pointer[pathOpenRequest]
 	// ingressPath is the routed path of the short-header packet being handled.
@@ -392,7 +394,7 @@ var newConnection = func(
 		RetrySourceConnectionID:   retrySrcConnID,
 		EnableResetStreamAt:       conf.EnableStreamResetPartialDelivery,
 	}
-	s.advertisePrivateMultipath(params)
+	s.advertiseMultipath(params)
 	if s.config.EnableDatagrams {
 		params.MaxDatagramFrameSize = wire.MaxDatagramSize
 	} else {
@@ -524,7 +526,7 @@ var newClientConnection = func(
 		InitialSourceConnectionID: srcConnID,
 		EnableResetStreamAt:       conf.EnableStreamResetPartialDelivery,
 	}
-	s.advertisePrivateMultipath(params)
+	s.advertiseMultipath(params)
 	if s.config.EnableDatagrams {
 		params.MaxDatagramFrameSize = wire.MaxDatagramSize
 	} else {
@@ -1150,14 +1152,14 @@ func (c *Conn) handleHandshakeComplete(now monotime.Time) error {
 	// During a 0-RTT connection, the client is only allowed to use the new transport parameters for 1-RTT packets.
 	if c.perspective == protocol.PerspectiveClient {
 		c.applyTransportParameters()
-		return c.activatePrivateMultipath()
+		return c.activateMultipath()
 	}
 
 	// All these only apply to the server side.
 	if err := c.handleHandshakeConfirmed(now); err != nil {
 		return err
 	}
-	if err := c.activatePrivateMultipath(); err != nil {
+	if err := c.activateMultipath(); err != nil {
 		return err
 	}
 
@@ -2781,7 +2783,7 @@ func (c *Conn) restoreTransportParameters(params *wire.TransportParameters) {
 	}
 
 	c.peerParams = params
-	if !c.negotiatesPrivateMultipath(params) { // activation issues path zero's CIDs
+	if !c.negotiatesMultipath(params) { // activation issues path zero's CIDs
 		c.connIDGenerator.SetMaxActiveConnIDs(params.ActiveConnectionIDLimit)
 	}
 	c.connFlowController.UpdateSendWindow(params.InitialMaxData)
@@ -2827,6 +2829,10 @@ func (c *Conn) checkTransportParameters(params *wire.TransportParameters) error 
 	if params.InitialSourceConnectionID != c.handshakeDestConnID {
 		return fmt.Errorf("expected initial_source_connection_id to equal %s, is %s", c.handshakeDestConnID, params.InitialSourceConnectionID)
 	}
+	// Draft section 2.1: a peer can't offer multipath from a zero-length connection ID.
+	if c.negotiatesMultipath(params) && params.InitialSourceConnectionID.Len() == 0 {
+		return errors.New("initial_max_path_id with a zero-length connection ID")
+	}
 
 	if c.perspective == protocol.PerspectiveServer {
 		return nil
@@ -2861,7 +2867,7 @@ func (c *Conn) applyTransportParameters() {
 	c.frameParser.SetAckDelayExponent(params.AckDelayExponent)
 	c.connFlowController.UpdateSendWindow(params.InitialMaxData)
 	c.rttStats.SetMaxAckDelay(params.MaxAckDelay)
-	if !c.negotiatesPrivateMultipath(params) { // activation issues path zero's CIDs
+	if !c.negotiatesMultipath(params) { // activation issues path zero's CIDs
 		c.connIDGenerator.SetMaxActiveConnIDs(params.ActiveConnectionIDLimit)
 	}
 	if params.StatelessResetToken != nil {
@@ -3324,6 +3330,9 @@ func (c *Conn) getPathManager() *pathManagerOutgoing {
 }
 
 func (c *Conn) AddPath(t *Transport) (*Path, error) {
+	if err := c.legacyPathsBlocked(); err != nil {
+		return nil, err
+	}
 	if c.perspective == protocol.PerspectiveServer {
 		return nil, errors.New("server cannot initiate connection migration")
 	}

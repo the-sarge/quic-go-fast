@@ -22,6 +22,8 @@ For reusable sockets, `NewManagedPacketEndpointV1` creates an endpoint with excl
 
 `ConfigureFixedPeerV1` fixes a transport's permitted UDP peer before initialization, guarding receive, ordinary/batched/stateless output and alternate paths. It does not authenticate peer identity or enable migration. The [release notes](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.8#bundle-behavior-and-consumer-decisions) describe the opt-in network/setup admission, candidate selection and receive-phase extensions.
 
+The multipath V1 surface is present but refuses for now: a `Config` with `ConfigureMultipathV1(true, ...)` fails every constructor with `ErrMultipathUnsupportedV1`, as does `Transport.ConfigureMultipathIOV1`, and connections without it behave as before. Once certified, a caller's socket needs an explicit `Transport` with that grant; `Dial`, `Listen` and HTTP/3 `Server.Serve` keep refusing it, while the `Addr` helpers and HTTP/3's default client grant the sockets they own. Isolate these calls in an integration adapter, like the other fork additions.
+
 ## Platform controls
 
 Offload availability depends on the host, packet-I/O path and explicit permissions. Generic platform CI does not prove native offload engagement. Qualified macOS batching uses the private `sendmsg_x` syscall with kernel qualification and a startup self-check. Build with `-tags quic_go_no_private_syscalls` to disable private-syscall paths.

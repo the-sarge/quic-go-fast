@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/monotime"
+	"github.com/quic-go/quic-go/internal/multipathguard"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/qlog"
 	"github.com/quic-go/quic-go/qlogwriter"
@@ -93,6 +95,8 @@ func TestPicoquicMultipathSmoke(t *testing.T) {
 	require.NotEmpty(t, binary, "PICOQUIC_BINARY must name the pinned peer")
 	root := os.Getenv("PICOQUIC_LOG_DIR")
 	require.NotEmpty(t, root)
+	multipathguard.Active.Store(true)
+	t.Cleanup(func() { multipathguard.Active.Store(false) })
 	for _, role := range []string{"client", "server"} {
 		t.Run(role, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -101,7 +105,8 @@ func TestPicoquicMultipathSmoke(t *testing.T) {
 			require.NoError(t, err)
 			roots, leaf := writeSmokeCertificates(t, dir)
 			trace := newSmokeTrace()
-			conf := &Config{Versions: []Version{Version1}, MaxIdleTimeout: 10 * time.Second, Tracer: trace.tracer, privateMultipath: true}
+			conf := &Config{Versions: []Version{Version1}, MaxIdleTimeout: 10 * time.Second, Tracer: trace.tracer}
+			require.NoError(t, conf.ConfigureMultipathV1(true, 2, "primary-backup"))
 			// Fixed, non-random workload, large enough to outlast the path switch.
 			payload := []byte(strings.Repeat("R14 two-path STREAM smoke\n", 1<<15))
 			if role == "client" {
@@ -114,6 +119,10 @@ func TestPicoquicMultipathSmoke(t *testing.T) {
 			require.NotZero(t, stream[1], "useful data on path one")
 		})
 	}
+}
+
+func smokeSetUse(conn *Conn, id protocol.PathID, backup bool) error {
+	return conn.runPathCommand(func(r *pathCreditRegistry, now monotime.Time) error { return r.setLocalUsePrivate(id, backup, now) })
 }
 
 func writeSmokeCertificates(t *testing.T, dir string) (*x509.CertPool, tls.Certificate) {
@@ -197,7 +206,7 @@ func smokeClient(t *testing.T, ctx context.Context, binary, dir string, payload 
 		t.Fatal(ctx.Err())
 	}
 	primary, alternate := smokeTransport(t, net.IPv4(127, 0, 0, 1)), smokeTransport(t, net.IPv4(127, 0, 0, 2))
-	require.NoError(t, alternate.init(false), "R16's path API owns this for callers")
+	require.NoError(t, alternate.init(false), "prepareTarget does this inside OpenPathV1")
 	conn, err := primary.Dial(ctx, addr, tlsConf, conf)
 	require.NoError(t, err)
 	defer conn.CloseWithError(0, "")
@@ -210,9 +219,10 @@ func smokeClient(t *testing.T, ctx context.Context, binary, dir string, payload 
 	require.NoError(t, err)
 	require.Equal(t, payload, got)
 
-	require.NoError(t, conn.openPathPrivate(ctx, alternate, addr))
-	require.NoError(t, conn.useLocalPrivate(ctx, 1, false))
-	require.NoError(t, conn.useLocalPrivate(ctx, 0, true))
+	_, err = conn.openPathPrivate(ctx, alternate, addr)
+	require.NoError(t, err)
+	require.NoError(t, smokeSetUse(conn, 1, false))
+	require.NoError(t, smokeSetUse(conn, 0, true))
 	second := smokeRequest(t, ctx, conn, "/r14-smoke.bin")
 	require.NoError(t, second.SetDeadline(deadline))
 	got, err = io.ReadAll(second)
@@ -275,8 +285,8 @@ func smokeServer(t *testing.T, ctx context.Context, binary, dir string, payload 
 	case <-ctx.Done():
 		t.Fatal("the peer's second path never validated")
 	}
-	require.NoError(t, conn.useLocalPrivate(ctx, 1, false))
-	require.NoError(t, conn.useLocalPrivate(ctx, 0, true))
+	require.NoError(t, smokeSetUse(conn, 1, false))
+	require.NoError(t, smokeSetUse(conn, 0, true))
 	_, err = stream.Write(payload[half:])
 	require.NoError(t, err)
 	require.NoError(t, stream.Close())

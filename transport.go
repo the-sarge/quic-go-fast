@@ -239,6 +239,7 @@ func (t *Transport) createServer(tlsConf *tls.Config, conf *Config, allow0RTT bo
 	if tlsConf == nil {
 		return nil, errors.New("quic: tls.Config not set")
 	}
+	requested := conf
 	var err error
 	conf, err = prepareConfig(conf)
 	if err != nil {
@@ -253,6 +254,9 @@ func (t *Transport) createServer(tlsConf *tls.Config, conf *Config, allow0RTT bo
 	}
 	if t.server != nil {
 		return nil, errListenerAlreadySet
+	}
+	if err := t.admitMultipath(requested); err != nil {
+		return nil, err
 	}
 	if err := t.init(false); err != nil {
 		return nil, err
@@ -293,6 +297,9 @@ func (t *Transport) DialEarly(ctx context.Context, addr net.Addr, tlsConf *tls.C
 }
 
 func (t *Transport) dial(ctx context.Context, addr net.Addr, host string, tlsConf *tls.Config, conf *Config, use0RTT bool) (*Conn, error) {
+	if err := t.admitMultipath(conf); err != nil {
+		return nil, err
+	}
 	if err := t.init(t.isSingleUse); err != nil {
 		return nil, err
 	}
@@ -537,6 +544,10 @@ func (t *Transport) init(allowZeroLengthConnIDs bool) error {
 			t.listen(conn)
 
 			if t.createdConn {
+				// A single-use listener stops reading without a transport close, and
+				// this helper's grant ends with it. No caller inherits the socket.
+				t.responses.revoke()
+				t.responses.seal()
 				conn.Close()
 			}
 		}()

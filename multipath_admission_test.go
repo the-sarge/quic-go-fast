@@ -595,7 +595,10 @@ func TestPathAdmissionResourceSaturation(t *testing.T) {
 
 func (f *admissionFixture) openAsync(ctx context.Context, target *Transport, addr net.Addr) <-chan error {
 	errs := make(chan error, 1)
-	go func() { errs <- f.c.openPathPrivate(ctx, target, addr) }()
+	go func() {
+		_, err := f.c.openPathPrivate(ctx, target, addr)
+		errs <- err
+	}()
 	synctest.Wait()
 	return errs
 }
@@ -776,7 +779,8 @@ func TestPathAdmissionCancellation(t *testing.T) {
 			require.NotNil(t, terminal)
 			require.False(t, terminal.signaled, "the fence precedes the signal")
 			require.NotNil(t, f.c.pathOpen.Load(), "and the operation slot stays charged")
-			require.ErrorIs(t, f.c.openPathPrivate(context.Background(), nil, admissionTupleB), ErrMultipathBackpressureV1)
+			_, openErr := f.c.openPathPrivate(context.Background(), nil, admissionTupleB)
+			require.ErrorIs(t, openErr, ErrMultipathBackpressureV1)
 			f.socket.hold = nil
 			f.socket.release()
 			f.pass(t)

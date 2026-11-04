@@ -87,4 +87,5 @@ func (p *pathCreditRegistry) close() {
 		terminal.receipt.seal()
 	}
 	p.closeAdmission()
+	p.publishClosed()
 }

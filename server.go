@@ -921,6 +921,12 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 			s.refuseNewConn(p, hdr)
 			return nil
 		}
+		if err := (*Transport)(s.tr).admitMultipath(conf); err != nil {
+			setup.teardown()
+			s.logger.Debugf("Rejecting new connection: %s", err)
+			s.refuseNewConn(p, hdr)
+			return nil
+		}
 		config = prepareConfigForClient(conf)
 	}
 

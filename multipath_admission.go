@@ -68,6 +68,10 @@ type pathMember struct {
 	announces  int
 	// pmtu is the size this path's congestion accounting already uses.
 	pmtu protocol.ByteCount
+	// statusSeq numbers this path's next PATH_STATUS frame.
+	statusSeq uint64
+	// lastOutcome is the snapshot's category of the latest local result.
+	lastOutcome string
 	pathPolicy
 }
 
@@ -117,14 +121,8 @@ type pathOpenRequest struct {
 	outcome   atomic.Int32 // one transition decides what the caller observes
 	accepted  bool
 	id        protocol.PathID
-	use       *pathLocalUse // set when the operation is a local-use change
 	migrate   bool          // id names the path to move to transport
 	retained  *pathRetained // an aborted migration's charges, which hold the operation
-}
-
-type pathLocalUse struct {
-	id     protocol.PathID
-	backup bool
 }
 
 const (
@@ -720,7 +718,9 @@ func (p *pathCreditRegistry) service(now monotime.Time) error {
 	}
 	p.serviceRetained(now)
 	p.serviceDetachments()
-	return p.replenish()
+	err := p.replenish()
+	p.publishPaths()
+	return err
 }
 
 // retireCandidate revokes the candidate's queued probes. Its fence entry keeps
@@ -773,13 +773,9 @@ func (p *pathCreditRegistry) pruneFences(m *pathMember) bool {
 // serviceRequest handles the local operation. Before an ID is committed, a
 // cancellation only releases the operation slot.
 func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
+	p.serviceCommands(now)
 	request := p.conn.pathOpen.Load()
 	if request == nil {
-		return nil
-	}
-	if use := request.use; use != nil {
-		request.finish(p.setLocalUsePrivate(use.id, use.backup, now))
-		p.conn.pathOpen.CompareAndSwap(request, nil)
 		return nil
 	}
 	if request.migrate {
@@ -1096,15 +1092,18 @@ func (p *pathCreditRegistry) closeAdmission() {
 	}
 }
 
-// setLocalUsePrivate is the private driver behind R16's SetLocalUseV1. It overrides
+// setLocalUsePrivate is the private driver behind SetLocalUseV1. It overrides
 // the demotion of a recovered path.
 func (p *pathCreditRegistry) setLocalUsePrivate(id protocol.PathID, backup bool, now monotime.Time) error {
 	if err := p.validateID(id); err != nil {
 		return err
 	}
 	m := p.members[id]
-	if m == nil || !m.live || p.terminals[id] != nil {
+	if m == nil || p.terminals[id] != nil {
 		return ErrPathClosed
+	}
+	if !m.live {
+		return ErrPathNotValidated
 	}
 	m.backup = backup
 	p.reselect(now)

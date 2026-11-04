@@ -69,12 +69,12 @@ func connectionRunnerCallbacks(runner connRunner, c *Conn) connRunnerCallbacks {
 	return callbacks
 }
 
-// enableMultipathCredit is private scenario activation. Production constructors
-// neither call it nor advertise multipath. A connection already on the private
-// endpoint route gains consumed-path admission; any other keeps unused-ID credit.
+// enableMultipathCredit is activation, which only a negotiated connection reaches and
+// only behind the constructors' gate. A connection on the native endpoint route gains
+// consumed-path admission; any other, which only a fixture builds, keeps unused-ID credit.
 func (c *Conn) enableMultipathCredit(capacity int, peerMax protocol.PathID, peerCIDLimit uint64) (_ *wire.TransportParameters, err error) {
-	if c.pathCredit != nil || (!c.handshakeConfirmed && !c.config.privateMultipath) || c.version != protocol.Version1 || capacity < 1 || capacity > 2 || peerCIDLimit < 2 || c.emission.bbr != nil || c.connIDManager.closed || c.connIDManager.activeConnectionID.Len() == 0 || c.srcConnIDLen == 0 || c.connIDGenerator.generator.ConnectionIDLen() != c.srcConnIDLen || c.pathManager != nil || c.pathManagerOutgoing.Load() != nil || len(c.connIDManager.pathProbing) != 0 || uint64(len(c.connIDGenerator.activeSrcConnIDs)) > min(peerCIDLimit, 2) || len(c.connIDGenerator.activeSrcConnIDs)+len(c.connIDGenerator.connIDsToRetire) > maxPathCIDRecords {
-		return nil, fmt.Errorf("invalid private multipath credit activation")
+	if c.pathCredit != nil || (!c.handshakeConfirmed && !c.config.multipath.enabled) || c.version != protocol.Version1 || capacity < 1 || capacity > 2 || peerCIDLimit < 2 || c.emission.bbr != nil || c.connIDManager.closed || c.connIDManager.activeConnectionID.Len() == 0 || c.srcConnIDLen == 0 || c.connIDGenerator.generator.ConnectionIDLen() != c.srcConnIDLen || c.pathManager != nil || c.pathManagerOutgoing.Load() != nil || len(c.connIDManager.pathProbing) != 0 || uint64(len(c.connIDGenerator.activeSrcConnIDs)) > min(peerCIDLimit, 2) || len(c.connIDGenerator.activeSrcConnIDs)+len(c.connIDGenerator.connIDsToRetire) > maxPathCIDRecords {
+		return nil, fmt.Errorf("invalid multipath credit activation")
 	}
 	p := &pathCreditRegistry{conn: c, capacity: capacity, localMax: protocol.PathID(capacity - 1), peerMax: peerMax, nextID: 1, peerCIDLimit: peerCIDLimit, paths: map[protocol.PathID]bool{0: true}, terminals: make(map[protocol.PathID]*pathTerminal)}
 	c.pathCredit = p
@@ -85,7 +85,7 @@ func (c *Conn) enableMultipathCredit(capacity int, peerMax protocol.PathID, peer
 	defer func() {
 		if err != nil {
 			// Once publication begins, rollback would erase routing obligations.
-			// Fence the private activation and let ordinary close own cleanup.
+			// Fence the activation and let ordinary close own cleanup.
 			p.close()
 			c.closeLocal(&qerr.TransportError{ErrorCode: qerr.InternalError, ErrorMessage: err.Error()})
 		}
@@ -105,27 +105,36 @@ func (c *Conn) enableMultipathCredit(capacity int, peerMax protocol.PathID, peer
 	return &wire.TransportParameters{InitialMaxPathID: &localMax, ActiveConnectionIDLimit: 4}, nil
 }
 
-// advertisePrivateMultipath offers the extension under the fixture's guard.
-func (c *Conn) advertisePrivateMultipath(params *wire.TransportParameters) {
-	if c.config.privateMultipath {
-		maximum := protocol.PathID(1)
+// advertiseMultipath offers the extension on a QUIC v1 connection whose Config passed the
+// gate. A connection of another version stays ordinary.
+func (c *Conn) advertiseMultipath(params *wire.TransportParameters) {
+	if c.config.multipath.enabled && c.version == protocol.Version1 {
+		maximum := protocol.PathID(c.config.multipath.maxPaths - 1)
 		params.InitialMaxPathID = &maximum
+		c.pathSurface = newMultipathSurface()
 	}
 }
 
-func (c *Conn) negotiatesPrivateMultipath(params *wire.TransportParameters) bool {
-	return c.config.privateMultipath && params.InitialMaxPathID != nil
+func (c *Conn) negotiatesMultipath(params *wire.TransportParameters) bool {
+	return c.pathSurface != nil && params.InitialMaxPathID != nil
 }
 
-// activatePrivateMultipath runs at handshake completion, once the peer's parameters
-// are applied and before any 1-RTT frame can be processed. A client isn't confirmed
-// yet, and recovery refuses a nonzero path until it is. An ordinary peer stays ordinary.
-func (c *Conn) activatePrivateMultipath() error {
-	if !c.negotiatesPrivateMultipath(c.peerParams) {
+// activateMultipath runs at handshake completion, once the peer's parameters are applied
+// and before any 1-RTT frame can be processed. A client isn't confirmed yet, and recovery
+// refuses a nonzero path until it is. An ordinary peer stays ordinary.
+func (c *Conn) activateMultipath() error {
+	if !c.negotiatesMultipath(c.peerParams) {
+		if c.pathSurface != nil {
+			c.pathSurface.mode.Store(multipathOrdinary)
+		}
 		return nil
 	}
-	_, err := c.enableMultipathCredit(2, *c.peerParams.InitialMaxPathID, c.peerParams.ActiveConnectionIDLimit)
-	return err
+	if _, err := c.enableMultipathCredit(int(c.config.multipath.maxPaths), *c.peerParams.InitialMaxPathID, c.peerParams.ActiveConnectionIDLimit); err != nil {
+		return err
+	}
+	c.pathCredit.publishPaths()
+	c.pathSurface.mode.Store(multipathNegotiated)
+	return nil
 }
 
 func (p *pathCreditRegistry) issueWindow() error {

@@ -708,6 +708,9 @@ func (s *nativeOrdinarySender) consumeParticipant(participant *endpointParticipa
 				}
 				s.completePacket(packet, outcome, result.returnedAt, isSendMsgSizeErr(result.err))
 			}
+			if credit := s.connection.pathCredit; credit != nil && credit.hasAdmission() {
+				credit.noteOutcome(protocol.PathID(identity.path), identity.tuple, result.accepted, result.uncertain, record.datagrams)
+			}
 			if identity.generation < s.switchGeneration {
 				s.connection.scheduleSending()
 			} else if isSendMsgSizeErr(result.err) {

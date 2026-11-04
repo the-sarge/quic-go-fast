@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"golang.org/x/net/http/httpguts"
 
@@ -124,6 +125,14 @@ type Transport struct {
 	transportsClosed bool
 }
 
+const (
+	// ownedMultipathWriteBudget is the native request duration on HTTP/3's own sockets.
+	ownedMultipathWriteBudget = 100 * time.Millisecond
+	// ownedMultipathStopBudget bounds Close's join. A wedged native call keeps its
+	// borrow, and the socket is released anyway since no caller inherits it.
+	ownedMultipathStopBudget = time.Second
+)
+
 var (
 	_ http.RoundTripper = &Transport{}
 	_ io.Closer         = &Transport{}
@@ -191,7 +200,15 @@ func (t *Transport) transportFor(addr *net.UDPAddr) (*quic.Transport, error) {
 		if err != nil {
 			return nil, err
 		}
-		*tr = &quic.Transport{Conn: udpConn}
+		quicTr := &quic.Transport{Conn: udpConn}
+		// The frozen configuration decides before this private transport's first dial.
+		if t.QUICConfig.MultipathEnabledV1() {
+			if err := quicTr.ConfigureMultipathIOV1(ownedMultipathWriteBudget); err != nil {
+				udpConn.Close()
+				return nil, err
+			}
+		}
+		*tr = quicTr
 	}
 	return *tr, nil
 }
@@ -562,6 +579,13 @@ func (t *Transport) Close() error {
 			continue
 		}
 		if err := (*tr).Close(); err != nil {
+			return err
+		}
+		// A grant ends with this owner, so join it before releasing the socket.
+		stopCtx, cancel := context.WithTimeout(context.Background(), ownedMultipathStopBudget)
+		err := (*tr).WaitMultipathIOStoppedV1(stopCtx)
+		cancel()
+		if err != nil && !errors.Is(err, quic.ErrMultipathNotConfiguredV1) && !errors.Is(err, context.DeadlineExceeded) {
 			return err
 		}
 		if err := (*tr).Conn.Close(); err != nil {

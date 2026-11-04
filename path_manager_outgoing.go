@@ -25,6 +25,12 @@ var errPathDoesNotExist = errors.New("path does not exist")
 
 // Path is a network path.
 type Path struct {
+	// conn, wireID and state belong to a multipath path, which has no legacy backing
+	// owner. An ordinary migration path leaves conn nil.
+	conn   *Conn
+	wireID protocol.PathID
+	state  atomic.Pointer[MultipathPathStateV1]
+
 	id          pathID
 	pathManager *pathManagerOutgoing
 	tr          *Transport
@@ -36,6 +42,9 @@ type Path struct {
 }
 
 func (p *Path) Probe(ctx context.Context) error {
+	if p.conn != nil {
+		return ErrMultipathWrongModeV1
+	}
 	if err := p.pathManager.beginProbe(p); err != nil {
 		return err
 	}
@@ -77,6 +86,9 @@ func (p *Path) Probe(ctx context.Context) error {
 // connection closes before applying the switch, any CONNECTION_CLOSE it sends
 // goes out on the old path.
 func (p *Path) Switch() error {
+	if p.conn != nil {
+		return ErrMultipathWrongModeV1
+	}
 	if err := p.pathManager.switchToPath(p.id); err != nil {
 		switch {
 		case errors.Is(err, ErrPathNotValidated):
@@ -99,6 +111,9 @@ func (p *Path) Switch() error {
 // It is not possible to close the path that’s currently active.
 // After closing, the path cannot be successfully probed again with [Path.Probe].
 func (p *Path) Close() error {
+	if p.conn != nil {
+		return ErrMultipathWrongModeV1
+	}
 	return p.pathManager.closePath(p)
 }
 

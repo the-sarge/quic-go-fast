@@ -1,6 +1,6 @@
 # Reno-first QUIC multipath implementation plan
 
-**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8/R9/R10/R11/R12/R13/R14/R15 complete (15/20 slices); R16 #1036 and R20 are ready. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
+**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8/R9/R10/R11/R12/R13/R14/R15/R16 complete (16/20 slices); R20 #1182 is ready. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
 
 ## Binding contract and operating discipline
 
@@ -907,6 +907,8 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 **Delivers:** Implement V1 methods, immutable snapshots/error identities, legacy handle-mode checks and the full explicit/Addr/HTTP3 constructor matrix. Public requests return unsupported until R19 certification enables the complete Linux profile. Private fixtures exercise the same constructors with one internal activation guard. Enforce the participant-cap refusal mapping for ordinary and multipath setup, including bounded server CONNECTION_REFUSED or drop.
 
 **Blocked by:** E6, R11, R13, R14, R15. **Existing work:** new slice; no unmerged implementation accepted.
+
+**State:** complete. `multipath_api.go` holds the V1 surface, the snapshots, the connection's path commands and `admitMultipath`, the one capability gate, and `internal/multipathguard` the one activation guard, which R19 removes. `multipath_api_test.go` and `http3/multipath_test.go` hold the 19 scenarios. The connection-owner files beyond the list below are `connection.go`, `native_ordinary.go` for one last-outcome read, and `native_transport_other.go` for refusing stubs. `Config.MultipathEnabledV1` is one additive reader outside the frozen list, because `http3` must read the selection before granting its own socket. R17 #1037 and R18 #1038 still require R20 #1182. Public requests return `ErrMultipathUnsupportedV1`.
 
 **Single owner and authority completeness:** Config/transport owns pre-init grants and compatibility; connection owns commands/snapshots; helpers own only sockets they create. Cover constructors, validation and the destruction/cancellation consumers named by this behavior together; no persisted state is introduced.
 
