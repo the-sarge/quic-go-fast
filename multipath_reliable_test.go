@@ -503,6 +503,13 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 		require.NoError(t, err)
 		return s
 	}
+	waiting := func(endpoint *nativeEndpoint, participant *endpointParticipant) (pending, granted bool) {
+		endpoint.do(func(state *endpointState) {
+			pending = participant.wait[0].pending
+			granted = state.grant != nil && state.grant.participant == participant
+		})
+		return pending, granted
+	}
 	t.Run("data leaves through the target and its result is consumed", func(t *testing.T) {
 		nativeOrdinaryTest(t, func(t *testing.T) {
 			f := newAdmissionFixture(t, protocol.PerspectiveClient)
@@ -595,7 +602,7 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 		nativeOrdinaryTest(t, func(t *testing.T) {
 			f := newAdmissionFixture(t, protocol.PerspectiveClient)
 			f.supplyPeerCIDs(t)
-			target, socket, _ := newTarget(t, f)
+			target, socket, endpoint := newTarget(t, f)
 			t.Cleanup(socket.release)
 			open(t, f, target, socket)
 			c, r := f.c, &reliableFixture{admissionFixture: f}
@@ -625,6 +632,8 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 			require.Empty(t, reliableDatagrams(zero))
 			require.NotNil(t, c.datagramQueue.Peek(), "and the message waits")
 			require.Zero(t, c.datagramQueue.sendDrops.Load())
+			pending, _ := waiting(endpoint, c.emission.local.(*nativeOrdinarySender).probeParticipant(endpoint))
+			require.False(t, pending, "its own completions wake it, so it holds no place at the endpoint")
 
 			socket.hold = nil
 			socket.writes = nil
@@ -640,6 +649,107 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 			require.Zero(t, c.datagramQueue.sendDrops.Load())
 			r.socket = socket
 			require.Equal(t, []int{1300}, reliableDatagrams(r.parseWrites(t, 1)))
+		})
+	})
+	// Other connections fill the fitting endpoint's data class, so no result of this
+	// connection's can wake it there. The socket holds them all until released.
+	saturated := func(t *testing.T) (*admissionFixture, *reliableFixture, *nativeOrdinarySender, *nativeProbeSocket, *nativeEndpoint, *endpointParticipant, []*endpointParticipant) {
+		f := newAdmissionFixture(t, protocol.PerspectiveClient)
+		f.supplyPeerCIDs(t)
+		target, socket, endpoint := newTarget(t, f)
+		t.Cleanup(socket.release)
+		open(t, f, target, socket)
+		r := &reliableFixture{admissionFixture: f}
+		sender := f.c.emission.local.(*nativeOrdinarySender)
+		sender.nativeGSO = false
+		r.setPathMTU(1, 1400)
+		f.c.pathCredit.selectPrimaryPrivate(0)
+		participant := sender.probeParticipant(endpoint)
+		require.NotNil(t, participant)
+
+		socket.hold = func([]byte) bool { return true }
+		var others []*endpointParticipant
+		for id := uint64(1 << 40); ; id++ {
+			other, err := endpoint.attach(id)
+			require.NoError(t, err)
+			others = append(others, other)
+			request := endpointTestRequest(id, "other")
+			err = endpoint.offer(other, 0, request)
+			if err != nil {
+				require.ErrorIs(t, err, errEndpointCapacity)
+				endpoint.cancelReadiness(other, 0)
+				for _, buffer := range request.buffers {
+					buffer.Release()
+				}
+				break
+			}
+		}
+		synctest.Wait()
+		return f, r, sender, socket, endpoint, participant, others
+	}
+	t.Run("another connection's saturation still wakes the held DATAGRAM", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f, r, sender, socket, endpoint, participant, _ := saturated(t)
+			c := f.c
+			r.queueDatagram(t, 1300)
+			require.Nil(t, c.emission.capacity(), "the fitting endpoint's capacity never blocks the chosen route")
+			require.Nil(t, c.emission.route)
+			require.Same(t, sender.endpoint, sender.pending.endpoint, "the reservation returned to the chosen route's endpoint")
+			pending, _ := waiting(endpoint, participant)
+			require.True(t, pending, "the held frame keeps its place at the fitting endpoint")
+			for range 3 {
+				r.pass(t)
+			}
+			require.NotNil(t, c.datagramQueue.Peek(), "the message waits")
+			pending, _ = waiting(endpoint, participant)
+			require.True(t, pending, "later passes keep it")
+			select {
+			case <-c.emission.localWakeup():
+			default:
+			}
+
+			socket.hold = nil
+			socket.release()
+			synctest.Wait()
+			select {
+			case <-c.emission.localWakeup():
+			default:
+				t.Fatal("the fitting endpoint's capacity wakes the connection")
+			}
+			socket.writes = nil // the other connections' requests
+			r.pass(t)
+			require.Nil(t, c.datagramQueue.Peek())
+			require.Zero(t, c.datagramQueue.sendDrops.Load())
+			r.socket = socket
+			require.Equal(t, []int{1300}, reliableDatagrams(r.parseWrites(t, 1)))
+		})
+	})
+	t.Run("a DATAGRAM that stops needing the endpoint gives its place back", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f, r, _, socket, endpoint, participant, others := saturated(t)
+			c := f.c
+			r.queueDatagram(t, 1300)
+			require.Nil(t, c.emission.capacity())
+			pending, _ := waiting(endpoint, participant)
+			require.True(t, pending)
+
+			r.setPathMTU(0, 1400)
+			require.Nil(t, c.emission.capacity(), "the frame fits the chosen route now")
+			pending, granted := waiting(endpoint, participant)
+			require.False(t, pending, "nothing waits at the endpoint for it")
+			require.False(t, granted, "and no turn is held from the other connections")
+			require.False(t, c.emission.steered)
+
+			other := others[len(others)-1]
+			request := endpointTestRequest(other.id, "other")
+			defer request.buffers[0].Release()
+			require.ErrorIs(t, endpoint.offer(other, 0, request), errEndpointCapacity)
+			_, granted = waiting(endpoint, other)
+			require.True(t, granted, "the next waiter has the turn at once")
+			endpoint.cancelReadiness(other, 0)
+			socket.hold = nil
+			socket.release()
+			synctest.Wait()
 		})
 	})
 	t.Run("a saturated previous endpoint does not hold a pending PTO back", func(t *testing.T) {
