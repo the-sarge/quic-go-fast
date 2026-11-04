@@ -220,7 +220,12 @@ func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pat
 			p.conn.maxPayloadSizeEstimate.Store(uint32(limit))
 		}
 	}
-	p.placeDatagram(views)
+	if p.primary == noPrimary {
+		// The hold is no eligible carrier, and a frame must not wait out revalidation.
+		p.placeDatagram(nil)
+	} else {
+		p.placeDatagram(views)
+	}
 	chosen, steer, steering, held := selectPath(views, p.primary)
 	if held {
 		return p.heldRoute(), nil, false, true
@@ -949,4 +954,20 @@ func (p *pathCreditRegistry) closeAdmission() {
 		m.established.retire()
 		p.retireCandidate(m)
 	}
+}
+
+// setLocalUsePrivate is the private driver behind R16's SetLocalUseV1. It overrides
+// the demotion of a recovered path.
+func (p *pathCreditRegistry) setLocalUsePrivate(id protocol.PathID, backup bool, now monotime.Time) error {
+	if err := p.validateID(id); err != nil {
+		return err
+	}
+	m := p.members[id]
+	if m == nil || !m.live || p.terminals[id] != nil {
+		return ErrPathClosed
+	}
+	m.backup = backup
+	p.reselect(now)
+	p.conn.scheduleSending()
+	return nil
 }

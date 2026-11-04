@@ -78,19 +78,3 @@ func (p *pathCreditRegistry) cutTuple(m *pathMember) {
 	m.tuple++
 	m.attempts = 0
 }
-
-// setLocalUsePrivate is the private driver behind R16's SetLocalUseV1. It overrides
-// the demotion of a recovered path.
-func (p *pathCreditRegistry) setLocalUsePrivate(id protocol.PathID, backup bool, now monotime.Time) error {
-	if err := p.validateID(id); err != nil {
-		return err
-	}
-	m := p.members[id]
-	if m == nil || !m.live || p.terminals[id] != nil {
-		return ErrPathClosed
-	}
-	m.backup = backup
-	p.reselect(now)
-	p.conn.scheduleSending()
-	return nil
-}

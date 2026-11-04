@@ -164,6 +164,12 @@ func (h *sentPacketHandler) TakeAckedTuple() (uint64, bool) {
 	return tuple, live
 }
 
+// ClearProbeCredit forgets the probes PTOs requested but this path hasn't sent. It
+// keeps the PTO count and the alarm, so backoff and the next PTO are unaffected.
+func (h *sentPacketHandler) ClearProbeCredit() {
+	h.numProbesToSend = 0
+}
+
 // pathLossRecorder is a nonzero path's recorder. It carries only attributed losses;
 // this path's other recovery events stay absent, as they were without a recorder.
 type pathLossRecorder struct {

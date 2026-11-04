@@ -98,7 +98,9 @@ func (p *pathCreditRegistry) noteAck(frame *wire.AckFrame, now monotime.Time) {
 }
 
 // noteLiveness is current-tuple evidence. A suspect path that recovers becomes a
-// backup before reselection, so a promoted primary keeps its place.
+// backup before reselection, so a promoted primary keeps its place. It also drops the
+// probes it couldn't send while suspect, which would otherwise put it ahead of that
+// primary. A packet still outstanding keeps its PTO, which grants new ones.
 func (p *pathCreditRegistry) noteLiveness(m *pathMember, now monotime.Time) {
 	m.attempts, m.livenessAt = 0, now
 	if candidate := m.candidate; candidate != nil && addrsEqual(candidate.addr, m.addr) {
@@ -106,6 +108,9 @@ func (p *pathCreditRegistry) noteLiveness(m *pathMember, now monotime.Time) {
 	}
 	if m.suspect {
 		m.suspect, m.backup = false, true
+		if recovery, ok := p.recoveryOn(m.id).(interface{ ClearProbeCredit() }); ok {
+			recovery.ClearProbeCredit()
+		}
 		p.conn.scheduleSending()
 	}
 	p.reselect(now)

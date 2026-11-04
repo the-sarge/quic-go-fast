@@ -8929,3 +8929,38 @@ R12 [#1032](https://github.com/the-sarge/quic-go-fast/issues/1032) landed in [PR
 ### Next
 
 R13 [#1033](https://github.com/the-sarge/quic-go-fast/issues/1033) and R14 [#1034](https://github.com/the-sarge/quic-go-fast/issues/1034) are ready. A close after path zero retires still packs nothing until R14. A primary endpoint fault still fails the connection, and a departed transport keeps its attachment charge, until R13/R14 detach them. The [program index](adr/2026-10-24-multipath-program.md) is the live view.
+
+---
+
+## Multipath no-primary DATAGRAM drop landed - 2026-11-04 01:22 EST
+
+**Main:** `61a86a2c5384`
+**Actor:** Joshua Sargent with Claude
+
+### Summary
+
+[Issue #1160](https://github.com/the-sarge/quic-go-fast/issues/1160) landed in [PR #1162](https://github.com/the-sarge/quic-go-fast/pull/1162) as `61a86a2c53847872577ec10dcf62930dc6b5a578`. With no primary, queued DATAGRAMs now drop at once and count in `sendDrops`, including while a stale backup revalidates. Public negotiation remains disabled.
+
+### Completed
+
+- `selectRoute` calls `placeDatagram(nil)` when the designated primary is `noPrimary`, so the existing drop owner clears the queue before selection. The scheduler's inputs and `selectPath` are unchanged.
+- A PTO pending on a stale backup still sends its probe, but no longer carries a DATAGRAM out past the hold.
+- R15's current design in the [Reno plan](adr/2026-10-24-multipath-reno-plan.md) now counts the hold as no eligible carrier.
+
+### Decisions
+
+- The owner ruled on the issue that the hold counts as no eligible carrier.
+- The check reads the designated primary rather than the views, with the owner's approval. An endpoint fault can land after an iteration's `reselect`, leaving the old primary out of view while a fresh backup is about to be promoted. That frame waits one iteration, as it did before, so the drop can't discard a frame the backup could carry.
+- Accepted limit: a `SendDatagram` landing between selection and packing can still leave on a stale backup's PTO probe. That frame is delivered, not lost, and closing the gap would need new packer state.
+- The owner held the merge until the R12 journal in [PR #1163](https://github.com/the-sarge/quic-go-fast/pull/1163) landed. That update added only the journal, so it got local certification and hosted checks, with no third review.
+
+### Validation
+
+- `TestPathPolicyStaleBackupRevalidatesBeforePromotion` is extended, with no new test function. Its hold block failed on the base commit. A mutation that skipped the drop during a pending PTO failed its second block, with the frame leaving on the probe.
+- The fault window behind the `noPrimary` check has no dedicated test.
+- RAS review `20261104T054621-645470b34eb92bc5f15564b8` at `c79ebf70a14f264e7cb24e6c3e0b48430bc2c022` and replacement `20261104T055149-d31dc827c925af44ede8e094` at `c573f495e17183da6713423e04b97628aebcecdd`, after R12 merged, both had no findings. `claude-fable` failed in both runs, and `claude-opus` in the first.
+- At merged head `71d82bd2594983c54eb9c1d4e3f4041a3b180903`: root and `internal/ackhandler` packages, `go vet`, `go mod tidy -diff`, and lint on darwin, `GOOS=windows` and `GOOS=openbsd`. All 33 hosted checks passed. No race run, since this adds no crossing between execution contexts.
+
+### Next
+
+R13 [#1033](https://github.com/the-sarge/quic-go-fast/issues/1033) and R14 [#1034](https://github.com/the-sarge/quic-go-fast/issues/1034) remain the ready slices, and [#1159](https://github.com/the-sarge/quic-go-fast/issues/1159) stays separate. The [program index](adr/2026-10-24-multipath-program.md) is the live view.
