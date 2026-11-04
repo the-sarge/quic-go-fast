@@ -9164,7 +9164,7 @@ R16 [#1036](https://github.com/the-sarge/quic-go-fast/issues/1036) has no open b
 
 ### Validation
 
-- `TestPathReliableTargetTransportRoute` gained four subtests and `TestPathReliableSteeringOnOneEndpoint` is new, driving the run loop's order on real endpoints with other connections waiting. The main subtest failed before the fix.
+- `TestPathReliableTargetTransportRoute` gained five subtests and `TestPathReliableSteeringOnOneEndpoint` is new, driving the run loop's order on real endpoints with other connections waiting. The main subtest failed before the fix.
 - Seven guard mutations each failed a test, including returning the reservation, canceling the registration, and dropping the already-bound check.
 - Root and `internal/ackhandler` tests, a focused race run, `go vet` including `GOOS=windows` and `GOOS=darwin`, and `go mod tidy -diff` passed on minimax at `e082eb3b`. The final commit changed only test helpers, to satisfy `unparam`, and reran the root tests, a focused race run and `go vet`.
 - RAS review `20261104T172243-197f86cd8c901e8cc5ee7a20` at `a5f4a152` found no behavioral failure. One test gap was fixed and verified at `e082eb3b`. The other, a non-capacity refusal path that this change preserves, was rejected. No replacement review ran, since product code didn't change after the review.
