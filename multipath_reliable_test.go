@@ -999,6 +999,28 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 			require.True(t, granted, "the next waiter has the turn at once")
 		})
 	})
+	t.Run("a successful steering attempt returns the chosen route's reservation", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			r, _, sender, socket, chosenLoad, fittingLoad, fitting, _ := contended(t, false)
+			c := r.c
+			chosenLoad.lease(t, sender.participant)
+			require.Nil(t, c.emission.capacity())
+			require.Same(t, sender.endpoint, sender.pending.endpoint, "the chosen route holds a reservation")
+
+			fittingLoad.lease(t, fitting)
+			result := c.triggerSending(monotime.Now())
+			require.NoError(t, result.err)
+			require.Nil(t, c.datagramQueue.Peek(), "the frame left")
+			own := r.socket
+			r.socket = socket
+			require.Equal(t, []int{1300}, reliableDatagrams(r.parseWrites(t, 1)))
+			r.socket = own
+			for index := range sender.records {
+				record := &sender.records[index]
+				require.False(t, record.admission.serial != 0 && record.endpoint == sender.endpoint, "no record stays reserved at the chosen endpoint")
+			}
+		})
+	})
 	t.Run("a pending PTO on the chosen route skips steering", func(t *testing.T) {
 		nativeOrdinaryTest(t, func(t *testing.T) {
 			r, _, sender, _, chosenLoad, _, _, _ := contended(t, true)
