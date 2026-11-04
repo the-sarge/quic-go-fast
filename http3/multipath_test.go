@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/quic-go/quic-go"
-	"github.com/quic-go/quic-go/internal/multipathguard"
+	"github.com/quic-go/quic-go/internal/multipathguard" //nolint:depguard // the one activation guard, removed in R19
 
 	"github.com/stretchr/testify/require"
 )

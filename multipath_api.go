@@ -582,19 +582,3 @@ func addrPortOf(addr net.Addr) netip.AddrPort {
 	}
 	return netip.AddrPort{}
 }
-
-// noteOutcome records the local result of one submission on its current tuple.
-func (p *pathCreditRegistry) noteOutcome(id protocol.PathID, tuple uint64, accepted, uncertain, datagrams int) {
-	m := p.members[id]
-	if m == nil || m.tuple != tuple {
-		return
-	}
-	switch {
-	case uncertain > 0:
-		m.lastOutcome = "uncertain"
-	case accepted < datagrams:
-		m.lastOutcome = "unsubmitted"
-	default:
-		m.lastOutcome = "accepted"
-	}
-}
