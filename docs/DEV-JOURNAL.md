@@ -9215,3 +9215,40 @@ R16 [#1036](https://github.com/the-sarge/quic-go-fast/issues/1036) has no open b
 ### Next
 
 R20 [#1182](https://github.com/the-sarge/quic-go-fast/issues/1182) is the frontier. R17 [#1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and R18 [#1038](https://github.com/the-sarge/quic-go-fast/issues/1038) now wait only on it, per [the program index](adr/2026-10-24-multipath-program.md).
+
+---
+
+## R20 endpoint-failure continuation landed - 2026-11-04 18:29 EST
+
+**Main:** `b172a8a98973`
+**Actor:** Claude Code
+
+### Summary
+
+R20 [#1182](https://github.com/the-sarge/quic-go-fast/issues/1182) merged in [PR #1186](https://github.com/the-sarge/quic-go-fast/pull/1186) as `b172a8a98`. When an endpoint faults or its socket stops reading, only that endpoint's paths stop, and the connection continues on any other usable path, including when the failed endpoint holds path zero. With no such path it ends with the first recorded cause. `Transport.Close` still destroys every connection on the transport.
+
+### Completed
+
+- Two producers report a failure and neither decides: the sender's fault reading, and `Transport.close` with a read error through the fact-only `Conn.transportFailed`. The registry decides on the connection goroutine with `closeContexts`.
+- After a read failure, records settle as uncertain only once the participant has retired, so no borrow is freed.
+- `zeroCarries` is the one reading of path zero, for `capacity`, held emission and the DATAGRAM estimate. Probes are gated on their own endpoint before packing, so nothing spends a packet number toward a failed one.
+- Migration and open refuse a failed target before any charge. A target that fails after admission ends the attempt with an error matching `net.ErrClosed`.
+- Removed `closesViaSurvivor`, `isEndpointFault`, `closeUsable` and the `routeUsable(nil)` exemption.
+
+### Decisions
+
+- The record is one first cause under a mutex, not the list the contract mentions, because the endpoints themselves say which paths a failure stopped. The [plan's R20 section](adr/2026-10-24-multipath-reno-plan.md#r20) records this.
+- A fencing path zero also lowers the DATAGRAM estimate, since the contract names one predicate. An aborted fence can leave it conservatively low until path zero's next size change.
+- `refuseRequest` now frees the operation slot before telling the caller. A hosted run caught the old order, already on main, as a spurious `ErrMultipathBackpressureV1` in `TestMultipathOpenSnapshotsAndAbandon`, and R20's new refusals go through the same function. A rerun wasn't allowed, because this wasn't infrastructure.
+
+### Validation
+
+- `multipath_failure_test.go` holds 11 new scenarios, one on real sockets, plus the reworked R14 and R15 tests.
+- On macOS at `9a446b73e`: root-package and `http3` tests, 20 repeats of the scenarios and the failing test under race, `go vet`, `go mod tidy -diff`, and lint for Linux, Windows and OpenBSD. The scenarios use fake sockets except the real-socket test, and nothing ran on a native Linux host in this slice, whose contract admits no platform or campaign charge.
+- RAS review `20261104T221911-09bc811221e72634e9eb4f6b` raised one defect: a `PATH_RESPONSE` could claim success for an open whose target had failed. Fixed and verified at `35f7afec`.
+- Replacement review `20261104T223840-dd13c3408d64422c842e9c1a` raised one: a peer's migration refusal hid the failed-target error. Fixed and verified at `328980a2`. The two have different invariants and code locations, so neither triggered an approach stop. Nothing was deferred.
+- All 17 hosted checks passed on `9a446b73e3bc9c1accce7c6148c9747101670356`, with main unmoved at `3dd25a208`. The slot-ordering commit had no RAS round, since the review budget was complete. It has its own failing-first regression and the same local and hosted gates.
+
+### Next
+
+R17 [#1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and R18 [#1038](https://github.com/the-sarge/quic-go-fast/issues/1038) are the frontier, per [the program index](adr/2026-10-24-multipath-program.md), the live view. An open's success path still tells the caller before freeing the slot, in `pathResponse` and the validated-tuple branch of `serviceRequest`, so an immediate next operation could still meet the same spurious backpressure.
