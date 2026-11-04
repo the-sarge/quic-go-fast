@@ -1,0 +1,21 @@
+{"Time":"2026-11-04T06:56:33.702314178Z","Action":"start","Package":"github.com/quic-go/quic-go"}
+{"Time":"2026-11-04T06:56:33.743878886Z","Action":"output","Package":"github.com/quic-go/quic-go","Output":"Kernel Version: 7.0\n"}
+{"Time":"2026-11-04T06:56:33.744297928Z","Action":"output","Package":"github.com/quic-go/quic-go","Output":"\n"}
+{"Time":"2026-11-04T06:56:33.74594322Z","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke"}
+{"Time":"2026-11-04T06:56:33.745967303Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke","Output":"=== RUN   TestPicoquicMultipathSmoke\n","OutputType":"frame"}
+{"Time":"2026-11-04T06:56:33.746556303Z","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client"}
+{"Time":"2026-11-04T06:56:33.746562136Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"=== RUN   TestPicoquicMultipathSmoke/client\n","OutputType":"frame"}
+{"Time":"2026-11-04T06:56:33.952559886Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"    multipath_picoquic_test.go:108: sent STREAM bytes by path: map[0:20 1:20]; CONNECTION_CLOSE by path: map[0:1 1:1]\n"}
+{"Time":"2026-11-04T06:56:34.03234622Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"    multipath_picoquic_test.go:112: sent STREAM bytes by path: map[0:20 1:20]; CONNECTION_CLOSE by path: map[0:1 1:1]\n"}
+{"Time":"2026-11-04T06:56:34.03496772Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"--- PASS: TestPicoquicMultipathSmoke/client (0.29s)\n","OutputType":"frame"}
+{"Time":"2026-11-04T06:56:34.034999261Z","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Elapsed":0.29}
+{"Time":"2026-11-04T06:56:34.035565178Z","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/server"}
+{"Time":"2026-11-04T06:56:34.035572595Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/server","Output":"=== RUN   TestPicoquicMultipathSmoke/server\n","OutputType":"frame"}
+{"Time":"2026-11-04T06:56:34.248806887Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/server","Output":"    multipath_picoquic_test.go:112: sent STREAM bytes by path: map[0:425984 1:425984]; CONNECTION_CLOSE by path: map[]\n"}
+{"Time":"2026-11-04T06:56:34.248888178Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/server","Output":"--- PASS: TestPicoquicMultipathSmoke/server (0.21s)\n","OutputType":"frame"}
+{"Time":"2026-11-04T06:56:34.248895512Z","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/server","Elapsed":0.21}
+{"Time":"2026-11-04T06:56:34.248902553Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke","Output":"--- PASS: TestPicoquicMultipathSmoke (0.50s)\n","OutputType":"frame"}
+{"Time":"2026-11-04T06:56:34.248904928Z","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke","Elapsed":0.5}
+{"Time":"2026-11-04T06:56:34.249470762Z","Action":"output","Package":"github.com/quic-go/quic-go","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-11-04T06:56:34.252854012Z","Action":"output","Package":"github.com/quic-go/quic-go","Output":"ok  \tgithub.com/quic-go/quic-go\t0.549s\n"}
+{"Time":"2026-11-04T06:56:34.253044803Z","Action":"pass","Package":"github.com/quic-go/quic-go","Elapsed":0.551}

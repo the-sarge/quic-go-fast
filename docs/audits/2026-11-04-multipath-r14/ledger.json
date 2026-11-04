@@ -1,0 +1,19 @@
+{
+  "program": "QGF-MP646-20261024",
+  "slice": "R14 #1034",
+  "candidate": "69361026f",
+  "image": "sha256:aab40be682a3d9565df1ce2611629fa6726440165594eb6dd53eac9de1addc1d",
+  "prior_published_instances": 68,
+  "prior_published_host_seconds": 542,
+  "instances_charged": 5,
+  "regular_instances": 2,
+  "reserve_instances_charged": 3,
+  "conservative_host_seconds_charged": 120,
+  "charge_basis": "Every process invocation and setup attempt, including failures, as in R1 and E6: two image builds, one client-role run that failed on an uninitialized target transport, and the two passing role runs. Occupied time summed to 110 seconds and is rounded up.",
+  "cumulative_instances": 73,
+  "remaining_instances": 107,
+  "remaining_host_seconds": 28138,
+  "reserve_instances_remaining": -17,
+  "remaining_scheduled_instances": 124,
+  "owner_note": "The reserve was already overdrawn by 14 at E6, and this slice adds 3. The 124 remaining scheduled instances exceed remaining capacity by 17. The owner said on 2026-11-03 that the ceiling can be raised if needed; this receipt doesn't change it."
+}
