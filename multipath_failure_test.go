@@ -382,6 +382,17 @@ func TestPathFailureMigrateAway(t *testing.T) {
 			require.Equal(t, refs, p.attachments[nil].refs)
 		})
 	})
+	t.Run("a refusal frees the operation before the caller learns of it", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f, _, _ := setup(t)
+			request := &pathOpenRequest{done: make(chan error)}
+			f.c.pathOpen.Store(request)
+			go func() { _ = f.c.pathCredit.refuseRequest(request, errPathTargetFailed) }()
+			synctest.Wait()
+			require.Nil(t, f.c.pathOpen.Load(), "a caller's immediate retry must not meet its own request")
+			require.ErrorIs(t, <-request.done, net.ErrClosed)
+		})
+	})
 	t.Run("a target failing before the response ends the open", func(t *testing.T) {
 		nativeOrdinaryTest(t, func(t *testing.T) {
 			f := newAdmissionFixture(t, protocol.PerspectiveClient)

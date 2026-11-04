@@ -887,9 +887,11 @@ func (p *pathCreditRegistry) unusedID() (protocol.PathID, bool) {
 	return 0, false
 }
 
+// refuseRequest frees the operation first, so a caller that retries at once doesn't
+// meet its own refused request.
 func (p *pathCreditRegistry) refuseRequest(request *pathOpenRequest, err error) error {
-	request.finish(err)
 	p.conn.pathOpen.CompareAndSwap(request, nil)
+	request.finish(err)
 	return nil
 }
 
