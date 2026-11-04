@@ -9032,3 +9032,36 @@ R13 [#1033](https://github.com/the-sarge/quic-go-fast/issues/1033) and R14 [#103
 ### Next
 
 A branch with no PR now gets no CI from these workflows, and a conflicting PR gets no new runs because `pull_request` needs a merge ref.
+
+---
+
+## Held DATAGRAM keeps its endpoint wake - 2026-11-04 02:42 EST
+
+**Main:** `7de692da5555`
+**Actor:** Joshua Sargent with Claude
+
+### Summary
+
+[PR #1167](https://github.com/the-sarge/quic-go-fast/pull/1167) landed as `7de692da55553dec35f9192dbfb1107f47dbb554`, closing [issue #1156](https://github.com/the-sarge/quic-go-fast/issues/1156). A DATAGRAM held because other connections filled its fitting endpoint now wakes the connection when that endpoint has room. Before, the fallback to the chosen route canceled the registration the attempt had just made, so an idle connection could hold the frame until its idle timeout. Public negotiation is still disabled, so this wasn't reachable from public API.
+
+### Completed
+
+- `nativeOrdinarySender` gained one `fitting` participant, kept only when endpoint capacity refused this attempt. The connection's own limits still rely on its completions.
+- `selectRoute` releases the registration on the first pass that no longer needs that endpoint and on successful steering, and `drain` releases it too. The unused reservation is still returned on fallback, with no new channel, timer or goroutine.
+- The R11 "Declared seams" sentence in the [multipath plan](adr/2026-10-24-multipath-reno-plan.md) now states this behavior.
+
+### Decisions
+
+- The steering attempt still rebinds `s.route`, rather than trying the fitting route without switching. That rewrite would also stop the chosen route losing its turn, but it needs the same keep-and-release state and a wider change to reservation binding. [Issue #1172](https://github.com/the-sarge/quic-go-fast/issues/1172) tracks the remaining effect.
+
+### Validation
+
+- `TestPathReliableTargetTransportRoute` gained two subtests and one assertion, on real endpoints with other participants filling the data class. Filling it by bytes didn't work: a large request was refused while a smaller reservation still fit, so the fixture fills the class's request count.
+- Without the fix, the wake subtest fails at "the fitting endpoint's capacity wakes the connection". Removing the release in `selectRoute` fails the give-back subtest.
+- One focused race run, root and `internal/ackhandler` tests, `go vet` including `GOOS=windows`, and `go mod tidy -diff` at the exact head.
+- RAS review `20261104T063420-75c14af3bb83174a0188478c` at `8c680eda` returned no findings. Three of four reviewers completed; `claude-fable` failed with `claude process failed`. The later head only merged main, so it had no further review.
+- All 17 hosted checks passed on `79d0899f67a4646350b6556c8a4ef7dd1238e16a`, with main unmoved at `2c444752e`.
+
+### Next
+
+Issue #1172 is untriaged and hasn't been measured.
