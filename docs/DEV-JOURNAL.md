@@ -8894,3 +8894,38 @@ RAS initial run `20261104T043625-f59949d5ba09401a878bb77a` raised five findings,
 ### Next
 
 R12 [#1032](https://github.com/the-sarge/quic-go-fast/issues/1032) is ready, with draft [PR #1157](https://github.com/the-sarge/quic-go-fast/pull/1157) open. It overlaps `selectRoute` and the primary hand-off, so it needs to reconcile against `reselect` as the one owner. R16 [#1036](https://github.com/the-sarge/quic-go-fast/issues/1036) stays blocked by R13 and R14, so this merge makes no new slice ready. The [program index](adr/2026-10-24-multipath-program.md) is the live frontier.
+
+---
+
+## Multipath R12 retired path replacement landed - 2026-11-04 00:46 EST
+
+**Main:** `cb52b5a5ae30`
+**Actor:** Joshua Sargent with Claude
+
+### Summary
+
+R12 [#1032](https://github.com/the-sarge/quic-go-fast/issues/1032) landed in [PR #1157](https://github.com/the-sarge/quic-go-fast/pull/1157) as `cb52b5a5ae302ea24d45433fae8a6e18ad1ecc33`, after the scoped re-audit in [PR #1154](https://github.com/the-sarge/quic-go-fast/pull/1154). A retired path's slot and credit now replenish with a new, never-reused ID, and path zero can retire with a survivor. Public negotiation remains disabled.
+
+### Completed
+
+- A fenced terminal that holds a retained-history unit leaves its live slot. The grant then rises one step, and only while a further unit is free, so full retention blocks replacement by withholding credit.
+- Final reclamation waits for elapsed retention, the signal, every local token and a final drain. Reclaimed IDs keep no record, so churn stays bounded.
+- A late ACK for an absent ID at or below the largest admitted is ignored, and one above it keeps its violation. Each carrier takes at most one `PATH_ACK`.
+- Path zero retires through the same terminal owner, with ordinary requests under its epoch and R15's reselection choosing the primary and RTT observation. With nothing eligible, emission reports blocked rather than sealing on retired keys.
+
+### Decisions
+
+- The review suggested widening `ackTargets` for the crash with three owed ACK targets. A one-`PATH_ACK` carrier was chosen instead, because the wider array would cost every sent packet on ordinary connections.
+- The replacement review's budget was overridden for that in-scope crash. Its other finding, the retained span of a reclaimed path zero, was fixed in the same round with no third review, because it is an accepted release obligation.
+- Main advanced twice during certification. R15 [#1035](https://github.com/the-sarge/quic-go-fast/issues/1035) needed a real merge and fresh verification. R15's journal [PR #1161](https://github.com/the-sarge/quic-go-fast/pull/1161) got hosted checks only, without another review, because the product diff was unchanged.
+- The [re-audit receipt](audits/2026-11-03-r12-replacement-reaudit.md) holds the design and rejected alternatives.
+
+### Validation
+
+- RAS review `20261104T042058-c4340e666e290cf37ca9a2f9` and replacement `20261104T044144-ae9f13e9b0a2117d069806de`, verified resolved at `f16aeb47782ef088833205503fc8987e9d873099`.
+- At that head: root, `internal/ackhandler` and `internal/handshake` packages, focused race run, `go vet`, `go mod tidy -diff`, lint including `GOOS=windows`, and the Windows build.
+- All 33 hosted checks passed on merged head `be3359c2d8f15d9afccbed2ca681f305f2d7dd4e`.
+
+### Next
+
+R13 [#1033](https://github.com/the-sarge/quic-go-fast/issues/1033) and R14 [#1034](https://github.com/the-sarge/quic-go-fast/issues/1034) are ready. A close after path zero retires still packs nothing until R14. A primary endpoint fault still fails the connection, and a departed transport keeps its attachment charge, until R13/R14 detach them. The [program index](adr/2026-10-24-multipath-program.md) is the live view.
