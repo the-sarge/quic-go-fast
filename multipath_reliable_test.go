@@ -585,6 +585,57 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 			clear(sender.records[:])
 		})
 	})
+	t.Run("a saturated fitting endpoint holds the DATAGRAM, not the chosen route", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			target, socket, _ := newTarget(t, f)
+			t.Cleanup(socket.release)
+			open(t, f, target, socket)
+			c, r := f.c, &reliableFixture{admissionFixture: f}
+			s := stream(t, f)
+			c.emission.local.(*nativeOrdinarySender).nativeGSO = false
+			r.setPathMTU(1, 1400)
+
+			c.pathCredit.selectPrimaryPrivate(1)
+			socket.hold = func([]byte) bool { return true }
+			writeAsync(t, s, 1<<16)
+			for range 8 {
+				r.pass(t)
+				if c.emission.capacity() != nil {
+					break
+				}
+			}
+			require.NotNil(t, c.emission.capacity(), "the target is saturated")
+
+			c.pathCredit.selectPrimaryPrivate(0)
+			r.queueDatagram(t, 1300)
+			f.socket.writes = nil
+			require.Nil(t, c.emission.capacity(), "the fitting endpoint's capacity never blocks the chosen route")
+			require.Nil(t, c.emission.route)
+			r.pass(t)
+			zero := r.parseWrites(t, 0)
+			require.Positive(t, reliableBytes(zero), "the primary keeps sending")
+			require.Empty(t, reliableDatagrams(zero))
+			require.NotNil(t, c.datagramQueue.Peek(), "and the message waits")
+			require.Zero(t, c.datagramQueue.sendDrops.Load())
+
+			socket.hold = nil
+			socket.writes = nil
+			socket.release()
+			synctest.Wait()
+			select {
+			case <-c.emission.localWakeup():
+			default:
+				t.Fatal("the fitting endpoint's completion wakes the connection")
+			}
+			r.pass(t)
+			require.Nil(t, c.datagramQueue.Peek())
+			require.Zero(t, c.datagramQueue.sendDrops.Load())
+			r.socket = socket
+			require.Equal(t, []int{1300}, reliableDatagrams(r.parseWrites(t, 1)))
+		})
+	})
 	t.Run("a saturated previous endpoint does not hold a pending PTO back", func(t *testing.T) {
 		nativeOrdinaryTest(t, func(t *testing.T) {
 			f := newAdmissionFixture(t, protocol.PerspectiveClient)

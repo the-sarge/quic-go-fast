@@ -144,9 +144,9 @@ func (p *pathCreditRegistry) recoveryOn(id protocol.PathID) ackhandler.SentPacke
 // selectRoute reads each eligible path into an immutable view and asks the
 // scheduler. Congestion, pacing and local capacity never choose the primary. They
 // only tell whether a path the next DATAGRAM needs could carry it now.
-func (p *pathCreditRegistry) selectRoute(now monotime.Time) (_ *pathRoute, steered bool) {
+func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pathRoute, steering bool) {
 	if !p.hasAdmission() || p.closed {
-		return nil, false
+		return nil, nil, false
 	}
 	var storage [2]pathView
 	views := append(storage[:0], pathViewFor(0, p.conn.sentPacketHandler.SendMode(now)))
@@ -164,11 +164,16 @@ func (p *pathCreditRegistry) selectRoute(now monotime.Time) (_ *pathRoute, steer
 	}
 	p.conn.pathPayloadLimit.Store(uint32(limit))
 	p.placeDatagram(views)
-	id, steered := selectPath(views, p.primary)
+	chosen, steer, steering := selectPath(views, p.primary)
+	return p.routeOf(chosen), p.routeOf(steer), steering
+}
+
+// routeOf is a selected path's route. Path zero's is nil.
+func (p *pathCreditRegistry) routeOf(id protocol.PathID) *pathRoute {
 	if id == 0 {
-		return nil, steered
+		return nil
 	}
-	return &p.members[id].route, steered
+	return &p.members[id].route
 }
 
 func pathViewFor(id protocol.PathID, mode ackhandler.SendMode) pathView {

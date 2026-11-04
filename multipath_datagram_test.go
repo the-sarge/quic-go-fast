@@ -49,20 +49,22 @@ func TestSelectPathForDatagram(t *testing.T) {
 		return []pathView{{id: 0, fits: fitsZero, ready: readyZero}, {id: 1, fits: fitsOne, ready: readyOne}}
 	}
 	for _, tc := range []struct {
-		name    string
-		views   []pathView
-		want    protocol.PathID
-		steered bool
+		name     string
+		views    []pathView
+		chosen   protocol.PathID
+		steerTo  protocol.PathID
+		steering bool
 	}{
-		{"the primary fits", both(true, true, true, true), 1, false},
-		{"another path fits", both(true, true, false, true), 0, true},
-		{"the fitting path isn't ready, so the primary keeps sending", both(true, false, false, true), 1, false},
-		{"a pending PTO stays first", []pathView{{id: 0, fits: true, ready: true}, {id: 1, probing: true}}, 1, false},
+		{"the primary fits", both(true, true, true, true), 1, 0, false},
+		{"another path fits", both(true, true, false, true), 1, 0, true},
+		{"the fitting path isn't ready, so the primary keeps sending", both(true, false, false, true), 1, 0, false},
+		{"a pending PTO stays first", []pathView{{id: 0, fits: true, ready: true}, {id: 1, probing: true}}, 1, 0, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			id, steered := selectPath(tc.views, 1)
-			require.Equal(t, tc.want, id)
-			require.Equal(t, tc.steered, steered)
+			chosen, steerTo, steering := selectPath(tc.views, 1)
+			require.Equal(t, tc.chosen, chosen)
+			require.Equal(t, tc.steerTo, steerTo)
+			require.Equal(t, tc.steering, steering)
 		})
 	}
 }

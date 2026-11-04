@@ -35,30 +35,31 @@ type pathView struct {
 
 // selectPath takes views in path ID order, and path zero is always first. A
 // pending PTO goes first so the probe elicits its ACK on the path that needs one,
-// then the primary, then the lowest eligible ID. It steers only when the next
-// DATAGRAM doesn't fit that choice. A fitting path that can't send yet doesn't
-// stall the choice, whose traffic continues while the DATAGRAM stays queued.
-func selectPath(views []pathView, primary protocol.PathID) (_ protocol.PathID, steered bool) {
+// then the primary, then the lowest eligible ID. When the next DATAGRAM doesn't fit
+// that choice, it also names a fitting path to try. A congestion-limited one isn't
+// named, so the choice's traffic continues while the DATAGRAM stays queued until an
+// ACK. A paced one is named, and its deadline wakes the connection.
+func selectPath(views []pathView, primary protocol.PathID) (chosen, steerTo protocol.PathID, steering bool) {
 	for _, view := range views {
 		if view.probing {
-			return view.id, false
+			return view.id, 0, false
 		}
 	}
-	chosen := views[0]
+	first := views[0]
 	for _, view := range views {
 		if view.id == primary {
-			chosen = view
+			first = view
 			break
 		}
 	}
-	if !chosen.fits {
+	if !first.fits {
 		for _, view := range views {
 			if view.fits && view.ready {
-				return view.id, true
+				return first.id, view.id, true
 			}
 		}
 	}
-	return chosen.id, false
+	return first.id, 0, false
 }
 
 // selectRoute binds this opportunity before any capacity read or destructive
@@ -67,8 +68,21 @@ func (e *packetEmission) selectRoute(now monotime.Time) {
 	if e.pathCredit == nil || e.local == nil {
 		return
 	}
-	route, steered := e.pathCredit.selectRoute(now)
-	e.steered = steered
+	route, steerTo, steering := e.pathCredit.selectRoute(now)
+	// Steering also needs endpoint capacity, so a saturated fitting endpoint holds
+	// the DATAGRAM and not the chosen route's traffic. Its completions wake the loop.
+	if steering {
+		e.useRoute(steerTo)
+		if !e.queue.WouldBlock() {
+			e.steered = true
+			return
+		}
+	}
+	e.steered = false
+	e.useRoute(route)
+}
+
+func (e *packetEmission) useRoute(route *pathRoute) {
 	if route != e.route {
 		e.route = route
 		e.local.useRoute(route)
