@@ -8678,3 +8678,37 @@ Local certification passed at both `486e3b4c` and `48cd79f1`, on darwin: `go vet
 ### Next
 
 [Issue #1145](https://github.com/the-sarge/quic-go-fast/issues/1145) records that the capture fixture's child filter, `^TestDial/DialAddr$`, runs 24 top-level tests rather than one, which is why this failure surfaced inside `TestDialCaptureFixture/passing`. It is pre-existing and awaits triage.
+
+---
+
+## Dial capture fixture child filter narrowed - 2026-11-03 18:50 EST
+
+**Main:** `7ffb4603c5c6`
+**Actor:** Claude
+
+### Summary
+
+[PR #1147 — Narrow the dial capture fixture's child filter to TestDial/DialAddr](https://github.com/the-sarge/quic-go-fast/pull/1147) closed [issue #1145](https://github.com/the-sarge/quic-go-fast/issues/1145) as merge `7ffb4603`. The child process in `TestDialCaptureFixture` now uses `^TestDial$/^DialAddr$` and runs one test. The old filter, `^TestDial/DialAddr$`, ran 24 top-level tests, because Go applies each `/`-separated part to one test level. An unrelated `TestDial*` failure can no longer report as this fixture's. Only `dial_capture_test.go` changed.
+
+### Decisions
+
+The owner approved one addition beyond the filter: both subtests now require the child's `=== RUN` rows to equal exactly `TestDial` and `TestDial/DialAddr`. A filter that matches nothing still exits zero with "no tests to run", so the `passing` subtest could not previously tell a real pass from an empty match.
+
+The other 23 top-level tests used to run three times per package run, once directly and once in each child. They now run once. Nothing relied on those repeats, but they did give flakes a little more chance to surface.
+
+### Validation
+
+| Check | Result |
+| --- | --- |
+| Check added, old filter | both subtests fail, reporting 33 rows |
+| New filter | both subtests pass |
+| Mutation `^TestDial$/^NoSuchCase$`, by overlay | both subtests fail with `[TestDial]` |
+| `go test -count=1 -v -shuffle on .` | passes; all 24 top-level `TestDial*` names pass in the ordinary run |
+
+RAS review `20261103T233434-94a4b87a563f2e27426439e8` at `abd8c5c8` reported zero findings. `claude-opus`, `codex-astra` and `codex-sol` completed; `claude-fable` failed with a process error and was not retried, so this is a three-reviewer result.
+
+[PR #1146](https://github.com/the-sarge/quic-go-fast/pull/1146), which changes only the journal, landed after the review. It was merged in as head `2f473a24`, with no replacement review because the PR's own diff was unchanged. Local certification passed at that head on darwin with Go 1.27.3: `git diff --check`, `go vet .`, `GOOS=windows go vet .`, `go mod tidy -diff`, `go fix -diff .`, `go test -race` over the dial capture tests, the root package tests, and golangci-lint v2.14.0 on six GOOS values. All 33 hosted checks passed on `2f473a24`.
+
+### Next
+
+No follow-ups. The other child-process filters in the repository were already fully anchored, and the review deferred nothing.
