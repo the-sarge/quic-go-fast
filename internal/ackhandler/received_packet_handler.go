@@ -16,6 +16,7 @@ type ReceivedPacketHandler struct {
 
 	lowest1RTTPacket protocol.PacketNumber
 	paths            map[protocol.PathID]*appDataReceivedPacketTracker
+	largestPath      protocol.PathID
 }
 
 func NewReceivedPacketHandler(logger utils.Logger) *ReceivedPacketHandler {
@@ -147,12 +148,13 @@ func (h *ReceivedPacketHandler) IsPotentiallyDuplicate(pn protocol.PacketNumber,
 	panic("unexpected encryption level")
 }
 
-// AddPath admits one additional application receive space. The path registry
-// calls this after authentication or local commitment.
+// AddPath admits an additional application receive space under a new, higher ID.
+// The path registry calls this after authentication or local commitment.
 func (h *ReceivedPacketHandler) AddPath(id protocol.PathID) error {
-	if id == 0 || h.paths[id] != nil || len(h.paths) >= 1 {
+	if id == 0 || id <= h.largestPath || len(h.paths) >= maxRecoveryPaths {
 		return fmt.Errorf("ackhandler: receive path unavailable: %d", id)
 	}
+	h.largestPath = id
 	if h.paths == nil {
 		h.paths = make(map[protocol.PathID]*appDataReceivedPacketTracker)
 	}
@@ -161,6 +163,9 @@ func (h *ReceivedPacketHandler) AddPath(id protocol.PathID) error {
 	h.paths[id] = tracker
 	return nil
 }
+
+// RemovePath ends a retired path's receive space at its final reclamation.
+func (h *ReceivedPacketHandler) RemovePath(id protocol.PathID) { delete(h.paths, id) }
 
 func (h *ReceivedPacketHandler) appDataOnPath(id protocol.PathID) *appDataReceivedPacketTracker {
 	if id == 0 {

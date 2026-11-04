@@ -40,3 +40,11 @@ func (c *Conn) openPathPrivate(ctx context.Context, target *Transport, addr net.
 		return context.Cause(c.ctx)
 	}
 }
+
+// zeroEpoch fences ordinary path-zero requests, once admission can retire path zero.
+func (p *pathCreditRegistry) zeroEpoch() *responseEpoch {
+	if zero := p.members[0]; zero != nil {
+		return &zero.established.probeEpoch
+	}
+	return nil
+}

@@ -8,16 +8,21 @@ import (
 	"github.com/quic-go/quic-go/internal/utils"
 )
 
-// AddPath installs the second recovery context with its own RTT object.
+// maxRecoveryPaths bounds nonzero contexts. The registry's four retained-history
+// units already bound them, as each admitted path holds one until reclamation.
+const maxRecoveryPaths = 4
+
+// AddPath installs a further recovery context with its own RTT object.
 func (h *sentPacketHandler) AddPath(id protocol.PathID, size protocol.ByteCount) error {
 	return h.AddPathWithRTT(id, size, utils.NewRTTStats())
 }
 
-// AddPathWithRTT installs the second recovery context after authentication or
-// local commitment, sampling the RTT object crypto already reads for key retention.
+// AddPathWithRTT installs a recovery context after authentication or local
+// commitment, sampling the RTT object crypto already reads for key retention.
 // Neither an ACK nor an untrusted path identifier can allocate recovery state.
+// IDs only rise, and retired contexts don't count against the two live slots.
 func (h *sentPacketHandler) AddPathWithRTT(id protocol.PathID, size protocol.ByteCount, rtt *utils.RTTStats) error {
-	if (h.local != nil && h.local.closed) || h.pathRoot != nil || id == 0 || len(h.paths) != 0 || !h.handshakeConfirmed ||
+	if (h.local != nil && h.local.closed) || h.pathRoot != nil || id == 0 || id <= h.largestPath || h.liveContexts() >= 2 || len(h.paths) >= maxRecoveryPaths || !h.handshakeConfirmed ||
 		h.congestionEvents != nil || len(h.lostPackets.lostPackets) > 32 || len(h.ackCarriers.carriers) > maxRetiredAckCarriers/2 || size < protocol.MinInitialPacketSize {
 		return fmt.Errorf("ackhandler: recovery path unavailable: %d", id)
 	}
@@ -36,11 +41,59 @@ func (h *sentPacketHandler) AddPathWithRTT(id protocol.PathID, size protocol.Byt
 	}
 	// Optional late-receipt stores share their existing aggregate ceilings. A
 	// missing receipt cannot discharge Reno undo or create a delivery callback.
-	h.lostPackets.maxLength, path.lostPackets.maxLength = 32, 32
-	h.ackCarriers.limit, path.ackCarriers.limit = maxRetiredAckCarriers/2, maxRetiredAckCarriers/2
-	h.paths = map[protocol.PathID]*sentPacketHandler{id: path}
+	// Path zero keeps half, and the nonzero contexts share the other half.
+	h.lostPackets.maxLength, path.lostPackets.maxLength = 32, 32/maxRecoveryPaths
+	h.ackCarriers.limit, path.ackCarriers.limit = maxRetiredAckCarriers/2, maxRetiredAckCarriers/2/maxRecoveryPaths
+	if h.paths == nil {
+		h.paths = make(map[protocol.PathID]*sentPacketHandler, 1)
+	}
+	h.paths[id] = path
+	h.largestPath = id
 	return nil
 }
+
+func (h *sentPacketHandler) liveContexts() int {
+	live := 0
+	if !h.retiredPath {
+		live++
+	}
+	for _, path := range h.paths {
+		if !path.retiredPath {
+			live++
+		}
+	}
+	return live
+}
+
+// RetirePath marks a context retired at the abandonment signal, once no submission
+// can follow it. Its evidence stays until RemovePath.
+func (h *sentPacketHandler) RetirePath(id protocol.PathID) {
+	if path := h.path(id); path != nil {
+		path.retiredPath = true
+	}
+}
+
+// PathQuiescent reports that a context has no unconsumed local result and no frames
+// left to return to their logical owners, so reclamation can strand nothing.
+func (h *sentPacketHandler) PathQuiescent(id protocol.PathID) bool {
+	path := h.path(id)
+	if path == nil {
+		return true
+	}
+	if path.hasPendingLocal() {
+		return false
+	}
+	for _, p := range path.appDataPackets.history.Packets() {
+		if p.Outstanding() {
+			return false
+		}
+	}
+	return true
+}
+
+// RemovePath ends a retired context at its final reclamation. A later ACK for the
+// ID is ignored, because ReceivedAck can't tell it from any other absent lower ID.
+func (h *sentPacketHandler) RemovePath(id protocol.PathID) { delete(h.paths, id) }
 
 func (h *sentPacketHandler) path(id protocol.PathID) *sentPacketHandler {
 	if id == h.pathID {

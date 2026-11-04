@@ -22,7 +22,7 @@ type packetEmission struct {
 	pathCredit       *pathCreditRegistry
 	route            *pathRoute // the current opportunity's; nil is path zero
 	steered          bool       // the route was chosen to carry the next DATAGRAM
-	terminalReceipts [2]*pathAbandonReceipt
+	terminalReceipts []*pathAbandonReceipt
 	bbr              *bbrSendPolicy
 	reservation      *sendReservation // connection-owned until handoff
 	paceReservation  bool
@@ -158,6 +158,10 @@ func (e *packetEmission) send(now monotime.Time, confirmed bool) (result emissio
 				return emissionResult{err: err, retry: err == nil, progress: progress}
 			}
 			e.selectRoute(now)
+			if e.route == nil && e.pathCredit.zeroRetired() {
+				// A nil route is path zero, whose keys no longer seal.
+				return emissionResult{stop: emissionHardBlocked, blocked: blockModeHardBlocked, progress: progress}
+			}
 		}
 		result = e.dispatch(now, confirmed)
 		if result.err != nil {
@@ -810,6 +814,10 @@ func (e *packetEmission) rebindPath(addr net.Addr, info packetInfo) {
 }
 
 func (e *packetEmission) close(cause error) ([]byte, error) {
+	// R14 closes via survivors. Until then, reading released CID state would be wrong.
+	if e.pathCredit != nil && e.pathCredit.zeroRetired() {
+		return nil, errPathZeroRetired
+	}
 	var packet *coalescedPacket
 	var err error
 	if transportErr, ok := errors.AsType[*qerr.TransportError](cause); ok {

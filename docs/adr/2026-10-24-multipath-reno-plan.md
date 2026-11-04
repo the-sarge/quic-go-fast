@@ -1,6 +1,6 @@
 # Reno-first QUIC multipath implementation plan
 
-**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8/R9/R10/R11 complete (11/19 slices); R12 #1032 and R15 #1035 are ready. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
+**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8/R9/R10/R11/R12 complete (12/19 slices); R13 #1033, R14 #1034 and R15 #1035 are ready. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
 
 ## Binding contract and operating discipline
 
@@ -711,7 +711,7 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 ### R11 — Schedule DATAGRAMs with path-qualified PMTU
 
-**State:** complete. `multipath_admission.go` holds per-path PMTU and DATAGRAM placement, `packet_emission_path.go` the steering, and `multipath_datagram_test.go` the 12 scenarios. R12 #1032 and R15 #1035 remain ready. Public negotiation remains disabled.
+**State:** complete. `multipath_admission.go` holds per-path PMTU and DATAGRAM placement, `packet_emission_path.go` the steering, and `multipath_datagram_test.go` the 12 scenarios. Public negotiation remains disabled.
 
 **Delivers:** Add per-path PMTU state and immutable observations, common eligible payload admission and non-destructive queue selection. Keep DATAGRAM single-shot; drop with bounded observation when no eligible path can carry an admitted message. Preserve PathMTUSettledV1 meaning.
 
@@ -751,6 +751,8 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 ### R12 — Replenish retired path credit and reconcile late delivery
 
+**State:** complete. `multipath_credit.go` and `multipath_admission.go` hold replenishment, reclamation and path-zero retirement, and `multipath_replacement_test.go` the 15 scenarios. R13 #1033, R14 #1034 and R15 #1035 are ready. Public negotiation remains disabled.
+
 **Delivers:** Extend the existing R8/R9 terminal owner with established-path replacement/replenishment and retained late-delivery integration. Local/remote abandonment and failed initiation already clean up completely. Admit a replacement only after the old submission fence and retained-state reservation; late ACK/original logical delivery stay exact-once. Path-zero retirement updates the stable connection RTT observation from R7. Share retained-history capacity with old migration generations and release charges only after retention plus submission/callback fences.
 
 **Blocked by:** R10. **Existing work:** new slice; no unmerged implementation accepted.
@@ -774,6 +776,16 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 **Context imports:** Resource admission and retention; Submission cutoffs and connection closure; Protection decision (RTT observation); R9 terminal owner receipt. Include the binding discipline and only the matching closure rows, plus this current slice and direct blocker interfaces; do not load every slice contract.
 
 **Slice decision audit:** Fenced retention and replenishment are one resource transition; splitting their authority would admit unsafe replacements. R10 supplies real STREAM transmission/logical-delivery integration while R8/R9 already supply complete teardown. Keep same-ID migration separate because it preserves PN identity and has a different commit point. Rejected split/merge alternatives have no revisit trigger except the stated context/contract stop. Direct blockers supply the interfaces or evidence named here; transitive blockers need not be repeated and convenience ordering is excluded.
+
+**Current enforcement and finite evidence:** The 15 scenarios, one recovery case in `internal/ackhandler` and one focused race run terminate this evidence scope. No guard mutation is needed, because the scenarios exercise these owners directly with real keys on both ends and the real endpoint.
+
+| Accepted semantic class | Enforcement owner | Terminating regression evidence |
+| --- | --- | --- |
+| Replacement after cutoff; replenishment under abandonment; bounded churn | Registry | `TestPathReplacementAfterCutoff`, `TestPathReplacementRemoteAbandonDuringReplenishment`, `TestPathReplacementChurnStaysBounded` |
+| Late ACK exact-once, retired context removal and stale ID policy | Recovery | `TestPathReplacementOldAckAfterReplacement`, `TestSentPathReplacement` |
+| One history pool; capacity blocks the grant; unit-less terminal; attachments | Registry | `TestPathReplacementRetainedCapBlocksOpening`, `TestPathReplacementSharedCharges`, `TestPathReplacementTerminalWithoutUnit` |
+| Final reclamation and unanswered escalation | Terminal owner; endpoint reports the fence | `TestPathReplacementReclamationAwaitsResult`, `TestPathReplacementMissingReciprocal`, `TestPathReplacementRecordsEveryReceipt` |
+| Path-zero cutoff, reschedule, observation, last path, no route and close | Terminal owner; scheduler; emission | `TestPathZeroRetirementSurvivor`, `TestPathZeroRetirementObservesSurvivorRTT`, `TestPathZeroRetirementLastPath`, `TestPathZeroNoEligibleSurvivor`, `TestPathZeroCloseAfterRetirement` |
 
 **Stop:** Retirement frees current borrow, reuses wire IDs or requires a third live path.
 

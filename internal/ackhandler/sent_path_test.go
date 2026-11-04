@@ -278,3 +278,34 @@ func TestSentPathLocalECNEvidence(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, protocol.ECT0, h.ECNMode(true), "the root's evidence is unaffected")
 }
+
+func TestSentPathReplacement(t *testing.T) {
+	h := NewSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger).(*sentPacketHandler)
+	now0 := monotime.Time(time.Second)
+	h.DropPackets(protocol.EncryptionInitial, now0)
+	h.DropPackets(protocol.EncryptionHandshake, now0)
+	require.NoError(t, h.AddPath(17, 1200))
+	require.Error(t, h.AddPath(18, 1200), "both live slots are charged")
+	h.RetirePath(17)
+	require.Error(t, h.AddPath(17, 1200), "an ID is never reused")
+	require.NoError(t, h.AddPath(18, 1200))
+	require.True(t, h.PathQuiescent(17))
+	h.RetirePath(18)
+	require.NoError(t, h.AddPath(19, 1200))
+	h.RetirePath(19)
+	require.NoError(t, h.AddPath(20, 1200))
+	h.RetirePath(20)
+	require.Error(t, h.AddPath(21, 1200), "four nonzero contexts is the ceiling")
+
+	h.RemovePath(17)
+	require.Nil(t, h.RecoveryOnPath(17))
+	ack := func(id protocol.PathID) *wire.AckFrame {
+		return &wire.AckFrame{HasPathID: true, PathID: id, AckRanges: []wire.AckRange{{Smallest: 0, Largest: 0}}}
+	}
+	_, err := h.ReceivedAck(ack(17), protocol.Encryption1RTT, monotime.Now())
+	require.NoError(t, err, "a reclaimed ID is ignored")
+	_, err = h.ReceivedAck(ack(5), protocol.Encryption1RTT, monotime.Now())
+	require.NoError(t, err, "as is a skipped lower ID, since the two can't be told apart")
+	_, err = h.ReceivedAck(ack(21), protocol.Encryption1RTT, monotime.Now())
+	require.Error(t, err, "an ID above the admitted range keeps its violation")
+}

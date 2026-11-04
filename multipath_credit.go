@@ -23,6 +23,7 @@ type pathCreditRegistry struct {
 	capacity     int
 	localMax     protocol.PathID
 	peerMax      protocol.PathID
+	nextID       protocol.PathID // lowest ID never issued or abandoned; IDs only rise
 	peerCIDLimit uint64
 	terminals    map[protocol.PathID]*pathTerminal
 	paths        map[protocol.PathID]bool // true only for charged live/validating slots
@@ -65,7 +66,7 @@ func (c *Conn) enableMultipathCredit(capacity int, peerMax protocol.PathID, peer
 	if c.pathCredit != nil || !c.handshakeConfirmed || c.version != protocol.Version1 || capacity < 1 || capacity > 2 || peerCIDLimit < 2 || c.emission.bbr != nil || c.connIDManager.closed || c.connIDManager.activeConnectionID.Len() == 0 || c.srcConnIDLen == 0 || c.connIDGenerator.generator.ConnectionIDLen() != c.srcConnIDLen || c.pathManager != nil || c.pathManagerOutgoing.Load() != nil || len(c.connIDManager.pathProbing) != 0 || uint64(len(c.connIDGenerator.activeSrcConnIDs)) > min(peerCIDLimit, 2) || len(c.connIDGenerator.activeSrcConnIDs)+len(c.connIDGenerator.connIDsToRetire) > maxPathCIDRecords {
 		return nil, fmt.Errorf("invalid private multipath credit activation")
 	}
-	p := &pathCreditRegistry{conn: c, capacity: capacity, localMax: protocol.PathID(capacity - 1), peerMax: peerMax, peerCIDLimit: peerCIDLimit, paths: map[protocol.PathID]bool{0: true}, terminals: make(map[protocol.PathID]*pathTerminal)}
+	p := &pathCreditRegistry{conn: c, capacity: capacity, localMax: protocol.PathID(capacity - 1), peerMax: peerMax, nextID: 1, peerCIDLimit: peerCIDLimit, paths: map[protocol.PathID]bool{0: true}, terminals: make(map[protocol.PathID]*pathTerminal)}
 	c.pathCredit = p
 	p.enableAdmission()
 	defer func() {
@@ -92,15 +93,51 @@ func (c *Conn) enableMultipathCredit(capacity int, peerMax protocol.PathID, peer
 }
 
 func (p *pathCreditRegistry) issueWindow() error {
-	if p.localMax == 0 || p.peerMax == 0 || len(p.paths) >= p.capacity || p.terminals[1] != nil {
+	id := p.nextID
+	if id > p.localMax || id > p.peerMax || len(p.paths) >= p.capacity {
 		return nil
 	}
-	if err := p.admitIssuedKeys(1); err != nil {
+	if err := p.admitIssuedKeys(id); err != nil {
 		return err
 	}
-	p.paths[1] = false
-	p.conn.connIDGenerator.pathCIDs[1] = &issuedPathCIDs{active: make(map[uint64]protocol.ConnectionID)}
-	return p.conn.connIDGenerator.issuePathCIDs(1, min(p.peerCIDLimit, 2))
+	p.nextID = id + 1
+	p.paths[id] = false
+	p.conn.connIDGenerator.pathCIDs[id] = &issuedPathCIDs{active: make(map[uint64]protocol.ConnectionID)}
+	return p.conn.connIDGenerator.issuePathCIDs(id, min(p.peerCIDLimit, 2))
+}
+
+// replenish moves each fenced terminal out of its live slot once it holds a history
+// unit, then raises the grant one step. Withholding the grant while the pool is full
+// is what blocks a replacement: it never reaches a decline the registry could foresee.
+func (p *pathCreditRegistry) replenish() error {
+	for id, terminal := range p.terminals {
+		if terminal.signaled && !terminal.slotFree {
+			if !terminal.unit {
+				if !p.reserveHistory() {
+					continue
+				}
+				terminal.unit = true
+			}
+			delete(p.paths, id)
+			terminal.slotFree = true
+		}
+	}
+	if len(p.paths) < p.capacity && p.localMax < p.nextID && p.historyUnits < maxPathHistoryUnits {
+		p.localMax++
+		p.conn.queueControlFrame(&wire.MaxPathIDFrame{MaximumPathID: p.localMax})
+		p.conn.scheduleSending()
+	}
+	return p.issueWindow()
+}
+
+// released reports an ID whose terminal was reclaimed. IDs only rise, so it needs no
+// record, and only a frame's sender can still name it.
+func (p *pathCreditRegistry) released(id protocol.PathID) bool {
+	if !p.hasAdmission() || id >= p.nextID || p.terminals[id] != nil {
+		return false
+	}
+	_, charged := p.paths[id]
+	return !charged
 }
 
 func (m *connIDGenerator) issuePathCIDs(id protocol.PathID, target uint64) error {
@@ -157,6 +194,9 @@ type pathTerminal struct {
 	receipt    *pathAbandonReceipt
 	code       uint64
 	signaled   bool // PATH_ABANDON is queued; the submission fence has resolved
+	unit       bool // holds a retained-history unit
+	slotFree   bool // has left the live slot
+	pending    bool // reclamation waits for a local result, which wakes the connection
 }
 
 func threePathPTO(pto time.Duration) time.Duration {
@@ -170,15 +210,15 @@ func (p *pathCreditRegistry) abandon(id protocol.PathID, now monotime.Time) erro
 	if err := p.validateID(id); err != nil {
 		return err
 	}
-	if id == 0 {
-		return &qerr.TransportError{ErrorCode: qerr.InternalError, ErrorMessage: "last usable path abandoned"}
+	if p.released(id) {
+		return nil
 	}
 	terminal := p.terminals[id]
 	if terminal == nil {
-		terminal = p.newTerminal()
-		p.terminals[id] = terminal
-		p.retireMember(id, ErrPathClosed)
-		p.signalTerminal(id, terminal)
+		if p.isLastPath(id) {
+			return &qerr.TransportError{ErrorCode: qerr.InternalError, ErrorMessage: "last usable path abandoned"}
+		}
+		terminal = p.beginTerminal(id, 0, ErrPathClosed)
 	}
 	if !terminal.expired && !terminal.received {
 		terminal.received = true
@@ -217,11 +257,7 @@ func (p *pathCreditRegistry) expire(now monotime.Time) error {
 		}
 		// Retention alone releases nothing: the signal proves the fence resolved.
 		if !terminal.expired && terminal.signaled && terminal.expiry != 0 && !terminal.expiry.After(now) {
-			p.conn.connIDGenerator.releasePathCIDs(id)
-			p.conn.connIDManager.releasePathCIDs(id)
-			terminal.expired = true
-			terminal.receipt.seal()
-			p.releaseMember(id)
+			p.reclaim(id, terminal, now)
 		}
 	}
 	return nil
@@ -259,7 +295,7 @@ func (p *pathCreditRegistry) nextExpiry() monotime.Time {
 			next = terminal.unanswered
 		}
 		// An unresolved fence wakes through endpoint completion, not an elapsed timer.
-		if !terminal.expired && terminal.signaled && terminal.expiry != 0 && (next == 0 || terminal.expiry < next) {
+		if !terminal.expired && !terminal.pending && terminal.signaled && terminal.expiry != 0 && (next == 0 || terminal.expiry < next) {
 			next = terminal.expiry
 		}
 	}
@@ -277,6 +313,8 @@ func (m *connIDGenerator) releasePathCIDs(id protocol.PathID) {
 	for _, retired := range set.retiring {
 		m.connRunners.RemoveConnectionID(retired.connID)
 	}
+	// Path zero's set aliases the legacy map, which close would otherwise re-register.
+	clear(set.active)
 	delete(m.pathCIDs, id)
 }
 
@@ -284,7 +322,7 @@ func (p *pathCreditRegistry) receiveCID(f *wire.PathNewConnectionIDFrame, now mo
 	if err := p.validateID(f.PathID); err != nil {
 		return err
 	}
-	if p.terminals[f.PathID] != nil {
+	if p.terminals[f.PathID] != nil || p.released(f.PathID) {
 		return nil
 	}
 	err := p.conn.connIDManager.addPathCID(f, pathDeadline(now, threePathPTO(p.largestPTO(false))))
@@ -295,7 +333,7 @@ func (p *pathCreditRegistry) resourceResult(id protocol.PathID, err error) error
 	if !errors.Is(err, errPathCIDCapacity) {
 		return err
 	}
-	if id == 0 {
+	if p.isLastPath(id) {
 		return &qerr.TransportError{ErrorCode: qerr.InternalError, ErrorMessage: err.Error() + " on last usable path"}
 	}
 	p.decline(id, pathResourceLimitReached, ErrMultipathResourceLimitV1)
@@ -308,24 +346,75 @@ func (p *pathCreditRegistry) decline(id protocol.PathID, code uint64, err error)
 	if p.terminals[id] != nil {
 		return
 	}
-	terminal := p.newTerminal()
-	terminal.code = code
-	p.terminals[id] = terminal
 	if set := p.conn.connIDManager.pathCIDs[id]; set != nil {
 		set.terminal = true
 	}
 	if set := p.conn.connIDGenerator.pathCIDs[id]; set != nil {
 		set.terminal = true
 	}
+	p.beginTerminal(id, code, err)
+}
+
+// beginTerminal is the one entry into retirement. A committed path already holds its
+// history unit; path zero and an unused ID reserve one before leaving their slot.
+func (p *pathCreditRegistry) beginTerminal(id protocol.PathID, code uint64, err error) *pathTerminal {
+	terminal := p.newTerminal()
+	terminal.code = code
+	terminal.unit = id != 0 && p.members[id] != nil
+	p.terminals[id] = terminal
+	p.nextID = max(p.nextID, id+1)
 	p.retireMember(id, err)
+	p.moveObservation(id)
 	p.signalTerminal(id, terminal)
+	return terminal
+}
+
+// isLastPath reports that retiring id would leave no path able to carry the
+// connection. An ID that was never live can't be the last.
+func (p *pathCreditRegistry) isLastPath(id protocol.PathID) bool {
+	if m := p.members[id]; id != 0 && (m == nil || !m.live) {
+		return false
+	}
+	for other, m := range p.members {
+		if other != id && p.eligible(m) {
+			return false
+		}
+	}
+	return true
+}
+
+// reclaim ends a retained path once nothing can still need it. An Accepted result the
+// connection hasn't consumed leaves frames only this terminal can drain, so the
+// endpoint's resolved fence isn't enough. Its completion wakes the next attempt.
+func (p *pathCreditRegistry) reclaim(id protocol.PathID, terminal *pathTerminal, now monotime.Time) {
+	if p.hasAdmission() && p.members[id] != nil {
+		p.rescheduleUnusable(id, now)
+		if !p.sentPaths().PathQuiescent(id) {
+			terminal.pending = true
+			return
+		}
+	}
+	terminal.pending = false
+	p.conn.connIDGenerator.releasePathCIDs(id)
+	p.conn.connIDManager.releasePathCIDs(id)
+	terminal.expired = true
+	terminal.receipt.seal()
+	p.releaseMember(id)
+	if !p.hasAdmission() {
+		return // the credit-only fixture has one window and keeps its record
+	}
+	if terminal.unit {
+		p.releaseHistory()
+	}
+	delete(p.paths, id)
+	delete(p.terminals, id)
 }
 
 func (p *pathCreditRegistry) retireCID(f *wire.PathRetireConnectionIDFrame, dest protocol.ConnectionID, now monotime.Time) error {
 	if err := p.validateID(f.PathID); err != nil {
 		return err
 	}
-	if p.terminals[f.PathID] != nil {
+	if p.terminals[f.PathID] != nil || p.released(f.PathID) {
 		return nil
 	}
 	return p.resourceResult(f.PathID, p.conn.connIDGenerator.retirePathCID(f, dest, pathDeadline(now, threePathPTO(p.largestPTO(false)))))
