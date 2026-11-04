@@ -816,7 +816,8 @@ func (e *packetEmission) rebindPath(addr net.Addr, info packetInfo) {
 }
 
 func (e *packetEmission) close(cause error) ([]byte, error) {
-	// R14 closes via survivors. Until then, reading released CID state would be wrong.
+	// The close owner doesn't select a retired zero. Reading its released CID state
+	// would be wrong, so this still refuses for any other caller.
 	if e.pathCredit != nil && e.pathCredit.zeroRetired() {
 		return nil, errPathZeroRetired
 	}

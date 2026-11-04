@@ -325,7 +325,7 @@ var newConnection = func(
 		version:             v,
 	}
 	if qlogTrace != nil {
-		s.qlogger = qlogTrace.AddProducer()
+		s.qlogger = newConnRecorder(qlogTrace.AddProducer())
 	}
 	if origDestConnID.Len() > 0 {
 		s.logID = origDestConnID.String()
@@ -388,6 +388,7 @@ var newConnection = func(
 		RetrySourceConnectionID:   retrySrcConnID,
 		EnableResetStreamAt:       conf.EnableStreamResetPartialDelivery,
 	}
+	s.advertisePrivateMultipath(params)
 	if s.config.EnableDatagrams {
 		params.MaxDatagramFrameSize = wire.MaxDatagramSize
 	} else {
@@ -450,7 +451,7 @@ var newClientConnection = func(
 		version:             v,
 	}
 	if qlogTrace != nil {
-		s.qlogger = qlogTrace.AddProducer()
+		s.qlogger = newConnRecorder(qlogTrace.AddProducer())
 	}
 	if s.qlogger != nil {
 		var srcAddr, destAddr *net.UDPAddr
@@ -519,6 +520,7 @@ var newClientConnection = func(
 		InitialSourceConnectionID: srcConnID,
 		EnableResetStreamAt:       conf.EnableStreamResetPartialDelivery,
 	}
+	s.advertisePrivateMultipath(params)
 	if s.config.EnableDatagrams {
 		params.MaxDatagramFrameSize = wire.MaxDatagramSize
 	} else {
@@ -1144,11 +1146,14 @@ func (c *Conn) handleHandshakeComplete(now monotime.Time) error {
 	// During a 0-RTT connection, the client is only allowed to use the new transport parameters for 1-RTT packets.
 	if c.perspective == protocol.PerspectiveClient {
 		c.applyTransportParameters()
-		return nil
+		return c.activatePrivateMultipath()
 	}
 
 	// All these only apply to the server side.
 	if err := c.handleHandshakeConfirmed(now); err != nil {
+		return err
+	}
+	if err := c.activatePrivateMultipath(); err != nil {
 		return err
 	}
 
@@ -1468,6 +1473,7 @@ func (c *Conn) handleShortHeaderPacket(
 					Length:        int(p.Size()),
 					PayloadLength: int(p.Size() - wire.ShortHeaderLen(destConnID, pnLen)),
 				},
+				Path:                    c.pathCredit.qlogIngress(p.pathID),
 				DatagramPayloadChecksum: datagramPayloadChecksum,
 				Frames:                  frames,
 				ECN:                     toQlogECN(p.ecn),
@@ -1968,6 +1974,7 @@ func (c *Conn) handleUnpackedLongHeaderPacket(
 					Length:        int(packetSize),
 					PayloadLength: int(packet.hdr.Length),
 				},
+				Path:                    c.pathCredit.qlogIngress(0),
 				DatagramPayloadChecksum: datagramPayloadChecksum,
 				Frames:                  frames,
 				ECN:                     toQlogECN(ecn),
@@ -2683,13 +2690,20 @@ func (c *Conn) handleCloseError(closeErr *closeError) {
 		})
 	}
 
+	admission := c.pathCredit != nil && c.pathCredit.hasAdmission()
+	drainExpiry := 3 * c.observedRTT().PTO(false)
+	if admission {
+		drainExpiry = threePathPTO(c.pathCredit.largestPTO(true))
+	}
 	// If this is a remote close we're done here
 	if isRemoteClose {
-		c.connIDGenerator.ReplaceWithClosed(nil, 3*c.observedRTT().PTO(false))
+		c.connIDGenerator.ReplaceWithClosed(nil, drainExpiry)
 		return
 	}
+	// A faulted endpoint stops only its own paths, so a survivor can still tell the peer.
+	closesViaSurvivor := admission && closeErr.immediate && isEndpointFault(e) && len(c.pathCredit.closeContexts(nil)) != 0
 	// Recreating for version negotiation never sends a close in the old version.
-	if closeErr.immediate || recreateErr != nil {
+	if (closeErr.immediate && !closesViaSurvivor) || recreateErr != nil {
 		c.connIDGenerator.RemoveAll()
 		return
 	}
@@ -2699,12 +2713,21 @@ func (c *Conn) handleCloseError(closeErr *closeError) {
 		c.connIDGenerator.RemoveAll()
 		return
 	}
+	if admission {
+		closed, err := c.emission.closePaths(e)
+		if err != nil {
+			c.logger.Debugf("Error sending CONNECTION_CLOSE: %s", err)
+			closeOutcome = candidateCloseFailure(err)
+		}
+		c.connIDGenerator.ReplaceWithClosedPaths(closed, drainExpiry)
+		return
+	}
 	connClosePacket, err := c.emission.close(e)
 	if err != nil {
 		c.logger.Debugf("Error sending CONNECTION_CLOSE: %s", err)
 		closeOutcome = candidateCloseFailure(err)
 	}
-	c.connIDGenerator.ReplaceWithClosed(connClosePacket, 3*c.observedRTT().PTO(false))
+	c.connIDGenerator.ReplaceWithClosed(connClosePacket, drainExpiry)
 }
 
 func (c *Conn) dropEncryptionLevel(encLevel protocol.EncryptionLevel, now monotime.Time) {
@@ -2754,7 +2777,9 @@ func (c *Conn) restoreTransportParameters(params *wire.TransportParameters) {
 	}
 
 	c.peerParams = params
-	c.connIDGenerator.SetMaxActiveConnIDs(params.ActiveConnectionIDLimit)
+	if !c.negotiatesPrivateMultipath(params) { // activation issues path zero's CIDs
+		c.connIDGenerator.SetMaxActiveConnIDs(params.ActiveConnectionIDLimit)
+	}
 	c.connFlowController.UpdateSendWindow(params.InitialMaxData)
 	c.streamsMap.HandleTransportParameters(params)
 }
@@ -2832,7 +2857,9 @@ func (c *Conn) applyTransportParameters() {
 	c.frameParser.SetAckDelayExponent(params.AckDelayExponent)
 	c.connFlowController.UpdateSendWindow(params.InitialMaxData)
 	c.rttStats.SetMaxAckDelay(params.MaxAckDelay)
-	c.connIDGenerator.SetMaxActiveConnIDs(params.ActiveConnectionIDLimit)
+	if !c.negotiatesPrivateMultipath(params) { // activation issues path zero's CIDs
+		c.connIDGenerator.SetMaxActiveConnIDs(params.ActiveConnectionIDLimit)
+	}
 	if params.StatelessResetToken != nil {
 		c.connIDManager.SetStatelessResetToken(*params.StatelessResetToken)
 	}

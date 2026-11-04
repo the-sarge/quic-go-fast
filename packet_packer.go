@@ -198,6 +198,28 @@ func (p *packetPacker) PackApplicationClose(e *qerr.ApplicationError, maxPacketS
 	return p.packConnectionClose(true, uint64(e.ErrorCode), 0, e.ErrorMessage, maxPacketSize, v)
 }
 
+// PackPathClose packs a close under a selected path's identity. It is a short header
+// packet, because a nonzero path exists only after the handshake.
+func (p *packetPacker) PackPathClose(route *pathRoute, frame *wire.ConnectionCloseFrame, maxPacketSize protocol.ByteCount, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
+	sealer, err := p.cryptoSetup.Get1RTTSealer()
+	if err != nil {
+		return shortHeaderPacket{}, nil, err
+	}
+	context, numbers, connID := p.shortHeaderIdentity(route)
+	pn, pnLen := numbers.PeekPacketNumber(protocol.Encryption1RTT)
+	pl := payload{frames: []ackhandler.Frame{{Frame: frame}}, length: frame.Length(v)}
+	if size := p.shortHeaderPacketLength(connID, pnLen, pl) + protocol.ByteCount(sealer.Overhead()); size > maxPacketSize {
+		return shortHeaderPacket{}, nil, fmt.Errorf("packet too large (%d bytes, allowed %d bytes)", size, maxPacketSize)
+	}
+	buffer := getPacketBuffer()
+	packet, err := p.appendShortHeaderPacket(context, buffer, connID, pn, pnLen, sealer.KeyPhase(), pl, 0, maxPacketSize, sealer, false, v)
+	if err != nil {
+		buffer.Release()
+		return shortHeaderPacket{}, nil, err
+	}
+	return packet, buffer, nil
+}
+
 func (p *packetPacker) packConnectionClose(
 	isApplicationError bool,
 	errorCode uint64,

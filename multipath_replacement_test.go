@@ -346,7 +346,8 @@ func TestPathZeroNoEligibleSurvivor(t *testing.T) {
 }
 
 // TestPathZeroCloseAfterRetirement closes with zero retired and with it reclaimed.
-// Until R14 this packs nothing, and it must not read released CID state.
+// The emission close owner still refuses for zero, without reading released CID state;
+// handleCloseError closes via survivors instead.
 func TestPathZeroCloseAfterRetirement(t *testing.T) {
 	nativeOrdinaryTest(t, func(t *testing.T) {
 		f := newReliableFixture(t, protocol.PerspectiveClient)

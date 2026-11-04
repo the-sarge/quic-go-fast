@@ -47,6 +47,7 @@ type nativeOrdinarySender struct {
 	recovery    ackhandler.LocalSentPacketHandler
 	connection  *Conn
 	destination netip.AddrPort
+	info        packetInfo
 	oob         []byte
 	writeState  *endpointWriteState // the current path's; each conn owns its own
 	nativeGSO   bool
@@ -96,7 +97,7 @@ func (c *Conn) useNativeOrdinary(endpoint *nativeEndpoint, destination netip.Add
 	}
 	queue := &nativeOrdinarySender{
 		endpoint: endpoint, participant: participant, recovery: handler, connection: c,
-		destination: destination, oob: info.OOB(), nativeGSO: runtime.GOOS == "linux", generation: 1,
+		destination: destination, info: info, oob: info.OOB(), nativeGSO: runtime.GOOS == "linux", generation: 1,
 	}
 	c.emission.local, c.emission.queue = queue, queue
 	conn := &nativeOrdinaryConn{sendConn: c.conn, sender: queue}
@@ -149,17 +150,25 @@ func (e *nativeEndpoint) drain(p *endpointParticipant) {
 // success. It is admitted on the connection-control lane once the participant's
 // queued and current requests resolve, or released at deposit+B.
 func (e *nativeEndpoint) depositClose(p *endpointParticipant, request endpointRequest) error {
+	return e.depositCloseUpTo(p, request, 1)
+}
+
+// depositCloseUpTo holds one close per path that uses this endpoint. They go out in
+// deposit order, each under its own deadline.
+func (e *nativeEndpoint) depositCloseUpTo(p *endpointParticipant, request endpointRequest, limit int) error {
 	err := net.ErrClosed
 	e.do(func(s *endpointState) {
-		if s.sealed || s.faulted || !s.valid(p) || !p.draining || p.closing.pending {
+		if s.sealed || s.faulted || !s.valid(p) || !p.draining || len(p.closings) >= limit {
 			return
 		}
 		err = errEndpointRequest
 		if request.identity.connection != p.id || !request.destination.IsValid() || len(request.buffers) != 1 || request.buffers[0] == nil || request.buffers[0].refCount != 1 || len(request.buffers[0].Data) == 0 || cap(request.buffers[0].Data) > 64<<10 {
 			return
 		}
-		p.closing = endpointClosing{pending: true, request: request, size: cap(request.buffers[0].Data), deadline: time.Now().Add(s.budget)}
-		s.closers = append(s.closers, p)
+		if len(p.closings) == 0 {
+			s.closers = append(s.closers, p)
+		}
+		p.closings = append(p.closings, endpointClosing{request: request, size: cap(request.buffers[0].Data), deadline: time.Now().Add(s.budget)})
 		err = nil
 	})
 	return err
@@ -379,20 +388,70 @@ func (s *nativeOrdinarySender) drain() {
 	s.finish()
 	s.releaseReadiness()
 	s.endpoint.drain(s.participant)
+	for _, target := range s.targets {
+		target.endpoint.drain(target)
+	}
 }
 
 // sendClose consumes the buffer. The endpoint holds it as this connection's close
 // obligation, so the caller never waits for native I/O.
 func (s *nativeOrdinarySender) sendClose(buffer *packetBuffer, ecn protocol.ECN) error {
 	s.drain()
-	err := s.endpoint.depositClose(s.participant, endpointRequest{
+	limit := 1
+	if credit := s.connection.pathCredit; credit != nil && credit.hasAdmission() {
+		limit = pathCloseLimit
+	}
+	err := s.endpoint.depositCloseUpTo(s.participant, endpointRequest{
 		identity:    endpointIdentity{connection: s.participant.id, generation: s.generation, pathGeneration: s.connection.pathGeneration, tuple: s.connection.pathGeneration},
 		destination: s.destination, buffers: []*packetBuffer{buffer}, oob: s.packetOOB(ecn), writeState: s.writeState,
-	})
+	}, limit)
 	if err != nil {
 		buffer.Release()
 	}
 	return err
+}
+
+// isEndpointFault recognizes the fault that can leave a survivor to close through.
+func isEndpointFault(err error) bool { return errors.Is(err, errEndpointFault) }
+
+// pathCloseLimit is the two live paths a connection can hold.
+const pathCloseLimit = 2
+
+// sendPathClose is sendClose for a nonzero path, through that path's own endpoint.
+// A target attached only now joins the drain before it holds the close.
+func (s *nativeOrdinarySender) sendPathClose(buffer *packetBuffer, ecn protocol.ECN, route *pathRoute) error {
+	s.drain()
+	participant := s.participant
+	if route.transport != nil {
+		participant = s.probeParticipant(nativeTransportEndpoint(route.transport))
+	}
+	destination, ok := nativeDestination(route.addr)
+	if participant == nil || !ok {
+		buffer.Release()
+		return errLocalPacketRoute
+	}
+	participant.endpoint.drain(participant)
+	err := participant.endpoint.depositCloseUpTo(participant, endpointRequest{
+		identity:    endpointIdentity{connection: participant.id, generation: s.generation, pathGeneration: route.context.TupleGeneration, tuple: route.context.TupleGeneration},
+		destination: destination, buffers: []*packetBuffer{buffer}, oob: packetOOB(route.info.OOB(), destination, ecn), writeState: &route.writeState,
+	}, pathCloseLimit)
+	if err != nil {
+		buffer.Release()
+	}
+	return err
+}
+
+// routeInfo is the local address and interface path zero sends from.
+func (s *nativeOrdinarySender) routeInfo() packetInfo { return s.info }
+
+// closeUsable also inspects the connection's own endpoint, which routeUsable assumes
+// healthy, because a fault there is what can bring a connection to this close.
+func (s *nativeOrdinarySender) closeUsable(target *Transport) bool {
+	endpoint := s.endpoint
+	if target != nil {
+		endpoint = nativeTransportEndpoint(target)
+	}
+	return endpoint != nil && !endpoint.quarantined()
 }
 
 func (s *nativeOrdinarySender) SendProbe(*packetBuffer, net.Addr, packetInfo) error {

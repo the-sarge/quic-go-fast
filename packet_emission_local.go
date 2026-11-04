@@ -22,6 +22,9 @@ type localPacketSender interface {
 	finish()
 	drain()
 	sendClose(*packetBuffer, protocol.ECN) error
+	sendPathClose(*packetBuffer, protocol.ECN, *pathRoute) error
+	closeUsable(*Transport) bool
+	routeInfo() packetInfo
 	consume() error
 	reset()
 	completed() <-chan struct{}

@@ -1,0 +1,8 @@
+Starting Picoquic server (v1.1.53.0) on port 54371, server name = ::, just_once = 1, do_retry = 0
+No token file present. Will create one as <demo_token_store.bin>.
+Accept enable multipath: 1.
+Waiting for packets.
+First connection noticed.
+No more active connections.
+Server exit, ret = 0x0
+Server exit with code = 0

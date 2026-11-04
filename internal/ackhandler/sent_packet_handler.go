@@ -1084,6 +1084,7 @@ func (h *sentPacketHandler) detectLostPackets(now monotime.Time, encLevel protoc
 							PacketNumber: pn,
 						},
 						Trigger: qlog.PacketLossTimeThreshold,
+						Path:    h.lossPath(p),
 					})
 				}
 			}
@@ -1100,6 +1101,7 @@ func (h *sentPacketHandler) detectLostPackets(now monotime.Time, encLevel protoc
 							PacketNumber: pn,
 						},
 						Trigger: qlog.PacketLossReorderingThreshold,
+						Path:    h.lossPath(p),
 					})
 				}
 			}

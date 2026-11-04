@@ -1,0 +1,34 @@
+{"Time":"2026-11-04T06:55:18.677630337Z","Action":"start","Package":"github.com/quic-go/quic-go"}
+{"Time":"2026-11-04T06:55:18.720272087Z","Action":"output","Package":"github.com/quic-go/quic-go","Output":"Kernel Version: 7.0\n"}
+{"Time":"2026-11-04T06:55:18.720804046Z","Action":"output","Package":"github.com/quic-go/quic-go","Output":"\n"}
+{"Time":"2026-11-04T06:55:18.722523921Z","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke"}
+{"Time":"2026-11-04T06:55:18.722546546Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke","Output":"=== RUN   TestPicoquicMultipathSmoke\n","OutputType":"frame"}
+{"Time":"2026-11-04T06:55:18.723167004Z","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client"}
+{"Time":"2026-11-04T06:55:18.723173462Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"=== RUN   TestPicoquicMultipathSmoke/client\n","OutputType":"frame"}
+{"Time":"2026-11-04T06:55:18.912834421Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"    multipath_picoquic_test.go:108: \n","OutputType":"error"}
+{"Time":"2026-11-04T06:55:18.912866838Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"        \tError Trace:\t/repo/multipath_picoquic_test.go:212\n","OutputType":"error-continue"}
+{"Time":"2026-11-04T06:55:18.912874546Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"        \t            \t\t\t\t/repo/multipath_picoquic_test.go:108\n","OutputType":"error-continue"}
+{"Time":"2026-11-04T06:55:18.912876379Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"        \tError:      \tReceived unexpected error:\n","OutputType":"error-continue"}
+{"Time":"2026-11-04T06:55:18.912888004Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"        \t            \tuse of closed network connection\n","OutputType":"error-continue"}
+{"Time":"2026-11-04T06:55:18.912892463Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"        \tTest:       \tTestPicoquicMultipathSmoke/client\n","OutputType":"error-continue"}
+{"Time":"2026-11-04T06:55:18.917707463Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"panic: assignment to entry in nil map\n"}
+{"Time":"2026-11-04T06:55:18.917762671Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"\n"}
+{"Time":"2026-11-04T06:55:18.917912129Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"goroutine 98 [running]:\n"}
+{"Time":"2026-11-04T06:55:18.918466046Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"github.com/quic-go/quic-go.(*packetHandlerMap).replaceClosed(0x12e186534000, {0x12e186c12100, 0x4, 0x6}, 0x8d38580, 0x12e186e03728)\n"}
+{"Time":"2026-11-04T06:55:18.918575713Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"\t/repo/transport.go:1195 +0x529\n"}
+{"Time":"2026-11-04T06:55:18.918583213Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"github.com/quic-go/quic-go.(*packetHandlerMap).ReplaceWithClosedPaths(0xffffffffffffffff?, {0x12e186c12100?, 0x12e186e03790?, 0x426cf1?}, 0x12e186e03790?, 0x33?, 0x12e186e03818?)\n"}
+{"Time":"2026-11-04T06:55:18.918588421Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"\t/repo/transport.go:1124 +0x3b\n"}
+{"Time":"2026-11-04T06:55:18.918590713Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"github.com/quic-go/quic-go.(*connIDGenerator).ReplaceWithClosedPaths(0x12e1866901c0, 0x12e186520420, 0x8d38580)\n"}
+{"Time":"2026-11-04T06:55:18.918599754Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"\t/repo/conn_id_generator.go:212 +0x124\n"}
+{"Time":"2026-11-04T06:55:18.918602671Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"github.com/quic-go/quic-go.(*Conn).handleCloseError(0x12e18663b508, 0x12e1864401c8)\n"}
+{"Time":"2026-11-04T06:55:18.918604671Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"\t/repo/connection.go:2721 +0xbc8\n"}
+{"Time":"2026-11-04T06:55:18.918606254Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"github.com/quic-go/quic-go.(*Conn).run(0x12e18663b508)\n"}
+{"Time":"2026-11-04T06:55:18.918607838Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"\t/repo/connection.go:866 +0xf48\n"}
+{"Time":"2026-11-04T06:55:18.918609171Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"github.com/quic-go/quic-go.(*wrappedConn).run(0x0?)\n"}
+{"Time":"2026-11-04T06:55:18.918610879Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"\t/repo/conn_wrapped_test.go:7 +0x3c\n"}
+{"Time":"2026-11-04T06:55:18.918612213Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"github.com/quic-go/quic-go.(*Transport).doDial.func1()\n"}
+{"Time":"2026-11-04T06:55:18.918613629Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"\t/repo/transport.go:413 +0x36\n"}
+{"Time":"2026-11-04T06:55:18.918618838Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"created by github.com/quic-go/quic-go.(*Transport).doDial in goroutine 6\n"}
+{"Time":"2026-11-04T06:55:18.918620338Z","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestPicoquicMultipathSmoke/client","Output":"\t/repo/transport.go:412 +0xa65\n"}
+{"Time":"2026-11-04T06:55:18.920301879Z","Action":"output","Package":"github.com/quic-go/quic-go","Output":"FAIL\tgithub.com/quic-go/quic-go\t0.241s\n","OutputType":"frame"}
+{"Time":"2026-11-04T06:55:18.920451546Z","Action":"fail","Package":"github.com/quic-go/quic-go","Elapsed":0.243}

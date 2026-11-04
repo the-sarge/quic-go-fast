@@ -16,6 +16,8 @@ type connRunnerCallbacks struct {
 	AddPathConnectionID func(protocol.ConnectionID, protocol.PathID) bool
 	RemoveConnectionID  func(protocol.ConnectionID)
 	ReplaceWithClosed   func([]protocol.ConnectionID, []byte, time.Duration)
+	// ReplaceWithClosedPaths is set on every transport that can route path CIDs.
+	ReplaceWithClosedPaths func([]protocol.ConnectionID, *closedPaths, bool, time.Duration)
 }
 
 // The memory address of the Transport is used as the key.
@@ -49,6 +51,7 @@ type connIDGenerator struct {
 	generator   ConnectionIDGenerator
 	highestSeq  uint64
 	connRunners connRunners
+	ownRunner   connRunner // the runner of a member whose transport is nil
 
 	activeSrcConnIDs        map[uint64]protocol.ConnectionID
 	connIDsToRetire         []connIDToRetire       // sorted by t
@@ -73,6 +76,7 @@ func newConnIDGenerator(
 		activeSrcConnIDs:  make(map[uint64]protocol.ConnectionID),
 		statelessResetter: statelessResetter,
 		connRunners:       map[connRunner]connRunnerCallbacks{runner: callbacks},
+		ownRunner:         runner,
 		queueControlFrame: queueControlFrame,
 	}
 	m.activeSrcConnIDs[0] = initialConnectionID
@@ -194,6 +198,22 @@ func (m *connIDGenerator) RemoveAll() {
 }
 
 func (m *connIDGenerator) ReplaceWithClosed(connClose []byte, expiry time.Duration) {
+	m.connRunners.ReplaceWithClosed(m.closingConnIDs(), connClose, expiry)
+}
+
+// ReplaceWithClosedPaths installs one cached close on every attached transport.
+func (m *connIDGenerator) ReplaceWithClosedPaths(closed *closedPaths, expiry time.Duration) {
+	connIDs := m.closingConnIDs()
+	for runner, callbacks := range m.connRunners {
+		if callbacks.ReplaceWithClosedPaths == nil {
+			callbacks.ReplaceWithClosed(connIDs, nil, expiry)
+			continue
+		}
+		callbacks.ReplaceWithClosedPaths(connIDs, closed, runner == m.ownRunner, expiry)
+	}
+}
+
+func (m *connIDGenerator) closingConnIDs() []protocol.ConnectionID {
 	connIDs := make([]protocol.ConnectionID, 0, len(m.activeSrcConnIDs)+len(m.connIDsToRetire)+1)
 	if m.initialClientDestConnID != nil {
 		connIDs = append(connIDs, *m.initialClientDestConnID)
@@ -204,8 +224,7 @@ func (m *connIDGenerator) ReplaceWithClosed(connClose []byte, expiry time.Durati
 	for _, c := range m.connIDsToRetire {
 		connIDs = append(connIDs, c.connID)
 	}
-	connIDs = append(connIDs, m.extraPathCIDs()...)
-	m.connRunners.ReplaceWithClosed(connIDs, connClose, expiry)
+	return append(connIDs, m.extraPathCIDs()...)
 }
 
 // addPathRunner attaches a transport under private multipath, retaining each

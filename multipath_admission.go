@@ -18,6 +18,7 @@ import (
 	"github.com/quic-go/quic-go/internal/qerr"
 	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/internal/wire"
+	"github.com/quic-go/quic-go/qlogwriter"
 )
 
 const (
@@ -90,6 +91,12 @@ type pathOpenRequest struct {
 	outcome   atomic.Int32 // one transition decides what the caller observes
 	accepted  bool
 	id        protocol.PathID
+	use       *pathLocalUse // set when the operation is a local-use change
+}
+
+type pathLocalUse struct {
+	id     protocol.PathID
+	backup bool
 }
 
 const (
@@ -128,7 +135,7 @@ func (p *pathCreditRegistry) enableAdmission() {
 		return
 	}
 	addr := p.conn.RemoteAddr()
-	zero := &pathMember{id: 0, live: true, addr: addr, established: path{validated: true, mtuValidated: true}}
+	zero := &pathMember{id: 0, live: true, addr: addr, info: p.conn.emission.local.routeInfo(), established: path{validated: true, mtuValidated: true}}
 	zero.tuple = p.conn.emission.packer.pathZeroContext().TupleGeneration
 	zero.livenessAt = monotime.Now()
 	zero.fences = []pathFence{{epoch: &zero.established.probeEpoch}}
@@ -407,6 +414,7 @@ func (p *pathCreditRegistry) admitMember(id protocol.PathID, target *Transport, 
 	member := &pathMember{id: id, transport: target, deadline: pathDeadline(now, pathTimeout), established: path{validated: true, mtuValidated: true}}
 	member.fences = []pathFence{{transport: target, epoch: &member.established.probeEpoch}}
 	p.members[id] = member
+	p.observe(member, "admitted")
 	return member, nil
 }
 
@@ -468,17 +476,21 @@ func (p *pathCreditRegistry) activate(m *pathMember, addr net.Addr, info packetI
 	}
 	m.live, m.addr, m.info, m.transport = true, addr, info, target
 	m.backup, m.livenessAt = true, now
+	p.observe(m, "live")
 	p.startPMTU(m, target, now)
 	p.recordValidated(addr)
 	return true
 }
 
 // startPMTU gives a path that just went live its own finder, at the size its
-// validation proved. It reports to no first-path signal, and qlog's MTU event keeps
-// its first-path meaning until R14 qualifies it.
+// validation proved. It reports to no first-path signal, and qlog names its path.
 func (p *pathCreditRegistry) startPMTU(m *pathMember, target *Transport, now monotime.Time) {
 	m.pmtu = protocol.MinInitialPacketSize
-	m.route.mtu = newMTUDiscoverer(p.rtt[m.id], m.pmtu, p.conn.peerMaxPacketSize(), nil)
+	var recorder qlogwriter.Recorder
+	if p.conn.qlogger != nil {
+		recorder = pathMTURecorder{Recorder: p.conn.qlogger, member: m}
+	}
+	m.route.mtu = newMTUDiscoverer(p.rtt[m.id], m.pmtu, p.conn.peerMaxPacketSize(), recorder)
 	if p.conn.config.DisablePathMTUDiscovery {
 		return
 	}
@@ -663,6 +675,11 @@ func (p *pathCreditRegistry) pruneFences(m *pathMember) bool {
 func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 	request := p.conn.pathOpen.Load()
 	if request == nil {
+		return nil
+	}
+	if use := request.use; use != nil {
+		request.finish(p.setLocalUsePrivate(use.id, use.backup, now))
+		p.conn.pathOpen.CompareAndSwap(request, nil)
 		return nil
 	}
 	if request.accepted {
@@ -937,4 +954,20 @@ func (p *pathCreditRegistry) closeAdmission() {
 		m.established.retire()
 		p.retireCandidate(m)
 	}
+}
+
+// setLocalUsePrivate is the private driver behind R16's SetLocalUseV1. It overrides
+// the demotion of a recovered path.
+func (p *pathCreditRegistry) setLocalUsePrivate(id protocol.PathID, backup bool, now monotime.Time) error {
+	if err := p.validateID(id); err != nil {
+		return err
+	}
+	m := p.members[id]
+	if m == nil || !m.live || p.terminals[id] != nil {
+		return ErrPathClosed
+	}
+	m.backup = backup
+	p.reselect(now)
+	p.conn.scheduleSending()
+	return nil
 }

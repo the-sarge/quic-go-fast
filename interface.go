@@ -190,6 +190,10 @@ type Config struct {
 	EnableStreamResetPartialDelivery bool
 
 	Tracer func(ctx context.Context, isClient bool, connID ConnectionID) qlogwriter.Trace
+
+	// privateMultipath is the fixture-only activation guard for the R14 smoke. Only a
+	// picoquic-tagged test sets it. R16 absorbs it into its one guard, and R19 removes it.
+	privateMultipath bool
 }
 
 // ClientInfo contains information about an incoming connection attempt.

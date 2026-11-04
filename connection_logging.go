@@ -4,10 +4,12 @@ import (
 	"net"
 	"net/netip"
 	"slices"
+	"sync/atomic"
 
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/quic-go/quic-go/qlog"
+	"github.com/quic-go/quic-go/qlogwriter"
 )
 
 // ConvertFrame converts a wire.Frame into a logging.Frame.
@@ -48,6 +50,8 @@ func toQlogFrame(frame wire.Frame) qlog.Frame {
 
 func toQlogAckFrame(f *wire.AckFrame) *qlog.AckFrame {
 	ack := &qlog.AckFrame{
+		HasPathID: f.HasPathID,
+		PathID:    f.PathID,
 		AckRanges: slices.Clone(f.AckRanges),
 		DelayTime: f.DelayTime,
 		ECNCE:     f.ECNCE,
@@ -101,6 +105,7 @@ func (c *Conn) logLongHeaderPacket(p *longHeaderPacket, ecn protocol.ECN, datagr
 				Length:        int(p.length),
 				PayloadLength: int(p.header.Length),
 			},
+			Path:                    c.qlogPath(0, p.context.TupleGeneration),
 			DatagramPayloadChecksum: datagramPayloadChecksum,
 			Frames:                  frames,
 			ECN:                     toQlogECN(ecn),
@@ -158,11 +163,20 @@ func (c *Conn) logShortHeaderPacketWithDatagramPayloadChecksum(p shortHeaderPack
 				Length:        int(size),
 				PayloadLength: int(size - wire.ShortHeaderLen(p.DestConnID, p.PacketNumberLen)),
 			},
+			Path:                    c.qlogPath(p.Context.PathID, p.Context.TupleGeneration),
 			DatagramPayloadChecksum: datagramPayloadChecksum,
 			Frames:                  fs,
 			ECN:                     toQlogECN(ecn),
 		})
 	}
+}
+
+// qlogPath is a packet's path identity, absent until private multipath activates.
+func (c *Conn) qlogPath(id protocol.PathID, tuple uint64) *qlog.PathIdentity {
+	if c.pathCredit == nil || !c.pathCredit.hasAdmission() {
+		return nil
+	}
+	return &qlog.PathIdentity{PathID: uint64(id), TupleGeneration: tuple}
 }
 
 func (c *Conn) logCoalescedPacket(packet *coalescedPacket, ecn protocol.ECN) {
@@ -313,3 +327,98 @@ func startedConnectionEvent(local, remote *net.UDPAddr) qlog.StartedConnection {
 	}
 	return qlog.StartedConnection{Local: localInfo, Remote: remoteInfo}
 }
+
+// qlogBufferSize bounds the events a stuck sink can hold back. Later ones are dropped.
+const qlogBufferSize = 256
+
+// connRecorder is the one recorder every connection owner captures at construction.
+// It is synchronous, so ordinary recording is unchanged, until private multipath
+// asks for it to buffer. From then on a blocked sink drops events: it can't stop the
+// connection goroutine, and neither it nor its worker joins the grant lifetime.
+type connRecorder struct {
+	inner    qlogwriter.Recorder
+	buffered atomic.Pointer[qlogBuffer]
+	zeroPath func() *qlog.PathIdentity
+}
+
+type qlogBuffer struct {
+	events  chan qlogwriter.Event
+	done    chan struct{}
+	dropped atomic.Uint64
+}
+
+func newConnRecorder(inner qlogwriter.Recorder) qlogwriter.Recorder {
+	if inner == nil {
+		return nil
+	}
+	return &connRecorder{inner: inner}
+}
+
+// bufferEvents is called once, from the connection goroutine, at activation.
+func (r *connRecorder) bufferEvents(zeroPath func() *qlog.PathIdentity) {
+	buffer := &qlogBuffer{events: make(chan qlogwriter.Event, qlogBufferSize), done: make(chan struct{})}
+	r.zeroPath = zeroPath
+	r.buffered.Store(buffer)
+	go buffer.run(r.inner)
+}
+
+func (b *qlogBuffer) run(inner qlogwriter.Recorder) {
+	for {
+		select {
+		case event := <-b.events:
+			inner.RecordEvent(event)
+		case <-b.done:
+			for {
+				select {
+				case event := <-b.events:
+					inner.RecordEvent(event)
+				default:
+					inner.Close()
+					return
+				}
+			}
+		}
+	}
+}
+
+func (r *connRecorder) RecordEvent(event qlogwriter.Event) {
+	buffer := r.buffered.Load()
+	if buffer == nil {
+		r.inner.RecordEvent(event)
+		return
+	}
+	// Path zero's MTU owner predates activation, so it reports no identity of its own.
+	if mtu, ok := event.(qlog.MTUUpdated); ok && mtu.Path == nil {
+		mtu.Path = r.zeroPath()
+		event = mtu
+	}
+	select {
+	case buffer.events <- event:
+	default:
+		buffer.dropped.Add(1)
+	}
+}
+
+func (r *connRecorder) Close() error {
+	if buffer := r.buffered.Load(); buffer != nil {
+		close(buffer.done) // the worker closes the sink whenever it can
+		return nil
+	}
+	return r.inner.Close()
+}
+
+// pathMTURecorder attributes a nonzero path's MTU updates to that path.
+type pathMTURecorder struct {
+	qlogwriter.Recorder
+	member *pathMember
+}
+
+func (r pathMTURecorder) RecordEvent(event qlogwriter.Event) {
+	if mtu, ok := event.(qlog.MTUUpdated); ok {
+		mtu.Path = &qlog.PathIdentity{PathID: uint64(r.member.id), TupleGeneration: r.member.tuple}
+		event = mtu
+	}
+	r.Recorder.RecordEvent(event)
+}
+
+func (pathMTURecorder) Close() error { return nil }

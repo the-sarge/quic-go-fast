@@ -6,6 +6,8 @@ import (
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/utils"
+	"github.com/quic-go/quic-go/qlog"
+	"github.com/quic-go/quic-go/qlogwriter"
 )
 
 // maxRecoveryPaths bounds nonzero contexts. The registry's four retained-history
@@ -27,7 +29,7 @@ func (h *sentPacketHandler) AddPathWithRTT(id protocol.PathID, size protocol.Byt
 		return fmt.Errorf("ackhandler: recovery path unavailable: %d", id)
 	}
 	rtt.SetMaxAckDelay(h.rttStats.MaxAckDelay())
-	path := newSentPacketHandler(0, size, rtt, h.connStats, true, h.enableECN, h.ignorePacketsBelow, h.perspective, nil, h.logger, nil)
+	path := newSentPacketHandler(0, size, rtt, h.connStats, true, h.enableECN, h.ignorePacketsBelow, h.perspective, newPathLossRecorder(h.qlogger), h.logger, nil)
 	path.pathID, path.pathRoot, path.pathPolicy = id, h, h.pathPolicy
 	path.initialPackets, path.handshakePackets = nil, nil
 	path.handshakeConfirmed, path.peerCompletedAddressValidation, path.peerAddressValidated = true, true, true
@@ -166,4 +168,34 @@ func (h *sentPacketHandler) TakeAckedTuple() (uint64, bool) {
 // keeps the PTO count and the alarm, so backoff and the next PTO are unaffected.
 func (h *sentPacketHandler) ClearProbeCredit() {
 	h.numProbesToSend = 0
+}
+
+// pathLossRecorder is a nonzero path's recorder. It carries only attributed losses;
+// this path's other recovery events stay absent, as they were without a recorder.
+type pathLossRecorder struct {
+	qlogwriter.Recorder
+}
+
+func newPathLossRecorder(inner qlogwriter.Recorder) qlogwriter.Recorder {
+	if inner == nil {
+		return nil
+	}
+	return pathLossRecorder{inner}
+}
+
+func (r pathLossRecorder) RecordEvent(event qlogwriter.Event) {
+	if _, ok := event.(qlog.PacketLost); ok {
+		r.Recorder.RecordEvent(event)
+	}
+}
+
+// Close leaves the connection's recorder open: it isn't this path's to close.
+func (pathLossRecorder) Close() error { return nil }
+
+// lossPath names a lost packet's path once path policy applies.
+func (h *sentPacketHandler) lossPath(p *packet) *qlog.PathIdentity {
+	if !h.pathPolicy {
+		return nil
+	}
+	return &qlog.PathIdentity{PathID: uint64(p.Context.PathID), TupleGeneration: p.Context.TupleGeneration}
 }

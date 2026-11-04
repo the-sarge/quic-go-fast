@@ -402,6 +402,8 @@ func handlerAuthority(h packetHandler) *connAuthority {
 		return h.authority
 	case *closedRemoteConn:
 		return h.authority
+	case *closedPathConn:
+		return h.authority
 	}
 	return nil
 }
@@ -411,6 +413,8 @@ func withAuthority(h packetHandler, a *connAuthority) packetHandler {
 	case *closedLocalConn:
 		h.authority = a
 	case *closedRemoteConn:
+		h.authority = a
+	case *closedPathConn:
 		h.authority = a
 	}
 	return h
