@@ -9103,3 +9103,38 @@ Issue #1172 is untriaged and hasn't been measured.
 - The smoke charged 8 ledger instances, 6 from the reserve. The reserve is overdrawn by 20, leaving 104 instances for 124 scheduled. The owner said the ceiling can be raised, but no raise is recorded, so a later preflight has to record one before capacity runs out.
 - [Issue #1174](https://github.com/the-sarge/quic-go-fast/issues/1174) records that guarded 0-RTT resumption can fail activation, for R16 to resolve.
 - R13 #1033 is the remaining frontier slice, and R16 #1036 still requires it. [Parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) is the live view.
+
+---
+
+## R13 migration and transport detachment - 2026-11-04 09:16 EST
+
+**Main:** `8e05e5aa7a3e`
+**Actor:** Joshua Sargent with Claude
+
+### Summary
+
+R13 [#1033](https://github.com/the-sarge/quic-go-fast/issues/1033) landed in [PR #1177](https://github.com/the-sarge/quic-go-fast/pull/1177), after its scoped re-audit in [PR #1176](https://github.com/the-sarge/quic-go-fast/pull/1176). A path now moves to another native transport under the same wire ID, and a connection can observe when a transport can no longer destroy or send for it. Both stay behind private drivers, and public negotiation remains disabled.
+
+### Completed
+
+- Cutover validates on the target, fences the old tuple and then commits, with the PN space continuing and the old flight generation-qualified. An idle backup owes its new tuple an ack-eliciting packet, because a server only moves on a non-probing one.
+- A nil route stays path zero's current tuple. Its cutover moves the sender's primary fields without cancelling other paths' work, and an explicit origin reference keeps other paths on the connection's own transport from moving with it.
+- A server cuts over on its peer's highest non-probing packet from a validated tuple, on the CID that validated it. That rule is checked at commit.
+- One retained list carries old generations and aborted attempts on the four history units. Detachment publishes only after retention, consumed results and the transport map's close and reset ordering, and reset tokens now follow every attached transport.
+- Six findings deferred from R9 are resolved. A false `CONNECTION_ID_LIMIT_ERROR` is fixed too: retired records at or above the floor no longer count as active, which a cutover would otherwise have triggered.
+
+### Decisions
+
+- A primary endpoint fault stays fatal and closes through a survivor, as R14 shipped. Keeping the connection alive is a separate slice before public enablement, by owner decision on 2026-11-04. See the [plan's R13 section](adr/2026-10-24-multipath-reno-plan.md#r13).
+- A path whose ECN evidence has failed stays failed across cutover. Three distinct failures in restarting it triggered the approach stop, and the [re-audit](audits/2026-11-04-r13-migration-reaudit.md) records the reasoning.
+- A keyed transport stops sending stateless resets once a multipath connection detaches, since a live CID would otherwise draw a valid reset. Per-CID tombstones were rejected.
+
+### Validation
+
+16 deterministic scenarios (`TestPathMigration*`, `TestPathDetachAuthority`, `TestSentPathTupleECN`), one focused race run, affected-package tests, `go vet`, `go mod tidy -diff`, and `golangci-lint` native and `GOOS=windows`. All 17 hosted checks passed on the exact head `b3e1764509e1207e5bbc6678c63ed45b3f308896`, with main unmoved at merge. RAS review `20261104T085508-24bf370213cce45fdf91ea87` and replacement `20261104T093100-3e8a893293005b9388092266`, verified at that head with a clear blocking projection; dispositions are on the PR. No operational campaign ran, and no independent peer exercised migration.
+
+`a078e0f3` was pushed mid-review with `TestPathAdmissionTwoCandidates` failing locally, because a command didn't stop on failure. It was fixed in the next push, before any merge candidate.
+
+### Next
+
+R16 [#1036](https://github.com/the-sarge/quic-go-fast/issues/1036) has no open blockers. The fault-continuation slice has no child issue yet and needs `/architecture-handoff`. The [program index](adr/2026-10-24-multipath-program.md) and parent [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013) are the live view.
