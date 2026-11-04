@@ -4,12 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"time"
 
 	"github.com/quic-go/quic-go/internal/monotime"
 
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/qerr"
+	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/internal/wire"
 )
 
@@ -24,6 +26,14 @@ type pathCreditRegistry struct {
 	peerCIDLimit uint64
 	terminals    map[protocol.PathID]*pathTerminal
 	paths        map[protocol.PathID]bool // true only for charged live/validating slots
+
+	// Admission state exists only on the private endpoint route.
+	members      map[protocol.PathID]*pathMember
+	validated    []net.Addr
+	rtt          map[protocol.PathID]*utils.RTTStats
+	historyUnits int
+	attachments  map[*Transport]int
+	now          monotime.Time
 }
 
 type issuedPathCIDs struct {
@@ -48,13 +58,15 @@ func connectionRunnerCallbacks(runner connRunner, c *Conn) connRunnerCallbacks {
 }
 
 // enableMultipathCredit is private scenario activation. Production constructors
-// neither call it nor advertise multipath. R9 owns consumed-path admission.
+// neither call it nor advertise multipath. A connection already on the private
+// endpoint route gains consumed-path admission; any other keeps unused-ID credit.
 func (c *Conn) enableMultipathCredit(capacity int, peerMax protocol.PathID, peerCIDLimit uint64) (_ *wire.TransportParameters, err error) {
-	if c.emission.local != nil || c.pathCredit != nil || !c.handshakeConfirmed || c.version != protocol.Version1 || capacity < 1 || capacity > 2 || peerCIDLimit < 2 || c.emission.bbr != nil || c.connIDManager.closed || c.connIDManager.activeConnectionID.Len() == 0 || c.srcConnIDLen == 0 || c.connIDGenerator.generator.ConnectionIDLen() != c.srcConnIDLen || c.pathManager != nil || c.pathManagerOutgoing.Load() != nil || len(c.connIDManager.pathProbing) != 0 || uint64(len(c.connIDGenerator.activeSrcConnIDs)) > min(peerCIDLimit, 2) || len(c.connIDGenerator.activeSrcConnIDs)+len(c.connIDGenerator.connIDsToRetire) > maxPathCIDRecords {
+	if c.pathCredit != nil || !c.handshakeConfirmed || c.version != protocol.Version1 || capacity < 1 || capacity > 2 || peerCIDLimit < 2 || c.emission.bbr != nil || c.connIDManager.closed || c.connIDManager.activeConnectionID.Len() == 0 || c.srcConnIDLen == 0 || c.connIDGenerator.generator.ConnectionIDLen() != c.srcConnIDLen || c.pathManager != nil || c.pathManagerOutgoing.Load() != nil || len(c.connIDManager.pathProbing) != 0 || uint64(len(c.connIDGenerator.activeSrcConnIDs)) > min(peerCIDLimit, 2) || len(c.connIDGenerator.activeSrcConnIDs)+len(c.connIDGenerator.connIDsToRetire) > maxPathCIDRecords {
 		return nil, fmt.Errorf("invalid private multipath credit activation")
 	}
 	p := &pathCreditRegistry{conn: c, capacity: capacity, localMax: protocol.PathID(capacity - 1), peerMax: peerMax, peerCIDLimit: peerCIDLimit, paths: map[protocol.PathID]bool{0: true}, terminals: make(map[protocol.PathID]*pathTerminal)}
 	c.pathCredit = p
+	p.enableAdmission()
 	defer func() {
 		if err != nil {
 			// Once publication begins, rollback would erase routing obligations.
@@ -81,6 +93,9 @@ func (c *Conn) enableMultipathCredit(capacity int, peerMax protocol.PathID, peer
 func (p *pathCreditRegistry) issueWindow() error {
 	if p.localMax == 0 || p.peerMax == 0 || len(p.paths) >= p.capacity || p.terminals[1] != nil {
 		return nil
+	}
+	if err := p.admitIssuedKeys(1); err != nil {
+		return err
 	}
 	p.paths[1] = false
 	p.conn.connIDGenerator.pathCIDs[1] = &issuedPathCIDs{active: make(map[uint64]protocol.ConnectionID)}
@@ -139,6 +154,8 @@ type pathTerminal struct {
 	received   bool
 	unanswered monotime.Time
 	receipt    *pathAbandonReceipt
+	code       uint64
+	signaled   bool // PATH_ABANDON is queued; the submission fence has resolved
 }
 
 func threePathPTO(pto time.Duration) time.Duration {
@@ -159,7 +176,8 @@ func (p *pathCreditRegistry) abandon(id protocol.PathID, now monotime.Time) erro
 	if terminal == nil {
 		terminal = p.newTerminal()
 		p.terminals[id] = terminal
-		p.conn.queueControlFrame(&wire.PathAbandonFrame{PathID: id})
+		p.retireMember(id, ErrPathClosed)
+		p.signalTerminal(id, terminal)
 	}
 	if !terminal.expired && !terminal.received {
 		terminal.received = true
@@ -178,6 +196,9 @@ func (p *pathCreditRegistry) expire(now monotime.Time) error {
 	if p.closed {
 		return nil
 	}
+	if err := p.service(now); err != nil {
+		return err
+	}
 	p.conn.connIDManager.expirePathCIDs(now)
 	p.conn.connIDGenerator.expirePathCIDs(now)
 	for id, terminal := range p.terminals {
@@ -193,11 +214,13 @@ func (p *pathCreditRegistry) expire(now monotime.Time) error {
 				return &qerr.TransportError{ErrorCode: qerr.InternalError, ErrorMessage: "unanswered path abandonment"}
 			}
 		}
-		if !terminal.expired && terminal.expiry != 0 && !terminal.expiry.After(now) {
+		// Retention alone releases nothing: the signal proves the fence resolved.
+		if !terminal.expired && terminal.signaled && terminal.expiry != 0 && !terminal.expiry.After(now) {
 			p.conn.connIDGenerator.releasePathCIDs(id)
 			p.conn.connIDManager.releasePathCIDs(id)
 			terminal.expired = true
 			terminal.receipt.seal()
+			p.releaseMember(id)
 		}
 	}
 	return nil
@@ -229,11 +252,13 @@ func (p *pathCreditRegistry) nextExpiry() monotime.Time {
 			}
 		}
 	}
+	take(p.nextAdmissionExpiry())
 	for _, terminal := range p.terminals {
 		if !terminal.received && terminal.unanswered != 0 && (next == 0 || terminal.unanswered < next) {
 			next = terminal.unanswered
 		}
-		if !terminal.expired && terminal.expiry != 0 && (next == 0 || terminal.expiry < next) {
+		// An unresolved fence wakes through endpoint completion, not an elapsed timer.
+		if !terminal.expired && terminal.signaled && terminal.expiry != 0 && (next == 0 || terminal.expiry < next) {
 			next = terminal.expiry
 		}
 	}
@@ -272,17 +297,27 @@ func (p *pathCreditRegistry) resourceResult(id protocol.PathID, err error) error
 	if id == 0 {
 		return &qerr.TransportError{ErrorCode: qerr.InternalError, ErrorMessage: err.Error() + " on last usable path"}
 	}
-	if p.terminals[id] == nil {
-		p.terminals[id] = p.newTerminal()
-		if set := p.conn.connIDManager.pathCIDs[id]; set != nil {
-			set.terminal = true
-		}
-		if set := p.conn.connIDGenerator.pathCIDs[id]; set != nil {
-			set.terminal = true
-		}
-		p.conn.queueControlFrame(&wire.PathAbandonFrame{PathID: id, ErrorCode: 0x3e75})
-	}
+	p.decline(id, pathResourceLimitReached, ErrMultipathResourceLimitV1)
 	return nil
+}
+
+// decline closes id through the one terminal owner. Its signal follows any
+// outstanding submission fence, and unanswered abandonment keeps its obligations.
+func (p *pathCreditRegistry) decline(id protocol.PathID, code uint64, err error) {
+	if p.terminals[id] != nil {
+		return
+	}
+	terminal := p.newTerminal()
+	terminal.code = code
+	p.terminals[id] = terminal
+	if set := p.conn.connIDManager.pathCIDs[id]; set != nil {
+		set.terminal = true
+	}
+	if set := p.conn.connIDGenerator.pathCIDs[id]; set != nil {
+		set.terminal = true
+	}
+	p.retireMember(id, err)
+	p.signalTerminal(id, terminal)
 }
 
 func (p *pathCreditRegistry) retireCID(f *wire.PathRetireConnectionIDFrame, dest protocol.ConnectionID, now monotime.Time) error {

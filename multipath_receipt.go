@@ -91,4 +91,5 @@ func (p *pathCreditRegistry) close() {
 	for _, terminal := range p.terminals {
 		terminal.receipt.seal()
 	}
+	p.closeAdmission()
 }

@@ -208,6 +208,31 @@ func (m *connIDGenerator) ReplaceWithClosed(connClose []byte, expiry time.Durati
 	m.connRunners.ReplaceWithClosed(connIDs, connClose, expiry)
 }
 
+// addPathRunner attaches a transport under private multipath, retaining each
+// issued CID's path binding. Failure leaves obligations for ordinary close to clean.
+func (m *connIDGenerator) addPathRunner(runner connRunner, r connRunnerCallbacks) error {
+	if _, ok := m.connRunners[runner]; ok {
+		return nil
+	}
+	if r.AddPathConnectionID == nil {
+		return fmt.Errorf("transport cannot route path connection IDs")
+	}
+	m.connRunners[runner] = r
+	for id, set := range m.pathCIDs {
+		for _, cid := range set.active {
+			if !r.AddPathConnectionID(cid, id) {
+				return fmt.Errorf("cannot register path %d connection ID", id)
+			}
+		}
+		for _, entry := range set.retiring {
+			if !r.AddPathConnectionID(entry.connID, id) {
+				return fmt.Errorf("cannot register path %d connection ID", id)
+			}
+		}
+	}
+	return nil
+}
+
 func (m *connIDGenerator) AddConnRunner(runner connRunner, r connRunnerCallbacks) error {
 	if m.pathCIDs != nil {
 		return fmt.Errorf("legacy migration is unavailable with private multipath credit")

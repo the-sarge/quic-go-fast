@@ -356,6 +356,32 @@ func (s *nativeOrdinarySender) sendProbe(buffer *packetBuffer, target *Transport
 	return err
 }
 
+// probesPending reports whether a probe under epoch can still reach the socket.
+// It reads the endpoint's records and never waits for a native return.
+func (s *nativeOrdinarySender) probesPending(target *Transport, epoch *responseEpoch) bool {
+	endpoint := s.endpoint
+	if target != nil {
+		endpoint = nativeTransportEndpoint(target)
+	}
+	return endpoint != nil && endpoint.epochPending(epoch)
+}
+
+// epochPending reports an unresolved request under epoch. A claimed request stays
+// unresolved until actual native return.
+func (e *nativeEndpoint) epochPending(epoch *responseEpoch) bool {
+	pending := false
+	e.do(func(s *endpointState) {
+		for index := range s.records {
+			record := &s.records[index]
+			if record.used && !record.reserved && !record.terminal && record.request.epoch == epoch {
+				pending = true
+				return
+			}
+		}
+	})
+	return pending
+}
+
 func nativeTransportEndpoint(target *Transport) *nativeEndpoint {
 	if target == nil || target.responses == nil {
 		return nil
@@ -437,6 +463,13 @@ func (s *nativeOrdinarySender) consumeParticipant(participant *endpointParticipa
 			if result.accepted < 0 || result.uncertain < 0 || result.unsubmitted < 0 || result.accepted+result.uncertain+result.unsubmitted != record.datagrams {
 				s.err = errors.Join(s.err, errEndpointRequest)
 				break
+			}
+			if result.accepted == record.datagrams && result.err == nil {
+				for _, receipt := range record.metadata.terminalReceipts {
+					if receipt != nil {
+						receipt.publish(result.returnedAt)
+					}
+				}
 			}
 			for packetIndex, packet := range record.packets[:record.count] {
 				datagram := 0

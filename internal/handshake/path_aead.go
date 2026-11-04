@@ -31,7 +31,35 @@ type pathAEAD struct {
 	protection *pathProtection
 }
 
-// admitPath is a private fixture seam until R9 supplies authenticated membership.
+// AdmitShortHeaderPath gives an issued path ID its view of the shared key schedule.
+// The registry calls this when it issues a window, so a packet never allocates keys.
+func AdmitShortHeaderPath(sealer ShortHeaderSealer, id protocol.PathID, rtt *utils.RTTStats) error {
+	a, ok := sealer.(*updatableAEAD)
+	if !ok {
+		return ErrKeysDropped
+	}
+	return a.admitPath(id, rtt)
+}
+
+// RetireShortHeaderPath stops sealing on a path whose submissions have fenced.
+// Retained packets can still be opened until RemoveShortHeaderPath.
+func RetireShortHeaderPath(sealer ShortHeaderSealer, id protocol.PathID) error {
+	a, ok := sealer.(*updatableAEAD)
+	if !ok {
+		return ErrKeysDropped
+	}
+	return a.retirePath(id)
+}
+
+// RemoveShortHeaderPath drops a retired path's keys when its retention ends.
+func RemoveShortHeaderPath(sealer ShortHeaderSealer, id protocol.PathID) error {
+	a, ok := sealer.(*updatableAEAD)
+	if !ok {
+		return ErrKeysDropped
+	}
+	return a.removePath(id)
+}
+
 // Lookups from packets never allocate. IDs cannot be reused after removal.
 func (a *updatableAEAD) admitPath(id protocol.PathID, rtt *utils.RTTStats) error {
 	if id == 0 || id <= a.largestAdmittedPath || rtt == nil || a.rcvAEAD == nil || a.sendAEAD == nil || a.version != protocol.Version1 {

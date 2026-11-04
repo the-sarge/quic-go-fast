@@ -8,15 +8,19 @@ import (
 	"github.com/quic-go/quic-go/internal/utils"
 )
 
-// AddPath installs the second recovery context for private two-context fixtures.
-// Real path admission and emission remain disabled until R9/R10. Neither an ACK
-// nor an untrusted path identifier can allocate recovery state.
+// AddPath installs the second recovery context with its own RTT object.
 func (h *sentPacketHandler) AddPath(id protocol.PathID, size protocol.ByteCount) error {
+	return h.AddPathWithRTT(id, size, utils.NewRTTStats())
+}
+
+// AddPathWithRTT installs the second recovery context after authentication or
+// local commitment, sampling the RTT object crypto already reads for key retention.
+// Neither an ACK nor an untrusted path identifier can allocate recovery state.
+func (h *sentPacketHandler) AddPathWithRTT(id protocol.PathID, size protocol.ByteCount, rtt *utils.RTTStats) error {
 	if (h.local != nil && h.local.closed) || h.pathRoot != nil || id == 0 || len(h.paths) != 0 || !h.handshakeConfirmed ||
 		h.congestionEvents != nil || len(h.lostPackets.lostPackets) > 32 || len(h.ackCarriers.carriers) > maxRetiredAckCarriers/2 || size < protocol.MinInitialPacketSize {
 		return fmt.Errorf("ackhandler: recovery path unavailable: %d", id)
 	}
-	rtt := utils.NewRTTStats()
 	rtt.SetMaxAckDelay(h.rttStats.MaxAckDelay())
 	path := newSentPacketHandler(0, size, rtt, h.connStats, true, h.enableECN, h.ignorePacketsBelow, h.perspective, nil, h.logger, nil)
 	path.pathID, path.pathRoot = id, h
