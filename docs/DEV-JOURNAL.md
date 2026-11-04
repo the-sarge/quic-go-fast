@@ -8852,3 +8852,45 @@ RAS initial run `20261104T030452-d2c5c09706c945634f9cdb9a` raised the saturated-
 ### Next
 
 R12 [#1032](https://github.com/the-sarge/quic-go-fast/issues/1032) and R15 [#1035](https://github.com/the-sarge/quic-go-fast/issues/1035) remain ready, and R12's re-audit is open in [PR #1154](https://github.com/the-sarge/quic-go-fast/pull/1154). The [program index](adr/2026-10-24-multipath-program.md) is the live frontier.
+
+---
+
+## Multipath R15 primary and backup policy landed - 2026-11-04 00:14 EST
+
+**Main:** `f02813829ca3`
+**Actor:** Claude
+
+### Summary
+
+R15 [#1035](https://github.com/the-sarge/quic-go-fast/issues/1035) landed in [PR #1158](https://github.com/the-sarge/quic-go-fast/pull/1158) as `f0281382`. The connection loop now owns the sticky primary, three-attempt path suspicion, the native destination-error table and recovered-path demotion. Public negotiation stays disabled.
+
+### Completed
+
+- `reselect` in `multipath_policy.go` is the one owner of the designated primary, and the RTT observation follows it through the same stable object.
+- Recovery reports whether a PTO has a newly known-accepted packet behind it, and the newest tuple an ACK proved. Its own `ptoCount` is untouched, and ordinary connections keep neither fact.
+- A final destination error marks only the tuple it was sent on. Endpoint-fatal errors stay with the endpoint, and connections without admission keep their baseline.
+- A suspect path leaves the scheduler, drains reliable work through R10's queue and revalidates with one candidate at a time. With no primary, ordinary work is held while ACK and loss alarms still fire.
+
+### Decisions
+
+Declared seams are in the [R15 slice](adr/2026-10-24-multipath-reno-plan.md#r15). This policy adds no backup traffic, which answers R11's question: an idle backup keeps its validated PMTU and holds the common DATAGRAM limit down. `PATH_STATUS` only breaks ties below local use. The dispositions are on [PR #1158](https://github.com/the-sarge/quic-go-fast/pull/1158#issuecomment-6623165158).
+
+Two replacement-review findings were deferred under the review budget: stale PTO credit on a recovered backup ([#1159](https://github.com/the-sarge/quic-go-fast/issues/1159)), and whether DATAGRAMs should drop during stale-backup revalidation ([#1160](https://github.com/the-sarge/quic-go-fast/issues/1160)).
+
+### Validation
+
+| Check | Result |
+| --- | --- |
+| Scenarios | 13 in `multipath_policy_test.go`, one scheduler test and one recovery test, within the ceiling of 16 |
+| Focused race run | passes at the final head |
+| Root package and `internal/ackhandler` tests, `go vet`, `go mod tidy -diff` | pass |
+| `golangci-lint` on darwin, Windows and OpenBSD | 0 issues |
+| Hosted checks at `0c32e3a3` | 33 of 33 pass |
+
+The tests were written after the policy, against the plan's test-first rule. A stubbed policy supplied their red state, failing 9 of the first 12, and one guard mutation per owner covered the negative cases. The recovery watermark mutation first survived, which exposed a test that couldn't fail, and it was fixed. The first hosted lint also failed: native-only entries read as unused on non-native lanes, so they moved behind the native build tag.
+
+RAS initial run `20261104T043625-f59949d5ba09401a878bb77a` raised five findings, fixed at `0c32e3a3` and verified 9/9 resolved. Replacement run `20261104T045731-704dd92ea5905f870f907ba9` raised the two deferred follow-ups.
+
+### Next
+
+R12 [#1032](https://github.com/the-sarge/quic-go-fast/issues/1032) is ready, with draft [PR #1157](https://github.com/the-sarge/quic-go-fast/pull/1157) open. It overlaps `selectRoute` and the primary hand-off, so it needs to reconcile against `reselect` as the one owner. R16 [#1036](https://github.com/the-sarge/quic-go-fast/issues/1036) stays blocked by R13 and R14, so this merge makes no new slice ready. The [program index](adr/2026-10-24-multipath-program.md) is the live frontier.
