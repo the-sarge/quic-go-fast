@@ -18,6 +18,7 @@ import (
 	"github.com/quic-go/quic-go/internal/qerr"
 	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/internal/wire"
+	"github.com/quic-go/quic-go/qlogwriter"
 )
 
 const (
@@ -402,6 +403,7 @@ func (p *pathCreditRegistry) admitMember(id protocol.PathID, target *Transport, 
 	member := &pathMember{id: id, transport: target, deadline: pathDeadline(now, pathTimeout), established: path{validated: true, mtuValidated: true}}
 	member.fences = []pathFence{{transport: target, epoch: &member.established.probeEpoch}}
 	p.members[id] = member
+	p.observe(member, "admitted")
 	return member, nil
 }
 
@@ -463,17 +465,21 @@ func (p *pathCreditRegistry) activate(m *pathMember, addr net.Addr, info packetI
 	}
 	m.live, m.addr, m.info, m.transport = true, addr, info, target
 	m.backup, m.livenessAt = true, now
+	p.observe(m, "live")
 	p.startPMTU(m, target, now)
 	p.recordValidated(addr)
 	return true
 }
 
 // startPMTU gives a path that just went live its own finder, at the size its
-// validation proved. It reports to no first-path signal, and qlog's MTU event keeps
-// its first-path meaning until R14 qualifies it.
+// validation proved. It reports to no first-path signal, and qlog names its path.
 func (p *pathCreditRegistry) startPMTU(m *pathMember, target *Transport, now monotime.Time) {
 	m.pmtu = protocol.MinInitialPacketSize
-	m.route.mtu = newMTUDiscoverer(p.rtt[m.id], m.pmtu, p.conn.peerMaxPacketSize(), nil)
+	var recorder qlogwriter.Recorder
+	if p.conn.qlogger != nil {
+		recorder = pathMTURecorder{Recorder: p.conn.qlogger, member: m}
+	}
+	m.route.mtu = newMTUDiscoverer(p.rtt[m.id], m.pmtu, p.conn.peerMaxPacketSize(), recorder)
 	if p.conn.config.DisablePathMTUDiscovery {
 		return
 	}

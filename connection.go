@@ -325,7 +325,7 @@ var newConnection = func(
 		version:             v,
 	}
 	if qlogTrace != nil {
-		s.qlogger = qlogTrace.AddProducer()
+		s.qlogger = newConnRecorder(qlogTrace.AddProducer())
 	}
 	if origDestConnID.Len() > 0 {
 		s.logID = origDestConnID.String()
@@ -450,7 +450,7 @@ var newClientConnection = func(
 		version:             v,
 	}
 	if qlogTrace != nil {
-		s.qlogger = qlogTrace.AddProducer()
+		s.qlogger = newConnRecorder(qlogTrace.AddProducer())
 	}
 	if s.qlogger != nil {
 		var srcAddr, destAddr *net.UDPAddr
@@ -1468,6 +1468,7 @@ func (c *Conn) handleShortHeaderPacket(
 					Length:        int(p.Size()),
 					PayloadLength: int(p.Size() - wire.ShortHeaderLen(destConnID, pnLen)),
 				},
+				Path:                    c.pathCredit.qlogIngress(p.pathID),
 				DatagramPayloadChecksum: datagramPayloadChecksum,
 				Frames:                  frames,
 				ECN:                     toQlogECN(p.ecn),
@@ -2683,13 +2684,20 @@ func (c *Conn) handleCloseError(closeErr *closeError) {
 		})
 	}
 
+	admission := c.pathCredit != nil && c.pathCredit.hasAdmission()
+	drainExpiry := 3 * c.observedRTT().PTO(false)
+	if admission {
+		drainExpiry = threePathPTO(c.pathCredit.largestPTO(true))
+	}
 	// If this is a remote close we're done here
 	if isRemoteClose {
-		c.connIDGenerator.ReplaceWithClosed(nil, 3*c.observedRTT().PTO(false))
+		c.connIDGenerator.ReplaceWithClosed(nil, drainExpiry)
 		return
 	}
+	// A faulted endpoint stops only its own paths, so a survivor can still tell the peer.
+	closesViaSurvivor := admission && closeErr.immediate && errors.Is(e, errEndpointFault) && len(c.pathCredit.closeContexts(nil)) != 0
 	// Recreating for version negotiation never sends a close in the old version.
-	if closeErr.immediate || recreateErr != nil {
+	if (closeErr.immediate && !closesViaSurvivor) || recreateErr != nil {
 		c.connIDGenerator.RemoveAll()
 		return
 	}
@@ -2699,12 +2707,21 @@ func (c *Conn) handleCloseError(closeErr *closeError) {
 		c.connIDGenerator.RemoveAll()
 		return
 	}
+	if admission {
+		closed, err := c.emission.closePaths(e)
+		if err != nil {
+			c.logger.Debugf("Error sending CONNECTION_CLOSE: %s", err)
+			closeOutcome = candidateCloseFailure(err)
+		}
+		c.connIDGenerator.ReplaceWithClosedPaths(closed, drainExpiry)
+		return
+	}
 	connClosePacket, err := c.emission.close(e)
 	if err != nil {
 		c.logger.Debugf("Error sending CONNECTION_CLOSE: %s", err)
 		closeOutcome = candidateCloseFailure(err)
 	}
-	c.connIDGenerator.ReplaceWithClosed(connClosePacket, 3*c.observedRTT().PTO(false))
+	c.connIDGenerator.ReplaceWithClosed(connClosePacket, drainExpiry)
 }
 
 func (c *Conn) dropEncryptionLevel(encLevel protocol.EncryptionLevel, now monotime.Time) {

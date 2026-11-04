@@ -21,6 +21,7 @@ import (
 	"github.com/quic-go/quic-go/internal/testdata"
 	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/internal/wire"
+	"github.com/quic-go/quic-go/qlogwriter"
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -79,8 +80,13 @@ func admissionKeys(t *testing.T) (client, server handshake.CryptoSetup) {
 
 func newAdmissionFixture(t *testing.T, perspective protocol.Perspective) *admissionFixture {
 	t.Helper()
+	return newAdmissionFixtureWith(t, perspective, nil)
+}
+
+func newAdmissionFixtureWith(t *testing.T, perspective protocol.Perspective, tracer func(context.Context, bool, ConnectionID) qlogwriter.Trace) *admissionFixture {
+	t.Helper()
 	ctrl := gomock.NewController(t)
-	conf := &Config{InitialPacketSize: 1200, EnableDatagrams: true, DisablePathMTUDiscovery: true}
+	conf := &Config{InitialPacketSize: 1200, EnableDatagrams: true, DisablePathMTUDiscovery: true, Tracer: tracer}
 	var tc *testConnection
 	if perspective == protocol.PerspectiveServer {
 		tc = newServerTestConnection(t, ctrl, conf, false, connectionOptHandshakeConfirmed())
@@ -94,6 +100,8 @@ func newAdmissionFixture(t *testing.T, perspective protocol.Perspective) *admiss
 	if perspective == protocol.PerspectiveClient {
 		local, peer = clientKeys, serverKeys
 	}
+	local.DiscardInitialKeys()
+	local.SetHandshakeConfirmed() // a close seals no long header packet
 	c.emission.packer.cryptoSetup = local
 	c.unpacker = newPacketUnpacker(local, tc.srcConnID.Len())
 	c.sentPacketHandler.ReceivedBytes(1<<20, monotime.Now())
@@ -111,6 +119,7 @@ func newAdmissionFixture(t *testing.T, perspective protocol.Perspective) *admiss
 	c.connIDGenerator.initialClientDestConnID = nil
 	c.connIDGenerator.generator = &protocol.DefaultConnectionIDGenerator{ConnLen: tc.srcConnID.Len()}
 	c.connIDGenerator.connRunners = connRunners{route: connectionRunnerCallbacks(route, c)}
+	c.connIDGenerator.ownRunner = route
 	c.connIDManager.addStatelessResetToken = func(token protocol.StatelessResetToken) { route.AddResetToken(token, c) }
 	c.connIDManager.removeStatelessResetToken = route.RemoveResetToken
 	_, err := c.enableMultipathCredit(2, 1, 4)

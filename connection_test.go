@@ -34,6 +34,14 @@ import (
 
 type testConnectionOpt func(*Conn)
 
+// testConfigTrace lets a test give a connection's owners a recorder at construction.
+func testConfigTrace(config *Config, isClient bool) qlogwriter.Trace {
+	if config == nil || config.Tracer == nil {
+		return nil
+	}
+	return config.Tracer(context.Background(), isClient, ConnectionID{})
+}
+
 func connectionOptCryptoSetup(cs *mocks.MockCryptoSetup) testConnectionOpt {
 	return func(conn *Conn) { conn.cryptoStreamHandler = cs }
 }
@@ -163,7 +171,7 @@ func newServerTestConnection(
 		handshake.NewTokenGenerator(handshake.TokenProtectorKey{}),
 		false,
 		1337*time.Millisecond,
-		nil,
+		testConfigTrace(config, false),
 		utils.DefaultLogger,
 		protocol.Version1,
 	)
@@ -241,7 +249,7 @@ func buildClientTestConnection(
 		enable0RTT,
 		negotiated,
 		lowered,
-		nil,
+		testConfigTrace(config, true),
 		utils.DefaultLogger,
 		version,
 	)

@@ -53,8 +53,10 @@ func connectionRunnerCallbacks(runner connRunner, c *Conn) connRunnerCallbacks {
 	}
 	if paths, ok := runner.(interface {
 		AddPath(protocol.ConnectionID, protocol.PathID, packetHandler) bool
+		ReplaceWithClosedPaths([]protocol.ConnectionID, *closedPaths, bool, time.Duration)
 	}); ok {
 		callbacks.AddPathConnectionID = func(id protocol.ConnectionID, path protocol.PathID) bool { return paths.AddPath(id, path, c) }
+		callbacks.ReplaceWithClosedPaths = paths.ReplaceWithClosedPaths
 	}
 	return callbacks
 }
@@ -69,6 +71,9 @@ func (c *Conn) enableMultipathCredit(capacity int, peerMax protocol.PathID, peer
 	p := &pathCreditRegistry{conn: c, capacity: capacity, localMax: protocol.PathID(capacity - 1), peerMax: peerMax, nextID: 1, peerCIDLimit: peerCIDLimit, paths: map[protocol.PathID]bool{0: true}, terminals: make(map[protocol.PathID]*pathTerminal)}
 	c.pathCredit = p
 	p.enableAdmission()
+	if recorder, ok := c.qlogger.(*connRecorder); ok && p.hasAdmission() {
+		recorder.bufferEvents(p.qlogZero)
+	}
 	defer func() {
 		if err != nil {
 			// Once publication begins, rollback would erase routing obligations.
@@ -366,6 +371,7 @@ func (p *pathCreditRegistry) beginTerminal(id protocol.PathID, code uint64, err 
 	terminal.unit = id != 0 && p.members[id] != nil
 	p.terminals[id] = terminal
 	p.nextID = max(p.nextID, id+1)
+	p.observe(p.members[id], "retiring")
 	p.retireMember(id, err)
 	p.reselect(monotime.Now())
 	p.signalTerminal(id, terminal)
@@ -402,6 +408,7 @@ func (p *pathCreditRegistry) reclaim(id protocol.PathID, terminal *pathTerminal,
 	p.conn.connIDManager.releasePathCIDs(id)
 	terminal.expired = true
 	terminal.receipt.seal()
+	p.observe(p.members[id], "released")
 	p.releaseMember(id)
 	if !p.hasAdmission() {
 		return // the credit-only fixture has one window and keeps its record

@@ -32,17 +32,35 @@ func newClosedLocalConn(sendPacket func(net.Addr, packetInfo), logger utils.Logg
 func (c *closedLocalConn) handlePacket(p receivedPacket) {
 	defer p.buffer.Release()
 	n := c.counter.Add(1)
-	// exponential backoff
-	// only send a CONNECTION_CLOSE for the 1st, 2nd, 4th, 8th, 16th, ... packet arriving
-	if bits.OnesCount32(n) != 1 {
+	if !closeBackoffAllows(n) {
 		return
 	}
 	c.logger.Debugf("Received %d packets after sending CONNECTION_CLOSE. Retransmitting.", n)
 	c.sendPacket(p.remoteAddr, p.info)
 }
 
+// closeBackoffAllows is the exponential backoff: only send a CONNECTION_CLOSE for
+// the 1st, 2nd, 4th, 8th, 16th, ... packet arriving.
+func closeBackoffAllows(n uint32) bool { return bits.OnesCount32(n) == 1 }
+
 func (c *closedLocalConn) destroy(error)                              {}
 func (c *closedLocalConn) closeWithTransportError(TransportErrorCode) {}
+
+// A closedPathConn is one transport's view of a multipath connection we closed.
+type closedPathConn struct {
+	closed    *closedPaths
+	authority *connAuthority
+}
+
+var _ packetHandler = &closedPathConn{}
+
+func (c *closedPathConn) handlePacket(p receivedPacket) {
+	defer p.buffer.Release()
+	c.closed.respond(p.pathID)
+}
+
+func (c *closedPathConn) destroy(error)                              {}
+func (c *closedPathConn) closeWithTransportError(TransportErrorCode) {}
 
 // A closedRemoteConn is a connection that was closed remotely.
 // For such a connection, we might receive reordered packets that were sent before the CONNECTION_CLOSE.

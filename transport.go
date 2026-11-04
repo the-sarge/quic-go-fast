@@ -1106,6 +1106,47 @@ func (h *packetHandlerMap) deliverPermitted(connID protocol.ConnectionID, p rece
 // * remote close: absorb delayed packets
 // * local close: retransmit the CONNECTION_CLOSE packet, in case it was lost
 func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connClosePacket []byte, expiry time.Duration) {
+	h.replaceClosed(ids, expiry, func(authority *connAuthority, responses *endpointResponses) packetHandler {
+		if connClosePacket == nil {
+			return withAuthority(newClosedRemoteConn(), authority)
+		}
+		return withAuthority(newClosedLocalConn(
+			func(addr net.Addr, info packetInfo) { h.queueClose(connClosePacket, addr, info, authority, responses) },
+			h.logger,
+		), authority)
+	})
+}
+
+// ReplaceWithClosedPaths routes this transport's IDs to a multipath connection's
+// cached close. Each response is sent by its own transport, under that transport's
+// response epoch, so retirement revokes what it has queued.
+func (h *packetHandlerMap) ReplaceWithClosedPaths(ids []protocol.ConnectionID, closed *closedPaths, own bool, expiry time.Duration) {
+	h.replaceClosed(ids, expiry, func(authority *connAuthority, responses *endpointResponses) packetHandler {
+		closed.bind((*Transport)(h), own, func(r *closeResponse) {
+			h.queueClose(r.packet, r.addr, r.info, authority, responses)
+		})
+		return withAuthority(&closedPathConn{closed: closed}, authority)
+	})
+}
+
+// queueClose never blocks: CONNECTION_CLOSE copies are best effort.
+func (h *packetHandlerMap) queueClose(payload []byte, addr net.Addr, info packetInfo, authority *connAuthority, responses *endpointResponses) {
+	if responses != nil {
+		if !responses.epoch.valid() {
+			return
+		}
+		if destination, ok := addr.(*net.UDPAddr); ok && destination != nil {
+			addr = net.UDPAddrFromAddrPort(destination.AddrPort())
+		}
+	}
+	select {
+	case h.closeQueue <- closePacket{payload: payload, addr: addr, info: info, authority: authority, responses: responses}:
+	default:
+		// We're backlogged.
+	}
+}
+
+func (h *packetHandlerMap) replaceClosed(ids []protocol.ConnectionID, expiry time.Duration, newHandler func(*connAuthority, *endpointResponses) packetHandler) {
 	// Closed entries keep the connection's token, so a later group transition
 	// also governs their input and close retransmissions. They also keep an
 	// untransferred setup reservation until they are retired, on every
@@ -1126,31 +1167,7 @@ func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connCl
 	h.mutex.Unlock()
 	retired := setup.holdClosing()
 	responses := h.responses.child()
-	var handler packetHandler
-	if connClosePacket != nil {
-		handler = newClosedLocalConn(
-			func(addr net.Addr, info packetInfo) {
-				if responses != nil {
-					if !responses.epoch.valid() {
-						return
-					}
-					if destination, ok := addr.(*net.UDPAddr); ok && destination != nil {
-						addr = net.UDPAddrFromAddrPort(destination.AddrPort())
-					}
-				}
-				select {
-				case h.closeQueue <- closePacket{payload: connClosePacket, addr: addr, info: info, authority: authority, responses: responses}:
-				default:
-					// We're backlogged.
-					// Just drop the packet, sending CONNECTION_CLOSE copies is best effort anyway.
-				}
-			},
-			h.logger,
-		)
-	} else {
-		handler = newClosedRemoteConn()
-	}
-	handler = withAuthority(handler, authority)
+	handler := newHandler(authority, responses)
 
 	// Settlement can call user code, so never take the reservation mutex while
 	// holding the transport mutex. A settled reservation never becomes pending.

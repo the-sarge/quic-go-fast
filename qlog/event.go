@@ -211,8 +211,53 @@ func (e ConnectionClosed) Encode(enc *jsontext.Encoder, _ time.Time) error {
 	return h.err
 }
 
+// PathIdentity names a multipath protocol path and its tuple generation. It is absent
+// for ordinary connections. It is private to this fork's diagnostics and makes no
+// claim about any qlog schema.
+type PathIdentity struct {
+	PathID          uint64
+	TupleGeneration uint64
+}
+
+func (p *PathIdentity) encode(enc *jsontext.Encoder) error {
+	if p == nil {
+		return nil
+	}
+	h := encoderHelper{enc: enc}
+	h.WriteToken(jsontext.String("path"))
+	h.WriteToken(jsontext.BeginObject)
+	h.WriteToken(jsontext.String("path_id"))
+	h.WriteToken(jsontext.Uint(p.PathID))
+	h.WriteToken(jsontext.String("tuple_generation"))
+	h.WriteToken(jsontext.Uint(p.TupleGeneration))
+	h.WriteToken(jsontext.EndObject)
+	return h.err
+}
+
+// PathLifecycleUpdated records a multipath path's transition. It carries the same
+// private status as [PathIdentity].
+type PathLifecycleUpdated struct {
+	Path  PathIdentity
+	State string
+}
+
+func (e PathLifecycleUpdated) Name() string { return "transport:path_lifecycle_updated" }
+
+func (e PathLifecycleUpdated) Encode(enc *jsontext.Encoder, _ time.Time) error {
+	h := encoderHelper{enc: enc}
+	h.WriteToken(jsontext.BeginObject)
+	if err := e.Path.encode(enc); err != nil {
+		return err
+	}
+	h.WriteToken(jsontext.String("state"))
+	h.WriteToken(jsontext.String(e.State))
+	h.WriteToken(jsontext.EndObject)
+	return h.err
+}
+
 type PacketSent struct {
 	Header                  PacketHeader
+	Path                    *PathIdentity
 	Raw                     RawInfo
 	DatagramPayloadChecksum DatagramPayloadChecksum
 	Frames                  []Frame
@@ -229,6 +274,9 @@ func (e PacketSent) Encode(enc *jsontext.Encoder, _ time.Time) error {
 	h.WriteToken(jsontext.BeginObject)
 	h.WriteToken(jsontext.String("header"))
 	if err := e.Header.encode(enc); err != nil {
+		return err
+	}
+	if err := e.Path.encode(enc); err != nil {
 		return err
 	}
 	h.WriteToken(jsontext.String("raw"))
@@ -263,6 +311,7 @@ func (e PacketSent) Encode(enc *jsontext.Encoder, _ time.Time) error {
 
 type PacketReceived struct {
 	Header                  PacketHeader
+	Path                    *PathIdentity
 	Raw                     RawInfo
 	DatagramPayloadChecksum DatagramPayloadChecksum
 	Frames                  []Frame
@@ -278,6 +327,9 @@ func (e PacketReceived) Encode(enc *jsontext.Encoder, _ time.Time) error {
 	h.WriteToken(jsontext.BeginObject)
 	h.WriteToken(jsontext.String("header"))
 	if err := e.Header.encode(enc); err != nil {
+		return err
+	}
+	if err := e.Path.encode(enc); err != nil {
 		return err
 	}
 	h.WriteToken(jsontext.String("raw"))
@@ -442,6 +494,7 @@ func (e StreamPriorityUpdated) Encode(enc *jsontext.Encoder, _ time.Time) error 
 type MTUUpdated struct {
 	Value int
 	Done  bool
+	Path  *PathIdentity
 }
 
 func (e MTUUpdated) Name() string { return "recovery:mtu_updated" }
@@ -453,6 +506,9 @@ func (e MTUUpdated) Encode(enc *jsontext.Encoder, _ time.Time) error {
 	h.WriteToken(jsontext.Uint(uint64(e.Value)))
 	h.WriteToken(jsontext.String("done"))
 	h.WriteToken(jsontext.Bool(e.Done))
+	if err := e.Path.encode(enc); err != nil {
+		return err
+	}
 	h.WriteToken(jsontext.EndObject)
 	return h.err
 }
@@ -527,6 +583,7 @@ func (e PTOCountUpdated) Encode(enc *jsontext.Encoder, _ time.Time) error {
 type PacketLost struct {
 	Header  PacketHeader
 	Trigger PacketLossReason
+	Path    *PathIdentity
 }
 
 func (e PacketLost) Name() string { return "recovery:packet_lost" }
@@ -540,6 +597,9 @@ func (e PacketLost) Encode(enc *jsontext.Encoder, _ time.Time) error {
 	}
 	h.WriteToken(jsontext.String("trigger"))
 	h.WriteToken(jsontext.String(string(e.Trigger)))
+	if err := e.Path.encode(enc); err != nil {
+		return err
+	}
 	h.WriteToken(jsontext.EndObject)
 	return h.err
 }

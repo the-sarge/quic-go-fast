@@ -169,14 +169,13 @@ type endpointParticipant struct {
 	// queued work keeps running, and control disposes of its results. Detaching
 	// takes effect once its close obligation and retained requests are gone.
 	draining, detaching bool
-	closing             endpointClosing
+	closings            []endpointClosing
 }
 
-// endpointClosing is a connection's one close obligation, held in a field that
+// endpointClosing is one of a connection's close obligations, at most one per path, held in a field that
 // attachment already reserved. The buffer stays outside the endpoint's capacity
 // until admission, like any other producer-owned packet.
 type endpointClosing struct {
-	pending  bool
 	request  endpointRequest
 	size     int
 	deadline time.Time
@@ -542,18 +541,21 @@ func (e *nativeEndpoint) detach(p *endpointParticipant) <-chan struct{} {
 func (s *endpointState) serviceClosers(now time.Time) {
 	for j := 0; j < len(s.closers); {
 		p := s.closers[j]
-		if s.faulted || !now.Before(p.closing.deadline) {
+		closing := &p.closings[0]
+		if s.faulted || !now.Before(closing.deadline) {
 			s.dropClosing(p)
 			s.finishDrain(p)
 			continue
 		}
 		if p.retained == 0 {
-			if admission, err := s.admit(p, 2, p.closing.size); err == nil {
-				request := p.closing.request
-				request.deadline = p.closing.deadline
+			if admission, err := s.admit(p, 2, closing.size); err == nil {
+				request := closing.request
+				request.deadline = closing.deadline
 				s.commit(admission, request)
-				p.closing = endpointClosing{}
-				s.closers = slices.Delete(s.closers, j, j+1)
+				p.closings = slices.Delete(p.closings, 0, 1)
+				if len(p.closings) == 0 {
+					s.closers = slices.Delete(s.closers, j, j+1)
+				}
 				s.chooseGrant(now)
 				continue
 			}
@@ -563,18 +565,20 @@ func (s *endpointState) serviceClosers(now time.Time) {
 }
 
 func (s *endpointState) dropClosing(p *endpointParticipant) {
-	if !p.closing.pending {
+	if len(p.closings) == 0 {
 		return
 	}
-	for _, buffer := range p.closing.request.buffers {
-		buffer.Release()
+	for _, closing := range p.closings {
+		for _, buffer := range closing.request.buffers {
+			buffer.Release()
+		}
 	}
-	p.closing = endpointClosing{}
+	p.closings = nil
 	s.closers = slices.DeleteFunc(s.closers, func(closer *endpointParticipant) bool { return closer == p })
 }
 
 func (s *endpointState) finishDrain(p *endpointParticipant) {
-	if p.active && p.detaching && !p.closing.pending && p.retained == 0 {
+	if p.active && p.detaching && len(p.closings) == 0 && p.retained == 0 {
 		s.revoke(p)
 	}
 }
@@ -752,7 +756,7 @@ func (s *endpointState) run() {
 			next = earlierEndpointTime(next, s.records[i].request.deadline)
 		}
 		for _, p := range s.closers {
-			next = earlierEndpointTime(next, p.closing.deadline)
+			next = earlierEndpointTime(next, p.closings[0].deadline)
 		}
 		if !next.IsZero() {
 			timer.Reset(time.Until(next))

@@ -48,6 +48,20 @@ type (
 	StreamsBlockedFrame = wire.StreamsBlockedFrame
 	// A StreamDataBlockedFrame is a STREAM_DATA_BLOCKED frame.
 	StreamDataBlockedFrame = wire.StreamDataBlockedFrame
+	// A PathAbandonFrame is a draft-21 PATH_ABANDON frame.
+	PathAbandonFrame = wire.PathAbandonFrame
+	// A PathStatusFrame is a draft-21 PATH_STATUS_BACKUP or PATH_STATUS_AVAILABLE frame.
+	PathStatusFrame = wire.PathStatusFrame
+	// A PathNewConnectionIDFrame is a draft-21 PATH_NEW_CONNECTION_ID frame.
+	PathNewConnectionIDFrame = wire.PathNewConnectionIDFrame
+	// A PathRetireConnectionIDFrame is a draft-21 PATH_RETIRE_CONNECTION_ID frame.
+	PathRetireConnectionIDFrame = wire.PathRetireConnectionIDFrame
+	// A MaxPathIDFrame is a draft-21 MAX_PATH_ID frame.
+	MaxPathIDFrame = wire.MaxPathIDFrame
+	// A PathsBlockedFrame is a draft-21 PATHS_BLOCKED frame.
+	PathsBlockedFrame = wire.PathsBlockedFrame
+	// A PathCIDsBlockedFrame is a draft-21 PATH_CIDS_BLOCKED frame.
+	PathCIDsBlockedFrame = wire.PathCIDsBlockedFrame
 	// An AckFrequencyFrame is an ACK_FREQUENCY frame.
 	AckFrequencyFrame = wire.AckFrequencyFrame
 	// An ImmediateAckFrame is an IMMEDIATE_ACK frame.
@@ -133,9 +147,62 @@ func (f Frame) Encode(enc *jsontext.Encoder) error {
 		return encodeAckFrequencyFrame(enc, frame)
 	case *ImmediateAckFrame:
 		return encodeImmediateAckFrame(enc, frame)
+	case *PathAbandonFrame:
+		return encodePathFrame(enc, "path_abandon", pathField{"path_id", uint64(frame.PathID)}, pathField{"error_code", uint64(frame.ErrorCode)})
+	case *PathStatusFrame:
+		frameType := "path_status_available"
+		if frame.Backup {
+			frameType = "path_status_backup"
+		}
+		return encodePathFrame(enc, frameType, pathField{"path_id", uint64(frame.PathID)}, pathField{"sequence_number", frame.SequenceNumber})
+	case *PathNewConnectionIDFrame:
+		return encodePathNewConnectionIDFrame(enc, frame)
+	case *PathRetireConnectionIDFrame:
+		return encodePathFrame(enc, "path_retire_connection_id", pathField{"path_id", uint64(frame.PathID)}, pathField{"sequence_number", frame.SequenceNumber})
+	case *MaxPathIDFrame:
+		return encodePathFrame(enc, "max_path_id", pathField{"maximum_path_id", uint64(frame.MaximumPathID)})
+	case *PathsBlockedFrame:
+		return encodePathFrame(enc, "paths_blocked", pathField{"maximum_path_id", uint64(frame.MaximumPathID)})
+	case *PathCIDsBlockedFrame:
+		return encodePathFrame(enc, "path_cids_blocked", pathField{"path_id", uint64(frame.PathID)}, pathField{"next_sequence_number", frame.NextSequenceNumber})
 	default:
 		panic("unknown frame type")
 	}
+}
+
+type pathField struct {
+	name  string
+	value uint64
+}
+
+func encodePathFrame(enc *jsontext.Encoder, frameType string, fields ...pathField) error {
+	h := encoderHelper{enc: enc}
+	h.WriteToken(jsontext.BeginObject)
+	h.WriteToken(jsontext.String("frame_type"))
+	h.WriteToken(jsontext.String(frameType))
+	for _, field := range fields {
+		h.WriteToken(jsontext.String(field.name))
+		h.WriteToken(jsontext.Uint(field.value))
+	}
+	h.WriteToken(jsontext.EndObject)
+	return h.err
+}
+
+func encodePathNewConnectionIDFrame(enc *jsontext.Encoder, f *PathNewConnectionIDFrame) error {
+	h := encoderHelper{enc: enc}
+	h.WriteToken(jsontext.BeginObject)
+	h.WriteToken(jsontext.String("frame_type"))
+	h.WriteToken(jsontext.String("path_new_connection_id"))
+	h.WriteToken(jsontext.String("path_id"))
+	h.WriteToken(jsontext.Uint(uint64(f.PathID)))
+	h.WriteToken(jsontext.String("sequence_number"))
+	h.WriteToken(jsontext.Uint(f.SequenceNumber))
+	h.WriteToken(jsontext.String("retire_prior_to"))
+	h.WriteToken(jsontext.Uint(f.RetirePriorTo))
+	h.WriteToken(jsontext.String("connection_id"))
+	h.WriteToken(jsontext.String(f.ConnectionID.String()))
+	h.WriteToken(jsontext.EndObject)
+	return h.err
 }
 
 func encodePingFrame(enc *jsontext.Encoder, _ *PingFrame) error {
@@ -178,7 +245,13 @@ func encodeAckFrame(enc *jsontext.Encoder, f *AckFrame) error {
 	h := encoderHelper{enc: enc}
 	h.WriteToken(jsontext.BeginObject)
 	h.WriteToken(jsontext.String("frame_type"))
-	h.WriteToken(jsontext.String("ack"))
+	if f.HasPathID {
+		h.WriteToken(jsontext.String("path_ack"))
+		h.WriteToken(jsontext.String("path_id"))
+		h.WriteToken(jsontext.Uint(uint64(f.PathID)))
+	} else {
+		h.WriteToken(jsontext.String("ack"))
+	}
 	if f.DelayTime > 0 {
 		h.WriteToken(jsontext.String("ack_delay"))
 		h.WriteToken(jsontext.Float(milliseconds(f.DelayTime)))
