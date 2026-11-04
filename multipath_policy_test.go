@@ -9,6 +9,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/utils"
@@ -240,12 +241,43 @@ func TestPathPolicyStaleBackupRevalidatesBeforePromotion(t *testing.T) {
 		require.Same(t, source, f.observed(), "with no eligible primary the last observation stays")
 		require.Zero(t, reliableBytes(f.parseWrites(t, 1)), "and carries no application data")
 
+		f.queueDatagram(t, 100)
+		f.queueDatagram(t, 100)
+		f.pass(t)
+		require.Nil(t, f.c.datagramQueue.Peek(), "the hold is no eligible carrier")
+		require.EqualValues(t, 2, f.c.datagramQueue.sendDrops.Load())
+		require.Empty(t, reliableDatagrams(f.parseWrites(t, 0)))
+		require.Empty(t, reliableDatagrams(f.parseWrites(t, 1)))
+
 		f.answerChallenge(t, 1)
 		require.Equal(t, protocol.PathID(1), p.primary)
 		require.Same(t, p.rtt[1], f.observed())
 		f.socket.writes = nil
 		f.pass(t)
 		require.Equal(t, 1000, reliableBytes(f.parseWrites(t, 1)))
+	})
+
+	// A PTO pending on the stale backup is still its probe, and carries no DATAGRAM.
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		p := f.c.pathCredit
+		p.selectPrimaryPrivate(1)
+		f.write(t, 1000)
+		f.pass(t)
+		p.selectPrimaryPrivate(0)
+		time.Sleep(minBackupFreshness + time.Second)
+		f.expirePTO(t, 1)
+		require.Equal(t, ackhandler.SendPTOAppData, f.recovery(1).SendMode(monotime.Now()))
+		p.markSuspect(p.members[0], monotime.Now())
+		require.Equal(t, noPrimary, p.primary)
+
+		f.socket.writes = nil
+		f.queueDatagram(t, 100)
+		f.pass(t)
+		require.Nil(t, f.c.datagramQueue.Peek())
+		require.EqualValues(t, 1, f.c.datagramQueue.sendDrops.Load())
+		require.NotEmpty(t, f.parseWrites(t, 1), "the probe still leaves")
+		require.Empty(t, reliableDatagrams(f.parseWrites(t, 1)))
 	})
 }
 

@@ -180,7 +180,12 @@ func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pat
 	if limit != protocol.MaxByteCount {
 		p.conn.pathPayloadLimit.Store(uint32(limit))
 	}
-	p.placeDatagram(views)
+	if p.primary == noPrimary {
+		// The hold is no eligible carrier, and a frame must not wait out revalidation.
+		p.placeDatagram(nil)
+	} else {
+		p.placeDatagram(views)
+	}
 	chosen, steer, steering, held := selectPath(views, p.primary)
 	if held {
 		return p.heldRoute(), nil, false, true
