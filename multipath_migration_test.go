@@ -240,10 +240,8 @@ func TestPathMigrationExhaustedCredit(t *testing.T) {
 			count := 0
 			for _, write := range f.parseWrites(t, 1) {
 				for _, frame := range write.frames {
-					switch frame.(type) {
-					case *wire.PathChallengeFrame, *wire.PathResponseFrame:
-					default:
-						count++ // a non-probing frame
+					if _, ok := frame.(*wire.PingFrame); ok {
+						count++ // always ack-eliciting, whatever else fills the packet
 					}
 				}
 			}
@@ -299,6 +297,33 @@ func TestPathMigrationExhaustedCredit(t *testing.T) {
 // TestPathMigrationAnswersOnNewTuple answers a peer's challenge on the socket it
 // reached, with the same remote address on both, and stops answering on the old one.
 func TestPathMigrationAnswersOnNewTuple(t *testing.T) {
+	t.Run("never through the old socket, even with the candidate's CID gone", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			target, _ := migrationTarget(t, f)
+			ctx, cancel := context.WithCancel(context.Background())
+			errs := migrateAsync(ctx, f, 0, target)
+			f.pass(t)
+			f.socket.writes = nil
+			packet := f.peerPacket(t, 0, f.c.pathCredit.members[0].addr, 1200, false, &wire.PathChallengeFrame{Data: [8]byte{6}})
+			packet.transport = target
+			_, err := f.c.handleShortHeaderPacket(packet, false, 0)
+			require.NoError(t, err)
+			cid := make([]byte, f.tc.destConnID.Len())
+			cid[0] = 0xe1
+			require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathNewConnectionIDFrame{PathID: 0, SequenceNumber: 9, RetirePriorTo: 9, ConnectionID: protocol.ParseConnectionID(cid), StatelessResetToken: protocol.StatelessResetToken{0xe1}}))
+			f.pass(t)
+			for _, write := range f.peerWrites(t, 0) {
+				for _, frame := range write.frames {
+					_, response := frame.(*wire.PathResponseFrame)
+					require.False(t, response, "the old socket doesn't answer the new one's challenge")
+				}
+			}
+			cancel()
+			require.ErrorIs(t, <-errs, context.Canceled)
+		})
+	})
 	nativeOrdinaryTest(t, func(t *testing.T) {
 		f := newAdmissionFixture(t, protocol.PerspectiveClient)
 		f.supplyPeerCIDs(t)
@@ -524,6 +549,8 @@ func TestPathMigrationCancelAfterCommit(t *testing.T) {
 		cancel()
 		require.NoError(t, <-errs, "cutover committed, so this reports success")
 		require.Equal(t, target, f.c.pathCredit.members[0].transport)
+		require.Equal(t, target.conn.LocalAddr(), f.c.LocalAddr(), "success means the cutover is complete")
+		require.Nil(t, f.c.pathOpen.Load())
 	})
 }
 
@@ -565,14 +592,20 @@ func TestPathMigrationIncomingRebinding(t *testing.T) {
 		require.Equal(t, old, p.members[0].addr, "a probe moves nothing")
 		require.Equal(t, standby, p.members[0].standby.connID)
 
+		sender := f.c.emission.local.(*nativeOrdinarySender)
+		sender.writeState.gsoDisabled.Store(true)
 		f.tc.sendConn.EXPECT().ChangeRemoteAddr(admissionTupleB, gomock.Any())
 		require.True(t, f.receive(t, 0, admissionTupleB, 100, &wire.PingFrame{}))
 		f.pass(t)
 		f.pass(t)
 		require.Equal(t, admissionTupleB, p.members[0].addr)
 		require.Equal(t, standby, f.c.connIDManager.Get(), "the CID that validated it")
-		sender := f.c.emission.local.(*nativeOrdinarySender)
 		require.Equal(t, admissionTupleB.AddrPort().Port(), sender.destination.Port(), "path zero's sends follow")
+		require.False(t, sender.writeState.gsoDisabled.Load(), "the old tuple's fallback stays behind")
+		sender.writeState.wroteFirstPacket = true
+		sender.rebindZero(admissionTupleB, packetInfo{}, nil)
+		require.False(t, sender.writeState.wroteFirstPacket, "the new tuple's first write can retry")
+
 		require.Equal(t, 1, p.historyUnits)
 
 		// The packet that created a candidate counts, and newer traffic on the current
@@ -632,6 +665,17 @@ func TestPathMigrationIncomingRebinding(t *testing.T) {
 		require.True(t, f.receive(t, 0, old, 100, &wire.PathChallengeFrame{Data: [8]byte{2}}))
 		f.pass(t)
 		require.Equal(t, tupleD, p.members[0].addr)
+
+		// A standby selected again stays usable, rather than being retired as it's chosen.
+		cid(8)
+		spare, ok := f.c.connIDManager.pathDestination(0, true)
+		require.True(t, ok)
+		p.members[0].standby = &pathStandby{addr: admissionTupleA, connID: spare}
+		reselected, ok := p.standbyCID(p.members[0], &net.UDPAddr{IP: net.IPv4(192, 0, 2, 14), Port: 1004}, packetInfo{})
+		require.True(t, ok)
+		require.Equal(t, spare, reselected)
+		require.True(t, f.c.connIDManager.pathDestinationUsable(0, spare))
+		p.members[0].standby = nil
 	})
 }
 

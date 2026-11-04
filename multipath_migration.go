@@ -248,7 +248,7 @@ func (p *pathCreditRegistry) standbyCID(m *pathMember, addr net.Addr, info packe
 	if !ok {
 		return protocol.ConnectionID{}, false
 	}
-	if m.standby != nil {
+	if m.standby != nil && m.standby.connID != connID {
 		manager.retirePathDestination(m.id, m.standby.connID, pathDeadline(monotime.Now(), threePathPTO(p.largestPTO(false))))
 	}
 	m.standby = &pathStandby{addr: addr, info: info, connID: connID}
@@ -298,13 +298,14 @@ func (p *pathCreditRegistry) serviceCutover(m *pathMember, now monotime.Time) {
 		p.retireCandidate(m)
 		return
 	}
-	if request != nil && !request.finish(nil) {
+	if request != nil && !request.claim() {
 		p.retireCandidate(m)
 		return
 	}
 	p.commitTuple(m, candidate, now)
 	if request != nil {
 		p.conn.pathOpen.CompareAndSwap(request, nil)
+		request.done <- nil // success means the cutover is complete
 	}
 }
 

@@ -780,6 +780,8 @@ func (s *nativeOrdinarySender) rebindZero(address net.Addr, info packetInfo, con
 	}
 	s.finish()
 	s.destination, s.oob, s.info = destination, info.OOB(), info
+	s.writeState.wroteFirstPacket = false
+	s.writeState.gsoDisabled.Store(false)
 	if native, ok := conn.(*nativeOrdinaryConn); ok {
 		native.sendConn.ChangeRemoteAddr(address, info)
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/wire"
 )
 
 // pathRoute is one selected nonzero path's sending context. Each member owns its
@@ -164,6 +165,8 @@ func (e *packetEmission) announcePath(now monotime.Time) (bool, error) {
 		e.useRoute(selected)
 		return false, nil
 	}
+	// An ACK alone would fill the payload, and recovery wouldn't track the packet.
+	e.pathCredit.conn.framer.QueueControlFrame(&wire.PingFrame{})
 	packet, err := e.packer.packPTOProbePacket(e.route, protocol.Encryption1RTT, e.packetSize(), true, now, e.version)
 	if err != nil {
 		return false, err

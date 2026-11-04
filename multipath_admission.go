@@ -136,11 +136,17 @@ const (
 // finish publishes the connection's result unless cancellation already won. A
 // false return means the caller was told it canceled, so nothing may activate.
 func (r *pathOpenRequest) finish(err error) bool {
-	if !r.outcome.CompareAndSwap(pathOpenPending, pathOpenFinished) {
+	if !r.claim() {
 		return false
 	}
 	r.done <- err
 	return true
+}
+
+// claim decides the outcome without telling the caller, who learns only once the work
+// the outcome promises is complete. A caller that lost the race waits for the send.
+func (r *pathOpenRequest) claim() bool {
+	return r.outcome.CompareAndSwap(pathOpenPending, pathOpenFinished)
 }
 
 func (r *pathOpenRequest) canceled() bool { return r.outcome.Load() == pathOpenCanceled }
@@ -1039,6 +1045,9 @@ func (p *pathCreditRegistry) memberProbe(m *pathMember, now monotime.Time) *path
 	}
 	if (m.response == nil && !m.announce) || m.fencing() {
 		return nil
+	}
+	if m.response != nil && m.response.transport != m.transport {
+		return nil // only its own tuple may answer; the candidate retries, or the peer does
 	}
 	connID, ok := p.conn.connIDManager.pathDestination(m.id, false)
 	if !ok {
