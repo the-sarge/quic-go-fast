@@ -28,6 +28,11 @@ func (h *sentPacketHandler) AddPathWithRTT(id protocol.PathID, size protocol.Byt
 	path.handshakeConfirmed, path.peerCompletedAddressValidation, path.peerAddressValidated = true, true, true
 	if h.local != nil {
 		path.local = &localCompletions{records: make(map[uint64]*localRegistration)}
+		if h.local.ecn != nil && h.bbrECN == nil {
+			// Each path validates its own ECN, exactly as the root does.
+			path.local.ecn = &localECNEvidence{watermark: protocol.InvalidPacketNumber}
+			path.ecnTracker.(*ecnTracker).local = path.local.ecn
+		}
 	}
 	// Optional late-receipt stores share their existing aggregate ceilings. A
 	// missing receipt cannot discharge Reno undo or create a delivery callback.

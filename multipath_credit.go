@@ -34,6 +34,7 @@ type pathCreditRegistry struct {
 	historyUnits int
 	attachments  map[*Transport]int
 	now          monotime.Time
+	primary      protocol.PathID
 }
 
 type issuedPathCIDs struct {
@@ -181,7 +182,7 @@ func (p *pathCreditRegistry) abandon(id protocol.PathID, now monotime.Time) erro
 	}
 	if !terminal.expired && !terminal.received {
 		terminal.received = true
-		terminal.expiry = pathDeadline(now, threePathPTO(p.conn.observedRTT().PTO(true)))
+		terminal.expiry = pathDeadline(now, threePathPTO(p.largestPTO(true)))
 		if set := p.conn.connIDManager.pathCIDs[id]; set != nil {
 			set.terminal = true
 		}
@@ -208,7 +209,7 @@ func (p *pathCreditRegistry) expire(now monotime.Time) error {
 		if !terminal.received {
 			if accepted := terminal.receipt.acceptedAt(); accepted != 0 && terminal.unanswered == 0 {
 				// Snapshot policy once, when acceptance first becomes known to Conn.
-				terminal.unanswered = pathDeadline(accepted, max(30*time.Second, threePathPTO(p.conn.observedRTT().PTO(true))))
+				terminal.unanswered = pathDeadline(accepted, max(30*time.Second, threePathPTO(p.largestPTO(true))))
 			}
 			if terminal.unanswered != 0 && !terminal.unanswered.After(now) {
 				return &qerr.TransportError{ErrorCode: qerr.InternalError, ErrorMessage: "unanswered path abandonment"}
@@ -286,7 +287,7 @@ func (p *pathCreditRegistry) receiveCID(f *wire.PathNewConnectionIDFrame, now mo
 	if p.terminals[f.PathID] != nil {
 		return nil
 	}
-	err := p.conn.connIDManager.addPathCID(f, pathDeadline(now, threePathPTO(p.conn.observedRTT().PTO(false))))
+	err := p.conn.connIDManager.addPathCID(f, pathDeadline(now, threePathPTO(p.largestPTO(false))))
 	return p.resourceResult(f.PathID, err)
 }
 
@@ -327,7 +328,7 @@ func (p *pathCreditRegistry) retireCID(f *wire.PathRetireConnectionIDFrame, dest
 	if p.terminals[f.PathID] != nil {
 		return nil
 	}
-	return p.resourceResult(f.PathID, p.conn.connIDGenerator.retirePathCID(f, dest, pathDeadline(now, threePathPTO(p.conn.observedRTT().PTO(false)))))
+	return p.resourceResult(f.PathID, p.conn.connIDGenerator.retirePathCID(f, dest, pathDeadline(now, threePathPTO(p.largestPTO(false)))))
 }
 
 func (p *pathCreditRegistry) cidsBlocked(f *wire.PathCIDsBlockedFrame) error {

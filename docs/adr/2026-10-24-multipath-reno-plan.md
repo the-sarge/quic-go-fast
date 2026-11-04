@@ -1,6 +1,6 @@
 # Reno-first QUIC multipath implementation plan
 
-**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8/R9 complete (9/19 slices); R10 #1030 is ready. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
+**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8/R9/R10 complete (10/19 slices); R11 #1031, R12 #1032 and R15 #1035 are ready. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
 
 ## Binding contract and operating discipline
 
@@ -670,6 +670,8 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 ### R10 — Carry reliable traffic over the selected path
 
+**State:** complete. `packet_emission_path.go` holds the scheduler and route, and `multipath_reliable_test.go` the 13 scenarios. R11 #1031, R12 #1032 and R15 #1035 are ready. Public negotiation remains disabled.
+
 **Delivers:** Select path before destructive packing; send STREAM/control through its CID/PN/nonce/recovery/endpoint context in deterministic real-owner fixtures, preserving logical reliable delivery across retransmission. Do not yet negotiate with an independent peer; the first live-peer smoke moves to R14 after complete path-qualified close/cache behavior.
 
 **Blocked by:** R9. **Existing work:** new slice; no unmerged implementation accepted.
@@ -691,6 +693,17 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 **Context imports:** Identity and protocol ownership; Payload policy (reliable portion); R9 terminal-transition interface receipt. Include the binding discipline and only the matching closure rows, plus this current slice and direct blocker interfaces; do not load every slice contract.
 
 **Slice decision audit:** Reliable logical delivery and path-qualified transmission form one complete owner behavior. Keep DATAGRAM/PMTU separate because admission/disposal differ. R9 supplies complete validation and terminal transitions; an independent oracle is not consumed until R14, so R1 is not a blocker here. Fixtures cannot exclude required local teardown. Rejected split/merge alternatives have no revisit trigger except the stated context/contract stop. Direct blockers supply the interfaces or evidence named here; transitive blockers need not be repeated and convenience ordering is excluded.
+
+**Current enforcement and finite evidence:** The 13 scenarios, one per-path ECN case in `internal/ackhandler` and one focused race run terminate this evidence scope. No guard mutation is needed, because the scenarios exercise these owners directly with real keys on both ends and the real endpoint.
+
+| Accepted semantic class | Enforcement owner | Terminating regression evidence |
+| --- | --- | --- |
+| Selected identity for useful traffic, on both perspectives | Scheduler; route read by recovery, packer and sender | `TestPathReliableTwoPathTransfer`, `TestPathReliableClientOpenPathCarriesData`, `TestSentPathLocalECNEvidence` |
+| Original ACK after cross-path retransmission; partial packing | Recovery owns each transmission; streams own logical data | `TestPathReliableOriginalAckAfterCrossPathRetransmission`, `TestPathReliablePartialPackingPreservesWork` |
+| Batch and route, PTO on its own path, congestion is not failure | Scheduler; emission binds one route per opportunity | `TestPathReliableGSOContextsDoNotBatch`, `TestPathReliablePTOOnOtherPath`, `TestPathReliablePrimaryCongestionDoesNotMoveTraffic` |
+| Terminal and quarantine disposal, target endpoint capacity | Registry; endpoint reports the fence and fault | `TestPathReliableTerminalReschedule`, `TestPathReliableTargetTransportRoute` |
+| Probe opportunity, retention snapshot | Emission; registry | `TestPathReliableAdmissionProbeUnderSendAck`, `TestPathReliableRetentionUsesLargestPTO` |
+| Declared seams for DATAGRAM and MTU | Packer; connection | `TestPathReliableHeldDatagram`, `TestPathReliableMTUTimerFollowsRoute` |
 
 **Stop:** Smoke requires pretending peer behavior is supported or changing application delivery ownership.
 

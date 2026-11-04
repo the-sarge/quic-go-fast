@@ -856,8 +856,14 @@ func TestNativeRouteLoopback(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, path.Probe(ctx))
 	require.NoError(t, path.Switch())
-	exchange(t, client, server, "after the switch")
-	require.Eventually(t, func() bool { return server.RemoteAddr().String() == nextSocket.LocalAddr().String() }, time.Second, time.Millisecond)
+	// The server switches only on the highest-numbered non-probing packet it sees on
+	// a validated tuple, and the two sockets' packets can arrive in either order. A
+	// packet that loses that race has no successor when the connection goes idle.
+	for server.RemoteAddr().String() != nextSocket.LocalAddr().String() {
+		exchange(t, client, server, "after the switch")
+		require.NoError(t, ctx.Err(), "the server never followed the switch")
+		time.Sleep(time.Millisecond)
+	}
 
 	// The live close reaches the peer asynchronously.
 	require.NoError(t, client.CloseWithError(7, "finished"))
