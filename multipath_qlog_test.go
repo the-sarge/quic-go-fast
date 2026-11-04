@@ -158,9 +158,9 @@ func TestPathQlogLossAndMTUAttribution(t *testing.T) {
 		require.Equal(t, map[int]uint64{1300: 0, 1400: 1}, mtus)
 
 		// A client's Handshake traffic can outlast activation, until it is confirmed.
-		header := &wire.ExtendedHeader{Header: wire.Header{Type: protocol.PacketTypeHandshake, Version: protocol.Version1}}
+		header := &wire.ExtendedHeader{Header: wire.Header{Type: protocol.PacketTypeHandshake, Version: protocol.Version1}, PacketNumber: 1 << 20}
 		f.c.logLongHeaderPacket(&longHeaderPacket{context: ackhandler.PacketContext{TupleGeneration: 4}, header: header}, protocol.ECNNon, 0)
-		ping := []byte{0x1} // a PING frame
+		ping := []byte{byte(wire.FrameTypePing)}
 		require.NoError(t, f.c.handleUnpackedLongHeaderPacket(&unpackedPacket{hdr: header, encryptionLevel: protocol.Encryption1RTT, data: ping}, protocol.ECNNon, monotime.Now(), 0, 100))
 		synctest.Wait()
 		var sentLong, receivedLong *qlog.PathIdentity
