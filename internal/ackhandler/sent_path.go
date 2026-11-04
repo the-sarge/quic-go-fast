@@ -94,7 +94,15 @@ func (h *sentPacketHandler) PathQuiescent(id protocol.PathID) bool {
 
 // RemovePath ends a retired context at its final reclamation. A later ACK for the
 // ID is ignored, because ReceivedAck can't tell it from any other absent lower ID.
-func (h *sentPacketHandler) RemovePath(id protocol.PathID) { delete(h.paths, id) }
+// The root stays for its aggregation, and only releases path zero's retained span,
+// which would otherwise charge every survivor's share of the tracking ceiling.
+func (h *sentPacketHandler) RemovePath(id protocol.PathID) {
+	if id == h.pathID {
+		h.appDataPackets.history.releaseRetained()
+		return
+	}
+	delete(h.paths, id)
+}
 
 func (h *sentPacketHandler) path(id protocol.PathID) *sentPacketHandler {
 	if id == h.pathID {

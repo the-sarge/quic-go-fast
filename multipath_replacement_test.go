@@ -169,6 +169,15 @@ func TestPathReplacementOldAckAfterReplacement(t *testing.T) {
 		f.pass(t)
 		require.Zero(t, reliableBytes(f.parseWrites(t, 2)), "the late ACK retires nothing twice and retransmits nothing")
 
+		// A retained context can leave three receive spaces owing an ACK at once, more
+		// than one carrier records.
+		for _, id := range []protocol.PathID{0, 1, 2} {
+			require.NoError(t, f.c.receivedPacketHandler.ReceivedPacketOnPath(id, 100, protocol.ECNNon, monotime.Now(), true))
+			require.NoError(t, f.c.receivedPacketHandler.ReceivedPacketOnPath(id, 101, protocol.ECNNon, monotime.Now(), true))
+		}
+		f.write(t, 500)
+		f.pass(t)
+
 		require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathAbandonFrame{PathID: 1}))
 		time.Sleep(time.Until(f.c.pathCredit.terminals[1].expiry.ToTime()) + time.Millisecond)
 		f.pass(t)

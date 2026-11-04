@@ -308,4 +308,28 @@ func TestSentPathReplacement(t *testing.T) {
 	require.NoError(t, err, "as is a skipped lower ID, since the two can't be told apart")
 	_, err = h.ReceivedAck(ack(21), protocol.Encryption1RTT, monotime.Now())
 	require.Error(t, err, "an ID above the admitted range keeps its violation")
+
+	// A retired path zero's span would otherwise charge every survivor's ceiling.
+	// An unacknowledged ACK-only entry holds the span open once the rest is drained.
+	h.SentPacketWithContext(PacketContext{}, now0, 0, 0, nil, nil, protocol.Encryption1RTT, protocol.ECNNon, 100, false, false)
+	h.SentPacketWithContext(PacketContext{}, now0, 1, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, protocol.ECNNon, 1200, false, false)
+	require.True(t, h.QueueProbePacketAt(protocol.Encryption1RTT, now0))
+	require.NotZero(t, h.appDataPackets.history.Len())
+	h.RemovePath(0)
+	require.Zero(t, h.appDataPackets.history.Len())
+	require.NotEqual(t, protocol.InvalidPacketNumber, h.appDataPackets.history.highestPacketNumber)
+	require.NotEqual(t, SendNone, h.SendMode(now0), "the next packet number is still measured")
+
+	received := NewReceivedPacketHandler(utils.DefaultLogger)
+	require.NoError(t, received.AddPath(17))
+	require.NoError(t, received.AddPath(18))
+	for _, id := range []protocol.PathID{17, 18} {
+		require.NoError(t, received.ReceivedPacketOnPath(id, 0, protocol.ECNNon, now0, true))
+		require.NoError(t, received.ReceivedPacketOnPath(id, 1, protocol.ECNNon, now0, true))
+	}
+	first, _ := received.AppendPathAckFrames(nil, 1000, now0, false, protocol.Version1)
+	require.Len(t, first, 1, "one PATH_ACK per carrier")
+	second, _ := received.AppendPathAckFrames(nil, 1000, now0, false, protocol.Version1)
+	require.Len(t, second, 1, "and the other waits for the next")
+	require.NotEqual(t, first[0].Frame.(*wire.AckFrame).PathID, second[0].Frame.(*wire.AckFrame).PathID)
 }

@@ -211,7 +211,9 @@ func (h *ReceivedPacketHandler) IgnorePacketsBelowOnPath(id protocol.PathID, pn 
 }
 
 // AppendPathAckFrames selects only admitted nonzero targets. Space is checked
-// before consuming a queued ACK so a full carrier cannot lose its wakeup.
+// before consuming a queued ACK so a full carrier cannot lose its wakeup. A carrier
+// takes one, because ackTargets holds path zero and one other. Retained contexts can
+// make more pending, and each stays queued for the next packet.
 func (h *ReceivedPacketHandler) AppendPathAckFrames(frames []Frame, maxSize protocol.ByteCount, now monotime.Time, onlyIfQueued bool, v protocol.Version) ([]Frame, protocol.ByteCount) {
 	var length protocol.ByteCount
 	for id, tracker := range h.paths {
@@ -234,6 +236,7 @@ func (h *ReceivedPacketHandler) AppendPathAckFrames(frames []Frame, maxSize prot
 		ack.Truncate(maxSize-length, v)
 		frames = append(frames, Frame{Frame: ack})
 		length += ack.Length(v)
+		break
 	}
 	return frames, length
 }

@@ -784,8 +784,10 @@ func (p *pathCreditRegistry) releaseMember(id protocol.PathID) {
 		if sealer, err := p.conn.emission.packer.cryptoSetup.Get1RTTSealer(); err == nil {
 			_ = handshake.RemoveShortHeaderPath(sealer, id)
 		}
-		p.sentPaths().RemovePath(id)
 		p.conn.receivedPacketHandler.RemovePath(id)
+	}
+	if p.members[id] != nil {
+		p.sentPaths().RemovePath(id)
 	}
 	m := p.members[id]
 	if m == nil {
