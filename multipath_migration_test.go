@@ -611,6 +611,23 @@ func TestPathMigrationIncomingRebinding(t *testing.T) {
 		require.Equal(t, tupleD, p.members[0].addr, "the creating packet is enough while it stays highest")
 		old = admissionTupleB
 
+		// A newer packet on the current tuple during the fence cancels the move too.
+		cid(7)
+		time.Sleep(time.Until(p.retained[0].expiry.ToTime()) + time.Millisecond)
+		f.pass(t)
+		f.socket.hold = nativeProbeHoldAll
+		require.True(t, f.receive(t, 0, tupleD, 100, &wire.PathChallengeFrame{Data: [8]byte{3}}))
+		f.pass(t)
+		require.True(t, f.receive(t, 0, tupleC, 100, &wire.PingFrame{}))
+		require.True(t, p.members[0].fencing(), "a claimed response holds this cutover")
+		require.True(t, f.receive(t, 0, tupleD, 100, &wire.PingFrame{}))
+		f.socket.hold = nil
+		f.socket.release()
+		synctest.Wait()
+		f.pass(t)
+		require.Equal(t, tupleD, p.members[0].addr, "the commit is held to the highest packet")
+		require.False(t, p.members[0].established.probeEpoch.revoked.Load())
+
 		// A probing packet from the old address moves nothing back.
 		require.True(t, f.receive(t, 0, old, 100, &wire.PathChallengeFrame{Data: [8]byte{2}}))
 		f.pass(t)

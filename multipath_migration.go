@@ -257,7 +257,7 @@ func (p *pathCreditRegistry) standbyCID(m *pathMember, addr net.Addr, info packe
 
 // beginIncomingCutover follows a server's peer to a validated tuple. It only ever
 // takes a free slot and a free unit, or leaves the peer's next packet to try again.
-func (p *pathCreditRegistry) beginIncomingCutover(m *pathMember, addr net.Addr, info packetInfo, now monotime.Time) {
+func (p *pathCreditRegistry) beginIncomingCutover(m *pathMember, addr net.Addr, info packetInfo, pn protocol.PacketNumber, now monotime.Time) {
 	if p.conn.perspective != protocol.PerspectiveServer || !m.live || m.candidate != nil || p.terminals[m.id] != nil || p.pruneFences(m) || addrsEqual(addr, m.addr) {
 		return
 	}
@@ -269,6 +269,7 @@ func (p *pathCreditRegistry) beginIncomingCutover(m *pathMember, addr net.Addr, 
 	candidate := p.newCandidate(m, addr, info, m.transport, connID, pathDeadline(now, pathTimeout), now)
 	candidate.probe.validated, candidate.probe.mtuValidated, candidate.probe.unlimited = true, true, true
 	candidate.migrating, candidate.fencing, candidate.keepCID = true, true, true
+	candidate.moves, candidate.movePN = true, pn
 	m.standby = nil
 	m.established.retire()
 	p.conn.scheduleSending()
@@ -282,6 +283,13 @@ func (p *pathCreditRegistry) serviceCutover(m *pathMember, now monotime.Time) {
 		return
 	}
 	request := candidate.request
+	if request == nil && candidate.movePN != m.largestNonProbing {
+		// The commit is the one place a server's move takes effect, so this is what
+		// holds it to the highest non-probing packet, whenever a newer one arrived.
+		candidate.keepCID = false
+		p.retireCandidate(m)
+		return
+	}
 	if !p.conn.connIDManager.pathDestinationUsable(m.id, candidate.connID) {
 		// The peer retired it during the fence, so this attempt has nothing to cut over to.
 		if request != nil {

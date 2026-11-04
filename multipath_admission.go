@@ -596,7 +596,7 @@ func (p *pathCreditRegistry) receivedTuple(id protocol.PathID, pn protocol.Packe
 			answer()
 		}
 		if moving {
-			p.beginIncomingCutover(m, addr, info, now)
+			p.beginIncomingCutover(m, addr, info, pn, now)
 		}
 		return
 	}
@@ -660,13 +660,13 @@ func (p *pathCreditRegistry) pathResponse(f *wire.PathResponseFrame, ingress pro
 		p.activate(m, candidate.addr, candidate.info, candidate.transport, now)
 	}
 	moving := m.live && candidate.moves && candidate.movePN == m.largestNonProbing
-	addr, info := candidate.addr, candidate.info
+	addr, info, movePN := candidate.addr, candidate.info, candidate.movePN
 	p.retireCandidate(m)
 	if request != nil {
 		p.conn.pathOpen.CompareAndSwap(request, nil)
 	}
 	if moving {
-		p.beginIncomingCutover(m, addr, info, now)
+		p.beginIncomingCutover(m, addr, info, movePN, now)
 	}
 }
 
