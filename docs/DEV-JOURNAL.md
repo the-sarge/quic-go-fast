@@ -8929,3 +8929,106 @@ R12 [#1032](https://github.com/the-sarge/quic-go-fast/issues/1032) landed in [PR
 ### Next
 
 R13 [#1033](https://github.com/the-sarge/quic-go-fast/issues/1033) and R14 [#1034](https://github.com/the-sarge/quic-go-fast/issues/1034) are ready. A close after path zero retires still packs nothing until R14. A primary endpoint fault still fails the connection, and a departed transport keeps its attachment charge, until R13/R14 detach them. The [program index](adr/2026-10-24-multipath-program.md) is the live view.
+
+---
+
+## Multipath no-primary DATAGRAM drop landed - 2026-11-04 01:22 EST
+
+**Main:** `61a86a2c5384`
+**Actor:** Joshua Sargent with Claude
+
+### Summary
+
+[Issue #1160](https://github.com/the-sarge/quic-go-fast/issues/1160) landed in [PR #1162](https://github.com/the-sarge/quic-go-fast/pull/1162) as `61a86a2c53847872577ec10dcf62930dc6b5a578`. With no primary, queued DATAGRAMs now drop at once and count in `sendDrops`, including while a stale backup revalidates. Public negotiation remains disabled.
+
+### Completed
+
+- `selectRoute` calls `placeDatagram(nil)` when the designated primary is `noPrimary`, so the existing drop owner clears the queue before selection. The scheduler's inputs and `selectPath` are unchanged.
+- A PTO pending on a stale backup still sends its probe, but no longer carries a DATAGRAM out past the hold.
+- R15's current design in the [Reno plan](adr/2026-10-24-multipath-reno-plan.md) now counts the hold as no eligible carrier.
+
+### Decisions
+
+- The owner ruled on the issue that the hold counts as no eligible carrier.
+- The check reads the designated primary rather than the views, with the owner's approval. An endpoint fault can land after an iteration's `reselect`, leaving the old primary out of view while a fresh backup is about to be promoted. That frame waits one iteration, as it did before, so the drop can't discard a frame the backup could carry.
+- Accepted limit: a `SendDatagram` landing between selection and packing can still leave on a stale backup's PTO probe. That frame is delivered, not lost, and closing the gap would need new packer state.
+- The owner held the merge until the R12 journal in [PR #1163](https://github.com/the-sarge/quic-go-fast/pull/1163) landed. That update added only the journal, so it got local certification and hosted checks, with no third review.
+
+### Validation
+
+- `TestPathPolicyStaleBackupRevalidatesBeforePromotion` is extended, with no new test function. Its hold block failed on the base commit. A mutation that skipped the drop during a pending PTO failed its second block, with the frame leaving on the probe.
+- The fault window behind the `noPrimary` check has no dedicated test.
+- RAS review `20261104T054621-645470b34eb92bc5f15564b8` at `c79ebf70a14f264e7cb24e6c3e0b48430bc2c022` and replacement `20261104T055149-d31dc827c925af44ede8e094` at `c573f495e17183da6713423e04b97628aebcecdd`, after R12 merged, both had no findings. `claude-fable` failed in both runs, and `claude-opus` in the first.
+- At merged head `71d82bd2594983c54eb9c1d4e3f4041a3b180903`: root and `internal/ackhandler` packages, `go vet`, `go mod tidy -diff`, and lint on darwin, `GOOS=windows` and `GOOS=openbsd`. All 33 hosted checks passed. No race run, since this adds no crossing between execution contexts.
+
+### Next
+
+R13 [#1033](https://github.com/the-sarge/quic-go-fast/issues/1033) and R14 [#1034](https://github.com/the-sarge/quic-go-fast/issues/1034) remain the ready slices, and [#1159](https://github.com/the-sarge/quic-go-fast/issues/1159) stays separate. The [program index](adr/2026-10-24-multipath-program.md) is the live view.
+
+---
+
+## Multipath stale PTO credit cleared on recovery - 2026-11-04 01:45 EST
+
+**Main:** `99a024120091`
+**Actor:** Joshua Sargent with Claude
+
+### Summary
+
+[Issue #1159](https://github.com/the-sarge/quic-go-fast/issues/1159) landed in [PR #1166](https://github.com/the-sarge/quic-go-fast/pull/1166) as `99a024120091b1dbc5b375a6d61e82d3f89964e6`. A path recovering from suspicion no longer spends probe credit it couldn't send while suspect, so it sends no ordinary data ahead of the primary.
+
+### Completed
+
+- `noteLiveness` calls the new `ClearProbeCredit` in its `if m.suspect` branch, the only place suspicion ends. `ptoCount` and the alarm stay, so backoff and later PTOs are unchanged.
+- R15's declared seams in the [Reno plan](adr/2026-10-24-multipath-reno-plan.md) record that any later transition ending suspicion owes the same clear.
+
+### Decisions
+
+- The clear sits at recovery rather than suspicion, because a packet the socket accepts late can trigger another PTO during suspicion and add new credit.
+- The issue said an ACK arriving first prevents the burst. Measurement narrowed that: only an ACK that newly acknowledges a packet clears the credit. An ACK covering only data already drained as lost left it, and the burst still happened.
+- Hosted-check exception: `main` moved from `61a86a2c5` to `77ca96b82` by `docs/DEV-JOURNAL.md` alone ([PR #1164](https://github.com/the-sarge/quic-go-fast/pull/1164)) while this PR waited. Under the owner's standing rule for this run, relayed by the CI sequencing session, head `80c56a503779d8587a18946e04d31b5526b8e35f` merged with no rerun. Its 33 checks ran against base `61a86a2c5`.
+
+### Validation
+
+- `TestPathPolicyRecoveryDemotesWithoutOscillation` now runs three arrival orders. Before the fix, `PATH_RESPONSE` first and an ACK of drained data first each put 1,000 of 1,000 bytes on the backup, and an ACK of the challenge first put none. All three now put none there.
+- `TestPathPolicyLivenessKeepsHealthyPathPTO` and `TestSentPathClearProbeCreditKeepsBackoff` are new, and `TestPathPolicySoleAdmittedPathReachesSuspicion` now checks that held work leaves after recovery.
+- Two mutations each failed the intended test: bypassing the `if m.suspect` guard, and making the clear also reset `ptoCount`.
+- RAS review `20261104T062809-c4f35e80e0889e278d4795d3` at the merged head had no findings. `claude-fable` failed with a process error, and the other three reviewers completed. With no accepted fixes, no replacement review ran.
+- At merged head: `go test -shuffle=on` on the root and `internal/ackhandler` packages, one focused `-race` run, `go vet`, `go mod tidy -diff`, and lint on darwin, `GOOS=windows` and `GOOS=openbsd`.
+
+### Next
+
+R13 [#1033](https://github.com/the-sarge/quic-go-fast/issues/1033) and R14 [#1034](https://github.com/the-sarge/quic-go-fast/issues/1034) remain the ready slices. The [program issue #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) is the live view.
+
+---
+
+## CI runs once per PR head - 2026-11-04 02:21 EST
+
+**Main:** `62a55cbe86f7`
+**Actor:** Joshua Sargent with Claude
+
+### Summary
+
+[PR #1170](https://github.com/the-sarge/quic-go-fast/pull/1170) landed as `62a55cbe86f77b8214bbd70fc1b234bcc93a081a`. `unit.yml`, `lint.yml`, `integration.yml` and `cross-compile.yml` now trigger on `push` to `main` and `v*` tags, plus `pull_request`, so a PR head runs one round instead of two.
+
+**A PR head now reports 17 checks, not 33.** Earlier entries record 33 as the expected count. Read `gh pr checks` on the exact head instead of expecting a number.
+
+### Completed
+
+- The four workflows use the push filter `build-interop-docker.yml` already had. Release tags and `main` keep their `push` CI.
+
+### Decisions
+
+- `v*` tags stay in the filter so a release tag keeps its CI, rather than narrowing `push` to `main` alone.
+- No `workflow_dispatch` was added. A branch that needs these workflows opens a draft PR, and scratch-branch measurements carry their own workflow with its own `on: push`.
+- The owner approved the merge without a separate review, after the session's permission classifier refused it as unreviewed.
+
+### Validation
+
+- Measured from 2026-11-03 00:37 UTC to 2026-11-04 for the four workflows: branch `push` was 372 runs and 6,520 job-minutes, `pull_request` 360 runs and 6,244, and `main` `push` 136 runs and 2,469. Removing branch `push` drops about 43% of those job-minutes. 90 of 93 branch heads ran under both events.
+- No required check depends on the old triggers: rulesets and branch protection on `main` are both empty. `pull_request` runs report against the PR head SHA, so the exact-head gate still works.
+- Head `eefa333bf` ran five workflows, all under `pull_request`, with no `push` runs, and passed all 17 checks.
+- The merge commit started all five workflows under `push` on `main`. They were still queued when this entry was written, and their results are recorded on PR #1170.
+
+### Next
+
+A branch with no PR now gets no CI from these workflows, and a conflicting PR gets no new runs because `pull_request` needs a merge ref.
