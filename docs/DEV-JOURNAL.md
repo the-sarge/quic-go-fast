@@ -9138,3 +9138,38 @@ R13 [#1033](https://github.com/the-sarge/quic-go-fast/issues/1033) landed in [PR
 ### Next
 
 R16 [#1036](https://github.com/the-sarge/quic-go-fast/issues/1036) has no open blockers. The fault-continuation slice has no child issue yet and needs `/architecture-handoff`. The [program index](adr/2026-10-24-multipath-program.md) and parent [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013) are the live view.
+
+---
+
+## Steering attempt keeps the chosen route's turn - 2026-11-04 13:27 EST
+
+**Main:** `5160860b57eb`
+**Actor:** Joshua Sargent with Claude
+
+### Summary
+
+[PR #1179](https://github.com/the-sarge/quic-go-fast/pull/1179) landed as `5160860b57eb81ce12bb7685010a0f813e022ac1`, closing [issue #1172](https://github.com/the-sarge/quic-go-fast/issues/1172). A refused DATAGRAM steering attempt no longer costs the chosen route its turn. Before, with other connections waiting at its endpoint, the chosen route lost every lease and sent nothing until the held frame left. Nothing was lost, and public negotiation is still disabled.
+
+### Completed
+
+- `nativeOrdinarySender.steer` reserves on the fitting route beside the chosen one, through a new `reserve(route)` that binds nothing. A refusal leaves the chosen route's registration, lease and reservation alone.
+- A success returns the chosen route's reservation, cancels its registration if it's on another endpoint, and binds the fitting route.
+- The R11 "Declared seams" sentence in the [multipath plan](adr/2026-10-24-multipath-reno-plan.md) now states this behavior.
+
+### Decisions
+
+- Triage reproduced the lost turns deterministically and dropped the issue's "measure first" step, because a saturated two-endpoint rig would likely cost more than the fix. The [agent brief](https://github.com/the-sarge/quic-go-fast/issues/1172#issuecomment-6636908813) records this. The real-time size of the delay remains unmeasured.
+- A successful steer still costs the chosen route one turn per frame sent. Keeping that lease would risk a leftover registration if selection then moves.
+- Stopping only the cancel isn't enough. The run loop selects in `capacity()` and again in `send()`, so the attempt must also leave the reservation alone, and a route already bound must keep its own. A first prototype missed that second case.
+
+### Validation
+
+- `TestPathReliableTargetTransportRoute` gained four subtests and `TestPathReliableSteeringOnOneEndpoint` is new, driving the run loop's order on real endpoints with other connections waiting. The main subtest failed before the fix.
+- Seven guard mutations each failed a test, including returning the reservation, canceling the registration, and dropping the already-bound check.
+- Root and `internal/ackhandler` tests, a focused race run, `go vet` including `GOOS=windows` and `GOOS=darwin`, and `go mod tidy -diff` passed on minimax at `e082eb3b`. The final commit changed only test helpers, to satisfy `unparam`, and reran the root tests, a focused race run and `go vet`.
+- RAS review `20261104T172243-197f86cd8c901e8cc5ee7a20` at `a5f4a152` found no behavioral failure. One test gap was fixed and verified at `e082eb3b`. The other, a non-capacity refusal path that this change preserves, was rejected. No replacement review ran, since product code didn't change after the review.
+- All 17 hosted checks passed on `d3f3495e1e059c4fa307d0fe12ae02bbe4a5c0ab`, with main unmoved at `1f4cc10ae`. One macOS job was rerun on the same head because GitHub reported no hosted runner acquired it.
+
+### Next
+
+`announcePath` swaps routes the same way, once per announcement. It was left out of scope and hasn't been tested. No follow-up issue was filed.
