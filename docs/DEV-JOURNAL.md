@@ -9199,6 +9199,7 @@ R16 [#1036](https://github.com/the-sarge/quic-go-fast/issues/1036) has no open b
 - The guard is an internal package rather than a package variable, so HTTP/3 fixtures and R17/R18 can reach it. `http3/multipath_test.go` has the one `depguard` exception.
 - The replacement review's six new clusters were fixed rather than deferred, although the baseline normally defers later non-critical roots. Each showed a frozen contract of this slice's own surface unmet, and deferring them would have handed R17 known failures. The [PR comment](https://github.com/the-sarge/quic-go-fast/pull/1183#issuecomment-6642219433) records why.
 - R11's private `sendDrops` counter stays unpublished, since the frozen snapshot has no field for it.
+- This also resolved [issue #1174](https://github.com/the-sarge/quic-go-fast/issues/1174), the guarded 0-RTT activation failure the R14 entry left for R16. The restore guard is the fix, and `TestMultipathZeroRTTResumption` its regression test.
 
 ### Validation
 
@@ -9207,6 +9208,8 @@ R16 [#1036](https://github.com/the-sarge/quic-go-fast/issues/1036) has no open b
 - RAS review `20261104T202327-2c573d76bd133ca557d69b51` raised eight fixes, one rejected and one duplicate. Verification reopened C-002 and C-008, which went through a [scoped re-audit](https://github.com/the-sarge/quic-go-fast/pull/1183#issuecomment-6641702257) with no plan change, then came back clear.
 - Replacement review `20261104T204835-d27ee86dd23ab5d070c19468` raised six fixes. Verification at `c83ea49be` had a clear blocking projection. It lists one C-006 interleaving as open, which I rejected: the stranded request exists only on a connection that has ended, and every later public call returns the terminal error first.
 - All 17 hosted checks passed on `c83ea49be0d582019c23e4ae705ec42d85624c73`, with main unmoved at `063eacf57`.
+- The first hosted run after merge, on the journal PR, showed two races in `TestMultipathTerminalObservations`: `OpenUniStream` could lose to the injected fault, and the "after the end" calls could start before the context was canceled. Both were test-only, and that PR fixed them. The review's exact-head run had passed.
+- Repeating the scenarios then showed a real defect in `TestMultipathAddrOwnedLifecycle`: on a socket `DialAddr` owns, single-use teardown can seal the endpoint before it writes the connection's held close, so the peer doesn't hear it (2 of 40 runs). Public requests can't reach this before R19. The test now closes its server side, and the defect is tracked separately.
 - `TestPathReliableTargetTransportRoute` read a socket before its writer ran. It failed 23 of 200 runs on main and 0 of 300 after one `synctest.Wait`, included in this PR.
 
 ### Next
