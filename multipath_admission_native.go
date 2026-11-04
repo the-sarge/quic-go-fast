@@ -161,13 +161,38 @@ func (p *pathCreditRegistry) noteOutcome(id protocol.PathID, tuple uint64, accep
 	}
 }
 
-// endpointFaulted reads the endpoint itself, since the sender's route check assumes the
-// connection's own endpoint is healthy until a fault ends the connection.
+func (f *pathFailures) cause() error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.first
+}
+
+// failed is the one survival decision, on each pass after a failure: the connection
+// ends with the first cause once no path could even carry its close. Without a failure,
+// the same empty list is a path waiting for a CID, and stays non-fatal.
+func (p *pathCreditRegistry) failed() error {
+	cause := p.failures.cause()
+	if cause == nil {
+		return nil
+	}
+	var storage [maxPathHistoryUnits + 1]*pathMember
+	if len(p.closeContexts(storage[:0])) != 0 {
+		return nil
+	}
+	return cause
+}
+
+// endpointFaulted reads what a path on this transport stays a live member through: its
+// endpoint's fault or its read failure, and not an explicit close.
 func endpointFaulted(t *Transport) bool {
 	endpoint := nativeTransportEndpoint(t)
 	if endpoint == nil {
 		return false
 	}
-	_, faulted := endpoint.faultObservation()
-	return faulted
+	if _, faulted := endpoint.faultObservation(); faulted {
+		return true
+	}
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	return t.readFailed
 }

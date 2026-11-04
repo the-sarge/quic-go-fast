@@ -38,6 +38,7 @@ type pathCreditRegistry struct {
 	// attachMu lets a detachment waiter read attachments and origin. Only the
 	// connection goroutine writes them.
 	attachMu       sync.Mutex
+	failures       pathFailures
 	origin         *Transport // the connection's own transport
 	originDetached bool
 	handshakeAddr  net.Addr

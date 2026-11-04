@@ -197,6 +197,9 @@ type Transport struct {
 	readRetryCanceled chan struct{} // closed under mutex when temporary reads must stop
 	closeErr          error
 	transportClosed   bool // actual transport shutdown, distinct from single-use listener closure
+	// readFailed means a read failure closed the transport and spared some of its
+	// connections. Transport.Close clears it, by destroying them.
+	readFailed bool
 	// closingStates keeps retirement reachable from shutdown even when the
 	// owning clock stops before expiry. Protected by mutex.
 	closingStates map[*time.Timer]closingState
@@ -669,12 +672,18 @@ func (t *Transport) close(e error) {
 	t.mutex.Lock()
 
 	if t.transportClosed {
-		t.mutex.Unlock()
+		if e != nil || !t.readFailed {
+			t.mutex.Unlock()
+			return
+		}
+		t.readFailed = false
+		t.endHandlers(t.closeErr, false)
 		return
 	}
 
+	readFailed := e != nil
 	e = &errTransportClosed{err: e}
-	t.transportClosed = true
+	t.transportClosed, t.readFailed = true, readFailed
 	t.responses.revoke()
 	// Sealing precedes logical shutdown, so no captured producer can reach the
 	// socket once it begins. It doesn't wait for the writer.
@@ -689,18 +698,32 @@ func (t *Transport) close(e error) {
 		t.mutex.Lock()
 	}
 
-	// Close existing connections
+	t.endHandlers(e, readFailed)
+
+	if t.Tracer != nil {
+		t.Tracer.Close()
+	}
+}
+
+// transportFailureOwner is a handler that can outlive its transport's read failure. It
+// reports whether it accepted the fact, and decides for itself on its own goroutine.
+type transportFailureOwner interface {
+	transportFailed(error) bool
+}
+
+// endHandlers destroys existing connections, other than those a read failure spares.
+// The caller holds mutex, which orders this against detachment, and it is released here.
+func (t *Transport) endHandlers(e error, spare bool) {
 	var wg sync.WaitGroup
 	for _, handler := range t.handlers {
+		if owner, ok := handler.handler.(transportFailureOwner); ok && spare && owner.transportFailed(e) {
+			continue
+		}
 		wg.Go(func() { handler.handler.destroy(e) })
 	}
 	t.mutex.Unlock() // closing connections requires releasing transport mutex
 	wg.Wait()
 	t.retireClosedStates(false)
-
-	if t.Tracer != nil {
-		t.Tracer.Close()
-	}
 }
 
 type closingState struct {
@@ -1102,14 +1125,15 @@ func (h *packetHandlerMap) attachRoutes(routes []pathRouteEntry, tokens []protoc
 }
 
 // detachRoutes removes a connection's CIDs and tokens as one step, serialized with
-// close's snapshot. It refuses while close has begun or a reset callback this map
-// captured is still running: both end in the connection's destruction. The stop mark
-// precedes the removal, so a CID that now misses can't draw a reset.
+// close's snapshot. It refuses once an explicit close has begun or while a reset
+// callback this map captured is still running: both end in the connection's
+// destruction. A read failure has already spared the connection, so it doesn't refuse.
+// The stop mark precedes the removal, so a CID that now misses can't draw a reset.
 func (h *packetHandlerMap) detachRoutes(handler packetHandler, ids []protocol.ConnectionID, tokens []protocol.StatelessResetToken) bool {
 	t := (*Transport)(h)
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
-	if t.transportClosed || h.capturedResets[handler] != 0 {
+	if (t.transportClosed && !t.readFailed) || h.capturedResets[handler] != 0 {
 		return false
 	}
 	if t.StatelessResetKey != nil {

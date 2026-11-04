@@ -13,9 +13,6 @@ import (
 // The native endpoint route has no activation on this platform.
 func (c *Conn) installNativeRoute(*Transport, net.Addr, packetInfo) error { return nil }
 
-// isEndpointFault has no native endpoint to report here.
-func isEndpointFault(error) bool { return false }
-
 func endpointFaulted(*Transport) bool { return false }
 
 // No platform here holds a native grant, so these stay refusals.

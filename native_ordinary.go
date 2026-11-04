@@ -75,6 +75,9 @@ type nativeOrdinarySender struct {
 	// that endpoint's capacity. refused says the latest WouldBlock met that capacity.
 	fitting *endpointParticipant
 	refused bool
+	// faultHanded means the registry holds an endpoint fault. The fault channel then
+	// goes quiet, and every later fault wakes the connection through completed.
+	faultHanded bool
 }
 
 type nativeOrdinaryConn struct {
@@ -251,8 +254,16 @@ func (s *nativeOrdinarySender) reserve(route *pathRoute) *ordinaryLocalRecord {
 
 func (s *nativeOrdinarySender) Available() <-chan struct{} { return s.participant.completed }
 func (s *nativeOrdinarySender) completed() <-chan struct{} { return s.participant.completed }
-func (s *nativeOrdinarySender) faulted() <-chan struct{}   { return s.endpoint.fault }
 func (s *nativeOrdinarySender) Run() error                 { return nil }
+
+// faulted stays ready once its endpoint has faulted, so a connection that continues
+// can't keep it in the select.
+func (s *nativeOrdinarySender) faulted() <-chan struct{} {
+	if s.faultHanded {
+		return nil
+	}
+	return s.endpoint.fault
+}
 
 // routeParticipant is where the selected path's packets are reserved and submitted.
 func (s *nativeOrdinarySender) routeParticipant() *endpointParticipant {
@@ -354,11 +365,11 @@ func (s *nativeOrdinarySender) releaseReadiness() {
 }
 
 // routeUsable reports whether a path's endpoint can still take its packets. A
-// fault or close quarantines that endpoint and its paths; other paths continue.
+// fault or close quarantines that endpoint and its paths; other paths continue. No
+// endpoint is special, and a nil target is the connection's own.
 func (s *nativeOrdinarySender) routeUsable(target *Transport) bool {
 	if target == nil {
-		// Path zero's own endpoint faults the connection, until a slice changes that.
-		return s.origin == s.participant || (s.origin != nil && !s.origin.endpoint.quarantined())
+		return s.origin != nil && !s.origin.endpoint.quarantined()
 	}
 	endpoint := nativeTransportEndpoint(target)
 	return endpoint != nil && !endpoint.quarantined()
@@ -402,8 +413,8 @@ func (s *nativeOrdinarySender) Send(buffer *packetBuffer, segment uint16, ecn pr
 		err = record.endpoint.submit(record.admission, request)
 	}
 	if err != nil {
-		// A sealed refusal isn't this connection's failure: the transport's destroy
-		// carries the close cause, and a fault arrives through the fault channel.
+		// A sealed refusal isn't this connection's failure: the transport reports the
+		// close, and consume reads the fault.
 		if !errors.Is(err, net.ErrClosed) {
 			s.err = err
 		}
@@ -464,9 +475,6 @@ func (s *nativeOrdinarySender) sendClose(buffer *packetBuffer, ecn protocol.ECN)
 	return err
 }
 
-// isEndpointFault recognizes the fault that can leave a survivor to close through.
-func isEndpointFault(err error) bool { return errors.Is(err, errEndpointFault) }
-
 // pathCloseLimit is the two live paths a connection can hold.
 const pathCloseLimit = 2
 
@@ -496,18 +504,6 @@ func (s *nativeOrdinarySender) sendPathClose(buffer *packetBuffer, ecn protocol.
 
 // routeInfo is the local address and interface path zero sends from.
 func (s *nativeOrdinarySender) routeInfo() packetInfo { return s.info }
-
-// closeUsable also inspects the connection's own endpoint, which routeUsable assumes
-// healthy, because a fault there is what can bring a connection to this close.
-func (s *nativeOrdinarySender) closeUsable(target *Transport) bool {
-	var endpoint *nativeEndpoint
-	if target != nil {
-		endpoint = nativeTransportEndpoint(target)
-	} else if s.origin != nil {
-		endpoint = s.origin.endpoint
-	}
-	return endpoint != nil && !endpoint.quarantined()
-}
 
 func (s *nativeOrdinarySender) SendProbe(*packetBuffer, net.Addr, packetInfo) error {
 	return errLocalPacketRoute
@@ -674,12 +670,57 @@ func (s *nativeOrdinarySender) consume() error {
 	for _, target := range s.targets {
 		s.consumeParticipant(target)
 	}
-	select {
-	case <-s.endpoint.fault:
-		s.err = errors.Join(s.err, errEndpointFault)
-	default:
+	if !s.admitted() {
+		select {
+		case <-s.endpoint.fault:
+			s.err = errors.Join(s.err, errEndpointFault)
+		default:
+		}
+		return s.err
+	}
+	s.reconcileFailure(s.participant)
+	for _, target := range s.targets {
+		s.reconcileFailure(target)
+	}
+	if err := s.connection.pathCredit.failed(); err != nil && s.err == nil {
+		s.err = err
 	}
 	return s.err
+}
+
+func (s *nativeOrdinarySender) admitted() bool {
+	credit := s.connection.pathCredit
+	return credit != nil && credit.hasAdmission()
+}
+
+// reconcileFailure hands a participant's endpoint fault to the registry, and settles
+// what its retirement left. Sealing revokes a spared connection's participants and the
+// endpoint discards their later results, but retirement proves no request or native
+// borrow remains. A missing result doesn't prove nothing was sent, so each record left
+// settles as uncertain, and the registry's drain then returns its work.
+func (s *nativeOrdinarySender) reconcileFailure(participant *endpointParticipant) {
+	select {
+	case <-participant.endpoint.fault:
+		s.connection.pathCredit.failures.note(errEndpointFault)
+		s.faultHanded = true
+	default:
+	}
+	select {
+	case <-participant.retired:
+	default:
+		return
+	}
+	for index := range s.records {
+		record := &s.records[index]
+		if record == s.pending || record.admission.serial == 0 || record.endpoint != participant.endpoint {
+			continue
+		}
+		for _, packet := range record.packets[:record.count] {
+			s.completePacket(packet, ackhandler.LocalPacketUncertain, monotime.Now(), false)
+		}
+		s.connection.pathCredit.noteOutcome(protocol.PathID(record.identity.path), record.identity.tuple, 0, record.datagrams, record.datagrams)
+		*record = ordinaryLocalRecord{}
+	}
 }
 
 // consumeParticipant reconciles one endpoint's results. A result from before the
@@ -735,14 +776,23 @@ func (s *nativeOrdinarySender) consumeParticipant(participant *endpointParticipa
 				if record.metadata.handshake && record.datagrams == 1 && record.bytes > protocol.MinInitialPacketSize {
 					s.connection.handshakeSendFeedback.publish(record.metadata.pathGeneration)
 				}
-			} else if result.err != nil && !localEndpointBackpressure(result.err) && !errors.Is(result.err, errEndpointRevoked) && !s.pathSendFailed(participant, identity, result.err) && (participant == s.participant || !participant.endpoint.quarantined()) {
-				// A target's fault stays on its endpoint, whose routes the registry drains.
+			} else if result.err != nil && !localEndpointBackpressure(result.err) && !errors.Is(result.err, errEndpointRevoked) && !s.pathSendFailed(participant, identity, result.err) && !s.endpointOwnsResult(participant) {
 				s.err = errors.Join(s.err, result.err)
 			}
 			*record = ordinaryLocalRecord{}
 			break
 		}
 	}
+}
+
+// endpointOwnsResult keeps a quarantined endpoint's result off the connection, whose
+// survival the registry decides. Only a connection without admission fails with its
+// own endpoint.
+func (s *nativeOrdinarySender) endpointOwnsResult(participant *endpointParticipant) bool {
+	if participant == s.participant && !s.admitted() {
+		return false
+	}
+	return participant.endpoint.quarantined()
 }
 
 // pathSendFailed hands a final non-timeout result to the path policy, once path

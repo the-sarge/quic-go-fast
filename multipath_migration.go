@@ -15,7 +15,10 @@ import (
 // maxPathAnnounceBackoff caps the doubling of a cutover's announcement retries.
 const maxPathAnnounceBackoff = 6
 
-var errPathCandidateCIDRetired = errors.New("quic: the peer retired the migration's connection ID")
+var (
+	errPathCandidateCIDRetired = errors.New("quic: the peer retired the migration's connection ID")
+	errPathTargetFailed        = fmt.Errorf("%w: the target's endpoint has failed", net.ErrClosed)
+)
 
 // pathAttachment charges one transport's routing to this connection. References are
 // members, candidates and retained entries. At zero it can detach.
@@ -37,9 +40,28 @@ type pathRetained struct {
 
 func (m *pathMember) fencing() bool { return m.candidate != nil && m.candidate.fencing }
 
-func (p *pathCreditRegistry) zeroFencing() bool {
+// zeroCarries is the one reading of whether path zero can carry: its current member's
+// lifecycle, fence and transport, never the nil route or the origin's health alone. So a
+// zero that moved to a healthy target stays usable, however its origin fails.
+func (p *pathCreditRegistry) zeroCarries() bool {
 	zero := p.members[0]
-	return zero != nil && zero.fencing()
+	return zero != nil && zero.live && !p.zeroRetired() && !zero.fencing() && p.conn.emission.local.routeUsable(zero.transport)
+}
+
+// targetFailed refuses an operation naming a failed endpoint, including through a
+// retained attachment or the origin. An origin already left isn't a failure.
+func (p *pathCreditRegistry) targetFailed(target *Transport) bool {
+	if target == nil && p.attachments[nil] == nil {
+		return false
+	}
+	return !p.conn.emission.local.routeUsable(target)
+}
+
+// attemptTargetFailed reports an operation's candidate whose target failed after
+// admission, which ends the attempt before its outcome is claimed.
+func (p *pathCreditRegistry) attemptTargetFailed(m *pathMember) bool {
+	candidate := m.candidate
+	return candidate != nil && candidate.request != nil && !p.conn.emission.local.routeUsable(candidate.transport)
 }
 
 // attachmentKey is nil for the connection's own transport, which every member and
@@ -199,6 +221,9 @@ func (p *pathCreditRegistry) serviceMigration(request *pathOpenRequest, now mono
 		return p.refuseRequest(request, ErrPathClosed)
 	}
 	target := p.attachmentKey(request.transport)
+	if p.targetFailed(target) {
+		return p.refuseRequest(request, errPathTargetFailed)
+	}
 	if target == m.transport {
 		return p.refuseRequest(request, nil) // already there
 	}

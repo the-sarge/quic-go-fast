@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 	"sync/atomic"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
@@ -91,13 +92,42 @@ func (s *closedPaths) respond(path protocol.PathID) {
 	}
 }
 
+// pathFailures holds the first endpoint failure reported to the connection. There are
+// two producers, and neither decides: the sender's fault reading on the connection
+// goroutine, and a transport's read failure on its own. The endpoints themselves say
+// which paths it stopped, so repeats per connection ID or per transport change nothing.
+type pathFailures struct {
+	mu     sync.Mutex
+	first  error
+	sealed bool
+}
+
+// note records a cause unless the connection has ended, which it reports.
+func (f *pathFailures) note(cause error) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.sealed {
+		return false
+	}
+	if f.first == nil {
+		f.first = cause
+	}
+	return true
+}
+
+func (f *pathFailures) seal() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.sealed = true
+}
+
 // closeContexts lists the paths a close can use, in path ID order. A terminal or
 // validating path has none of the required authority.
 func (p *pathCreditRegistry) closeContexts(buf []*pathMember) []*pathMember {
 	contexts := buf[:0]
 	var ordered [maxPathHistoryUnits + 1]*pathMember
 	for _, m := range p.orderedMembers(ordered[:0]) {
-		if p.eligible(m) && p.conn.emission.local.closeUsable(m.transport) {
+		if p.eligible(m) {
 			contexts = append(contexts, m)
 		}
 	}

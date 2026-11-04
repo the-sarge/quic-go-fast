@@ -121,6 +121,9 @@ func (e *packetEmission) drain() {
 func (e *packetEmission) capacity() <-chan struct{} {
 	if e.pathCredit != nil {
 		e.selectRoute(monotime.Now())
+		if e.held && e.route == nil && !e.pathCredit.zeroCarries() {
+			return nil // nothing to wait on, and admission probes still need their turn
+		}
 	}
 	if e.queue.WouldBlock() {
 		return e.queue.Available()

@@ -102,8 +102,9 @@ func (e *packetEmission) useRoute(route *pathRoute) {
 // loop keeps their alarms, as it does when congestion-limited. Admission probes have
 // already had their turn, and a path's recovery wakes the connection.
 func (e *packetEmission) heldOpportunity(now monotime.Time, confirmed bool) emissionResult {
-	if e.route == nil && (e.pathCredit.zeroRetired() || e.pathCredit.zeroFencing()) {
-		// A nil route is path zero, whose keys no longer seal or whose epoch is revoked.
+	if e.route == nil && !e.pathCredit.zeroCarries() {
+		// A nil route is path zero, whose keys no longer seal, whose epoch is revoked, or
+		// whose endpoint has failed.
 		return emissionResult{stop: emissionHardBlocked, blocked: blockModeHardBlocked}
 	}
 	if e.queue.WouldBlock() {
