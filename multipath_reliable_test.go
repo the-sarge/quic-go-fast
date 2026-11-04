@@ -94,6 +94,114 @@ func (f *reliableFixture) pass(t *testing.T) {
 	require.NoError(t, f.c.emission.consumeLocal())
 }
 
+// loopPass follows the run loop's order, in which selection runs in capacity and
+// again in send.
+func (f *reliableFixture) loopPass(t *testing.T) {
+	t.Helper()
+	for {
+		synctest.Wait()
+		require.NoError(t, f.c.emission.consumeLocal())
+		if f.c.emission.capacity() != nil {
+			break
+		}
+		result := f.c.triggerSending(monotime.Now())
+		require.NoError(t, result.err)
+		if !result.retry {
+			break
+		}
+	}
+	synctest.Wait()
+	require.NoError(t, f.c.emission.consumeLocal())
+}
+
+// contendedEndpoint fills an endpoint's data class with other connections' small
+// reservations, so returning one gives whoever holds the turn exactly one slot.
+type contendedEndpoint struct {
+	endpoint *nativeEndpoint
+	slots    []endpointAdmission
+	nextID   uint64
+}
+
+func newContendedEndpoint(t *testing.T, endpoint *nativeEndpoint, firstID uint64) *contendedEndpoint {
+	t.Helper()
+	e := &contendedEndpoint{endpoint: endpoint, nextID: firstID}
+	for {
+		other := e.attach(t)
+		admission, err := e.reserve(other)
+		if err != nil {
+			require.ErrorIs(t, err, errEndpointCapacity)
+			endpoint.cancelReadiness(other, 0)
+			break
+		}
+		e.slots = append(e.slots, admission)
+	}
+	synctest.Wait()
+	return e
+}
+
+func (e *contendedEndpoint) attach(t *testing.T) *endpointParticipant {
+	t.Helper()
+	other, err := e.endpoint.attach(e.nextID)
+	require.NoError(t, err)
+	e.nextID++
+	return other
+}
+
+func (e *contendedEndpoint) reserve(p *endpointParticipant) (admission endpointAdmission, err error) {
+	e.endpoint.do(func(state *endpointState) { admission, err = state.admit(p, 0, 64) })
+	return admission, err
+}
+
+func (e *contendedEndpoint) freeSlot() {
+	admission := e.slots[0]
+	e.slots = e.slots[1:]
+	e.endpoint.cancelAdmission(admission)
+	synctest.Wait()
+}
+
+// rival is another connection waiting behind whoever holds the turn.
+func (e *contendedEndpoint) rival(t *testing.T) *endpointParticipant {
+	t.Helper()
+	rival := e.attach(t)
+	_, err := e.reserve(rival)
+	require.ErrorIs(t, err, errEndpointCapacity)
+	synctest.Wait()
+	return rival
+}
+
+func (e *contendedEndpoint) state(p *endpointParticipant) (pending, granted, leased bool) {
+	e.endpoint.do(func(state *endpointState) {
+		pending = p.wait[0].pending
+		granted = state.grant != nil && state.grant.participant == p
+		leased = granted && !state.grant.expires.IsZero()
+	})
+	return pending, granted, leased
+}
+
+// lease begins p's lease, once p holds the turn.
+func (e *contendedEndpoint) lease(t *testing.T, p *endpointParticipant) {
+	t.Helper()
+	_, granted, leased := e.state(p)
+	require.True(t, granted, "the participant holds the turn")
+	if !leased {
+		e.freeSlot()
+		_, _, leased = e.state(p)
+	}
+	require.True(t, leased, "the participant's lease has begun")
+}
+
+// serve gives each rival its turn, which fills the slot it was leased.
+func (e *contendedEndpoint) serve(t *testing.T, rivals ...*endpointParticipant) {
+	t.Helper()
+	for _, rival := range rivals {
+		e.lease(t, rival)
+		admission, err := e.reserve(rival)
+		require.NoError(t, err)
+		e.slots = append(e.slots, admission)
+		synctest.Wait()
+	}
+}
+
 func (f *reliableFixture) pathAlarm(id protocol.PathID) monotime.Time {
 	return f.c.sentPacketHandler.(interface {
 		PathLossDetectionTimeout(protocol.PathID) monotime.Time
@@ -801,6 +909,185 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 			socket.release()
 			synctest.Wait()
 		})
+	})
+	// Both endpoints are full, a DATAGRAM fits only the target, and the chosen route
+	// holds the turn at its own endpoint, with other connections behind it.
+	contended := func(t *testing.T, pto bool) (*reliableFixture, *SendStream, *nativeOrdinarySender, *nativeProbeSocket, *contendedEndpoint, *contendedEndpoint, *endpointParticipant, []*endpointParticipant) {
+		f := newAdmissionFixture(t, protocol.PerspectiveClient)
+		f.supplyPeerCIDs(t)
+		target, socket, endpoint := newTarget(t, f)
+		t.Cleanup(socket.release)
+		open(t, f, target, socket)
+		r := &reliableFixture{admissionFixture: f}
+		s := stream(t, f)
+		sender := f.c.emission.local.(*nativeOrdinarySender)
+		sender.nativeGSO = false
+		r.setPathMTU(1, 1400)
+		f.c.pathCredit.selectPrimaryPrivate(0)
+		fitting := sender.probeParticipant(endpoint)
+		require.NotNil(t, fitting)
+		if pto {
+			writeAsync(t, s, 1000)
+			r.pass(t)
+			require.Equal(t, 1000, reliableBytes(r.parseWrites(t, 0)))
+		}
+		f.socket.writes = nil
+
+		fittingLoad := newContendedEndpoint(t, endpoint, 1<<40)
+		chosenLoad := newContendedEndpoint(t, sender.endpoint, 1<<41)
+		r.queueDatagram(t, 1300)
+		writeAsync(t, s, 1000)
+		r.loopPass(t)
+		require.Zero(t, reliableBytes(r.parseWrites(t, 0)), "the chosen endpoint is full")
+		pending, _, _ := fittingLoad.state(fitting)
+		require.True(t, pending, "the held frame waits at its endpoint")
+		rivals := []*endpointParticipant{chosenLoad.rival(t), chosenLoad.rival(t)}
+		return r, s, sender, socket, chosenLoad, fittingLoad, fitting, rivals
+	}
+	t.Run("a refused steering attempt costs the chosen route nothing", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			r, s, sender, socket, chosenLoad, fittingLoad, fitting, rivals := contended(t, false)
+			c := r.c
+			fittingRival := fittingLoad.rival(t)
+
+			chosenLoad.lease(t, sender.participant)
+			select {
+			case <-c.emission.localWakeup():
+			default:
+				t.Fatal("the lease wakes the connection")
+			}
+			r.loopPass(t)
+			require.Equal(t, 1000, reliableBytes(r.parseWrites(t, 0)), "the chosen route uses its lease in the pass it wakes")
+			require.NotNil(t, c.datagramQueue.Peek(), "the frame stays held")
+			pending, granted, _ := fittingLoad.state(fitting)
+			require.True(t, pending)
+			require.True(t, granted, "the frame keeps its turn at the fitting endpoint")
+			r.socket.writes = nil
+
+			// The frame's lease survives selection in capacity and again in send, with
+			// another connection waiting to take it.
+			fittingLoad.lease(t, fitting)
+			r.loopPass(t)
+			require.Nil(t, c.datagramQueue.Peek(), "the frame left")
+			require.Zero(t, c.datagramQueue.sendDrops.Load())
+			require.Zero(t, reliableBytes(r.parseWrites(t, 0)))
+			_, granted, _ = fittingLoad.state(fittingRival)
+			require.True(t, granted, "the other connection is next at the fitting endpoint")
+			own := r.socket
+			r.socket = socket
+			writes := r.parseWrites(t, 1)
+			require.Equal(t, []int{1300}, reliableDatagrams(writes))
+			require.Zero(t, reliableBytes(writes), "the frame leaves alone")
+			r.socket = own
+
+			// The chosen route's traffic continues, in its own turn.
+			writeAsync(t, s, 500)
+			r.loopPass(t)
+			chosenLoad.serve(t, rivals...)
+			r.loopPass(t)
+			chosenLoad.lease(t, sender.participant)
+			r.loopPass(t)
+			require.Equal(t, 500, reliableBytes(r.parseWrites(t, 0)))
+		})
+	})
+	t.Run("a successful steering attempt leaves no registration on the chosen route", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			r, _, sender, _, chosenLoad, fittingLoad, fitting, rivals := contended(t, false)
+			c := r.c
+			fittingLoad.lease(t, fitting)
+			require.Nil(t, c.emission.capacity())
+			require.True(t, c.emission.steered)
+			pending, granted, _ := chosenLoad.state(sender.participant)
+			require.False(t, pending, "an unwanted turn can't delay the other connections")
+			require.False(t, granted)
+			_, granted, _ = chosenLoad.state(rivals[0])
+			require.True(t, granted, "the next waiter has the turn at once")
+		})
+	})
+	t.Run("a successful steering attempt returns the chosen route's reservation", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			r, _, sender, socket, chosenLoad, fittingLoad, fitting, _ := contended(t, false)
+			c := r.c
+			chosenLoad.lease(t, sender.participant)
+			require.Nil(t, c.emission.capacity())
+			require.Same(t, sender.endpoint, sender.pending.endpoint, "the chosen route holds a reservation")
+
+			fittingLoad.lease(t, fitting)
+			result := c.triggerSending(monotime.Now())
+			require.NoError(t, result.err)
+			require.Nil(t, c.datagramQueue.Peek(), "the frame left")
+			own := r.socket
+			r.socket = socket
+			require.Equal(t, []int{1300}, reliableDatagrams(r.parseWrites(t, 1)))
+			r.socket = own
+			for index := range sender.records {
+				record := &sender.records[index]
+				require.False(t, record.admission.serial != 0 && record.endpoint == sender.endpoint, "no record stays reserved at the chosen endpoint")
+			}
+		})
+	})
+	t.Run("a pending PTO on the chosen route skips steering", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			r, _, sender, _, chosenLoad, _, _, _ := contended(t, true)
+			// A PTO timer outlasts the lease, so it fires first.
+			r.expirePTO(t, 0)
+			chosenLoad.lease(t, sender.participant)
+			r.loopPass(t)
+			require.NotEmpty(t, r.parseWrites(t, 0), "the probe leaves on the chosen route")
+			require.NotNil(t, r.c.datagramQueue.Peek())
+			require.False(t, r.c.emission.steered)
+		})
+	})
+	t.Run("a selection that moves off the chosen route leaves no registration on it", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			r, _, sender, _, chosenLoad, fittingLoad, fitting, rivals := contended(t, false)
+			c := r.c
+			pending, _, _ := chosenLoad.state(sender.participant)
+			require.True(t, pending)
+
+			c.pathCredit.selectPrimaryPrivate(1)
+			require.NotNil(t, c.emission.capacity(), "the new primary's endpoint is full")
+			pending, granted, _ := chosenLoad.state(sender.participant)
+			require.False(t, pending, "nothing waits at the old route's endpoint")
+			require.False(t, granted)
+			_, granted, _ = chosenLoad.state(rivals[0])
+			require.True(t, granted, "the next waiter has the turn at once")
+			pending, _, _ = fittingLoad.state(fitting)
+			require.True(t, pending, "the new primary's registration is its own")
+		})
+	})
+}
+
+// Two paths on one endpoint share a participant, so the attempt's registration is
+// also the chosen route's, and the frame and the traffic take turns.
+func TestPathReliableSteeringOnOneEndpoint(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		r := newReliableFixture(t, protocol.PerspectiveClient)
+		c := r.c
+		sender := c.emission.local.(*nativeOrdinarySender)
+		sender.nativeGSO = false
+		r.setPathMTU(1, 1400)
+		c.pathCredit.selectPrimaryPrivate(0)
+
+		load := newContendedEndpoint(t, sender.endpoint, 1<<40)
+		r.queueDatagram(t, 1300)
+		r.write(t, 1000)
+		r.loopPass(t)
+		require.Empty(t, r.socket.writes, "the endpoint is full")
+		rival := load.rival(t)
+
+		load.lease(t, sender.participant)
+		r.loopPass(t)
+		require.Nil(t, c.datagramQueue.Peek(), "the frame takes the shared turn")
+		require.Equal(t, []int{1300}, reliableDatagrams(r.parseWrites(t, 1)))
+
+		r.socket.writes = nil
+		r.loopPass(t)
+		load.serve(t, rival)
+		r.loopPass(t)
+		load.lease(t, sender.participant)
+		r.loopPass(t)
+		require.Equal(t, 1000, reliableBytes(r.parseWrites(t, 0)))
 	})
 }
 
