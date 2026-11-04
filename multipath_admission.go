@@ -91,6 +91,12 @@ type pathOpenRequest struct {
 	outcome   atomic.Int32 // one transition decides what the caller observes
 	accepted  bool
 	id        protocol.PathID
+	use       *pathLocalUse // set when the operation is a local-use change
+}
+
+type pathLocalUse struct {
+	id     protocol.PathID
+	backup bool
 }
 
 const (
@@ -664,6 +670,11 @@ func (p *pathCreditRegistry) pruneFences(m *pathMember) bool {
 func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 	request := p.conn.pathOpen.Load()
 	if request == nil {
+		return nil
+	}
+	if use := request.use; use != nil {
+		request.finish(p.setLocalUsePrivate(use.id, use.backup, now))
+		p.conn.pathOpen.CompareAndSwap(request, nil)
 		return nil
 	}
 	if request.accepted {

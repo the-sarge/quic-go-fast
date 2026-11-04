@@ -39,6 +39,22 @@ func (c *Conn) openPathPrivate(ctx context.Context, target *Transport, addr net.
 	}
 }
 
+// useLocalPrivate is setLocalUsePrivate for a caller off the connection goroutine.
+// It takes the one local operation slot, so it also waits for an open to finish.
+func (c *Conn) useLocalPrivate(ctx context.Context, id protocol.PathID, backup bool) error {
+	request := &pathOpenRequest{ctx: ctx, use: &pathLocalUse{id: id, backup: backup}, done: make(chan error, 1)}
+	if !c.pathOpen.CompareAndSwap(nil, request) {
+		return fmt.Errorf("%w: a local path operation is in progress", ErrMultipathBackpressureV1)
+	}
+	c.scheduleSending()
+	select {
+	case err := <-request.done:
+		return err
+	case <-c.ctx.Done():
+		return context.Cause(c.ctx)
+	}
+}
+
 // zeroEpoch fences ordinary path-zero requests, once admission can retire path zero.
 func (p *pathCreditRegistry) zeroEpoch() *responseEpoch {
 	if zero := p.members[0]; zero != nil {

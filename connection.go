@@ -388,6 +388,7 @@ var newConnection = func(
 		RetrySourceConnectionID:   retrySrcConnID,
 		EnableResetStreamAt:       conf.EnableStreamResetPartialDelivery,
 	}
+	s.advertisePrivateMultipath(params)
 	if s.config.EnableDatagrams {
 		params.MaxDatagramFrameSize = wire.MaxDatagramSize
 	} else {
@@ -519,6 +520,7 @@ var newClientConnection = func(
 		InitialSourceConnectionID: srcConnID,
 		EnableResetStreamAt:       conf.EnableStreamResetPartialDelivery,
 	}
+	s.advertisePrivateMultipath(params)
 	if s.config.EnableDatagrams {
 		params.MaxDatagramFrameSize = wire.MaxDatagramSize
 	} else {
@@ -1144,11 +1146,14 @@ func (c *Conn) handleHandshakeComplete(now monotime.Time) error {
 	// During a 0-RTT connection, the client is only allowed to use the new transport parameters for 1-RTT packets.
 	if c.perspective == protocol.PerspectiveClient {
 		c.applyTransportParameters()
-		return nil
+		return c.activatePrivateMultipath()
 	}
 
 	// All these only apply to the server side.
 	if err := c.handleHandshakeConfirmed(now); err != nil {
+		return err
+	}
+	if err := c.activatePrivateMultipath(); err != nil {
 		return err
 	}
 
@@ -2771,7 +2776,9 @@ func (c *Conn) restoreTransportParameters(params *wire.TransportParameters) {
 	}
 
 	c.peerParams = params
-	c.connIDGenerator.SetMaxActiveConnIDs(params.ActiveConnectionIDLimit)
+	if !c.negotiatesPrivateMultipath(params) { // activation issues path zero's CIDs
+		c.connIDGenerator.SetMaxActiveConnIDs(params.ActiveConnectionIDLimit)
+	}
 	c.connFlowController.UpdateSendWindow(params.InitialMaxData)
 	c.streamsMap.HandleTransportParameters(params)
 }
@@ -2849,7 +2856,9 @@ func (c *Conn) applyTransportParameters() {
 	c.frameParser.SetAckDelayExponent(params.AckDelayExponent)
 	c.connFlowController.UpdateSendWindow(params.InitialMaxData)
 	c.rttStats.SetMaxAckDelay(params.MaxAckDelay)
-	c.connIDGenerator.SetMaxActiveConnIDs(params.ActiveConnectionIDLimit)
+	if !c.negotiatesPrivateMultipath(params) { // activation issues path zero's CIDs
+		c.connIDGenerator.SetMaxActiveConnIDs(params.ActiveConnectionIDLimit)
+	}
 	if params.StatelessResetToken != nil {
 		c.connIDManager.SetStatelessResetToken(*params.StatelessResetToken)
 	}

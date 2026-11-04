@@ -1,5 +1,5 @@
 # The driver structure follows qoke/mp-quic-go at 084c13ea3834fbe58cedb63db9208951d714f839 (MIT).
-# Only ordinary QUIC v1 controls are implemented here; no -M or multipath API calls.
+# The ordinary control and R14's two-path smoke run here. R17 owns the full matrix.
 FROM golang:1.27.3-bookworm@sha256:d9b6a1beb9474adc2a1ce842573639b44b2a0dd49b6669f51d3821baf9ec37c9
 
 # Freeze package resolution as well as the image and both protocol dependencies.
@@ -28,4 +28,5 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN go test -c -tags=picoquic -o /src/peer-control.test ./integrationtests/self
+RUN go test -c -tags=picoquic -o /src/peer-smoke.test .
 ENTRYPOINT ["python3", "interop/multipath/run.py", "--binary", "/usr/local/bin/picoquicdemo"]

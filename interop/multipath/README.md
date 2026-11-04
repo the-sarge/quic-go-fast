@@ -25,6 +25,10 @@ Both `TestPicoquicOrdinaryControl/client` and `TestPicoquicOrdinaryControl/serve
 
 The result is example-level evidence over this fixed scenario and toolchain, not universal protocol coverage or native endpoint qualification. Linux amd64 execution under emulation must be recorded as such. The negotiated-zero oracle gap remains for later normative vectors and a controlled peer; no multipath scenario is stubbed or reported as executed here. R14 and R17 own their later scenarios and any dedicated qualification workflow.
 
+## Two-path smoke
+
+[R14 (#1034)](https://github.com/the-sarge/quic-go-fast/issues/1034) adds one fixed two-path STREAM run per role: useful data on both paths, a stream abort and a close, with the private activation guard set by a `picoquic`-tagged root package test. Pass `--smoke` to the runner to select it. Both `TestPicoquicMultipathSmoke/client` and `TestPicoquicMultipathSmoke/server` must execute and pass exactly once. It is example-level evidence, charged to the program ledger, and [R17 (#1037)](https://github.com/the-sarge/quic-go-fast/issues/1037) owns the full matrix.
+
 ## Native deadline qualification
 
 [E6 (#1020)](https://github.com/the-sarge/quic-go-fast/issues/1020) runs six native classes on real UDP sockets, once each on Go 1.26.10 and 1.27.3: 12 instances. `native_qualification_test.go` in the root package is the fixture, under `//go:build nativequal && linux && amd64`, and `native_qualification.py` is its driver. The transport test suite owns both, and retirement requires equivalent replacement or feature removal.

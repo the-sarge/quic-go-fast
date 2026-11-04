@@ -85,6 +85,11 @@ func newAdmissionFixture(t *testing.T, perspective protocol.Perspective) *admiss
 
 func newAdmissionFixtureWith(t *testing.T, perspective protocol.Perspective, tracer func(context.Context, bool, ConnectionID) qlogwriter.Trace) *admissionFixture {
 	t.Helper()
+	return buildAdmissionFixture(t, perspective, tracer, false)
+}
+
+func buildAdmissionFixture(t *testing.T, perspective protocol.Perspective, tracer func(context.Context, bool, ConnectionID) qlogwriter.Trace, unactivated bool) *admissionFixture {
+	t.Helper()
 	ctrl := gomock.NewController(t)
 	conf := &Config{InitialPacketSize: 1200, EnableDatagrams: true, DisablePathMTUDiscovery: true, Tracer: tracer}
 	var tc *testConnection
@@ -122,12 +127,22 @@ func newAdmissionFixtureWith(t *testing.T, perspective protocol.Perspective, tra
 	c.connIDGenerator.ownRunner = route
 	c.connIDManager.addStatelessResetToken = func(token protocol.StatelessResetToken) { route.AddResetToken(token, c) }
 	c.connIDManager.removeStatelessResetToken = route.RemoveResetToken
+	fixture := &admissionFixture{tc: tc, c: c, socket: socket, route: route, peer: peer, nextPN: make(map[protocol.PathID]protocol.PacketNumber)}
+	if unactivated {
+		c.handshakeConfirmed = false
+		return fixture
+	}
 	_, err := c.enableMultipathCredit(2, 1, 4)
 	require.NoError(t, err)
 	seal, err := peer.Get1RTTSealer()
 	require.NoError(t, err)
 	require.NoError(t, handshake.AdmitShortHeaderPath(seal, 1, utils.NewRTTStats()))
-	return &admissionFixture{tc: tc, c: c, socket: socket, route: route, peer: peer, nextPN: make(map[protocol.PathID]protocol.PacketNumber)}
+	return fixture
+}
+
+func newAdmissionFixtureUnactivated(t *testing.T) *admissionFixture {
+	t.Helper()
+	return buildAdmissionFixture(t, protocol.PerspectiveClient, nil, true)
 }
 
 func (f *admissionFixture) issuedCID(id protocol.PathID) protocol.ConnectionID {

@@ -242,6 +242,12 @@ func nativeProbePeerAddr() *net.UDPAddr {
 	return net.UDPAddrFromAddrPort(netip.AddrPortFrom(nativeProbePeer.Addr(), nativeProbePeer.Port()))
 }
 
+// newUnconfirmedFixture is an admission fixture's connection before confirmation.
+func newUnconfirmedFixture(t *testing.T) *admissionFixture {
+	t.Helper()
+	return newAdmissionFixtureUnactivated(t)
+}
+
 // faultPrimary sends on path zero into a socket failure that faults its endpoint.
 func (f *reliableFixture) faultPrimary(t *testing.T) error {
 	t.Helper()
@@ -286,4 +292,40 @@ func newTargetPathFixture(t *testing.T) (*targetPathFixture, *nativeProbeSocket)
 	targetSocket.writes = nil
 	admission.socket.writes = nil
 	return &targetPathFixture{reliableFixture: f, target: target}, targetSocket
+}
+
+// TestPathPrivateActivationAtCompletion advertises, then activates on a peer that also
+// advertised, before the client is confirmed.
+func TestPathPrivateActivationAtCompletion(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newAdmissionFixture(t, protocol.PerspectiveClient)
+		params := &wire.TransportParameters{}
+		f.c.config.privateMultipath = true
+		f.c.advertisePrivateMultipath(params)
+		require.NotNil(t, params.InitialMaxPathID)
+		require.True(t, f.c.negotiatesPrivateMultipath(params))
+		require.False(t, f.c.negotiatesPrivateMultipath(&wire.TransportParameters{}), "an ordinary peer stays ordinary")
+		f.c.config.privateMultipath = false
+		require.False(t, f.c.negotiatesPrivateMultipath(params))
+		ordinary := &wire.TransportParameters{}
+		f.c.advertisePrivateMultipath(ordinary)
+		require.Nil(t, ordinary.InitialMaxPathID, "no advertisement without the guard")
+
+		// Before confirmation, on a fresh connection with its own endpoint route.
+		g := newUnconfirmedFixture(t)
+		maximum := protocol.PathID(1)
+		g.c.config.privateMultipath = true
+		g.c.peerParams = &wire.TransportParameters{InitialMaxPathID: &maximum, ActiveConnectionIDLimit: 4}
+		require.False(t, g.c.handshakeConfirmed)
+		require.NoError(t, g.c.activatePrivateMultipath())
+		require.NotNil(t, g.c.pathCredit)
+		require.True(t, g.c.pathCredit.hasAdmission())
+		require.NoError(t, creditIngress(t, g.tc, monotime.Now(), &wire.MaxPathIDFrame{MaximumPathID: 1}), "a negotiated control frame before confirmation")
+
+		used := make(chan error, 1)
+		go func() { used <- g.c.useLocalPrivate(context.Background(), 0, false) }()
+		synctest.Wait()
+		require.NoError(t, g.c.pathCredit.serviceRequest(monotime.Now()))
+		require.NoError(t, <-used)
+	})
 }

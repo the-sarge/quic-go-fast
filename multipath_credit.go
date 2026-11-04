@@ -65,7 +65,7 @@ func connectionRunnerCallbacks(runner connRunner, c *Conn) connRunnerCallbacks {
 // neither call it nor advertise multipath. A connection already on the private
 // endpoint route gains consumed-path admission; any other keeps unused-ID credit.
 func (c *Conn) enableMultipathCredit(capacity int, peerMax protocol.PathID, peerCIDLimit uint64) (_ *wire.TransportParameters, err error) {
-	if c.pathCredit != nil || !c.handshakeConfirmed || c.version != protocol.Version1 || capacity < 1 || capacity > 2 || peerCIDLimit < 2 || c.emission.bbr != nil || c.connIDManager.closed || c.connIDManager.activeConnectionID.Len() == 0 || c.srcConnIDLen == 0 || c.connIDGenerator.generator.ConnectionIDLen() != c.srcConnIDLen || c.pathManager != nil || c.pathManagerOutgoing.Load() != nil || len(c.connIDManager.pathProbing) != 0 || uint64(len(c.connIDGenerator.activeSrcConnIDs)) > min(peerCIDLimit, 2) || len(c.connIDGenerator.activeSrcConnIDs)+len(c.connIDGenerator.connIDsToRetire) > maxPathCIDRecords {
+	if c.pathCredit != nil || (!c.handshakeConfirmed && !c.config.privateMultipath) || c.version != protocol.Version1 || capacity < 1 || capacity > 2 || peerCIDLimit < 2 || c.emission.bbr != nil || c.connIDManager.closed || c.connIDManager.activeConnectionID.Len() == 0 || c.srcConnIDLen == 0 || c.connIDGenerator.generator.ConnectionIDLen() != c.srcConnIDLen || c.pathManager != nil || c.pathManagerOutgoing.Load() != nil || len(c.connIDManager.pathProbing) != 0 || uint64(len(c.connIDGenerator.activeSrcConnIDs)) > min(peerCIDLimit, 2) || len(c.connIDGenerator.activeSrcConnIDs)+len(c.connIDGenerator.connIDsToRetire) > maxPathCIDRecords {
 		return nil, fmt.Errorf("invalid private multipath credit activation")
 	}
 	p := &pathCreditRegistry{conn: c, capacity: capacity, localMax: protocol.PathID(capacity - 1), peerMax: peerMax, nextID: 1, peerCIDLimit: peerCIDLimit, paths: map[protocol.PathID]bool{0: true}, terminals: make(map[protocol.PathID]*pathTerminal)}
@@ -95,6 +95,29 @@ func (c *Conn) enableMultipathCredit(capacity int, peerMax protocol.PathID, peer
 	c.frameParser.EnableMultipath()
 	localMax := p.localMax
 	return &wire.TransportParameters{InitialMaxPathID: &localMax, ActiveConnectionIDLimit: 4}, nil
+}
+
+// advertisePrivateMultipath offers the extension under the fixture's guard.
+func (c *Conn) advertisePrivateMultipath(params *wire.TransportParameters) {
+	if c.config.privateMultipath {
+		maximum := protocol.PathID(1)
+		params.InitialMaxPathID = &maximum
+	}
+}
+
+func (c *Conn) negotiatesPrivateMultipath(params *wire.TransportParameters) bool {
+	return c.config.privateMultipath && params.InitialMaxPathID != nil
+}
+
+// activatePrivateMultipath runs at handshake completion, once the peer's parameters
+// are applied and before any 1-RTT frame can be processed. A client isn't confirmed
+// yet, and recovery refuses a nonzero path until it is. An ordinary peer stays ordinary.
+func (c *Conn) activatePrivateMultipath() error {
+	if !c.negotiatesPrivateMultipath(c.peerParams) {
+		return nil
+	}
+	_, err := c.enableMultipathCredit(2, *c.peerParams.InitialMaxPathID, c.peerParams.ActiveConnectionIDLimit)
+	return err
 }
 
 func (p *pathCreditRegistry) issueWindow() error {
