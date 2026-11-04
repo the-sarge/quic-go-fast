@@ -383,6 +383,9 @@ func (s *nativeOrdinarySender) sendClose(buffer *packetBuffer, ecn protocol.ECN)
 	return err
 }
 
+// isEndpointFault recognizes the fault that can leave a survivor to close through.
+func isEndpointFault(err error) bool { return errors.Is(err, errEndpointFault) }
+
 // pathCloseLimit is the two live paths a connection can hold.
 const pathCloseLimit = 2
 

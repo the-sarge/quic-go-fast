@@ -2700,7 +2700,7 @@ func (c *Conn) handleCloseError(closeErr *closeError) {
 		return
 	}
 	// A faulted endpoint stops only its own paths, so a survivor can still tell the peer.
-	closesViaSurvivor := admission && closeErr.immediate && errors.Is(e, errEndpointFault) && len(c.pathCredit.closeContexts(nil)) != 0
+	closesViaSurvivor := admission && closeErr.immediate && isEndpointFault(e) && len(c.pathCredit.closeContexts(nil)) != 0
 	// Recreating for version negotiation never sends a close in the old version.
 	if (closeErr.immediate && !closesViaSurvivor) || recreateErr != nil {
 		c.connIDGenerator.RemoveAll()

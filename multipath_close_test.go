@@ -1,3 +1,5 @@
+//go:build darwin || linux || freebsd
+
 package quic
 
 import (
@@ -232,6 +234,9 @@ func TestPathCloseFaultedPrimaryUsesSurvivor(t *testing.T) {
 	nativeOrdinaryTest(t, func(t *testing.T) {
 		f, targetSocket := newTargetPathFixture(t)
 		cid := f.issuedCID(1)
+		zeroCID := f.c.connIDGenerator.activeSrcConnIDs[0]
+		(*packetHandlerMap)(f.target).closeQueue = make(chan closePacket, 4)
+		f.route.closeQueue = make(chan closePacket, 4)
 		fault := f.faultPrimary(t)
 
 		f.c.sentFirstPacket = true
@@ -242,6 +247,13 @@ func TestPathCloseFaultedPrimaryUsesSurvivor(t *testing.T) {
 		require.Len(t, targetSocket.writes, 1)
 		requireTuple(t, admissionTupleA, targetSocket.writes[0].destination)
 		require.Contains(t, (*packetHandlerMap)(f.target).handlers, cid, "routing is retained for the close")
+
+		// A trigger on the failed endpoint's transport is answered by the survivor's.
+		f.trigger(t, f.route, zeroCID, nativeProbePeerAddr())
+		require.Empty(t, f.route.closeQueue)
+		reply := <-(*packetHandlerMap)(f.target).closeQueue
+		require.Equal(t, targetSocket.writes[0].data, reply.payload)
+		require.Equal(t, admissionTupleA.String(), reply.addr.String())
 	})
 }
 
