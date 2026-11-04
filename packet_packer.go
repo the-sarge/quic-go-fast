@@ -127,10 +127,14 @@ type packetPacker struct {
 
 	token []byte
 
-	pnManager           packetNumberManager
-	framer              frameSource
-	acks                ackFrameSource
-	datagramQueue       *datagramQueue
+	pnManager     packetNumberManager
+	framer        frameSource
+	acks          ackFrameSource
+	datagramQueue *datagramQueue
+	// holdDatagrams keeps a frame that doesn't fit queued, since another path or a
+	// fresh packet may carry it. Emission alone drops one once no path can. It is
+	// set only with path admission; ordinary connections discard as before.
+	holdDatagrams       bool
 	retransmissionQueue *retransmissionQueue
 	rand                rand.Rand
 
@@ -416,7 +420,7 @@ func (p *packetPacker) PackCoalescedPacket(onlyAck bool, maxSize protocol.ByteCo
 			connID = p.getDestConnID()
 			oneRTTPacketNumber, oneRTTPacketNumberLen = p.pnManager.PeekPacketNumber(protocol.Encryption1RTT)
 			hdrLen := wire.ShortHeaderLen(connID, oneRTTPacketNumberLen)
-			oneRTTPayload = p.maybeGetShortHeaderPacket(oneRTTSealer, hdrLen, maxSize-size, onlyAck, true, now, v)
+			oneRTTPayload = p.maybeGetShortHeaderPacket(oneRTTSealer, hdrLen, maxSize-size, onlyAck, now, v)
 			if oneRTTPayload.length > 0 {
 				size += p.shortHeaderPacketLength(connID, oneRTTPacketNumberLen, oneRTTPayload) + protocol.ByteCount(oneRTTSealer.Overhead())
 			}
@@ -509,8 +513,7 @@ func (p *packetPacker) AppendPacket(buf *packetBuffer, maxSize protocol.ByteCoun
 // frame that doesn't fit: it returns errNothingToPack and leaves the frame
 // queued, since a later packet with a larger limit can carry it.
 // It should be called after the handshake is confirmed.
-func (p *packetPacker) AppendDatagramPacket(buf *packetBuffer, maxSize protocol.ByteCount, v protocol.Version) (shortHeaderPacket, error) {
-	context := p.pathZeroContext()
+func (p *packetPacker) AppendDatagramPacket(route *pathRoute, buf *packetBuffer, maxSize protocol.ByteCount, v protocol.Version) (shortHeaderPacket, error) {
 	if p.datagramQueue == nil {
 		return shortHeaderPacket{}, errNothingToPack
 	}
@@ -522,8 +525,8 @@ func (p *packetPacker) AppendDatagramPacket(buf *packetBuffer, maxSize protocol.
 	if f == nil {
 		return shortHeaderPacket{}, errNothingToPack
 	}
-	pn, pnLen := p.pnManager.PeekPacketNumber(protocol.Encryption1RTT)
-	connID := p.getDestConnID()
+	context, numbers, connID := p.shortHeaderIdentity(route)
+	pn, pnLen := numbers.PeekPacketNumber(protocol.Encryption1RTT)
 	size := f.Length(v)
 	if size > maxSize-wire.ShortHeaderLen(connID, pnLen)-protocol.ByteCount(sealer.Overhead()) {
 		return shortHeaderPacket{}, errNothingToPack
@@ -532,6 +535,18 @@ func (p *packetPacker) AppendDatagramPacket(buf *packetBuffer, maxSize protocol.
 	p.numNonAckElicitingAcks = 0
 	pl := payload{frames: []ackhandler.Frame{{Frame: f}}, length: size}
 	return p.appendShortHeaderPacket(context, buf, connID, pn, pnLen, sealer.KeyPhase(), pl, 0, maxSize, sealer, false, v)
+}
+
+// datagramRoom is the frame length a fresh packet on route can carry at maxSize. It
+// reports false before 1-RTT keys exist. It reads the same inputs as packing.
+func (p *packetPacker) datagramRoom(route *pathRoute, maxSize protocol.ByteCount) (protocol.ByteCount, bool) {
+	sealer, err := p.cryptoSetup.Get1RTTSealer()
+	if err != nil {
+		return 0, false
+	}
+	_, numbers, connID := p.shortHeaderIdentity(route)
+	_, pnLen := numbers.PeekPacketNumber(protocol.Encryption1RTT)
+	return maxSize - wire.ShortHeaderLen(connID, pnLen) - protocol.ByteCount(sealer.Overhead()), true
 }
 
 // shortHeaderIdentity is the one seam between a selected route and packing: context,
@@ -558,7 +573,7 @@ func (p *packetPacker) appendPacket(
 	context, numbers, connID := p.shortHeaderIdentity(route)
 	pn, pnLen := numbers.PeekPacketNumber(protocol.Encryption1RTT)
 	hdrLen := wire.ShortHeaderLen(connID, pnLen)
-	pl := p.maybeGetShortHeaderPacket(sealer, hdrLen, maxPacketSize, onlyAck, route == nil, now, v)
+	pl := p.maybeGetShortHeaderPacket(sealer, hdrLen, maxPacketSize, onlyAck, now, v)
 	if pl.length == 0 {
 		return shortHeaderPacket{}, errNothingToPack
 	}
@@ -656,27 +671,27 @@ func (p *packetPacker) maybeGetAppDataPacketFor0RTT(sealer sealer, maxSize proto
 
 	hdr := p.getLongHeader(protocol.Encryption0RTT, v)
 	maxPayloadSize := maxSize - hdr.GetLength(v) - protocol.ByteCount(sealer.Overhead())
-	return hdr, p.maybeGetAppDataPacket(maxPayloadSize, false, false, true, now, v)
+	return hdr, p.maybeGetAppDataPacket(maxPayloadSize, false, false, now, v)
 }
 
 func (p *packetPacker) maybeGetShortHeaderPacket(
 	sealer handshake.ShortHeaderSealer,
 	hdrLen, maxPacketSize protocol.ByteCount,
-	onlyAck, datagrams bool,
+	onlyAck bool,
 	now monotime.Time,
 	v protocol.Version,
 ) payload {
 	maxPayloadSize := maxPacketSize - hdrLen - protocol.ByteCount(sealer.Overhead())
-	return p.maybeGetAppDataPacket(maxPayloadSize, onlyAck, true, datagrams, now, v)
+	return p.maybeGetAppDataPacket(maxPayloadSize, onlyAck, true, now, v)
 }
 
 func (p *packetPacker) maybeGetAppDataPacket(
 	maxPayloadSize protocol.ByteCount,
-	onlyAck, ackAllowed, datagrams bool,
+	onlyAck, ackAllowed bool,
 	now monotime.Time,
 	v protocol.Version,
 ) payload {
-	pl := p.composeNextPacket(maxPayloadSize, onlyAck, ackAllowed, datagrams, now, v)
+	pl := p.composeNextPacket(maxPayloadSize, onlyAck, ackAllowed, now, v)
 
 	// check if we have anything to send
 	if !ackhandler.HasAckElicitingFrames(pl.frames) && len(pl.streamFrames) == 0 {
@@ -698,11 +713,9 @@ func (p *packetPacker) maybeGetAppDataPacket(
 	return pl
 }
 
-// datagrams is false on a nonzero path until R11: its discard-on-no-fit branch must
-// not run at a size the message wasn't admitted for.
 func (p *packetPacker) composeNextPacket(
 	maxPayloadSize protocol.ByteCount,
-	onlyAck, ackAllowed, datagrams bool,
+	onlyAck, ackAllowed bool,
 	now monotime.Time,
 	v protocol.Version,
 ) payload {
@@ -739,14 +752,14 @@ func (p *packetPacker) composeNextPacket(
 	if ackAllowed {
 		p.appendPathAcks(&pl, maxAckSize, now, !hasRetransmission && !hasData, v)
 	}
-	if datagrams && p.datagramQueue != nil {
+	if p.datagramQueue != nil {
 		if f := p.datagramQueue.Peek(); f != nil {
 			size := f.Length(v)
 			if size <= maxPayloadSize-pl.length { // DATAGRAM frame fits
 				pl.frames = append(pl.frames, ackhandler.Frame{Frame: f})
 				pl.length += size
 				p.datagramQueue.Pop()
-			} else if pl.ack == nil && len(pl.frames) == 0 {
+			} else if !p.holdDatagrams && pl.ack == nil && len(pl.frames) == 0 {
 				// The DATAGRAM frame doesn't fit, and the packet doesn't contain an ACK.
 				// Discard this frame. There's no point in retrying this in the next packet,
 				// as it's unlikely that the available packet size will increase.
@@ -878,7 +891,7 @@ func (p *packetPacker) packPTOProbePacket1RTT(route *pathRoute, maxPacketSize pr
 	context, numbers, connID := p.shortHeaderIdentity(route)
 	pn, pnLen := numbers.PeekPacketNumber(protocol.Encryption1RTT)
 	hdrLen := wire.ShortHeaderLen(connID, pnLen)
-	pl := p.maybeGetAppDataPacket(maxPacketSize-protocol.ByteCount(s.Overhead())-hdrLen, false, true, route == nil, now, v)
+	pl := p.maybeGetAppDataPacket(maxPacketSize-protocol.ByteCount(s.Overhead())-hdrLen, false, true, now, v)
 	if pl.length == 0 {
 		if !addPingIfEmpty {
 			return nil, nil
@@ -899,7 +912,10 @@ func (p *packetPacker) packPTOProbePacket1RTT(route *pathRoute, maxPacketSize pr
 }
 
 func (p *packetPacker) PackMTUProbePacket(ping ackhandler.Frame, size protocol.ByteCount, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
-	context := p.pathZeroContext()
+	return p.packMTUProbePacket(nil, ping, size, v)
+}
+
+func (p *packetPacker) packMTUProbePacket(route *pathRoute, ping ackhandler.Frame, size protocol.ByteCount, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
 	pl := payload{
 		frames: []ackhandler.Frame{ping},
 		length: ping.Frame.Length(v),
@@ -910,8 +926,8 @@ func (p *packetPacker) PackMTUProbePacket(ping ackhandler.Frame, size protocol.B
 		buffer.Release()
 		return shortHeaderPacket{}, nil, err
 	}
-	connID := p.getDestConnID()
-	pn, pnLen := p.pnManager.PeekPacketNumber(protocol.Encryption1RTT)
+	context, numbers, connID := p.shortHeaderIdentity(route)
+	pn, pnLen := numbers.PeekPacketNumber(protocol.Encryption1RTT)
 	padding := size - p.shortHeaderPacketLength(connID, pnLen, pl) - protocol.ByteCount(s.Overhead())
 	kp := s.KeyPhase()
 	packet, err := p.appendShortHeaderPacket(context, buffer, connID, pn, pnLen, kp, pl, padding, size, s, true, v)

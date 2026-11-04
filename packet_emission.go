@@ -21,6 +21,7 @@ import (
 type packetEmission struct {
 	pathCredit       *pathCreditRegistry
 	route            *pathRoute // the current opportunity's; nil is path zero
+	steered          bool       // the route was chosen to carry the next DATAGRAM
 	terminalReceipts [2]*pathAbandonReceipt
 	bbr              *bbrSendPolicy
 	reservation      *sendReservation // connection-owned until handoff
@@ -246,7 +247,7 @@ func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCo
 	var p shortHeaderPacket
 	var err error
 	if datagramOnly {
-		p, err = e.packer.AppendDatagramPacket(buf, maxSize, e.version)
+		p, err = e.packer.AppendDatagramPacket(e.route, buf, maxSize, e.version)
 	} else {
 		p, err = e.packer.appendPacket(e.route, buf, false, maxSize, now, e.version)
 	}
@@ -414,6 +415,9 @@ func (e *packetEmission) dispatch(now monotime.Time, confirmed bool) emissionRes
 	}
 	switch mode {
 	case ackhandler.SendAny:
+		if e.steered {
+			return e.steeredDatagram(now)
+		}
 		return emissionResult{stop: emissionSendAny}
 	case ackhandler.SendNone:
 		return emissionResult{stop: emissionHardBlocked}
@@ -744,11 +748,11 @@ func (e *packetEmission) mtuProbe(finder *mtuFinder, now monotime.Time) emission
 		return emissionResult{stop: emissionQueueFull, available: e.queue.Available()}
 	}
 	ping, size := finder.GetPing(now)
-	p, buf, err := e.packer.PackMTUProbePacket(ping, size, e.version)
+	p, buf, err := e.packer.packMTUProbePacket(e.route, ping, size, e.version)
 	if err != nil {
 		return emissionResult{err: err}
 	}
-	ecn := (*e.recovery).ECNMode(true)
+	ecn := e.selected().ECNMode(true)
 	e.policy.logShortHeaderPacket(p, ecn, buf.Len())
 	if err := e.registerPacket(p, ecn, now); err != nil {
 		buf.Release()
