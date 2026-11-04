@@ -8810,3 +8810,45 @@ The 24k context target was exceeded: the slice was read through whole owner file
 ### Next
 
 R11 [#1031](https://github.com/the-sarge/quic-go-fast/issues/1031), R12 [#1032](https://github.com/the-sarge/quic-go-fast/issues/1032) and R15 [#1035](https://github.com/the-sarge/quic-go-fast/issues/1035) are ready. The [program index](adr/2026-10-24-multipath-program.md) is the live frontier.
+
+---
+
+## Multipath R11 path-qualified DATAGRAM scheduling landed - 2026-11-03 22:50 EST
+
+**Main:** `dd5b3dd7e721`
+**Actor:** Claude
+
+### Summary
+
+[PR #1153 — Multipath R11: Schedule DATAGRAMs with path-qualified PMTU](https://github.com/the-sarge/quic-go-fast/pull/1153) closed [issue #1031](https://github.com/the-sarge/quic-go-fast/issues/1031) as merge `dd5b3dd7`, under parent [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013). Each path now has its own PMTU, and DATAGRAMs travel on nonzero paths. Public negotiation remains disabled.
+
+### Completed
+
+- Each path that goes live gets its own MTU finder at the minimum size. Probes and short DATAGRAM segments carry the selected route's identity.
+- `SendDatagram` admits at the smallest limit over eligible paths, reserving each path's CID and the longest packet number, and `DatagramTooLargeError` reports that limit.
+- With admission on, the packer holds a frame that doesn't fit. `placeDatagram` in `multipath_admission.go` is the one drop owner: a frame no eligible fresh packet can carry drops once, counted in a private `sendDrops`.
+- A frame that fits only another path leaves there in a datagram-only packet, so no stream data follows it. A congested fitting path, or one whose endpoint has no capacity, holds the frame while the primary keeps sending.
+- `PathMTUSettledV1`, qlog's `MTUUpdated` and the ordinary discard keep their existing meaning.
+
+### Decisions
+
+Declared seams are in the [R11 slice](adr/2026-10-24-multipath-reno-plan.md#r11). Discovery runs only on the selected path, so an idle backup holds the common limit at its validated size until R15 decides backup liveness cost.
+
+The replacement review found the long-CID limit bug, which the review baseline would normally defer. It was fixed because it directly broke the criterion that the public limit agrees with eligible paths, and it was cheap. It got verification only, with no third review. See the dispositions on [PR #1153](https://github.com/the-sarge/quic-go-fast/pull/1153).
+
+A paced fitting path delaying the primary by one pacing interval was rejected as a bounded delay on a rare stale-frame transition. A lost readiness wake when other connections saturate a shared fitting endpoint was deferred, because the fix belongs in `native_ordinary.go`, outside this slice.
+
+### Validation
+
+| Check | Result |
+| --- | --- |
+| Scenarios | 12 test functions in `multipath_datagram_test.go`, one subtest in `TestPathReliableTargetTransportRoute` and the rewritten `TestPathReliableMTUTimerFollowsRoute`, within the ceiling of 16 |
+| Focused race run | passes at the final head |
+| Root package and `internal/ackhandler` tests, `go vet` including Linux and Windows, `go mod tidy -diff` | pass |
+| Hosted checks at `629ee749` | 33 of 33 pass |
+
+RAS initial run `20261104T030452-d2c5c09706c945634f9cdb9a` raised the saturated-endpoint finding, fixed and verified at `29a32714`. Replacement run `20261104T032252-637153b893b2c9293dada93f` raised the long-CID limit, fixed and verified at `629ee749`. The regressions for both failed with their fix bypassed.
+
+### Next
+
+R12 [#1032](https://github.com/the-sarge/quic-go-fast/issues/1032) and R15 [#1035](https://github.com/the-sarge/quic-go-fast/issues/1035) remain ready, and R12's re-audit is open in [PR #1154](https://github.com/the-sarge/quic-go-fast/pull/1154). The [program index](adr/2026-10-24-multipath-program.md) is the live frontier.
