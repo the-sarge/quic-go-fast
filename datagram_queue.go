@@ -19,6 +19,7 @@ type datagramQueue struct {
 	sendMx    sync.Mutex
 	sendQueue ringbuffer.RingBuffer[*wire.DatagramFrame]
 	sent      chan struct{} // used to notify Add that a datagram was dequeued
+	sendDrops atomic.Uint64 // queued frames no eligible path could carry
 
 	rcvMx    sync.Mutex
 	rcvQueue [][]byte
@@ -113,6 +114,16 @@ func (h *datagramQueue) Pop() {
 	select {
 	case h.sent <- struct{}{}:
 	default:
+	}
+}
+
+// dropUnfit discards the next frame, which no eligible path can carry. It is
+// single-shot and awaits no future path growth.
+func (h *datagramQueue) dropUnfit() {
+	h.Pop()
+	h.sendDrops.Add(1)
+	if h.logger.Debug() {
+		h.logger.Debugf("Dropping queued DATAGRAM frame: no eligible path can carry it")
 	}
 }
 

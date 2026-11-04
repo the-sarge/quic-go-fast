@@ -187,7 +187,10 @@ type Conn struct {
 	handshakeTimeoutsPath uint64 // the pathGeneration that handshakeTimeouts counts for
 
 	maxPayloadSizeEstimate atomic.Uint32
-	pathMTUSettled         pathMTUSettled // see PathMTUSettledV1
+	// pathPayloadLimit is the smallest payload estimate over the eligible paths
+	// besides the first, and zero when there are none. Emission stores it.
+	pathPayloadLimit atomic.Uint32
+	pathMTUSettled   pathMTUSettled // see PathMTUSettledV1
 
 	initialStream       *initialCryptoStream
 	handshakeStream     *cryptoStream
@@ -1047,13 +1050,21 @@ func (c *Conn) maybeResetTimer() {
 	c.timer.Reset(monotime.Until(deadline))
 }
 
-// mtuProbeTime suspends the path-zero finder while another path is selected, so an
-// overdue deadline can't busy-wake the loop. R11 owns per-path discovery.
+// mtuProbeTime follows the selected path's finder. An idle path's stays suspended,
+// so an overdue deadline can't busy-wake the loop.
 func (c *Conn) mtuProbeTime() monotime.Time {
-	if !c.handshakeConfirmed || c.mtuDiscoverer == nil || c.emission.route != nil {
+	finder := c.selectedMTUFinder()
+	if !c.handshakeConfirmed || finder == nil {
 		return 0
 	}
-	return c.mtuDiscoverer.NextProbeTime()
+	return finder.NextProbeTime()
+}
+
+func (c *Conn) selectedMTUFinder() *mtuFinder {
+	if route := c.emission.route; route != nil {
+		return route.mtu
+	}
+	return c.mtuDiscoverer
 }
 
 func (c *Conn) idleTimeoutStartTime() monotime.Time {
@@ -1091,17 +1102,22 @@ func (c *Conn) switchToNewPath(tr *Transport, now monotime.Time) {
 func (c *Conn) resetPathPacketSize(now monotime.Time) {
 	size := c.effectiveInitialPacketSize
 	c.sentPacketHandler.MigratedPath(now, size)
-	maxPacketSize := protocol.ByteCount(protocol.MaxPacketBufferSize)
-	if c.peerParams.MaxUDPPayloadSize > 0 && c.peerParams.MaxUDPPayloadSize < maxPacketSize {
-		maxPacketSize = c.peerParams.MaxUDPPayloadSize
-	}
-	c.mtuDiscoverer.Reset(size, maxPacketSize)
+	c.mtuDiscoverer.Reset(size, c.peerMaxPacketSize())
 	c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(size)))
 	// The first path's search is over. Settle after the reset, so the limit read
 	// afterwards is the initial size. MigratedPath can declare an in-flight probe
 	// lost and so conclude the old search a moment earlier: a conclusion followed
 	// by a path change, as PathMTUSettledV1 documents.
 	c.pathMTUSettled.settle()
+}
+
+// peerMaxPacketSize is the largest packet any discovery may probe toward this peer.
+func (c *Conn) peerMaxPacketSize() protocol.ByteCount {
+	maxPacketSize := protocol.ByteCount(protocol.MaxPacketBufferSize)
+	if c.peerParams.MaxUDPPayloadSize > 0 && c.peerParams.MaxUDPPayloadSize < maxPacketSize {
+		maxPacketSize = c.peerParams.MaxUDPPayloadSize
+	}
+	return maxPacketSize
 }
 
 func (c *Conn) handleHandshakeComplete(now monotime.Time) error {
@@ -2459,6 +2475,9 @@ func (c *Conn) handleAckFrame(frame *wire.AckFrame, encLevel protocol.Encryption
 	if err != nil {
 		return err
 	}
+	if c.pathCredit != nil {
+		c.pathCredit.notePMTU()
+	}
 	if !acked1RTTPacket.Valid {
 		return nil
 	}
@@ -2904,8 +2923,8 @@ func (c *Conn) prepareEmission(now monotime.Time) emissionIntent {
 			}
 		}
 	}
-	if c.handshakeConfirmed && c.mtuDiscoverer != nil && c.emission.route == nil && c.mtuDiscoverer.ShouldSendProbe(now) {
-		return emissionIntent{mtu: c.mtuDiscoverer}
+	if finder := c.selectedMTUFinder(); c.handshakeConfirmed && finder != nil && finder.ShouldSendProbe(now) {
+		return emissionIntent{mtu: finder}
 	}
 	if offset := c.connFlowController.GetWindowUpdate(now); offset > 0 {
 		c.framer.QueueControlFrame(&wire.MaxDataFrame{MaximumData: offset})
@@ -3194,6 +3213,9 @@ func (c *Conn) sendDatagram(ctx context.Context, p []byte) error {
 		f.MaxDataLen(c.peerParams.MaxDatagramFrameSize, c.version),
 		protocol.ByteCount(c.maxPayloadSizeEstimate.Load()),
 	)
+	if limit := protocol.ByteCount(c.pathPayloadLimit.Load()); limit != 0 {
+		maxDataLen = min(maxDataLen, limit)
+	}
 	if protocol.ByteCount(len(p)) > maxDataLen {
 		return &DatagramTooLargeError{MaxDatagramPayloadSize: int64(maxDataLen)}
 	}

@@ -51,6 +51,8 @@ type pathMember struct {
 	// limit is lifted, and revokes them at retirement.
 	established path
 	route       pathRoute
+	// pmtu is the size this path's congestion accounting already uses.
+	pmtu protocol.ByteCount
 }
 
 type pathCandidate struct {
@@ -124,6 +126,7 @@ func (p *pathCreditRegistry) enableAdmission() {
 	zero := &pathMember{id: 0, live: true, addr: addr, established: path{validated: true, mtuValidated: true}}
 	zero.fences = []pathFence{{epoch: &zero.established.probeEpoch}}
 	p.members = map[protocol.PathID]*pathMember{0: zero}
+	p.conn.emission.packer.holdDatagrams = true
 	p.validated = []net.Addr{addr}
 	p.rtt = make(map[protocol.PathID]*utils.RTTStats)
 	p.attachments = make(map[*Transport]int)
@@ -139,27 +142,111 @@ func (p *pathCreditRegistry) recoveryOn(id protocol.PathID) ackhandler.SentPacke
 }
 
 // selectRoute reads each eligible path into an immutable view and asks the
-// scheduler. Congestion, pacing and local capacity are deliberately not inputs.
-func (p *pathCreditRegistry) selectRoute(now monotime.Time) *pathRoute {
+// scheduler. Congestion, pacing and local capacity never choose the primary. They
+// only tell whether a path the next DATAGRAM needs could carry it now.
+func (p *pathCreditRegistry) selectRoute(now monotime.Time) (_ *pathRoute, steered bool) {
 	if !p.hasAdmission() || p.closed {
-		return nil
+		return nil, false
 	}
 	var storage [2]pathView
-	views := append(storage[:0], pathView{probing: p.conn.sentPacketHandler.SendMode(now) == ackhandler.SendPTOAppData})
+	views := append(storage[:0], pathViewFor(0, p.conn.sentPacketHandler.SendMode(now)))
+	var limit protocol.ByteCount
 	for id := protocol.PathID(1); id <= p.localMax; id++ {
 		if m := p.members[id]; m != nil && p.eligible(m) {
-			views = append(views, pathView{id: id, probing: p.recoveryOn(id).SendMode(now) == ackhandler.SendPTOAppData})
+			connID, _ := p.conn.connIDManager.pathDestination(id, false)
+			m.route.context, m.route.connID, m.route.recovery = ackhandler.PacketContext{PathID: id}, connID, p.recoveryOn(id)
+			m.route.addr, m.route.info, m.route.transport, m.route.epoch = m.addr, m.info, m.transport, &m.established.probeEpoch
+			views = append(views, pathViewFor(id, m.route.recovery.SendMode(now)))
+			if payload := estimateMaxPayloadSize(protocol.ByteCount(p.pmtuObservation(id))); limit == 0 || payload < limit {
+				limit = payload
+			}
 		}
 	}
-	id := selectPath(views, p.primary)
+	p.conn.pathPayloadLimit.Store(uint32(limit))
+	p.placeDatagram(views)
+	id, steered := selectPath(views, p.primary)
 	if id == 0 {
-		return nil
+		return nil, steered
 	}
-	m := p.members[id]
-	connID, _ := p.conn.connIDManager.pathDestination(id, false)
-	m.route.context, m.route.connID, m.route.recovery = ackhandler.PacketContext{PathID: id}, connID, p.recoveryOn(id)
-	m.route.addr, m.route.info, m.route.transport, m.route.epoch = m.addr, m.info, m.transport, &m.established.probeEpoch
-	return &m.route
+	return &p.members[id].route, steered
+}
+
+func pathViewFor(id protocol.PathID, mode ackhandler.SendMode) pathView {
+	return pathView{
+		id: id, fits: true,
+		probing: mode == ackhandler.SendPTOAppData,
+		ready:   mode == ackhandler.SendAny || mode == ackhandler.SendPacingLimited,
+	}
+}
+
+// placeDatagram marks which views a fresh packet could carry the next DATAGRAM on.
+// It is the one drop owner: a frame that fits no eligible path leaves at once, and
+// the frame behind it is considered in turn. Frames behind the next stay unread
+// until they reach the front.
+func (p *pathCreditRegistry) placeDatagram(views []pathView) {
+	queue := p.conn.datagramQueue
+	if queue == nil {
+		return
+	}
+	packer := p.conn.emission.packer
+	for {
+		f := queue.Peek()
+		if f == nil {
+			return
+		}
+		size, fits := f.Length(p.conn.version), false
+		for i := range views {
+			view := &views[i]
+			if view.room == 0 {
+				var route *pathRoute
+				limit := p.conn.maxPacketSize()
+				if view.id != 0 {
+					route = &p.members[view.id].route
+					limit = route.mtu.CurrentSize()
+				}
+				room, ok := packer.datagramRoom(route, limit)
+				if !ok {
+					return // no 1-RTT keys yet, so nothing can be judged
+				}
+				view.room = room
+			}
+			view.fits = size <= view.room
+			fits = fits || view.fits
+		}
+		if fits {
+			return
+		}
+		queue.dropUnfit()
+	}
+}
+
+// pmtuObservation is a path's current UDP payload limit as a value, zero when it
+// has none yet. Path zero's stays the connection's first-path finder.
+func (p *pathCreditRegistry) pmtuObservation(id protocol.PathID) uint32 {
+	var finder *mtuFinder
+	if id == 0 {
+		finder = p.conn.mtuDiscoverer
+	} else if m := p.members[id]; m != nil {
+		finder = m.route.mtu
+	}
+	if finder == nil {
+		return 0
+	}
+	return uint32(finder.CurrentSize())
+}
+
+// notePMTU applies a size an acknowledged probe raised to that path's congestion
+// accounting. Path zero's finder and PathMTUSettledV1 stay with the connection.
+func (p *pathCreditRegistry) notePMTU() {
+	for id, m := range p.members {
+		if m.route.mtu == nil || m.route.mtu.CurrentSize() <= m.pmtu {
+			continue
+		}
+		m.pmtu = m.route.mtu.CurrentSize()
+		if recovery := p.recoveryOn(id); recovery != nil {
+			recovery.SetMaxDatagramSize(m.pmtu)
+		}
+	}
 }
 
 // eligible never reads congestion or capacity. A quarantined endpoint affects its
@@ -293,8 +380,27 @@ func (p *pathCreditRegistry) activate(m *pathMember, addr net.Addr, info packetI
 		return false
 	}
 	m.live, m.addr, m.info, m.transport = true, addr, info, target
+	p.startPMTU(m, target, now)
 	p.recordValidated(addr)
 	return true
+}
+
+// startPMTU gives a path that just went live its own finder, at the size its
+// validation proved. It reports to no first-path signal, and qlog's MTU event keeps
+// its first-path meaning until R14 qualifies it.
+func (p *pathCreditRegistry) startPMTU(m *pathMember, target *Transport, now monotime.Time) {
+	m.pmtu = protocol.MinInitialPacketSize
+	m.route.mtu = newMTUDiscoverer(p.rtt[m.id], m.pmtu, p.conn.peerMaxPacketSize(), nil)
+	if p.conn.config.DisablePathMTUDiscovery {
+		return
+	}
+	capabilities := p.conn.conn.capabilities()
+	if target != nil {
+		capabilities = target.conn.capabilities()
+	}
+	if capabilities.DF {
+		m.route.mtu.Start(now)
+	}
 }
 
 func (p *pathCreditRegistry) newCandidate(m *pathMember, addr net.Addr, info packetInfo, target *Transport, connID protocol.ConnectionID, deadline monotime.Time, now monotime.Time) *pathCandidate {

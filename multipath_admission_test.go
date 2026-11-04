@@ -88,6 +88,7 @@ func newAdmissionFixture(t *testing.T, perspective protocol.Perspective) *admiss
 		tc = newClientTestConnection(t, ctrl, conf, false, connectionOptHandshakeConfirmed())
 	}
 	c := tc.conn
+	c.peerParams = &wire.TransportParameters{}
 	clientKeys, serverKeys := admissionKeys(t)
 	local, peer := serverKeys, clientKeys
 	if perspective == protocol.PerspectiveClient {

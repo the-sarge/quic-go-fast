@@ -117,6 +117,8 @@ type reliableWrite struct {
 	streams []*wire.StreamFrame
 	acks    []*wire.AckFrame
 	frames  []wire.Frame
+	// datagrams holds each DATAGRAM frame's payload as sent.
+	datagrams []*wire.DatagramFrame
 }
 
 func (f *reliableFixture) parseWrites(t *testing.T, id protocol.PathID) []reliableWrite {
@@ -156,6 +158,11 @@ func (f *reliableFixture) parseWrites(t *testing.T, id protocol.PathID) []reliab
 					frame, n, err := parser.ParseStreamFrame(typ, payload, protocol.Version1)
 					require.NoError(t, err)
 					parsed.streams = append(parsed.streams, frame)
+					payload = payload[n:]
+				case typ.IsDatagramFrameType():
+					frame, n, err := parser.ParseDatagramFrame(typ, payload, protocol.Version1)
+					require.NoError(t, err)
+					parsed.datagrams = append(parsed.datagrams, frame)
 					payload = payload[n:]
 				default:
 					frame, n, err := parser.ParseLessCommonFrame(typ, payload, protocol.Version1)
@@ -623,33 +630,27 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 	})
 }
 
-func TestPathReliableHeldDatagram(t *testing.T) {
-	nativeOrdinaryTest(t, func(t *testing.T) {
-		f := newReliableFixture(t, protocol.PerspectiveServer)
-		f.c.pathCredit.selectPrimaryPrivate(1)
-		f.c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: make([]byte, 100)})
-		f.pass(t)
-		require.NotNil(t, f.c.datagramQueue.Peek(), "it stays queued, never discarded at a size it was not admitted for")
-		f.c.pathCredit.selectPrimaryPrivate(0)
-		f.pass(t)
-		require.Nil(t, f.c.datagramQueue.Peek())
-	})
-}
-
+// Each finder runs while its own path is selected. An idle one arms no deadline, so
+// it can't busy-wake the loop.
 func TestPathReliableMTUTimerFollowsRoute(t *testing.T) {
 	nativeOrdinaryTest(t, func(t *testing.T) {
 		f := newReliableFixture(t, protocol.PerspectiveServer)
 		c := f.c
 		c.mtuDiscoverer = c.newPathMTUFinder(protocol.MinInitialPacketSize, 1400)
 		c.mtuDiscoverer.Start(monotime.Now())
+		member := c.pathCredit.members[1].route.mtu
 		c.pathCredit.selectPrimaryPrivate(1)
 		c.emission.selectRoute(monotime.Now())
-		require.Nil(t, c.prepareEmission(monotime.Now().Add(time.Hour)).mtu, "the suspended finder emits nothing")
-		require.True(t, c.mtuProbeTime().IsZero(), "and arms no deadline")
+		require.Nil(t, c.prepareEmission(monotime.Now().Add(time.Hour)).mtu, "path zero's finder and the unstarted member's both stay quiet")
+		require.True(t, c.mtuProbeTime().IsZero(), "and arm no deadline")
+
+		member.Start(monotime.Now())
+		require.False(t, c.mtuProbeTime().IsZero(), "the selected path's own finder arms it")
+		require.Same(t, member, c.prepareEmission(monotime.Now().Add(time.Hour)).mtu)
 
 		c.pathCredit.selectPrimaryPrivate(0)
 		c.emission.selectRoute(monotime.Now())
-		require.False(t, c.mtuProbeTime().IsZero(), "path zero resumes it")
+		require.Same(t, c.mtuDiscoverer, c.prepareEmission(monotime.Now().Add(time.Hour)).mtu, "path zero resumes its own")
 	})
 }
 
