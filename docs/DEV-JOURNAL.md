@@ -8712,3 +8712,53 @@ RAS review `20261103T233434-94a4b87a563f2e27426439e8` at `abd8c5c8` reported zer
 ### Next
 
 No follow-ups. The other child-process filters in the repository were already fully anchored, and the review deferred nothing.
+
+---
+
+## Multipath R9 second-path admission landed - 2026-11-03 19:25 EST
+
+**Main:** `072a5f36e2f9`
+**Actor:** Claude
+
+### Summary
+
+[PR #1144 — Multipath R9: Admit and validate a second authenticated path](https://github.com/the-sarge/quic-go-fast/pull/1144) closed [issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029) as merge `072a5f36`, under parent [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013). A private driver now admits a second path on the private endpoint route, from client initiation or authenticated server ingress, with or without a challenge. No public constructor reaches it. R9 is 9 of 19 in the R track, and R10 #1030 is ready.
+
+### Completed
+
+- Keys are admitted when a window is issued, and recovery and receive history after authentication or local commitment. A forged packet or sparse ID allocates nothing.
+- One candidate per protocol path keeps its own amplification allowance. The deadline is absolute, and only a response to a padded challenge activates.
+- Abort, timeout, decline and received abandonment all use the R8 terminal owner. `PATH_ABANDON` waits for the endpoint to report that every probe on that path has resolved.
+- Surviving R8 finding C-009 is resolved: `PATH_STATUS` is checked against credit instead of failing as an unexpected frame. Its policy stays with R15.
+
+### Decisions
+
+The [R9 admission re-audit](audits/2026-11-03-r9-admission-reaudit.md), published in [PR #1143](https://github.com/the-sarge/quic-go-fast/pull/1143), extended the blast radius before any code. The credit and native-route gates refused each other, keys could not be admitted, and the probe packer, attachment, fence and native receipts all needed seams outside the named files.
+
+Review triggered the approach stop twice, with both routing records in the PR discussion. Abandonment could outrun a claimed submission two ways, because the evidence lived on objects shorter-lived than the obligation, so each member now owns one fence list and release requires the signal. Activation could also outrun the deadline two ways, so the guard moved into `activate`. Neither changed the contract or the boundary.
+
+### Validation
+
+| Check | Result |
+| --- | --- |
+| Scenarios | 16 test functions in `multipath_admission_test.go`, with real keys on both ends and the real endpoint |
+| Repair regressions on the pre-repair owners, by overlay | fail; pass on the repair |
+| Focused race run | passes at the final head |
+| Affected packages, `go vet`, `go mod tidy -diff`, lint | pass |
+| Hosted checks at `f94e2969` | 33 of 33 pass |
+
+RAS initial run `20261103T230420-d2495eea33bf0e5d8ced8d98` raised five distinct roots, all fixed. Verification at `fa2d3f0a` covered all 11 clusters with none open. Replacement run `20261103T233159-a7199faa5a59418380b8edbb` raised further roots: C-009 was fixed, and the rest were deferred under the review budget.
+
+Hosted race jobs also exposed a latent collision. Two existing tests hard-coded participant ID 77, which the process-wide counter reached once R9's fixtures raised the connection count. The tests now use an ID the counter can't reach. An intermittent local failure was the new test helper stopping at an ACK ahead of shuffled control frames, and 40 race repetitions passed after the fix. Those repetitions were diagnosis, not gate evidence.
+
+The 24k context target was exceeded: the slice was read through whole owner files. It still fit one PR.
+
+### Next
+
+Deferred findings were revalidated at `072a5f36` and recorded on the slices that own them, not as new issues:
+
+- [R10 #1030](https://github.com/the-sarge/quic-go-fast/issues/1030): admission probes wait behind sustained path-zero congestion, `packet_emission.go:177`.
+- [R13 #1033](https://github.com/the-sarge/quic-go-fast/issues/1033): CID refresh after rotation, extra-tuple CID association, local address in tuple identity, retiring a failed candidate's spare CID, and reset tokens on target transports.
+- R13 and [R16 #1036](https://github.com/the-sarge/quic-go-fast/issues/1036): target preparation and nonfatal refusal.
+
+Received abandonment of path zero still closes the connection until R10 and R12. The [program index](adr/2026-10-24-multipath-program.md) is the live frontier.
