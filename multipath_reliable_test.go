@@ -1016,6 +1016,7 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 			result := c.triggerSending(monotime.Now())
 			require.NoError(t, result.err)
 			require.Nil(t, c.datagramQueue.Peek(), "the frame left")
+			synctest.Wait() // the target's writer submits it on its own goroutine
 			own := r.socket
 			r.socket = socket
 			require.Equal(t, []int{1300}, reliableDatagrams(r.parseWrites(t, 1)))
@@ -1139,7 +1140,7 @@ func TestPathReliableClientOpenPathCarriesData(t *testing.T) {
 	})
 }
 
-// selectPrimaryPrivate moves the primary through local use, as R16's API will.
+// selectPrimaryPrivate moves the primary through local use, as SetLocalUseV1 does.
 func (p *pathCreditRegistry) selectPrimaryPrivate(id protocol.PathID) {
 	now := monotime.Now()
 	for other := protocol.PathID(0); other <= p.localMax; other++ {

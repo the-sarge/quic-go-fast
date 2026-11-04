@@ -77,8 +77,13 @@ func (p *pathCreditRegistry) attach(target *Transport) error {
 	if len(p.attachments) >= maxPathAttachments {
 		return fmt.Errorf("%w: transport attachments are full", ErrMultipathResourceLimitV1)
 	}
+	// The endpoint's participant comes first, so a refused target has no routes.
+	if err := p.conn.emission.local.reserveTarget(target); err != nil {
+		return err
+	}
 	runner := (*packetHandlerMap)(target)
 	if err := p.conn.connIDGenerator.addPathRunner(runner, connectionRunnerCallbacks(runner, p.conn), p.conn.connIDManager.armedResetTokens(), p.conn); err != nil {
+		p.conn.emission.local.detachTransport(target)
 		return err
 	}
 	p.attachMu.Lock()

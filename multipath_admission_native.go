@@ -11,19 +11,23 @@ import (
 	"github.com/quic-go/quic-go/internal/protocol"
 )
 
-// openPathPrivate is the private driver for client initiation. The returned
-// context error says nothing about wire retirement, which continues on the
-// connection. Public activation belongs to R16 and R19.
-func (c *Conn) openPathPrivate(ctx context.Context, target *Transport, addr net.Addr) error {
+// openPathPrivate is the private driver for client initiation, behind OpenPathV1. The
+// returned context error says nothing about wire retirement, which continues on the
+// connection. A fixture may pass a nil target to use the origin; the public method can't.
+func (c *Conn) openPathPrivate(ctx context.Context, target *Transport, addr net.Addr) (protocol.PathID, error) {
 	if target != nil {
 		if err := c.prepareTarget(target); err != nil {
-			return err
+			return 0, err
 		}
 	}
-	return c.awaitPathOperation(ctx, &pathOpenRequest{ctx: ctx, transport: target, addr: addr, done: make(chan error, 1)})
+	request := &pathOpenRequest{ctx: ctx, transport: target, addr: addr, done: make(chan error, 1)}
+	if err := c.awaitPathOperation(ctx, request); err != nil {
+		return 0, err
+	}
+	return request.id, nil
 }
 
-// migratePathPrivate is the private driver behind R16's MigrateV1. It moves one path
+// migratePathPrivate is the private driver behind MigrateV1. It moves one path
 // to target under the same wire ID, and returns success only after cutover.
 func (c *Conn) migratePathPrivate(ctx context.Context, id protocol.PathID, target *Transport) error {
 	if err := c.prepareTarget(target); err != nil {
@@ -32,8 +36,7 @@ func (c *Conn) migratePathPrivate(ctx context.Context, id protocol.PathID, targe
 	return c.awaitPathOperation(ctx, &pathOpenRequest{ctx: ctx, transport: target, migrate: true, id: id, done: make(chan error, 1)})
 }
 
-// waitTransportDetachedPrivate is the private driver behind R16's
-// WaitTransportDetachedV1. It observes publication and changes nothing. A connection
+// waitTransportDetachedPrivate is the private driver behind WaitTransportDetachedV1. It observes publication and changes nothing. A connection
 // that ends first reports its cause, since that is what a winning close looks like.
 func (c *Conn) waitTransportDetachedPrivate(ctx context.Context, t *Transport) error {
 	if t == nil {
@@ -47,7 +50,7 @@ func (c *Conn) waitTransportDetachedPrivate(ctx context.Context, t *Transport) e
 	case <-attachment.detached:
 		return nil
 	case <-ctx.Done():
-		return context.Cause(ctx)
+		return ctx.Err()
 	case <-c.ctx.Done():
 		return context.Cause(c.ctx)
 	}
@@ -68,7 +71,10 @@ func (c *Conn) prepareTarget(target *Transport) error {
 		return fmt.Errorf("%w: a nil target transport", ErrMultipathInvalidConfigV1)
 	}
 	if nativeTransportEndpoint(target) == nil {
-		return fmt.Errorf("%w: the target has no native grant", ErrMultipathUnsupportedV1)
+		return fmt.Errorf("%w: the target has no native grant", ErrMultipathNotConfiguredV1)
+	}
+	if err := target.nativeIOConflict(); err != nil {
+		return err
 	}
 	if length := target.effectiveConnIDLen(); length != c.srcConnIDLen {
 		return fmt.Errorf("%w: the target routes %d-byte connection IDs, not %d", ErrMultipathInvalidConfigV1, length, c.srcConnIDLen)
@@ -102,28 +108,14 @@ func (c *Conn) awaitPathOperation(ctx context.Context, request *pathOpenRequest)
 			case err := <-request.done:
 				return err
 			case <-c.ctx.Done():
+				c.pathOpen.CompareAndSwap(request, nil)
 				return context.Cause(c.ctx)
 			}
 		}
 		c.scheduleSending()
-		return context.Cause(ctx)
+		return ctx.Err()
 	case <-c.ctx.Done():
-		return context.Cause(c.ctx)
-	}
-}
-
-// useLocalPrivate is setLocalUsePrivate for a caller off the connection goroutine.
-// It takes the one local operation slot, so it also waits for an open to finish.
-func (c *Conn) useLocalPrivate(ctx context.Context, id protocol.PathID, backup bool) error {
-	request := &pathOpenRequest{ctx: ctx, use: &pathLocalUse{id: id, backup: backup}, done: make(chan error, 1)}
-	if !c.pathOpen.CompareAndSwap(nil, request) {
-		return fmt.Errorf("%w: a local path operation is in progress", ErrMultipathBackpressureV1)
-	}
-	c.scheduleSending()
-	select {
-	case err := <-request.done:
-		return err
-	case <-c.ctx.Done():
+		c.pathOpen.CompareAndSwap(request, nil) // installed too late for the connection to end it
 		return context.Cause(c.ctx)
 	}
 }
@@ -151,4 +143,31 @@ func (p *pathCreditRegistry) sendFailed(id protocol.PathID, tuple uint64, now mo
 func (p *pathCreditRegistry) cutTuple(m *pathMember) {
 	m.tuple++
 	m.attempts = 0
+}
+
+// noteOutcome records the local result of one submission on its current tuple.
+func (p *pathCreditRegistry) noteOutcome(id protocol.PathID, tuple uint64, accepted, uncertain, datagrams int) {
+	m := p.members[id]
+	if m == nil || m.tuple != tuple {
+		return
+	}
+	switch {
+	case uncertain > 0:
+		m.lastOutcome = "uncertain"
+	case accepted < datagrams:
+		m.lastOutcome = "unsubmitted"
+	default:
+		m.lastOutcome = "accepted"
+	}
+}
+
+// endpointFaulted reads the endpoint itself, since the sender's route check assumes the
+// connection's own endpoint is healthy until a fault ends the connection.
+func endpointFaulted(t *Transport) bool {
+	endpoint := nativeTransportEndpoint(t)
+	if endpoint == nil {
+		return false
+	}
+	_, faulted := endpoint.faultObservation()
+	return faulted
 }

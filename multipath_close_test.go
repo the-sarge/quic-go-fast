@@ -346,33 +346,37 @@ func TestPathPrivateActivationAtCompletion(t *testing.T) {
 	nativeOrdinaryTest(t, func(t *testing.T) {
 		f := newAdmissionFixture(t, protocol.PerspectiveClient)
 		params := &wire.TransportParameters{}
-		f.c.config.privateMultipath = true
-		f.c.advertisePrivateMultipath(params)
+		f.c.config.multipath = multipathSelection{enabled: true, maxPaths: 2}
+		f.c.advertiseMultipath(params)
 		require.NotNil(t, params.InitialMaxPathID)
-		require.True(t, f.c.negotiatesPrivateMultipath(params))
-		require.False(t, f.c.negotiatesPrivateMultipath(&wire.TransportParameters{}), "an ordinary peer stays ordinary")
-		f.c.config.privateMultipath = false
-		require.False(t, f.c.negotiatesPrivateMultipath(params))
+		require.True(t, f.c.negotiatesMultipath(params))
+		require.False(t, f.c.negotiatesMultipath(&wire.TransportParameters{}), "an ordinary peer stays ordinary")
+		f.c.config.multipath = multipathSelection{}
+		f.c.pathSurface = nil
+		require.False(t, f.c.negotiatesMultipath(params))
 		ordinary := &wire.TransportParameters{}
-		f.c.advertisePrivateMultipath(ordinary)
-		require.Nil(t, ordinary.InitialMaxPathID, "no advertisement without the guard")
+		f.c.advertiseMultipath(ordinary)
+		require.Nil(t, ordinary.InitialMaxPathID, "no advertisement without the selection")
 
 		// Before confirmation, on a fresh connection with its own endpoint route.
 		g := newUnconfirmedFixture(t)
 		local := packetInfo{addr: netip.MustParseAddr("192.0.2.1"), ifIndex: 3}
 		g.c.emission.local.(*nativeOrdinarySender).info = local
 		maximum := protocol.PathID(1)
-		g.c.config.privateMultipath = true
+		g.c.config.multipath = multipathSelection{enabled: true, maxPaths: 2}
+		g.c.advertiseMultipath(&wire.TransportParameters{})
 		g.c.peerParams = &wire.TransportParameters{InitialMaxPathID: &maximum, ActiveConnectionIDLimit: 4}
 		require.False(t, g.c.handshakeConfirmed)
-		require.NoError(t, g.c.activatePrivateMultipath())
+		require.NoError(t, g.c.activateMultipath())
 		require.NotNil(t, g.c.pathCredit)
 		require.True(t, g.c.pathCredit.hasAdmission())
 		require.Equal(t, local, g.c.pathCredit.members[0].info, "path zero keeps its route's local source")
 		require.NoError(t, creditIngress(t, g.tc, monotime.Now(), &wire.MaxPathIDFrame{MaximumPathID: 1}), "a negotiated control frame before confirmation")
 
 		used := make(chan error, 1)
-		go func() { used <- g.c.useLocalPrivate(context.Background(), 0, false) }()
+		go func() {
+			used <- g.c.runPathCommand(func(r *pathCreditRegistry, now monotime.Time) error { return r.setLocalUsePrivate(0, false, now) })
+		}()
 		synctest.Wait()
 		require.NoError(t, g.c.pathCredit.serviceRequest(monotime.Now()))
 		require.NoError(t, <-used)

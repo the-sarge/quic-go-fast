@@ -595,7 +595,10 @@ func TestPathAdmissionResourceSaturation(t *testing.T) {
 
 func (f *admissionFixture) openAsync(ctx context.Context, target *Transport, addr net.Addr) <-chan error {
 	errs := make(chan error, 1)
-	go func() { errs <- f.c.openPathPrivate(ctx, target, addr) }()
+	go func() {
+		_, err := f.c.openPathPrivate(ctx, target, addr)
+		errs <- err
+	}()
 	synctest.Wait()
 	return errs
 }
@@ -649,7 +652,6 @@ func TestPathAdmissionTargetTransportRoutes(t *testing.T) {
 			target := &Transport{ConnectionIDLength: f.tc.srcConnID.Len(), connIDLen: f.tc.srcConnID.Len(), handlers: make(map[protocol.ConnectionID]packetHandlerEntry), resetTokens: make(map[protocol.StatelessResetToken]packetHandler), logger: utils.DefaultLogger}
 			target.initOnce.Do(func() {})
 			target.responses = newEndpointResponses(endpoint)
-			endpoint.seal()
 			ctx, cancel := context.WithCancel(context.Background())
 			errs := f.openAsync(ctx, target, admissionTupleA)
 			defer func() {
@@ -657,7 +659,8 @@ func TestPathAdmissionTargetTransportRoutes(t *testing.T) {
 				<-errs
 			}()
 			f.pass(t)
-			require.Equal(t, 1, f.c.pathCredit.members[1].candidate.probe.numChallenges, "the refused challenge stays charged")
+			require.Equal(t, 1, f.c.pathCredit.members[1].candidate.probe.numChallenges)
+			endpoint.seal()
 			require.True(t, f.receive(t, 1, admissionTupleA, 100, &wire.PathChallengeFrame{Data: [8]byte{3}}))
 			retries := 0
 			for ; retries < 4; retries++ {
@@ -669,6 +672,22 @@ func TestPathAdmissionTargetTransportRoutes(t *testing.T) {
 			}
 			require.Less(t, retries, 4, "a refused response cannot spin")
 			require.Nil(t, f.c.pathCredit.members[1].response)
+		})
+	})
+	t.Run("a target already sealed refuses before any route or ID", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			endpoint := startNativeProbeEndpoint(t, newNativeProbeSocket())
+			target := &Transport{ConnectionIDLength: f.tc.srcConnID.Len(), connIDLen: f.tc.srcConnID.Len(), handlers: make(map[protocol.ConnectionID]packetHandlerEntry), resetTokens: make(map[protocol.StatelessResetToken]packetHandler)}
+			target.initOnce.Do(func() {})
+			target.responses = newEndpointResponses(endpoint)
+			endpoint.seal()
+			errs := f.openAsync(context.Background(), target, admissionTupleA)
+			f.pass(t)
+			require.ErrorIs(t, <-errs, net.ErrClosed)
+			require.Empty(t, target.handlers)
+			require.False(t, f.c.pathCredit.paths[1], "the ID is not consumed")
 		})
 	})
 	nativeOrdinaryTest(t, func(t *testing.T) {
@@ -776,7 +795,8 @@ func TestPathAdmissionCancellation(t *testing.T) {
 			require.NotNil(t, terminal)
 			require.False(t, terminal.signaled, "the fence precedes the signal")
 			require.NotNil(t, f.c.pathOpen.Load(), "and the operation slot stays charged")
-			require.ErrorIs(t, f.c.openPathPrivate(context.Background(), nil, admissionTupleB), ErrMultipathBackpressureV1)
+			_, openErr := f.c.openPathPrivate(context.Background(), nil, admissionTupleB)
+			require.ErrorIs(t, openErr, ErrMultipathBackpressureV1)
 			f.socket.hold = nil
 			f.socket.release()
 			f.pass(t)

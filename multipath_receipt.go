@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"net"
 	"slices"
 	"sync"
 
@@ -82,9 +83,17 @@ func (m sendMetadata) hasTerminalReceipt() bool {
 }
 
 func (p *pathCreditRegistry) close() {
+	p.seal()
+	p.endOperation(net.ErrClosed)
+}
+
+// seal ends the registry. The pending local operation waits for endOperation, because the
+// connection classifies its terminal error only afterward.
+func (p *pathCreditRegistry) seal() {
 	p.closed = true
 	for _, terminal := range p.terminals {
 		terminal.receipt.seal()
 	}
 	p.closeAdmission()
+	p.publishClosed()
 }

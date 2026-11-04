@@ -169,7 +169,7 @@ func populateConfig(config *Config) *Config {
 		MaxIncomingUniStreams:            maxIncomingUniStreams,
 		TokenStore:                       config.TokenStore,
 		EnableDatagrams:                  config.EnableDatagrams,
-		privateMultipath:                 config.privateMultipath,
+		multipath:                        config.multipath,
 		InitialPacketSize:                config.InitialPacketSize,
 		DisablePathMTUDiscovery:          config.DisablePathMTUDiscovery,
 		EnableStreamResetPartialDelivery: config.EnableStreamResetPartialDelivery,

@@ -4,6 +4,7 @@ package quic
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/netip"
 	"runtime"
@@ -543,6 +544,23 @@ func (s *nativeOrdinarySender) probeParticipant(endpoint *nativeEndpoint) *endpo
 	return target
 }
 
+// reserveTarget takes this connection's participant on a target before its routes exist,
+// and classifies a refusal. A later probe or send reuses the participant.
+func (s *nativeOrdinarySender) reserveTarget(target *Transport) error {
+	if s.transportParticipant(target) != nil {
+		return nil
+	}
+	participant, err := nativeTransportEndpoint(target).attachShared(s.participant.id, s.participant.completed)
+	if errors.Is(err, errEndpointCapacity) {
+		return fmt.Errorf("%w: %w", ErrMultipathResourceLimitV1, err)
+	}
+	if err != nil {
+		return err
+	}
+	s.targets = append(s.targets, participant)
+	return nil
+}
+
 // sendProbe consumes the buffer. All commitments precede it, so refusal keeps
 // every charge and leaves the next attempt to the validation budget. Results stay
 // best effort; the endpoint fault channel reports endpoint-wide failure.
@@ -707,6 +725,9 @@ func (s *nativeOrdinarySender) consumeParticipant(participant *endpointParticipa
 					s.droppedDatagrams++
 				}
 				s.completePacket(packet, outcome, result.returnedAt, isSendMsgSizeErr(result.err))
+			}
+			if credit := s.connection.pathCredit; credit != nil && credit.hasAdmission() {
+				credit.noteOutcome(protocol.PathID(identity.path), identity.tuple, result.accepted, result.uncertain, record.datagrams)
 			}
 			if identity.generation < s.switchGeneration {
 				s.connection.scheduleSending()
