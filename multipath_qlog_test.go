@@ -154,6 +154,7 @@ func TestPathQlogLossAndMTUAttribution(t *testing.T) {
 		}
 		require.NotZero(t, lost)
 		require.Equal(t, map[int]uint64{1300: 0, 1400: 1}, mtus)
+		require.Equal(t, &qlog.PathIdentity{PathID: 0, TupleGeneration: 4}, f.c.qlogPath(0, 4), "a long header packet names path zero after activation")
 	})
 }
 

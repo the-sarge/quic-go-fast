@@ -144,6 +144,8 @@ func TestPathCloseCachedResponses(t *testing.T) {
 	nativeOrdinaryTest(t, func(t *testing.T) {
 		f := newReliableFixture(t, protocol.PerspectiveClient)
 		f.route.closeQueue = make(chan closePacket, 4)
+		local := packetInfo{addr: netip.MustParseAddr("192.0.2.1"), ifIndex: 3}
+		f.c.pathCredit.members[0].info = local
 		stranger := &net.UDPAddr{IP: net.IPv4(198, 51, 100, 9), Port: 7}
 		zeroCID := f.c.connIDGenerator.activeSrcConnIDs[0]
 		oneCID := f.issuedCID(1)
@@ -162,6 +164,7 @@ func TestPathCloseCachedResponses(t *testing.T) {
 		reply = <-f.route.closeQueue
 		require.Equal(t, nativeProbePeer.String(), reply.addr.String())
 		require.Equal(t, f.closeWrites(t, 0)[0].data, reply.payload)
+		require.Equal(t, local, reply.info, "the original local source, not the trigger's")
 
 		// The third trigger falls to the exponential backoff.
 		f.trigger(t, f.route, oneCID, stranger)
@@ -355,6 +358,8 @@ func TestPathPrivateActivationAtCompletion(t *testing.T) {
 
 		// Before confirmation, on a fresh connection with its own endpoint route.
 		g := newUnconfirmedFixture(t)
+		local := packetInfo{addr: netip.MustParseAddr("192.0.2.1"), ifIndex: 3}
+		g.c.emission.local.(*nativeOrdinarySender).info = local
 		maximum := protocol.PathID(1)
 		g.c.config.privateMultipath = true
 		g.c.peerParams = &wire.TransportParameters{InitialMaxPathID: &maximum, ActiveConnectionIDLimit: 4}
@@ -362,6 +367,7 @@ func TestPathPrivateActivationAtCompletion(t *testing.T) {
 		require.NoError(t, g.c.activatePrivateMultipath())
 		require.NotNil(t, g.c.pathCredit)
 		require.True(t, g.c.pathCredit.hasAdmission())
+		require.Equal(t, local, g.c.pathCredit.members[0].info, "path zero keeps its route's local source")
 		require.NoError(t, creditIngress(t, g.tc, monotime.Now(), &wire.MaxPathIDFrame{MaximumPathID: 1}), "a negotiated control frame before confirmation")
 
 		used := make(chan error, 1)

@@ -219,8 +219,17 @@ func smokeClient(t *testing.T, ctx context.Context, binary, dir string, payload 
 	require.NoError(t, err)
 	require.Equal(t, payload, got)
 
+	// Abort a transfer in progress, then show the connection still carries the next one.
 	abort := smokeRequest(t, ctx, conn, "/r14-smoke.bin")
+	require.NoError(t, abort.SetDeadline(deadline))
+	_, err = io.ReadFull(abort, make([]byte, 1))
+	require.NoError(t, err)
 	abort.CancelRead(0)
+	after := smokeRequest(t, ctx, conn, "/r14-smoke.bin")
+	require.NoError(t, after.SetDeadline(deadline))
+	got, err = io.ReadAll(after)
+	require.NoError(t, err)
+	require.Equal(t, payload, got)
 
 	require.NoError(t, conn.CloseWithError(0, "smoke complete"))
 	_, closes := trace.report(t)
@@ -228,8 +237,8 @@ func smokeClient(t *testing.T, ctx context.Context, binary, dir string, payload 
 	peer.wait(t)
 }
 
-// smokeServer drives picoquic's client, which opens path 1 itself. We send half of
-// the response on each path, and reset a final request.
+// smokeServer drives picoquic's client, which opens path 1 itself. We reset its first
+// request, then send half of the next response on each path.
 func smokeServer(t *testing.T, ctx context.Context, binary, dir string, payload []byte, conf *Config, tlsConf *tls.Config, trace *smokeTrace) {
 	t.Helper()
 	tr := smokeTransport(t, net.IPv4(127, 0, 0, 1))
@@ -237,16 +246,25 @@ func smokeServer(t *testing.T, ctx context.Context, binary, dir string, payload 
 	require.NoError(t, err)
 	defer listener.Close()
 	port := tr.Conn.LocalAddr().(*net.UDPAddr).Port
-	peer := startSmokePeer(t, ctx, binary, dir, "-n", "localhost", "-a", smokeALPN, "-t", filepath.Join(dir, "ca.pem"), "-o", dir, "-M", "-A", "127.0.0.2/0", "-v", "00000001", "127.0.0.1", strconv.Itoa(port), "/r14-smoke.bin;/r14-abort.bin")
+	peer := startSmokePeer(t, ctx, binary, dir, "-n", "localhost", "-a", smokeALPN, "-t", filepath.Join(dir, "ca.pem"), "-o", dir, "-M", "-A", "127.0.0.2/0", "-v", "00000001", "127.0.0.1", strconv.Itoa(port), "/r14-abort.bin;/r14-smoke.bin")
 	conn, err := listener.Accept(ctx)
 	require.NoError(t, err)
 	defer conn.CloseWithError(0, "")
 	deadline, _ := ctx.Deadline()
 
+	// The peer starts its next request when this reset ends the first.
+	abort, err := conn.AcceptStream(ctx)
+	require.NoError(t, err)
+	require.NoError(t, abort.SetDeadline(deadline))
+	request, err := io.ReadAll(abort)
+	require.NoError(t, err)
+	require.Equal(t, "GET /r14-abort.bin", strings.TrimSpace(string(request)))
+	abort.CancelWrite(0)
+
 	stream, err := conn.AcceptStream(ctx)
 	require.NoError(t, err)
 	require.NoError(t, stream.SetDeadline(deadline))
-	request, err := io.ReadAll(stream)
+	request, err = io.ReadAll(stream)
 	require.NoError(t, err)
 	require.Equal(t, "GET /r14-smoke.bin", strings.TrimSpace(string(request)))
 	half := len(payload) / 2
@@ -263,12 +281,10 @@ func smokeServer(t *testing.T, ctx context.Context, binary, dir string, payload 
 	require.NoError(t, err)
 	require.NoError(t, stream.Close())
 
-	abort, err := conn.AcceptStream(ctx)
-	require.NoError(t, err)
-	abort.CancelWrite(0)
-	abort.CancelRead(0)
-
 	peer.wait(t)
+	log, err := os.ReadFile(filepath.Join(dir, "peer.log"))
+	require.NoError(t, err)
+	require.Contains(t, string(log), "reset after", "the peer saw the abort")
 	got, err := os.ReadFile(filepath.Join(dir, "r14-smoke.bin"))
 	require.NoError(t, err)
 	require.Equal(t, payload, got)

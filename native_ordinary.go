@@ -47,6 +47,7 @@ type nativeOrdinarySender struct {
 	recovery    ackhandler.LocalSentPacketHandler
 	connection  *Conn
 	destination netip.AddrPort
+	info        packetInfo
 	oob         []byte
 	writeState  *endpointWriteState // the current path's; each conn owns its own
 	nativeGSO   bool
@@ -92,7 +93,7 @@ func (c *Conn) useNativeOrdinary(endpoint *nativeEndpoint, destination netip.Add
 	}
 	queue := &nativeOrdinarySender{
 		endpoint: endpoint, participant: participant, recovery: handler, connection: c,
-		destination: destination, oob: info.OOB(), nativeGSO: runtime.GOOS == "linux", generation: 1,
+		destination: destination, info: info, oob: info.OOB(), nativeGSO: runtime.GOOS == "linux", generation: 1,
 	}
 	c.emission.local, c.emission.queue = queue, queue
 	conn := &nativeOrdinaryConn{sendConn: c.conn, sender: queue}
@@ -412,6 +413,9 @@ func (s *nativeOrdinarySender) sendPathClose(buffer *packetBuffer, ecn protocol.
 	}
 	return err
 }
+
+// routeInfo is the local address and interface path zero sends from.
+func (s *nativeOrdinarySender) routeInfo() packetInfo { return s.info }
 
 // closeUsable also inspects the connection's own endpoint, which routeUsable assumes
 // healthy, because a fault there is what can bring a connection to this close.

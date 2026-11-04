@@ -135,7 +135,7 @@ func (p *pathCreditRegistry) enableAdmission() {
 		return
 	}
 	addr := p.conn.RemoteAddr()
-	zero := &pathMember{id: 0, live: true, addr: addr, established: path{validated: true, mtuValidated: true}}
+	zero := &pathMember{id: 0, live: true, addr: addr, info: p.conn.emission.local.routeInfo(), established: path{validated: true, mtuValidated: true}}
 	zero.tuple = p.conn.emission.packer.pathZeroContext().TupleGeneration
 	zero.livenessAt = monotime.Now()
 	zero.fences = []pathFence{{epoch: &zero.established.probeEpoch}}

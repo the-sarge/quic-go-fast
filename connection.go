@@ -1782,7 +1782,8 @@ func (c *Conn) handleRetryPacket(hdr *wire.Header, data []byte, rcvTime monotime
 				Version:          hdr.Version,
 				Token:            &qlog.Token{Raw: hdr.Token},
 			},
-			Raw: qlog.RawInfo{Length: len(data)},
+			Raw:  qlog.RawInfo{Length: len(data)},
+			Path: c.pathCredit.qlogIngress(0),
 		})
 	}
 

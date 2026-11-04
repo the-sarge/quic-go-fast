@@ -105,6 +105,7 @@ func (c *Conn) logLongHeaderPacket(p *longHeaderPacket, ecn protocol.ECN, datagr
 				Length:        int(p.length),
 				PayloadLength: int(p.header.Length),
 			},
+			Path:                    c.qlogPath(0, p.context.TupleGeneration),
 			DatagramPayloadChecksum: datagramPayloadChecksum,
 			Frames:                  frames,
 			ECN:                     toQlogECN(ecn),
