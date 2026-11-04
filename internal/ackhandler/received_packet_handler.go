@@ -16,6 +16,7 @@ type ReceivedPacketHandler struct {
 
 	lowest1RTTPacket protocol.PacketNumber
 	paths            map[protocol.PathID]*appDataReceivedPacketTracker
+	largestPath      protocol.PathID
 }
 
 func NewReceivedPacketHandler(logger utils.Logger) *ReceivedPacketHandler {
@@ -147,12 +148,13 @@ func (h *ReceivedPacketHandler) IsPotentiallyDuplicate(pn protocol.PacketNumber,
 	panic("unexpected encryption level")
 }
 
-// AddPath admits one additional application receive space. The path registry
-// calls this after authentication or local commitment.
+// AddPath admits an additional application receive space under a new, higher ID.
+// The path registry calls this after authentication or local commitment.
 func (h *ReceivedPacketHandler) AddPath(id protocol.PathID) error {
-	if id == 0 || h.paths[id] != nil || len(h.paths) >= 1 {
+	if id == 0 || id <= h.largestPath || len(h.paths) >= maxRecoveryPaths {
 		return fmt.Errorf("ackhandler: receive path unavailable: %d", id)
 	}
+	h.largestPath = id
 	if h.paths == nil {
 		h.paths = make(map[protocol.PathID]*appDataReceivedPacketTracker)
 	}
@@ -161,6 +163,9 @@ func (h *ReceivedPacketHandler) AddPath(id protocol.PathID) error {
 	h.paths[id] = tracker
 	return nil
 }
+
+// RemovePath ends a retired path's receive space at its final reclamation.
+func (h *ReceivedPacketHandler) RemovePath(id protocol.PathID) { delete(h.paths, id) }
 
 func (h *ReceivedPacketHandler) appDataOnPath(id protocol.PathID) *appDataReceivedPacketTracker {
 	if id == 0 {
@@ -206,7 +211,9 @@ func (h *ReceivedPacketHandler) IgnorePacketsBelowOnPath(id protocol.PathID, pn 
 }
 
 // AppendPathAckFrames selects only admitted nonzero targets. Space is checked
-// before consuming a queued ACK so a full carrier cannot lose its wakeup.
+// before consuming a queued ACK so a full carrier cannot lose its wakeup. A carrier
+// takes one, because ackTargets holds path zero and one other. Retained contexts can
+// make more pending, and each stays queued for the next packet.
 func (h *ReceivedPacketHandler) AppendPathAckFrames(frames []Frame, maxSize protocol.ByteCount, now monotime.Time, onlyIfQueued bool, v protocol.Version) ([]Frame, protocol.ByteCount) {
 	var length protocol.ByteCount
 	for id, tracker := range h.paths {
@@ -229,6 +236,7 @@ func (h *ReceivedPacketHandler) AppendPathAckFrames(frames []Frame, maxSize prot
 		ack.Truncate(maxSize-length, v)
 		frames = append(frames, Frame{Frame: ack})
 		length += ack.Length(v)
+		break
 	}
 	return frames, length
 }

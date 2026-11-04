@@ -739,7 +739,7 @@ func TestPathReliableClientOpenPathCarriesData(t *testing.T) {
 func (p *pathCreditRegistry) selectPrimaryPrivate(id protocol.PathID) {
 	now := monotime.Now()
 	for other := protocol.PathID(0); other <= p.localMax; other++ {
-		if other != id && p.members[other] != nil && p.members[other].live {
+		if other != id && p.members[other] != nil && p.terminals[other] == nil && p.members[other].live {
 			if err := p.setLocalUsePrivate(other, true, now); err != nil {
 				panic(err)
 			}

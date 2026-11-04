@@ -85,7 +85,12 @@ type alarmTimer struct {
 type sentPacketHandler struct {
 	pathID   protocol.PathID
 	pathRoot *sentPacketHandler
-	paths    map[protocol.PathID]*sentPacketHandler
+	// retiredPath is set at this context's abandonment signal.
+	retiredPath bool
+	// largestPath is the highest ID the root has admitted. An absent ID at or below
+	// it is a reclaimed or skipped path, and absent IDs can't be told apart.
+	largestPath protocol.PathID
+	paths       map[protocol.PathID]*sentPacketHandler
 
 	local                   *localCompletions
 	initialPackets          *packetNumberSpace
@@ -498,6 +503,9 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 	if ack.HasPathID && ack.PathID != h.pathID {
 		if path := h.path(ack.PathID); path != nil && encLevel == protocol.Encryption1RTT {
 			return path.ReceivedAck(ack, encLevel, rcvTime)
+		}
+		if h.pathRoot == nil && encLevel == protocol.Encryption1RTT && ack.PathID <= h.largestPath {
+			return protocol.ApplicationKeyReceipt{}, nil
 		}
 		return protocol.ApplicationKeyReceipt{}, &qerr.TransportError{ErrorCode: qerr.ProtocolViolation, ErrorMessage: "ACK for unavailable path space"}
 	}

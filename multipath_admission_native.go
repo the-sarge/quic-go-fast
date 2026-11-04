@@ -39,6 +39,14 @@ func (c *Conn) openPathPrivate(ctx context.Context, target *Transport, addr net.
 	}
 }
 
+// zeroEpoch fences ordinary path-zero requests, once admission can retire path zero.
+func (p *pathCreditRegistry) zeroEpoch() *responseEpoch {
+	if zero := p.members[0]; zero != nil {
+		return &zero.established.probeEpoch
+	}
+	return nil
+}
+
 // sendFailed applies a final destination error to the tuple it was sent on. A late
 // result from an old tuple can't demote its replacement.
 func (p *pathCreditRegistry) sendFailed(id protocol.PathID, tuple uint64, now monotime.Time) {

@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"errors"
@@ -29,7 +30,10 @@ const (
 	pathResourceLimitReached = 0x3e75
 )
 
-var errPathValidationTimeout = errors.New("quic: path validation deadline exceeded")
+var (
+	errPathValidationTimeout = errors.New("quic: path validation deadline exceeded")
+	errPathZeroRetired       = errors.New("quic: path zero is retired")
+)
 
 // pathMember is one consumed or established protocol path. Only the connection
 // goroutine touches it. A candidate is its one validating tuple.
@@ -131,7 +135,7 @@ func (p *pathCreditRegistry) enableAdmission() {
 	p.members = map[protocol.PathID]*pathMember{0: zero}
 	p.conn.emission.packer.holdDatagrams = true
 	p.validated = []net.Addr{addr}
-	p.rtt = make(map[protocol.PathID]*utils.RTTStats)
+	p.rtt = map[protocol.PathID]*utils.RTTStats{0: p.conn.rttStats}
 	p.attachments = make(map[*Transport]int)
 	if recovery, ok := p.conn.sentPacketHandler.(interface{ EnablePathPolicy() }); ok {
 		recovery.EnablePathPolicy()
@@ -139,6 +143,30 @@ func (p *pathCreditRegistry) enableAdmission() {
 }
 
 func (p *pathCreditRegistry) hasAdmission() bool { return p.members != nil }
+
+// sentPathOwner is the part of recovery's root that a path's lifecycle uses.
+type sentPathOwner interface {
+	RetirePath(protocol.PathID)
+	PathQuiescent(protocol.PathID) bool
+	RemovePath(protocol.PathID)
+}
+
+func (p *pathCreditRegistry) sentPaths() sentPathOwner {
+	return p.conn.sentPacketHandler.(sentPathOwner)
+}
+
+// zeroRetired reports that path zero has been cut off, from then on for good.
+func (p *pathCreditRegistry) zeroRetired() bool { return p.terminals[0] != nil || p.released(0) }
+
+// orderedMembers fills buf in ID order. Membership is small and IDs are not dense,
+// so this scans members rather than every granted ID.
+func (p *pathCreditRegistry) orderedMembers(buf []*pathMember) []*pathMember {
+	for _, m := range p.members {
+		buf = append(buf, m)
+	}
+	slices.SortFunc(buf, func(a, b *pathMember) int { return cmp.Compare(a.id, b.id) })
+	return buf
+}
 
 // recoveryOn resolves a path's own recovery, which admission has already installed.
 func (p *pathCreditRegistry) recoveryOn(id protocol.PathID) ackhandler.SentPacketHandler {
@@ -157,9 +185,10 @@ func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pat
 	var storage [2]pathView
 	views := storage[:0]
 	limit := protocol.MaxByteCount
-	for id := protocol.PathID(0); id <= p.localMax; id++ {
-		m := p.members[id]
-		if m == nil || !p.primaryEligible(m) {
+	var ordered [maxPathHistoryUnits + 1]*pathMember
+	for _, m := range p.orderedMembers(ordered[:0]) {
+		id := m.id
+		if !p.primaryEligible(m) {
 			continue // a suspect path's only probes are its revalidation challenges
 		}
 		var view pathView
@@ -179,6 +208,10 @@ func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pat
 	}
 	if limit != protocol.MaxByteCount {
 		p.conn.pathPayloadLimit.Store(uint32(limit))
+		if p.zeroRetired() {
+			// SendDatagram also bounds by path zero's estimate, which retired with it.
+			p.conn.maxPayloadSizeEstimate.Store(uint32(limit))
+		}
 	}
 	if p.primary == noPrimary {
 		// The hold is no eligible carrier, and a frame must not wait out revalidation.
@@ -352,7 +385,7 @@ func (p *pathCreditRegistry) admitMember(id protocol.PathID, target *Transport, 
 	if p.historyUnits >= maxPathHistoryUnits {
 		return nil, fmt.Errorf("%w: retained path history is full", ErrMultipathResourceLimitV1)
 	}
-	if target != nil && p.attachments[target] == 0 && len(p.attachments)+1 > maxPathAttachments {
+	if _, attached := p.attachments[target]; target != nil && !attached && len(p.attachments)+1 > maxPathAttachments {
 		return nil, fmt.Errorf("%w: transport attachments are full", ErrMultipathResourceLimitV1)
 	}
 	recovery, ok := p.conn.sentPacketHandler.(interface {
@@ -370,12 +403,24 @@ func (p *pathCreditRegistry) admitMember(id protocol.PathID, target *Transport, 
 	if !p.consume(id) {
 		return nil, fmt.Errorf("%w: path ID %d is not available", ErrMultipathResourceLimitV1, id)
 	}
-	p.historyUnits++
+	p.reserveHistory()
 	member := &pathMember{id: id, transport: target, deadline: pathDeadline(now, pathTimeout), established: path{validated: true, mtuValidated: true}}
 	member.fences = []pathFence{{transport: target, epoch: &member.established.probeEpoch}}
 	p.members[id] = member
 	return member, nil
 }
+
+// reserveHistory takes one retained-history unit, which commitment, a pending
+// terminal and R13's old generations all draw from.
+func (p *pathCreditRegistry) reserveHistory() bool {
+	if p.historyUnits >= maxPathHistoryUnits {
+		return false
+	}
+	p.historyUnits++
+	return true
+}
+
+func (p *pathCreditRegistry) releaseHistory() { p.historyUnits-- }
 
 // admitIngress is reached only by an authenticated packet. A declined path keeps
 // terminal metadata alone, and a sparse or unissued ID has no keys to get here.
@@ -558,9 +603,7 @@ func (p *pathCreditRegistry) service(now monotime.Time) error {
 	}
 	for id, m := range p.members {
 		if p.terminals[id] != nil {
-			if id != 0 {
-				p.rescheduleUnusable(id, now)
-			}
+			p.rescheduleUnusable(id, now)
 			continue
 		}
 		if m.live && id != 0 && !p.conn.emission.local.routeUsable(m.transport) {
@@ -587,7 +630,7 @@ func (p *pathCreditRegistry) service(now monotime.Time) error {
 	for id, terminal := range p.terminals {
 		p.signalTerminal(id, terminal)
 	}
-	return nil
+	return p.replenish()
 }
 
 // retireCandidate revokes the candidate's queued probes. Its fence entry keeps
@@ -644,8 +687,8 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 	if request.transport != nil && request.transport.responses == nil {
 		return p.refuseRequest(request, ErrMultipathUnsupportedV1)
 	}
-	const id protocol.PathID = 1 // the one initial window; replacement credit is R12's
-	if charged, issued := p.paths[id]; !issued || charged || p.terminals[id] != nil {
+	id, ok := p.unusedID()
+	if !ok {
 		return nil // no credit yet; the caller's context bounds this wait
 	}
 	connID, ok := p.conn.connIDManager.pathDestination(id, false)
@@ -681,6 +724,16 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 	candidate.probe.unlimited = true
 	candidate.request = request
 	return nil
+}
+
+// unusedID finds the one issued ID nothing has consumed yet.
+func (p *pathCreditRegistry) unusedID() (protocol.PathID, bool) {
+	for id, charged := range p.paths {
+		if !charged && p.terminals[id] == nil {
+			return id, true
+		}
+	}
+	return 0, false
 }
 
 func (p *pathCreditRegistry) refuseRequest(request *pathOpenRequest, err error) error {
@@ -722,30 +775,38 @@ func (p *pathCreditRegistry) signalTerminal(id protocol.PathID, terminal *pathTe
 		if sealer, err := p.conn.emission.packer.cryptoSetup.Get1RTTSealer(); err == nil {
 			_ = handshake.RetireShortHeaderPath(sealer, id)
 		}
+		p.sentPaths().RetirePath(id)
 	}
 	terminal.signaled = true
 	p.conn.queueControlFrame(&wire.PathAbandonFrame{PathID: id, ErrorCode: qerr.TransportErrorCode(terminal.code)})
 	p.conn.scheduleSending()
 }
 
-// releaseMember ends a retained path's charges when its retention expires.
+// releaseMember ends a retained path's keys, contexts and reference at reclamation.
+// Path zero's keys stay, because the legacy accessors read their entry. A transport's
+// attachment stays charged at zero references until R13 can detach it, since its
+// runner and the sender's target live on.
 func (p *pathCreditRegistry) releaseMember(id protocol.PathID) {
 	if !p.hasAdmission() {
 		return
 	}
-	if sealer, err := p.conn.emission.packer.cryptoSetup.Get1RTTSealer(); err == nil {
-		_ = handshake.RemoveShortHeaderPath(sealer, id)
+	delete(p.rtt, id)
+	if id != 0 {
+		if sealer, err := p.conn.emission.packer.cryptoSetup.Get1RTTSealer(); err == nil {
+			_ = handshake.RemoveShortHeaderPath(sealer, id)
+		}
+		p.conn.receivedPacketHandler.RemovePath(id)
+	}
+	if p.members[id] != nil {
+		p.sentPaths().RemovePath(id)
 	}
 	m := p.members[id]
 	if m == nil {
 		return
 	}
 	delete(p.members, id)
-	p.historyUnits--
 	if m.transport != nil {
-		if p.attachments[m.transport]--; p.attachments[m.transport] == 0 {
-			delete(p.attachments, m.transport)
-		}
+		p.attachments[m.transport]--
 	}
 }
 
@@ -780,9 +841,9 @@ func (p *pathCreditRegistry) nextProbe(now monotime.Time) *pathProbeIntent {
 	if !p.hasAdmission() || p.closed || !p.conn.sentPacketHandler.CanSendPathProbe() {
 		return nil
 	}
-	for id := protocol.PathID(0); id <= p.localMax; id++ {
-		m := p.members[id]
-		if m == nil || p.terminals[id] != nil {
+	var ordered [maxPathHistoryUnits + 1]*pathMember
+	for _, m := range p.orderedMembers(ordered[:0]) {
+		if p.terminals[m.id] != nil {
 			continue
 		}
 		if intent := p.memberProbe(m, now); intent != nil {

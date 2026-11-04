@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"slices"
 	"sync"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
@@ -70,20 +71,14 @@ func (e *packetEmission) captureTerminalReceipts(frames []ackhandler.Frame) {
 		if terminal == nil || terminal.expired {
 			continue
 		}
-		for i, receipt := range e.terminalReceipts {
-			if receipt == terminal.receipt {
-				break
-			}
-			if receipt == nil {
-				e.terminalReceipts[i] = terminal.receipt
-				break
-			}
+		if !slices.Contains(e.terminalReceipts, terminal.receipt) {
+			e.terminalReceipts = append(e.terminalReceipts, terminal.receipt)
 		}
 	}
 }
 
 func (m sendMetadata) hasTerminalReceipt() bool {
-	return m.terminalReceipts[0] != nil
+	return len(m.terminalReceipts) != 0
 }
 
 func (p *pathCreditRegistry) close() {

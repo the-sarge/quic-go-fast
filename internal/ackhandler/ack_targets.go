@@ -6,7 +6,8 @@ import (
 )
 
 // ackTargets is an immutable snapshot of the receive histories described by a
-// carrier. Two target spaces are sufficient for the bounded multipath profile.
+// carrier. A carrier selects ACK(0) and at most one PATH_ACK, so two target spaces
+// are sufficient, and every sent packet stays this size on ordinary connections.
 // These are pruning facts, not frame or application delivery ownership.
 type ackTarget struct {
 	path  protocol.PathID

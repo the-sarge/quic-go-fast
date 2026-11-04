@@ -300,6 +300,8 @@ func (s *nativeOrdinarySender) Send(buffer *packetBuffer, segment uint16, ecn pr
 	if route := s.route; route != nil {
 		destination, routed = nativeDestination(route.addr)
 		base, writeState, epoch = route.info.OOB(), &route.writeState, route.epoch
+	} else if credit := s.connection.pathCredit; credit != nil {
+		epoch = credit.zeroEpoch()
 	}
 	request := endpointRequest{
 		identity: record.identity, destination: destination, buffers: []*packetBuffer{buffer},
