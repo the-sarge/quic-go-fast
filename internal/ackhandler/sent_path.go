@@ -23,7 +23,7 @@ func (h *sentPacketHandler) AddPathWithRTT(id protocol.PathID, size protocol.Byt
 	}
 	rtt.SetMaxAckDelay(h.rttStats.MaxAckDelay())
 	path := newSentPacketHandler(0, size, rtt, h.connStats, true, h.enableECN, h.ignorePacketsBelow, h.perspective, nil, h.logger, nil)
-	path.pathID, path.pathRoot = id, h
+	path.pathID, path.pathRoot, path.pathPolicy = id, h, h.pathPolicy
 	path.initialPackets, path.handshakePackets = nil, nil
 	path.handshakeConfirmed, path.peerCompletedAddressValidation, path.peerAddressValidated = true, true, true
 	if h.local != nil {
@@ -41,6 +41,10 @@ func (h *sentPacketHandler) AddPathWithRTT(id protocol.PathID, size protocol.Byt
 	h.paths = map[protocol.PathID]*sentPacketHandler{id: path}
 	return nil
 }
+
+// EnablePathPolicy starts the liveness facts, from private admission on. Ordinary
+// connections never pay for them.
+func (h *sentPacketHandler) EnablePathPolicy() { h.pathPolicy = true }
 
 func (h *sentPacketHandler) path(id protocol.PathID) *sentPacketHandler {
 	if id == h.pathID {
@@ -85,4 +89,13 @@ func (h *sentPacketHandler) PathLossDetectionTimeout(id protocol.PathID) monotim
 		return path.alarm.Time
 	}
 	return 0
+}
+
+// TakeAckedTuple reports the newest tuple whose ACK-eliciting traffic an ACK has
+// newly acknowledged since the last call, whichever path carried that ACK. A path
+// validation packet doesn't count, since it can be probing another tuple.
+func (h *sentPacketHandler) TakeAckedTuple() (uint64, bool) {
+	tuple, live := h.ackedTuple, h.ackedLive
+	h.ackedTuple, h.ackedLive = 0, false
+	return tuple, live
 }

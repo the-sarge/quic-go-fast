@@ -25,16 +25,22 @@ type reliableFixture struct {
 	stream *SendStream
 }
 
-func newReliableFixture(t *testing.T, perspective protocol.Perspective) *reliableFixture {
+func reliableStream(t *testing.T, c *Conn) *SendStream {
 	t.Helper()
-	f := newAdmissionFixture(t, perspective)
-	f.supplyPeerCIDs(t)
-	c := f.c
 	c.peerParams = &wire.TransportParameters{InitialMaxData: 1 << 24, InitialMaxStreamDataUni: 1 << 24, InitialMaxStreamDataBidiRemote: 1 << 24, InitialMaxStreamDataBidiLocal: 1 << 24, MaxUniStreamNum: 16, MaxBidiStreamNum: 16}
 	c.streamsMap.HandleTransportParameters(c.peerParams)
 	c.connFlowController.UpdateSendWindow(1 << 24)
 	stream, err := c.OpenUniStream()
 	require.NoError(t, err)
+	return stream
+}
+
+func newReliableFixture(t *testing.T, perspective protocol.Perspective) *reliableFixture {
+	t.Helper()
+	f := newAdmissionFixture(t, perspective)
+	f.supplyPeerCIDs(t)
+	c := f.c
+	stream := reliableStream(t, c)
 	if perspective == protocol.PerspectiveServer {
 		require.True(t, f.receive(t, 1, admissionTupleA, 1200, &wire.PingFrame{}))
 		f.pass(t)
@@ -727,4 +733,19 @@ func TestPathReliableClientOpenPathCarriesData(t *testing.T) {
 		require.Equal(t, 1000, reliableBytes(f.parseWrites(t, 1)))
 		require.Empty(t, f.parseWrites(t, 0))
 	})
+}
+
+// selectPrimaryPrivate moves the primary through local use, as R16's API will.
+func (p *pathCreditRegistry) selectPrimaryPrivate(id protocol.PathID) {
+	now := monotime.Now()
+	for other := protocol.PathID(0); other <= p.localMax; other++ {
+		if other != id && p.members[other] != nil && p.members[other].live {
+			if err := p.setLocalUsePrivate(other, true, now); err != nil {
+				panic(err)
+			}
+		}
+	}
+	if err := p.setLocalUsePrivate(id, false, now); err != nil {
+		panic(err)
+	}
 }

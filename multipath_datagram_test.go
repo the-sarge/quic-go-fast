@@ -62,12 +62,24 @@ func TestSelectPathForDatagram(t *testing.T) {
 		{"a pending PTO stays first", []pathView{{id: 0, fits: true, ready: true}, {id: 1, probing: true}}, 1, 0, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			chosen, steerTo, steering := selectPath(tc.views, 1)
+			chosen, steerTo, steering, held := selectPath(tc.views, 1)
+			require.False(t, held)
 			require.Equal(t, tc.chosen, chosen)
 			require.Equal(t, tc.steerTo, steerTo)
 			require.Equal(t, tc.steering, steering)
 		})
 	}
+}
+
+func TestSelectPathHoldsWithoutPrimary(t *testing.T) {
+	views := []pathView{{id: 0, fits: true, ready: true}, {id: 1, fits: true, ready: true}}
+	_, _, _, held := selectPath(views, noPrimary)
+	require.True(t, held, "with no primary, a stale path in view carries nothing ordinary")
+	_, _, _, held = selectPath(nil, noPrimary)
+	require.True(t, held)
+	chosen, _, _, held := selectPath([]pathView{{id: 1, probing: true}}, noPrimary)
+	require.False(t, held, "a stale path's pending PTO still goes")
+	require.Equal(t, protocol.PathID(1), chosen)
 }
 
 func TestPathDatagramSmallerMTUSurvivor(t *testing.T) {
