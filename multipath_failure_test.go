@@ -377,6 +377,26 @@ func TestPathFailureMigrateAway(t *testing.T) {
 			require.Equal(t, refs, p.attachments[nil].refs)
 		})
 	})
+	t.Run("a target failing before the response ends the open", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			target, socket := migrationTarget(t, f)
+			errs := f.openAsync(context.Background(), target, admissionTupleA)
+			f.pass(t)
+			challenges := socketChallenges(t, f, socket, 1)
+			require.NotEmpty(t, challenges)
+
+			nativeTransportEndpoint(target).do(func(state *endpointState) { state.fail(endpointFaultCause(0), errEndpointFault) })
+			synctest.Wait()
+			require.True(t, f.receive(t, 1, admissionTupleA, 1200, &wire.PathResponseFrame{Data: challenges[0]}))
+			f.pass(t)
+			require.ErrorIs(t, <-errs, net.ErrClosed, "the response can't claim success")
+			require.False(t, f.c.pathCredit.members[1].live)
+			require.NotNil(t, f.c.pathCredit.terminals[1])
+			require.True(t, f.c.pathCredit.eligible(f.c.pathCredit.members[0]), "path zero carries on")
+		})
+	})
 	t.Run("a target failing during the fence ends the attempt", func(t *testing.T) {
 		nativeOrdinaryTest(t, func(t *testing.T) {
 			f, next, socket := setup(t)

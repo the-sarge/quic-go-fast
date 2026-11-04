@@ -643,6 +643,9 @@ func (p *pathCreditRegistry) pathResponse(f *wire.PathResponseFrame, ingress pro
 	if !now.Before(candidate.probe.validationDeadline) || (candidate.request != nil && candidate.request.canceled()) {
 		return
 	}
+	if p.attemptTargetFailed(m) {
+		return // this pass's service ends the attempt, so no outcome is claimed here
+	}
 	deadline := candidate.probe.validationDeadline
 	if !candidate.probe.matchResponse(f.Data, now) {
 		return
