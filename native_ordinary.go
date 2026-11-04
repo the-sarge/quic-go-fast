@@ -67,6 +67,10 @@ type nativeOrdinarySender struct {
 	targets []*endpointParticipant
 	// route is the selected nonzero path; nil submits on path zero's fields above.
 	route *pathRoute
+	// fitting stays registered at its endpoint while selection holds a DATAGRAM for
+	// that endpoint's capacity. refused says the latest WouldBlock met that capacity.
+	fitting *endpointParticipant
+	refused bool
 }
 
 type nativeOrdinaryConn struct {
@@ -189,6 +193,7 @@ func (e *nativeEndpoint) cancelGeneration(p *endpointParticipant, generation uin
 }
 
 func (s *nativeOrdinarySender) WouldBlock() bool {
+	s.refused = false
 	if s.drained || s.closed || s.err != nil {
 		return true
 	}
@@ -216,7 +221,8 @@ func (s *nativeOrdinarySender) WouldBlock() bool {
 		}
 		admission, err := participant.endpoint.prepare(participant, 0, int(protocol.MaxLargePacketBufferSize))
 		if err != nil {
-			if !errors.Is(err, errEndpointCapacity) && !errors.Is(err, net.ErrClosed) {
+			s.refused = errors.Is(err, errEndpointCapacity)
+			if !s.refused && !errors.Is(err, net.ErrClosed) {
 				s.err = err
 			}
 			return true
@@ -269,10 +275,30 @@ func (s *nativeOrdinarySender) routeSaturated(endpoint *nativeEndpoint) bool {
 // reservation, so changing route only returns it to its owning endpoint.
 func (s *nativeOrdinarySender) useRoute(route *pathRoute) {
 	s.finish()
-	if previous := s.routeParticipant(); previous != nil {
+	if previous := s.routeParticipant(); previous != nil && previous != s.fitting {
 		previous.endpoint.cancelReadiness(previous, 0)
 	}
 	s.route = route
+}
+
+// holdReadiness keeps the current route's registration across the fallback when its
+// endpoint's capacity refused the DATAGRAM. Other connections can fill that endpoint
+// with no result of this one's to wake it, so its turn is what wakes the loop. Any
+// other refusal is this connection's own, and its completions wake the loop.
+func (s *nativeOrdinarySender) holdReadiness() {
+	s.releaseReadiness()
+	if s.refused {
+		s.fitting = s.routeParticipant()
+	}
+}
+
+// releaseReadiness ends the hold, so an unwanted turn can't delay other connections.
+// A registration on the current route is that route's own to keep.
+func (s *nativeOrdinarySender) releaseReadiness() {
+	if s.fitting != nil && s.fitting != s.routeParticipant() {
+		s.fitting.endpoint.cancelReadiness(s.fitting, 0)
+	}
+	s.fitting = nil
 }
 
 // routeUsable reports whether a path's endpoint can still take its packets. A
@@ -360,6 +386,7 @@ func (s *nativeOrdinarySender) drain() {
 	}
 	s.drained = true
 	s.finish()
+	s.releaseReadiness()
 	s.endpoint.drain(s.participant)
 	for _, target := range s.targets {
 		target.endpoint.drain(target)

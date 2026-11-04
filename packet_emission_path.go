@@ -70,16 +70,22 @@ func (e *packetEmission) selectRoute(now monotime.Time) {
 	route, steerTo, steering, held := e.pathCredit.selectRoute(now)
 	e.held = held
 	// Steering also needs endpoint capacity, so a saturated fitting endpoint holds
-	// the DATAGRAM and not the chosen route's traffic. Its completions wake the loop.
+	// the DATAGRAM and not the chosen route's traffic. Its readiness wakes the loop,
+	// and selection keeps that registration only while it names the same need.
 	if steering {
 		e.useRoute(steerTo)
 		if !e.queue.WouldBlock() {
+			e.local.releaseReadiness()
 			e.steered = true
 			return
 		}
+		e.local.holdReadiness()
 	}
 	e.steered = false
 	e.useRoute(route)
+	if !steering {
+		e.local.releaseReadiness()
+	}
 }
 
 func (e *packetEmission) useRoute(route *pathRoute) {
