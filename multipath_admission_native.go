@@ -6,7 +6,12 @@ import (
 	"context"
 	"fmt"
 	"net"
+
+	"github.com/quic-go/quic-go/internal/protocol"
 )
+
+// selectPrimaryPrivate is the private primary-only driver. R15 replaces its source.
+func (p *pathCreditRegistry) selectPrimaryPrivate(id protocol.PathID) { p.primary = id }
 
 // openPathPrivate is the private driver for client initiation. The returned
 // context error says nothing about wire retirement, which continues on the

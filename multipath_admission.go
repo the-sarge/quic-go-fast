@@ -131,9 +131,6 @@ func (p *pathCreditRegistry) enableAdmission() {
 
 func (p *pathCreditRegistry) hasAdmission() bool { return p.members != nil }
 
-// selectPrimaryPrivate is the private primary-only driver. R15 replaces its source.
-func (p *pathCreditRegistry) selectPrimaryPrivate(id protocol.PathID) { p.primary = id }
-
 // recoveryOn resolves a path's own recovery, which admission has already installed.
 func (p *pathCreditRegistry) recoveryOn(id protocol.PathID) ackhandler.SentPacketHandler {
 	return p.conn.sentPacketHandler.(interface {
