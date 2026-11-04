@@ -24,7 +24,6 @@ type localPacketSender interface {
 	drain()
 	sendClose(*packetBuffer, protocol.ECN) error
 	sendPathClose(*packetBuffer, protocol.ECN, *pathRoute) error
-	closeUsable(*Transport) bool
 	routeInfo() packetInfo
 	consume() error
 	reset()

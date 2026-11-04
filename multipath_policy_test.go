@@ -465,7 +465,7 @@ func TestPathPolicyEndpointFatalStaysWithEndpoint(t *testing.T) {
 		require.NoError(t, f.c.pathCredit.expire(monotime.Now()))
 		f.c.triggerSending(monotime.Now())
 		synctest.Wait()
-		require.Error(t, f.c.emission.consumeLocal(), "the primary endpoint's fault keeps failing the connection until R13/R14")
+		require.Error(t, f.c.emission.consumeLocal(), "a server's paths share its one endpoint, so none survives")
 		require.False(t, f.c.pathCredit.members[0].suspect, "and is not a destination failure")
 	})
 }

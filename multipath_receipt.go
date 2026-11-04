@@ -91,6 +91,7 @@ func (p *pathCreditRegistry) close() {
 // connection classifies its terminal error only afterward.
 func (p *pathCreditRegistry) seal() {
 	p.closed = true
+	p.failures.seal()
 	for _, terminal := range p.terminals {
 		terminal.receipt.seal()
 	}

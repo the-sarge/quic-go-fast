@@ -196,7 +196,9 @@ type Conn struct {
 	// pathPayloadLimit is the smallest DATAGRAM payload limit over the eligible paths,
 	// and stays zero without path admission. Emission stores it.
 	pathPayloadLimit atomic.Uint32
-	pathMTUSettled   pathMTUSettled // see PathMTUSettledV1
+	// failureOwner is published at activation, for a transport's close to read.
+	failureOwner   atomic.Pointer[pathCreditRegistry]
+	pathMTUSettled pathMTUSettled // see PathMTUSettledV1
 
 	initialStream       *initialCryptoStream
 	handshakeStream     *cryptoStream
@@ -2555,6 +2557,18 @@ func (c *Conn) closeLocal(e error) {
 	c.setCloseError(&closeError{err: e, immediate: false})
 }
 
+// transportFailed takes a transport's read failure as a fact in place of destroy. Only
+// a client on the admission route, which hasn't ended, accepts: a server's paths share
+// the one transport. It never waits, and the registry decides on the next pass.
+func (c *Conn) transportFailed(cause error) bool {
+	p := c.failureOwner.Load()
+	if p == nil || !p.failures.note(cause) {
+		return false
+	}
+	c.scheduleSending()
+	return true
+}
+
 // destroy closes the connection without sending the error on the wire
 func (c *Conn) destroy(e error) {
 	c.destroyImpl(e)
@@ -2709,10 +2723,8 @@ func (c *Conn) handleCloseError(closeErr *closeError) {
 		c.connIDGenerator.ReplaceWithClosed(nil, drainExpiry)
 		return
 	}
-	// A faulted endpoint stops only its own paths, so a survivor can still tell the peer.
-	closesViaSurvivor := admission && closeErr.immediate && isEndpointFault(e) && len(c.pathCredit.closeContexts(nil)) != 0
 	// Recreating for version negotiation never sends a close in the old version.
-	if (closeErr.immediate && !closesViaSurvivor) || recreateErr != nil {
+	if closeErr.immediate || recreateErr != nil {
 		c.connIDGenerator.RemoveAll()
 		return
 	}

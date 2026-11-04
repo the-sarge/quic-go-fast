@@ -240,10 +240,10 @@ func TestPathCloseFaultedPrimaryUsesSurvivor(t *testing.T) {
 		zeroCID := f.c.connIDGenerator.activeSrcConnIDs[0]
 		(*packetHandlerMap)(f.target).closeQueue = make(chan closePacket, 4)
 		f.route.closeQueue = make(chan closePacket, 4)
-		fault := f.faultPrimary(t)
+		require.NoError(t, f.faultPrimary(t), "the survivor keeps the connection")
 
 		f.c.sentFirstPacket = true
-		f.c.handleCloseError(&closeError{err: fault, immediate: true})
+		f.c.handleCloseError(&closeError{err: &ApplicationError{ErrorCode: 1, ErrorMessage: "done"}})
 		f.c.emission.local.Close()
 		synctest.Wait()
 
@@ -262,10 +262,27 @@ func TestPathCloseFaultedPrimaryUsesSurvivor(t *testing.T) {
 
 // TestPathCloseFaultWithoutSurvivorDestroys keeps immediate destruction.
 func TestPathCloseFaultWithoutSurvivorDestroys(t *testing.T) {
+	t.Run("a path validating elsewhere is not a survivor", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			target, _ := migrationTarget(t, f)
+			errs := f.openAsync(context.Background(), target, admissionTupleA)
+			f.pass(t)
+			require.Empty(t, errs)
+			sender := f.c.emission.local.(*nativeOrdinarySender)
+			sender.endpoint.do(func(state *endpointState) { state.fail(endpointFaultCause(0), errEndpointFault) })
+			synctest.Wait()
+			require.ErrorIs(t, f.c.emission.consumeLocal(), errEndpointFault)
+			f.c.pathCredit.close()
+			require.ErrorIs(t, <-errs, net.ErrClosed)
+		})
+	})
 	nativeOrdinaryTest(t, func(t *testing.T) {
 		f := newReliableFixture(t, protocol.PerspectiveClient)
 		cid := f.issuedCID(1)
 		fault := f.faultPrimary(t)
+		require.ErrorIs(t, fault, errEndpointFault, "both paths use the one endpoint")
 		writes := len(f.socket.writes)
 
 		f.c.sentFirstPacket = true
@@ -293,7 +310,8 @@ func newUnconfirmedFixture(t *testing.T) *admissionFixture {
 	return newAdmissionFixtureUnactivated(t)
 }
 
-// faultPrimary sends on path zero into a socket failure that faults its endpoint.
+// faultPrimary sends on path zero into a socket failure that faults its endpoint, and
+// returns what the registry decided.
 func (f *reliableFixture) faultPrimary(t *testing.T) error {
 	t.Helper()
 	f.socket.result = destinationError(syscall.EBADF)
@@ -303,9 +321,7 @@ func (f *reliableFixture) faultPrimary(t *testing.T) error {
 	f.c.triggerSending(monotime.Now())
 	synctest.Wait()
 	f.socket.result = nil
-	fault := f.c.emission.consumeLocal()
-	require.ErrorIs(t, fault, errEndpointFault)
-	return fault
+	return f.c.emission.consumeLocal()
 }
 
 // targetPathFixture is a reliable fixture with path 1 on a second endpoint.

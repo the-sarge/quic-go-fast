@@ -587,6 +587,11 @@ func (s *endpointState) retire(p *endpointParticipant) {
 	if !p.active && p.retained == 0 && s.participants[p.slot] == p {
 		s.participants[p.slot] = nil
 		close(p.retired)
+		// A connection spared by a read failure settles what this participant left.
+		select {
+		case p.completed <- struct{}{}:
+		default:
+		}
 	}
 }
 

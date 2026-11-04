@@ -181,6 +181,9 @@ func (p *pathCreditRegistry) enableAdmission() {
 		p.origin = (*Transport)(runner)
 	}
 	p.fanOutResetTokens()
+	if p.conn.perspective == protocol.PerspectiveClient {
+		p.conn.failureOwner.Store(p)
+	}
 	if recovery, ok := p.conn.sentPacketHandler.(interface{ EnablePathPolicy() }); ok {
 		recovery.EnablePathPolicy()
 	}
@@ -241,9 +244,7 @@ func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pat
 			view = pathViewFor(id, p.conn.sentPacketHandler.SendMode(now))
 			size = datagramPayloadLimit(p.conn.maxPacketSize(), p.conn.connIDManager.Get())
 		} else {
-			connID, _ := p.conn.connIDManager.pathDestination(id, false)
-			m.route.context, m.route.connID, m.route.recovery = ackhandler.PacketContext{PathID: id, TupleGeneration: m.tuple}, connID, p.recoveryOn(id)
-			m.route.addr, m.route.info, m.route.transport, m.route.epoch = m.addr, m.info, m.transport, &m.established.probeEpoch
+			connID := p.refreshRoute(m)
 			view = pathViewFor(id, m.route.recovery.SendMode(now))
 			size = datagramPayloadLimit(protocol.ByteCount(p.pmtuObservation(id)), connID)
 		}
@@ -252,8 +253,8 @@ func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pat
 	}
 	if limit != protocol.MaxByteCount {
 		p.conn.pathPayloadLimit.Store(uint32(limit))
-		if p.zeroRetired() {
-			// SendDatagram also bounds by path zero's estimate, which retired with it.
+		if !p.zeroCarries() {
+			// SendDatagram also bounds by path zero's estimate, which no longer applies.
 			p.conn.maxPayloadSizeEstimate.Store(uint32(limit))
 		}
 	}
@@ -271,6 +272,14 @@ func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pat
 		return p.heldRoute(), nil, false, true
 	}
 	return p.routeOf(chosen), p.routeOf(steer), steering, false
+}
+
+// refreshRoute brings a nonzero member's route up to its current tuple.
+func (p *pathCreditRegistry) refreshRoute(m *pathMember) protocol.ConnectionID {
+	connID, _ := p.conn.connIDManager.pathDestination(m.id, false)
+	m.route.context, m.route.connID, m.route.recovery = ackhandler.PacketContext{PathID: m.id, TupleGeneration: m.tuple}, connID, p.recoveryOn(m.id)
+	m.route.addr, m.route.info, m.route.transport, m.route.epoch = m.addr, m.info, m.transport, &m.established.probeEpoch
+	return connID
 }
 
 // routeOf is a selected path's route. Path zero's is nil.
@@ -368,7 +377,7 @@ func (p *pathCreditRegistry) notePMTU() {
 }
 
 // eligible never reads congestion or capacity. A quarantined endpoint affects its
-// paths alone, and neither signals abandonment nor promotes anything.
+// paths alone, path zero included, and neither signals abandonment nor promotes anything.
 func (p *pathCreditRegistry) eligible(m *pathMember) bool {
 	if !m.live || p.terminals[m.id] != nil || !p.conn.emission.local.routeUsable(m.transport) {
 		return false
@@ -688,17 +697,24 @@ func (p *pathCreditRegistry) service(now monotime.Time) error {
 			p.rescheduleUnusable(id, now)
 			continue
 		}
-		if m.live && id != 0 && !p.conn.emission.local.routeUsable(m.transport) {
+		if m.live && !p.conn.emission.local.routeUsable(m.transport) {
 			p.rescheduleUnusable(id, now)
 		}
 		if m.live && m.suspect {
 			p.rescheduleUnusable(id, now)
 		}
 		if !m.live {
-			if !now.Before(m.deadline) {
+			if p.attemptTargetFailed(m) {
+				p.decline(id, 0, errPathTargetFailed)
+			} else if !now.Before(m.deadline) {
 				p.decline(id, 0, errPathValidationTimeout)
 			}
 			continue
+		}
+		if p.attemptTargetFailed(m) {
+			m.candidate.request.finish(errPathTargetFailed)
+			p.retireCandidate(m)
+			p.conn.scheduleSending()
 		}
 		if candidate := m.candidate; candidate != nil && !now.Before(candidate.probe.validationDeadline) {
 			if candidate.request != nil {
@@ -809,6 +825,10 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 	if p.migrationForbidden(request.addr) {
 		return p.refuseRequest(request, fmt.Errorf("%w: the peer disabled migration to its handshake address", ErrMultipathUnsupportedV1))
 	}
+	target := p.attachmentKey(request.transport)
+	if p.targetFailed(target) {
+		return p.refuseRequest(request, errPathTargetFailed)
+	}
 	id, ok := p.unusedID()
 	if !ok {
 		return nil // no credit yet; the caller's context bounds this wait
@@ -817,7 +837,6 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 	if !ok {
 		return nil // no peer CID yet; a later control frame wakes this pass
 	}
-	target := p.attachmentKey(request.transport)
 	if p.historyUnits >= maxPathHistoryUnits {
 		return p.refuseRequest(request, fmt.Errorf("%w: retained path history is full", ErrMultipathResourceLimitV1))
 	}
@@ -998,7 +1017,10 @@ func (p *pathCreditRegistry) memberProbe(m *pathMember, now monotime.Time) *path
 	if m.response != nil && m.response.transport != m.transport && (m.candidate == nil || m.response.transport != m.candidate.transport) {
 		m.response = nil // that tuple is gone, and the peer retries on the current one
 	}
-	if candidate := m.candidate; candidate != nil {
+	// Each intent is gated on its own endpoint before packing, so nothing spends a packet
+	// number toward a failed one, and a probe toward a healthy target still goes.
+	usable := p.conn.emission.local.routeUsable
+	if candidate := m.candidate; candidate != nil && usable(candidate.transport) {
 		probe := &candidate.probe
 		var frames []ackhandler.Frame
 		var data [8]byte
@@ -1047,6 +1069,10 @@ func (p *pathCreditRegistry) memberProbe(m *pathMember, now monotime.Time) *path
 	}
 	if m.response != nil && m.response.transport != m.transport {
 		return nil // only its own tuple may answer; the candidate retries, or the peer does
+	}
+	if !usable(m.transport) {
+		m.response, m.announce = nil, false // the peer retries on a path that can answer
+		return nil
 	}
 	connID, ok := p.conn.connIDManager.pathDestination(m.id, false)
 	if !ok {

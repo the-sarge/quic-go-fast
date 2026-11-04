@@ -65,8 +65,8 @@ func (p *pathCreditRegistry) notePTO(outcome ackhandler.TimeoutOutcome, now mono
 		return
 	}
 	m := p.members[outcome.PathID]
-	if m == nil || !m.live || m.suspect || p.terminals[m.id] != nil || outcome.TupleGeneration != m.tuple {
-		return
+	if m == nil || !m.live || m.suspect || p.terminals[m.id] != nil || outcome.TupleGeneration != m.tuple || !p.conn.emission.local.routeUsable(m.transport) {
+		return // a failed endpoint's path is ineligible, not suspect
 	}
 	if m.attempts++; m.attempts >= suspectPTOAttempts {
 		p.markSuspect(m, now)
@@ -132,7 +132,7 @@ func (p *pathCreditRegistry) markSuspect(m *pathMember, now monotime.Time) {
 // and the candidate's own challenge cap and deadline as the bound. A response is the
 // only way this ends in liveness, and the candidate's fence covers its submissions.
 func (p *pathCreditRegistry) startRevalidation(m *pathMember, now monotime.Time) {
-	if m.candidate != nil || p.terminals[m.id] != nil || !m.live || p.pruneFences(m) || p.migrationWaiting(m.id) {
+	if m.candidate != nil || p.terminals[m.id] != nil || !m.live || !p.conn.emission.local.routeUsable(m.transport) || p.pruneFences(m) || p.migrationWaiting(m.id) {
 		return
 	}
 	connID, ok := p.conn.connIDManager.pathDestination(m.id, false)
@@ -199,16 +199,29 @@ func (p *pathCreditRegistry) syncObservation() {
 	}
 }
 
-// heldRoute carries ACKs while nothing may carry ordinary work: the lowest path
-// that isn't suspect, otherwise path zero, unless path zero has retired.
+// heldRoute carries ACKs while nothing may carry ordinary work: the lowest live,
+// non-fencing path on a usable endpoint, with a suspect one last, which this doesn't
+// promote. Nil is path zero, which held emission reads through zeroCarries.
 func (p *pathCreditRegistry) heldRoute() *pathRoute {
 	var ordered [maxPathHistoryUnits + 1]*pathMember
+	var suspect *pathMember
 	for _, m := range p.orderedMembers(ordered[:0]) {
-		if !m.suspect && !m.fencing() && p.eligible(m) {
+		if m.fencing() || !p.eligible(m) {
+			continue
+		}
+		if !m.suspect {
 			return p.routeOf(m.id)
 		}
+		if suspect == nil {
+			suspect = m
+		}
 	}
-	return nil
+	if suspect == nil || suspect.id == 0 {
+		return nil
+	}
+	// Selection skips a suspect path, so nothing else keeps its route current.
+	p.refreshRoute(suspect)
+	return p.routeOf(suspect.id)
 }
 
 // peerStatus records the peer's advisory preference. The newest sequence number
