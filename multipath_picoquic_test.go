@@ -197,6 +197,7 @@ func smokeClient(t *testing.T, ctx context.Context, binary, dir string, payload 
 		t.Fatal(ctx.Err())
 	}
 	primary, alternate := smokeTransport(t, net.IPv4(127, 0, 0, 1)), smokeTransport(t, net.IPv4(127, 0, 0, 2))
+	require.NoError(t, alternate.init(false), "R16's path API owns this for callers")
 	conn, err := primary.Dial(ctx, addr, tlsConf, conf)
 	require.NoError(t, err)
 	defer conn.CloseWithError(0, "")
