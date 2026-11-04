@@ -8762,3 +8762,51 @@ Deferred findings were revalidated at `072a5f36` and recorded on the slices that
 - R13 and [R16 #1036](https://github.com/the-sarge/quic-go-fast/issues/1036): target preparation and nonfatal refusal.
 
 Received abandonment of path zero still closes the connection until R10 and R12. The [program index](adr/2026-10-24-multipath-program.md) is the live frontier.
+
+---
+
+## Multipath R10 selected-path reliable traffic landed - 2026-11-03 21:47 EST
+
+**Main:** `542d2896529c`
+**Actor:** Claude
+
+### Summary
+
+[PR #1151 — Multipath R10: Carry reliable traffic over the selected path](https://github.com/the-sarge/quic-go-fast/pull/1151) closed [issue #1030](https://github.com/the-sarge/quic-go-fast/issues/1030) as merge `542d2896`, under parent [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013). In private real-owner fixtures, STREAM and control frames now leave through a selected path's CID, packet numbers, nonce, recovery and endpoint. Public negotiation remains disabled. R10 is complete, 10 of 19 slices.
+
+### Completed
+
+- A pure scheduler in `packet_emission_path.go` runs before every route-dependent capacity read and each dispatch. A pending PTO goes first, then the private primary, then the lowest eligible ID. Congestion, pacing and local capacity are not inputs.
+- A nil route is path zero, so ordinary connections keep their existing branch. Each member owns its route, so selection allocates nothing.
+- Requests on a nonzero path carry the member's established epoch, so R9's fence and signal ordering covers ordinary traffic.
+- A retired path's outstanding packets return to their logical owners through recovery's existing probe queue, and retained evidence stays.
+- A target endpoint's fault quarantines that endpoint alone. Its routes drain, healthy paths continue, and no abandonment or promotion follows.
+- Each path now has its own local ECN evidence, and retention snapshots use the largest measured PTO.
+- R9's deferred finding is resolved: admission probes get their own opportunity before dispatch, so sustained `SendAck` no longer holds them back.
+
+### Decisions
+
+The [R10 route re-audit](audits/2026-11-03-r10-route-reaudit.md), published in [PR #1150](https://github.com/the-sarge/quic-go-fast/pull/1150), extended the blast radius before any code. The native sender had one route, ordinary requests had no path epoch, path recovery refused an ECT mark, and reliable work on a retired path had no return route. Its review added the capacity-read ordering, the target fault wake, the short-header PTO route and the MTU timer suspension.
+
+Declared seams: a nonzero path carries no DATAGRAM and packs at the minimum size until R11, MTU discovery runs only while path zero is selected, a target route does not segment, and received abandonment of path zero still closes the connection until R12.
+
+The replacement review suggested deferring a regression where the record reserve also capped ordinary connections. It was fixed instead, because it broke the slice's preservation obligation and needed one condition. See the dispositions on [PR #1151](https://github.com/the-sarge/quic-go-fast/pull/1151).
+
+### Validation
+
+| Check | Result |
+| --- | --- |
+| Scenarios | 13 test functions in `multipath_reliable_test.go`, plus one `internal/ackhandler` ECN case, within the ceiling of 16 |
+| Focused race run | passes at the final head |
+| `go test ./...`, `go vet`, `go mod tidy -diff`, lint on macOS and Windows | pass |
+| Hosted checks at `c8b6762e` | 33 of 33 pass |
+
+RAS initial run `20261104T012537-67fc8b83eeb7d1b901d6a839` raised two distinct roots, target fault containment and record saturation, both fixed and verified at `97638420`. Replacement run `20261104T014125-144e25e74e9a90d0eaaae110` raised the ordinary-capacity regression, fixed and verified at `29f36034`. The review budget is complete, and no finding was deferred.
+
+Hosted checks also caught a non-unix build break, a route field whose type lived in a unix-only file, and one macOS failure of `TestNativeRouteLoopback` in code this slice doesn't change. The server switches only on the highest-numbered non-probing packet on a validated tuple, and two sockets can deliver in either order, so a losing packet had no successor once the test went idle. An injected suppression reproduced the signature. 150 runs under load on each of the head and main did not. The test now repeats traffic until the switch happens.
+
+The 24k context target was exceeded: the slice was read through whole owner files. It still fit one PR.
+
+### Next
+
+R11 [#1031](https://github.com/the-sarge/quic-go-fast/issues/1031), R12 [#1032](https://github.com/the-sarge/quic-go-fast/issues/1032) and R15 [#1035](https://github.com/the-sarge/quic-go-fast/issues/1035) are ready. The [program index](adr/2026-10-24-multipath-program.md) is the live frontier.
