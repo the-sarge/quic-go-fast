@@ -150,13 +150,6 @@ func (p *pathCreditRegistry) detach(key *Transport, attachment *pathAttachment) 
 	close(attachment.detached)
 }
 
-// detachmentOf is the waiter's view: nil means no attachment, so already detached.
-func (p *pathCreditRegistry) detachmentOf(t *Transport) *pathAttachment {
-	p.attachMu.Lock()
-	defer p.attachMu.Unlock()
-	return p.attachments[p.attachmentKey(t)]
-}
-
 // migrationForbidden applies the peer's disable_active_migration, which covers its
 // handshake address and leaves other admitted addresses allowed.
 func (p *pathCreditRegistry) migrationForbidden(addr net.Addr) bool {

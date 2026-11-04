@@ -53,6 +53,13 @@ func (c *Conn) waitTransportDetachedPrivate(ctx context.Context, t *Transport) e
 	}
 }
 
+// detachmentOf is the waiter's view: nil means no attachment, so already detached.
+func (p *pathCreditRegistry) detachmentOf(t *Transport) *pathAttachment {
+	p.attachMu.Lock()
+	defer p.attachMu.Unlock()
+	return p.attachments[p.attachmentKey(t)]
+}
+
 // prepareTarget runs on the caller's goroutine, because initialization can touch the
 // socket. The effective length comes from configuration, so a mismatch refuses before
 // the target starts, and initialization selects that same length.
