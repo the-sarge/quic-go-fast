@@ -9173,3 +9173,45 @@ R16 [#1036](https://github.com/the-sarge/quic-go-fast/issues/1036) has no open b
 ### Next
 
 `announcePath` swaps routes the same way, once per announcement. It was left out of scope and hasn't been tested. No follow-up issue was filed.
+
+---
+
+## R16 additive multipath APIs and constructor gate - 2026-11-04 16:24 EST
+
+**Main:** `c5eedb68621f`
+**Actor:** Joshua Sargent with Claude
+
+### Summary
+
+[PR #1183](https://github.com/the-sarge/quic-go-fast/pull/1183) landed as `c5eedb68621fb38c01944c60fc9dd5c34bcecc2b`, closing [issue #1036](https://github.com/the-sarge/quic-go-fast/issues/1036), R16 of the [Reno multipath plan](adr/2026-10-24-multipath-reno-plan.md#r16). The V1 multipath API now exists, and every constructor passes one capability gate. Public requests still return `ErrMultipathUnsupportedV1`, so nothing changes for callers until R19.
+
+### Completed
+
+- `multipath_api.go` holds the V1 surface, immutable `MultipathPathStateV1` snapshots, a coalescing `PathChangesV1`, the connection's path commands and `admitMultipath`, the one gate for every constructor and server-selected `Config`.
+- `internal/multipathguard` is the one private activation guard. It replaces R14's `Config` field, so fixtures use the same constructors as callers. R19 removes it.
+- The `Addr` helpers and HTTP/3's default client grant the sockets they own. Caller-socket `Dial`, `Listen` and HTTP/3 `Serve` refuse without touching the socket.
+- Legacy `Path` methods and `AddPath` check the mode. A target's endpoint participant is now reserved before its routes, so a full or closed target refuses with its ID unconsumed. That also closes the R9 deferral recorded on the issue.
+- A single-use `ListenAddr` listener now stops its native endpoint when it closes. Before this PR, nothing reached that path, because no public constructor could grant it.
+
+### Decisions
+
+- `Config.MultipathEnabledV1` is one additive reader outside the frozen signature list, because `http3` must read the selection before granting its own socket.
+- The guard is an internal package rather than a package variable, so HTTP/3 fixtures and R17/R18 can reach it. `http3/multipath_test.go` has the one `depguard` exception.
+- The replacement review's six new clusters were fixed rather than deferred, although the baseline normally defers later non-critical roots. Each showed a frozen contract of this slice's own surface unmet, and deferring them would have handed R17 known failures. The [PR comment](https://github.com/the-sarge/quic-go-fast/pull/1183#issuecomment-6642219433) records why.
+- R11's private `sendDrops` counter stays unpublished, since the frozen snapshot has no field for it.
+- This also resolved [issue #1174](https://github.com/the-sarge/quic-go-fast/issues/1174), the guarded 0-RTT activation failure the R14 entry left for R16. The restore guard is the fix, and `TestMultipathZeroRTTResumption` its regression test.
+
+### Validation
+
+- All 20 budgeted scenarios are in `multipath_api_test.go` and `http3/multipath_test.go`. One gate-deletion mutation failed `TestMultipathPublicRefusal`.
+- On Linux amd64 at `c83ea49be`: shuffled root-package tests three times, `http3` tests, a focused race run, `go vet` including the picoquic tag, Windows and Darwin, a FreeBSD build, and `go mod tidy -diff`.
+- RAS review `20261104T202327-2c573d76bd133ca557d69b51` raised eight fixes, one rejected and one duplicate. Verification reopened C-002 and C-008, which went through a [scoped re-audit](https://github.com/the-sarge/quic-go-fast/pull/1183#issuecomment-6641702257) with no plan change, then came back clear.
+- Replacement review `20261104T204835-d27ee86dd23ab5d070c19468` raised six fixes. Verification at `c83ea49be` had a clear blocking projection. It lists one C-006 interleaving as open, which I rejected: the stranded request exists only on a connection that has ended, and every later public call returns the terminal error first.
+- All 17 hosted checks passed on `c83ea49be0d582019c23e4ae705ec42d85624c73`, with main unmoved at `063eacf57`.
+- The first hosted run after merge, on the journal PR, showed two races in `TestMultipathTerminalObservations`: `OpenUniStream` could lose to the injected fault, and the "after the end" calls could start before the context was canceled. Both were test-only, and that PR fixed them. The review's exact-head run had passed.
+- Repeating the scenarios then showed a real defect in `TestMultipathAddrOwnedLifecycle`: on a socket `DialAddr` owns, single-use teardown can seal the endpoint before it writes the connection's held close, so the peer doesn't hear it (2 of 40 runs). Public requests can't reach this before R19. The test now closes its server side, and the defect is tracked separately.
+- `TestPathReliableTargetTransportRoute` read a socket before its writer ran. It failed 23 of 200 runs on main and 0 of 300 after one `synctest.Wait`, included in this PR.
+
+### Next
+
+R20 [#1182](https://github.com/the-sarge/quic-go-fast/issues/1182) is the frontier. R17 [#1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and R18 [#1038](https://github.com/the-sarge/quic-go-fast/issues/1038) now wait only on it, per [the program index](adr/2026-10-24-multipath-program.md).

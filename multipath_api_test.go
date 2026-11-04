@@ -248,6 +248,9 @@ func TestMultipathAddrOwnedLifecycle(t *testing.T) {
 		_, err := sockets[1].WriteToUDP([]byte("x"), &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 9})
 		return errors.Is(err, net.ErrClosed)
 	}, 5*time.Second, time.Millisecond, "grant released and socket closed")
+	// Sealing the client's endpoint can drop its held close, so the server may not have
+	// heard. The listener's endpoint lives as long as its last connection.
+	require.NoError(t, server.CloseWithError(0, ""))
 	require.NoError(t, ln.Close())
 	require.Eventually(t, func() bool { return !granted(sockets[0]) }, 5*time.Second, time.Millisecond)
 }
@@ -700,7 +703,9 @@ func TestMultipathTerminalObservations(t *testing.T) {
 		state = waitPathState(t, attempt, func(s MultipathPathStateV1) bool { return s.Lifecycle == "closed" })
 		require.Equal(t, silent.LocalAddr().(*net.UDPAddr).AddrPort(), state.Remote, "the failed attempt keeps it")
 
-		// Nothing new starts: no target initializes, and no operation stays installed.
+		// Nothing new starts once the connection has ended: no target initializes, and no
+		// operation stays installed. The operation learns the error just before the context.
+		<-p.client.Context().Done()
 		late := grantedTransport(t)
 		for range 2 {
 			_, err = p.client.OpenPathV1(ctx, late, p.serverAddr)
@@ -737,9 +742,10 @@ func TestMultipathTerminalObservations(t *testing.T) {
 		p := newMultipathPair(t)
 		zero := p.client.PathsV1()[0]
 		nativeTransportEndpoint(p.clientTr).do(func(s *endpointState) { s.fail(endpointFaultOverdue, errors.New("injected")) })
-		str, err := p.client.OpenUniStream()
-		require.NoError(t, err)
-		_, _ = str.Write([]byte("local work finds the fault"))
+		// The fault may already have ended the connection, which leaves no stream to open.
+		if str, err := p.client.OpenUniStream(); err == nil {
+			_, _ = str.Write([]byte("local work finds the fault"))
+		}
 		final := waitPathState(t, zero, func(s MultipathPathStateV1) bool { return s.Lifecycle == "closed" })
 		require.Equal(t, "endpoint-fault", final.LastOutcome)
 		require.False(t, final.Primary)
