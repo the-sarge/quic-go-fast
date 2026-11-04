@@ -8998,3 +8998,37 @@ R13 [#1033](https://github.com/the-sarge/quic-go-fast/issues/1033) and R14 [#103
 ### Next
 
 R13 [#1033](https://github.com/the-sarge/quic-go-fast/issues/1033) and R14 [#1034](https://github.com/the-sarge/quic-go-fast/issues/1034) remain the ready slices. The [program issue #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) is the live view.
+
+---
+
+## CI runs once per PR head - 2026-11-04 02:21 EST
+
+**Main:** `62a55cbe86f7`
+**Actor:** Joshua Sargent with Claude
+
+### Summary
+
+[PR #1170](https://github.com/the-sarge/quic-go-fast/pull/1170) landed as `62a55cbe86f77b8214bbd70fc1b234bcc93a081a`. `unit.yml`, `lint.yml`, `integration.yml` and `cross-compile.yml` now trigger on `push` to `main` and `v*` tags, plus `pull_request`, so a PR head runs one round instead of two.
+
+**A PR head now reports 17 checks, not 33.** Earlier entries record 33 as the expected count. Read `gh pr checks` on the exact head instead of expecting a number.
+
+### Completed
+
+- The four workflows use the push filter `build-interop-docker.yml` already had. Release tags and `main` keep their `push` CI.
+
+### Decisions
+
+- `v*` tags stay in the filter so a release tag keeps its CI, rather than narrowing `push` to `main` alone.
+- No `workflow_dispatch` was added. A branch that needs these workflows opens a draft PR, and scratch-branch measurements carry their own workflow with its own `on: push`.
+- The owner approved the merge without a separate review, after the session's permission classifier refused it as unreviewed.
+
+### Validation
+
+- Measured from 2026-11-03 00:37 UTC to 2026-11-04 for the four workflows: branch `push` was 372 runs and 6,520 job-minutes, `pull_request` 360 runs and 6,244, and `main` `push` 136 runs and 2,469. Removing branch `push` drops about 43% of those job-minutes. 90 of 93 branch heads ran under both events.
+- No required check depends on the old triggers: rulesets and branch protection on `main` are both empty. `pull_request` runs report against the PR head SHA, so the exact-head gate still works.
+- Head `eefa333bf` ran five workflows, all under `pull_request`, with no `push` runs, and passed all 17 checks.
+- The merge commit started all five workflows under `push` on `main`. They were still queued when this entry was written, and their results are recorded on PR #1170.
+
+### Next
+
+A branch with no PR now gets no CI from these workflows, and a conflicting PR gets no new runs because `pull_request` needs a merge ref.
