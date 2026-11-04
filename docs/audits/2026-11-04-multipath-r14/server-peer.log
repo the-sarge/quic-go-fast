@@ -43,5 +43,5 @@ System call duration deviation: 0
 Received ticket from localhost (hq-interop):
 ticket time = 1793775394117, kx = 1d, suite = 1301, 166 ticket, 32 secret.
 lifetime = 604800, age_add = 3a21a643, 0 nonce, 153 ticket, 0 extensions.
-ticket extensions: 
+ticket extensions:
 Client exit with code = 0
