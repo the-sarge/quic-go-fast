@@ -537,6 +537,34 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 			require.False(t, f.c.pathCredit.members[1].established.probeEpoch.revoked.Load(), "quarantine is not abandonment")
 		})
 	})
+	t.Run("a fault with outstanding target requests stays on that endpoint", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			target, socket, endpoint := newTarget(t, f)
+			t.Cleanup(socket.release)
+			open(t, f, target, socket)
+			f.c.pathCredit.selectPrimaryPrivate(1)
+			s := stream(t, f)
+			socket.hold = func([]byte) bool { return true }
+			writeAsync(t, s, 3000)
+			f.c.emission.local.(*nativeOrdinarySender).nativeGSO = false
+			f.pass(t)
+			f.socket.writes = nil
+
+			// One request is current and the rest queued, so each reports the fault.
+			endpoint.do(func(state *endpointState) { state.fail(endpointFaultCause(0), errEndpointFault) })
+			socket.hold = nil
+			socket.release()
+			f.pass(t)
+			require.NoError(t, f.c.emission.consumeLocal(), "a target's fault doesn't end the connection")
+			f.pass(t)
+			require.Equal(t, 3000, reliableBytes((&reliableFixture{admissionFixture: f}).parseWrites(t, 0)), "every byte continues on the healthy endpoint")
+			for _, record := range f.c.emission.local.(*nativeOrdinarySender).records {
+				require.Zero(t, record.admission.serial, "each fault result reconciles once")
+			}
+		})
+	})
 	t.Run("a saturated previous endpoint does not hold a pending PTO back", func(t *testing.T) {
 		nativeOrdinaryTest(t, func(t *testing.T) {
 			f := newAdmissionFixture(t, protocol.PerspectiveClient)
@@ -544,23 +572,40 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 			target, socket, _ := newTarget(t, f)
 			t.Cleanup(socket.release)
 			open(t, f, target, socket)
-			c := f.c
-			c.pathCredit.selectPrimaryPrivate(1)
+			c, r := f.c, &reliableFixture{admissionFixture: f}
 			s := stream(t, f)
-			writeAsync(t, s, 1000)
-			f.pass(t)
-			require.NotEmpty(t, socket.writes)
-			socket.writes = nil
-
-			// Hold a reservation on the target, then let path zero own the next capacity read.
-			c.pathCredit.selectPrimaryPrivate(1)
-			require.Nil(t, c.emission.capacity())
 			sender := c.emission.local.(*nativeOrdinarySender)
+			sender.nativeGSO = false
+
+			// Path zero gets accepted work, so its PTO can fire later.
+			writeAsync(t, s, 1000)
+			r.pass(t)
+			require.Equal(t, 1000, reliableBytes(r.parseWrites(t, 0)))
+			f.socket.writes = nil
+
+			// The held target takes every record it may, and leaves one for another endpoint.
+			c.pathCredit.selectPrimaryPrivate(1)
+			socket.hold = func([]byte) bool { return true }
+			writeAsync(t, s, 1<<16)
+			for range 8 {
+				r.pass(t)
+				if c.emission.capacity() != nil {
+					break
+				}
+			}
+			require.NotNil(t, c.emission.capacity(), "the target is saturated")
+			require.NotEmpty(t, socket.writes)
+
+			r.expirePTO(t, 0)
+			require.Nil(t, c.emission.capacity(), "selection precedes the capacity read")
+			require.Nil(t, c.emission.route)
 			require.NotNil(t, sender.pending)
-			c.pathCredit.selectPrimaryPrivate(0)
-			require.Nil(t, c.emission.capacity())
-			require.NotNil(t, sender.pending)
-			require.Same(t, sender.endpoint, sender.pending.endpoint, "the reservation moved to the selected path's endpoint")
+			require.Same(t, sender.endpoint, sender.pending.endpoint, "the reservation is on the selected path's endpoint")
+			r.pass(t)
+			require.NotEmpty(t, r.parseWrites(t, 0), "the probe leaves through the healthy endpoint before the target clears")
+			socket.hold = nil
+			socket.release()
+			synctest.Wait()
 		})
 	})
 }

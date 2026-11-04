@@ -202,6 +202,9 @@ func (s *nativeOrdinarySender) WouldBlock() bool {
 		if participant == nil {
 			return true
 		}
+		if s.routeSaturated(participant.endpoint) {
+			return true
+		}
 		admission, err := participant.endpoint.prepare(participant, 0, int(protocol.MaxLargePacketBufferSize))
 		if err != nil {
 			if !errors.Is(err, errEndpointCapacity) && !errors.Is(err, net.ErrClosed) {
@@ -235,6 +238,22 @@ func (s *nativeOrdinarySender) routeParticipant() *endpointParticipant {
 		return nil
 	}
 	return s.probeParticipant(endpoint)
+}
+
+// routeSaturated keeps one of the connection's records free for another endpoint, so
+// a slow socket can't hold back a path on an independent one. The total is unchanged,
+// and a connection with one endpoint keeps every record.
+func (s *nativeOrdinarySender) routeSaturated(endpoint *nativeEndpoint) bool {
+	if len(s.targets) == 0 {
+		return false
+	}
+	held := 0
+	for index := range s.records {
+		if s.records[index].admission.serial != 0 && s.records[index].endpoint == endpoint {
+			held++
+		}
+	}
+	return held >= len(s.records)-1
 }
 
 // useRoute binds the next reservation. No packet is registered against an unused
@@ -551,7 +570,8 @@ func (s *nativeOrdinarySender) consumeParticipant(participant *endpointParticipa
 				if record.metadata.handshake && record.datagrams == 1 && record.bytes > protocol.MinInitialPacketSize {
 					s.connection.handshakeSendFeedback.publish(record.metadata.pathGeneration)
 				}
-			} else if result.err != nil && !localEndpointBackpressure(result.err) && !errors.Is(result.err, errEndpointRevoked) {
+			} else if result.err != nil && !localEndpointBackpressure(result.err) && !errors.Is(result.err, errEndpointRevoked) && !(participant != s.participant && participant.endpoint.quarantined()) {
+				// A target's fault stays on its endpoint, whose routes the registry drains.
 				s.err = errors.Join(s.err, result.err)
 			}
 			*record = ordinaryLocalRecord{}
