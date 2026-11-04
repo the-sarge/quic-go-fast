@@ -111,16 +111,6 @@ func (p *pathCreditRegistry) noteLiveness(m *pathMember, now monotime.Time) {
 	p.reselect(now)
 }
 
-// sendFailed applies a final destination error to the tuple it was sent on. A late
-// result from an old tuple can't demote its replacement.
-func (p *pathCreditRegistry) sendFailed(id protocol.PathID, tuple uint64, now monotime.Time) {
-	m := p.members[id]
-	if m == nil || !m.live || m.suspect || p.terminals[id] != nil || tuple != m.tuple {
-		return
-	}
-	p.markSuspect(m, now)
-}
-
 // markSuspect stops ordinary scheduling on a path. It spends no wire ID and sends
 // no PATH_ABANDON. Its reliable work returns to the logical owners while the retained
 // evidence stays, and bounded revalidation looks for recovery.
@@ -130,12 +120,6 @@ func (p *pathCreditRegistry) markSuspect(m *pathMember, now monotime.Time) {
 	p.startRevalidation(m, now)
 	p.reselect(now)
 	p.conn.scheduleSending()
-}
-
-// cutTuple starts a new generation on a member. R13 owns the cutover itself.
-func (p *pathCreditRegistry) cutTuple(m *pathMember) {
-	m.tuple++
-	m.attempts = 0
 }
 
 // startRevalidation challenges a path's current tuple, with one candidate at a time
@@ -217,22 +201,6 @@ func (p *pathCreditRegistry) heldRoute() *pathRoute {
 			return p.routeOf(id)
 		}
 	}
-	return nil
-}
-
-// setLocalUsePrivate is the private driver behind R16's SetLocalUseV1. It overrides
-// the demotion of a recovered path.
-func (p *pathCreditRegistry) setLocalUsePrivate(id protocol.PathID, backup bool, now monotime.Time) error {
-	if err := p.validateID(id); err != nil {
-		return err
-	}
-	m := p.members[id]
-	if m == nil || !m.live || p.terminals[id] != nil {
-		return ErrPathClosed
-	}
-	m.backup = backup
-	p.reselect(now)
-	p.conn.scheduleSending()
 	return nil
 }
 
