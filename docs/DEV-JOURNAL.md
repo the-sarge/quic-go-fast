@@ -9065,3 +9065,41 @@ A branch with no PR now gets no CI from these workflows, and a conflicting PR ge
 ### Next
 
 Issue #1172 is untriaged and hasn't been measured.
+
+---
+
+## R14 close through surviving paths - 2026-11-04 03:12 EST
+
+**Main:** `54d5f708efbb`
+**Actor:** Joshua Sargent with Claude
+
+### Summary
+
+[PR #1169](https://github.com/the-sarge/quic-go-fast/pull/1169) landed as `54d5f708efbb1d013824596bade6a11eacc39b60`, closing [R14 #1034](https://github.com/the-sarge/quic-go-fast/issues/1034), under parent [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and program [#646](https://github.com/the-sarge/quic-go-fast/issues/646). A multipath connection now closes through each path that can still carry the close, including after path zero is lost or the primary endpoint faults. The first independent two-path transfer against picoquic passed in both roles. Public negotiation stays disabled.
+
+### Completed
+
+- Each usable path gets its own CONNECTION_CLOSE, with its own CID, packet number, nonce, size limit, tuple and endpoint. A failure on one path costs only that path.
+- One cached close serves every transport with one backoff counter. A reply uses a retained path's identity and tuple, never a trigger's source address or an abandoned path. Retention is one unrefreshed timer at three times the largest-PTO snapshot.
+- qlog encodes every draft-21 frame, where a path frame used to panic the encoder. Packet, loss and MTU events carry a private path identity that ordinary connections omit, and lifecycle events record transitions.
+- Every owner captures one recorder indirection. After activation, a blocked sink drops events, and close doesn't wait for it.
+- One fixture-only `Config` guard lets a real handshake negotiate multipath. R16 absorbs it, and R19 removes it.
+
+### Decisions
+
+- The scoped [re-audit](audits/2026-11-04-r14-close-reaudit.md), [PR #1165](https://github.com/the-sarge/quic-go-fast/pull/1165), merged first as `24e371107548ffb79d1afdb27728eb9666403f4e`. The CI sequencing session relayed the owner's ruling that it could merge on its green head with no rerun after main moved by [PR #1166](https://github.com/the-sarge/quic-go-fast/pull/1166). A merge with main was clean, and #1166 changed no cited source line.
+- A primary endpoint fault stays fatal here and closes through the survivor. The R13 session raised whether the connection should continue instead, and that is the owner's decision. R14's clause assigning continuation to R13 was never checked against R13's contract.
+
+### Validation
+
+- 15 deterministic scenarios and the two-role smoke, within the 16-scenario ceiling. See the [receipt](audits/2026-11-04-multipath-r14-receipt.md).
+- Guard mutations failed their tests, except removing `eligible` from close selection, which survives because a retired path's keys refuse to seal and zero's close owner refuses first. The mutations ran before the review fixes, and they weren't repeated on the merged head.
+- RAS review `20261104T070248-c3db9e2ef63aba1a36b49c29` had four accepted findings and one deferred. `ras verify` on `c98641777` found the long-header receive event still unattributed, because my fix had gone on the Retry event; a later commit fixed it. Replacement review `20261104T072456-f0c5974ed70184f30e689059` on `a977e5e0f` had no findings.
+- The last review didn't cover the final sync with main, which brought in [PR #1167](https://github.com/the-sarge/quic-go-fast/pull/1167). Local gates passed on the synced head, and all 17 hosted checks passed on `538117c0d6def098a128acb464481b6846e01c31` with main unmoved at `6dbc6f570`.
+- A push of `f13bdd236` carried a failing test, because that command didn't stop on failure. It was a draft at review stage, and a later head replaced it.
+
+### Next
+
+- The smoke charged 8 ledger instances, 6 from the reserve. The reserve is overdrawn by 20, leaving 104 instances for 124 scheduled. The owner said the ceiling can be raised, but no raise is recorded, so a later preflight has to record one before capacity runs out.
+- [Issue #1174](https://github.com/the-sarge/quic-go-fast/issues/1174) records that guarded 0-RTT resumption can fail activation, for R16 to resolve.
+- R13 #1033 is the remaining frontier slice, and R16 #1036 still requires it. [Parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) is the live view.
