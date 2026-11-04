@@ -81,6 +81,11 @@ type endpointResult struct {
 	returnedAt                       monotime.Time
 }
 
+type endpointWriteState struct {
+	wroteFirstPacket bool
+	gsoDisabled      atomic.Bool
+}
+
 type endpointAdmission struct {
 	index    int
 	serial   uint64

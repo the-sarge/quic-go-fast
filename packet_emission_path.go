@@ -2,19 +2,11 @@ package quic
 
 import (
 	"net"
-	"sync/atomic"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 )
-
-// endpointWriteState belongs to one tuple. It lives outside the native route's build
-// constraint because each route holds one by value.
-type endpointWriteState struct {
-	wroteFirstPacket bool //nolint:unused // only the native route writes it
-	gsoDisabled      atomic.Bool
-}
 
 // pathRoute is one selected nonzero path's sending context. Each member owns its
 // route, so selection allocates nothing. A nil route is path zero, whose packer,
