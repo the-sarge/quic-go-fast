@@ -127,7 +127,7 @@ func newContendedEndpoint(t *testing.T, endpoint *nativeEndpoint, firstID uint64
 	e := &contendedEndpoint{endpoint: endpoint, nextID: firstID}
 	for {
 		other := e.attach(t)
-		admission, err := endpoint.prepare(other, 0, 64)
+		admission, err := e.reserve(other)
 		if err != nil {
 			require.ErrorIs(t, err, errEndpointCapacity)
 			endpoint.cancelReadiness(other, 0)
@@ -147,6 +147,11 @@ func (e *contendedEndpoint) attach(t *testing.T) *endpointParticipant {
 	return other
 }
 
+func (e *contendedEndpoint) reserve(p *endpointParticipant) (admission endpointAdmission, err error) {
+	e.endpoint.do(func(state *endpointState) { admission, err = state.admit(p, 0, 64) })
+	return admission, err
+}
+
 func (e *contendedEndpoint) freeSlot() {
 	admission := e.slots[0]
 	e.slots = e.slots[1:]
@@ -158,7 +163,7 @@ func (e *contendedEndpoint) freeSlot() {
 func (e *contendedEndpoint) rival(t *testing.T) *endpointParticipant {
 	t.Helper()
 	rival := e.attach(t)
-	_, err := e.endpoint.prepare(rival, 0, 64)
+	_, err := e.reserve(rival)
 	require.ErrorIs(t, err, errEndpointCapacity)
 	synctest.Wait()
 	return rival
@@ -190,7 +195,7 @@ func (e *contendedEndpoint) serve(t *testing.T, rivals ...*endpointParticipant) 
 	t.Helper()
 	for _, rival := range rivals {
 		e.lease(t, rival)
-		admission, err := e.endpoint.prepare(rival, 0, 64)
+		admission, err := e.reserve(rival)
 		require.NoError(t, err)
 		e.slots = append(e.slots, admission)
 		synctest.Wait()
