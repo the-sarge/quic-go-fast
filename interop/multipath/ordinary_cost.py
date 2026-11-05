@@ -87,6 +87,10 @@ def check_observation(record):
         raise ValueError(f"{cell}: acceleration does not match the cell")
     if profile not in (CONTROL, OPTED_IN):
         raise ValueError(f"unknown profile {profile}")
+    closes = client["flows"] + server["connections"]
+    if profile == CONTROL and (server["write_errors"] or any(
+            item["timeout_close"] or item["close_cause"] for item in closes)):
+        raise ValueError(f"{cell}: failed control observation is invalid comparator evidence")
     for field in ("window_cpu_s", "rss_kb_at_20s", "rss_kb_end"):
         if not math.isfinite(server[field]) or server[field] <= 0:
             raise ValueError(f"{cell}: invalid {field}")
@@ -123,7 +127,7 @@ def check_mixed(record):
         if len(background) != 2:
             raise ValueError("mixed-bulk control needs two independent connections")
         return
-    if len(background) != 1 or not background[0].get("multipath_negotiated") or len(background[0].get("paths", [])) != 2:
+    if len(background) != 1 or not background[0].get("multipath_negotiated") or background[0].get("paths") != ["live", "live"]:
         raise ValueError("mixed-bulk opted-in needs one negotiated two-path connection")
 
 
@@ -164,7 +168,7 @@ def judge_cell(cell, rounds):
     lost = {CONTROL: [], OPTED_IN: []}
     drops = {CONTROL: [], OPTED_IN: []}
     write_errors = {CONTROL: [], OPTED_IN: []}
-    timeouts, unbounded, starved = [], [], []
+    timeouts, failed_sends, unbounded, starved = [], [], [], []
     for round_, (base, treated) in enumerate(rounds):
         base_flow, treated_flow = flows(base, "ordinary")[0], flows(treated, "ordinary")[0]
         goodput.append(treated_flow["useful_bytes"] / base_flow["useful_bytes"])
@@ -193,6 +197,8 @@ def judge_cell(cell, rounds):
         closes = treated["client"]["flows"] + treated["server"]["connections"]
         if any(item["timeout_close"] for item in closes):
             timeouts.append(round_)
+        if treated["server"]["write_errors"] or any(item["close_cause"] and not item["timeout_close"] for item in closes):
+            failed_sends.append(round_)
         if treated["server"]["rss_kb_end"] > MEMORY_GROWTH_CEILING * treated["server"]["rss_kb_at_20s"]:
             unbounded.append(round_)
         if any(value == 0 for flow in treated["client"]["flows"] for value in flow["series"]):
@@ -208,6 +214,8 @@ def judge_cell(cell, rounds):
         failures.append(f"application send-call p99 {statistics.median(send_margin):.0f} us over its limit")
     if timeouts:
         failures.append(f"timeout-only close in rounds {timeouts}")
+    if failed_sends:
+        failures.append(f"write error or non-timeout close in rounds {failed_sends}")
     if unbounded:
         failures.append(f"memory kept growing in rounds {unbounded}")
     if starved:

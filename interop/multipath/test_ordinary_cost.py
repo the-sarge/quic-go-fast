@@ -171,9 +171,10 @@ class AccountingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "two-path"):
             driver.check_observation(record)
         record = observation("mixed-bulk", "opted-in")
-        record["client"]["flows"][1]["paths"] = ["live"]
-        with self.assertRaisesRegex(ValueError, "two-path"):
-            driver.check_observation(record)
+        for paths in (["live"], ["live", "closed"]):
+            record["client"]["flows"][1]["paths"] = paths
+            with self.subTest(paths=paths), self.assertRaisesRegex(ValueError, "two-path"):
+                driver.check_observation(record)
 
     def test_stateless_cell_must_apply_pressure(self):
         record = observation("stateless-pressure")
@@ -395,12 +396,17 @@ class ExecutionTests(unittest.TestCase):
         return code, json.loads((output / "summary.json").read_text()), processes
 
     def test_failed_child_or_check_retains_charge_and_reaps_peers(self):
-        for failure in ("launch", "exit", "timeout", "missing", "invalid"):
+        for failure in ("launch", "exit", "timeout", "missing", "invalid", "baseline-write", "baseline-close", "baseline-timeout"):
             with self.subTest(failure=failure), tempfile.TemporaryDirectory() as temporary:
                 def invalidate(record):
-                    record["server"]["application_send_call"]["ordinary"]["p99_us"] = float("nan")
+                    if failure == "invalid":
+                        record["server"]["application_send_call"]["ordinary"]["p99_us"] = float("nan")
+                    elif failure == "baseline-write":
+                        record["server"]["write_errors"] = 1
+                    else:
+                        record["client"]["flows"][0].update(close_cause="failed connection", timeout_close=failure == "baseline-timeout")
                 code, summary, processes = self.invoke(Path(temporary), failure=failure,
-                                                       edit=invalidate if failure == "invalid" else None)
+                                                       edit=invalidate if failure == "invalid" or failure.startswith("baseline-") else None)
                 self.assertEqual(code, 1)
                 self.assertEqual(summary["instances_charged"], 1)
                 self.assertGreater(summary["host_seconds_charged"], 0)
@@ -419,15 +425,22 @@ class ExecutionTests(unittest.TestCase):
                 self.assertIn("insufficient", summary["error"])
 
     def test_campaign_tolerance_failure_exits_nonzero(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            def slow(record):
-                if record["cell"] == "mixed-bulk" and record["profile"] == driver.OPTED_IN:
-                    scale_goodput(record, 0.5)
-            code, summary, _ = self.invoke(Path(temporary), edit=slow)
-            self.assertEqual(code, 1)
-            self.assertEqual(summary["failed_cells"], ["mixed-bulk"])
-            self.assertEqual(summary["instances_charged"], 36)
-            self.assertTrue(summary["campaign_complete"])
+        for failure in ("goodput", "write", "close", "timeout"):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as temporary:
+                def fail(record):
+                    if record["cell"] != "mixed-bulk" or record["profile"] != driver.OPTED_IN:
+                        return
+                    if failure == "goodput":
+                        scale_goodput(record, 0.5)
+                    elif failure == "write":
+                        record["server"]["write_errors"] = 1
+                    else:
+                        record["server"]["connections"][0].update(close_cause="failed connection", timeout_close=failure == "timeout")
+                code, summary, _ = self.invoke(Path(temporary), edit=fail)
+                self.assertEqual(code, 1)
+                self.assertEqual(summary["failed_cells"], ["mixed-bulk"])
+                self.assertEqual(summary["instances_charged"], 36)
+                self.assertTrue(summary["campaign_complete"])
 
     def test_diagnostic_is_charged_and_cannot_complete_campaign(self):
         for option in ("--smoke-cell", "--diagnostic-cell"):
