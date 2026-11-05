@@ -9327,3 +9327,39 @@ R17 [#1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and R18 [#103
 ### Next
 
 R17 [#1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and R18 [#1038](https://github.com/the-sarge/quic-go-fast/issues/1038) are the frontier, per [the program index](adr/2026-10-24-multipath-program.md), the live view.
+
+---
+
+## Failed path operation slot order fixed - 2026-11-04 21:48 EST
+
+**Main:** `c1fc06f10c7b`
+**Actor:** Claude Code
+
+### Summary
+
+[PR #1195](https://github.com/the-sarge/quic-go-fast/pull/1195) merged as `c1fc06f10`, closing [issue #1192](https://github.com/the-sarge/quic-go-fast/issues/1192). When the connection fails an admitted open or migration, it now frees the connection's one local path operation before it reports the error. A retry can no longer be refused with `ErrMultipathBackpressureV1` merely by the attempt it follows.
+
+### Completed
+
+- `failCandidate` and `beginTerminal` now claim the outcome, establish the cutoff and then report through `failOperation`. This covers validation timeout, target failure, member retirement and the peer retiring a migration candidate's connection ID.
+- `releaseOperation` is now the one check for whether a decided request's slot can be freed. It replaces the copies in `serviceRequest` and `serviceMigration`.
+- A failure whose probe is still unresolved reports at once and keeps the slot. The slot now frees in the pass that settles the obligation, not one pass later.
+- `OpenPathV1`, `MigrateV1` and the accepted Reno plan state the conditional guarantee and its exclusions.
+
+### Decisions
+
+- The owner accepted the [contract](https://github.com/the-sarge/quic-go-fast/issues/1192#issuecomment-6647681026) and then the plan. Caller-won cancellation keeps its existing cleanup, and the guarantee promises no retry success.
+- A migration's old-tuple fence holds its path, not the operation, as it did before. A retry takes the slot and waits there, bounded by its context.
+
+### Validation
+
+- 14 new scenarios in `multipath_failure_test.go`, on an unbuffered result channel where the order matters. Run against the base production code, 12 fail. The later-cancellation case passes because it preserves existing behavior, and the newer-request case calls a new function, so it can't run there.
+- A guard mutation that removed the hold check from `releaseOperation` failed exactly the two held-obligation tests.
+- At `d676d07ab` on macOS, with `main` at `689517410`: root-package and `http3` tests, a focused race run, `go vet`, `go mod tidy -diff` and `git diff --check`. Lint for Linux, Darwin, Windows and OpenBSD passed on the same contents before the commit.
+- RAS review `20261105T023726-025d63ca96275b326ed1ae18` at that head had no findings. `claude-opus`, `codex-astra` and `codex-sol` completed; `claude-fable` failed with `process_failed`, with the cause unconfirmed, and contributed nothing.
+- All 17 hosted checks passed on that head.
+- This is fixture evidence. It isn't Linux qualification, and no native campaign ran.
+
+### Next
+
+- R19 [issue #1039](https://github.com/the-sarge/quic-go-fast/issues/1039) no longer waits on this. It still waits on R17 [issue #1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and R18 [issue #1038](https://github.com/the-sarge/quic-go-fast/issues/1038), which [issue #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) blocks, and on the decision in [issue #1141](https://github.com/the-sarge/quic-go-fast/issues/1141). [Tracking issue #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live view.
