@@ -1,0 +1,355 @@
+{
+ "arms": [
+  {
+   "admitted": 6766842,
+   "arm": "r1-on",
+   "attempted": 6766851,
+   "canceled": 9,
+   "deadline_failed": 9,
+   "deficit_union": 57550,
+   "env": {
+    "W1460_DIAG": "1"
+   },
+   "generator_missed": 57534,
+   "generator_missed_share": 0.008430649794816676,
+   "goodput_bounds_mbps": [
+    991.5519114666665,
+    991.5818658666667
+   ],
+   "late": 7,
+   "mbp128_top_cpu_after_arm": [
+    {
+     "command": "WindowServer",
+     "cpu_percent": 49.0
+    },
+    {
+     "command": "coreaudiod",
+     "cpu_percent": 24.6
+    },
+    {
+     "command": "launchservicesd",
+     "cpu_percent": 20.2
+    },
+    {
+     "command": "SoundSource",
+     "cpu_percent": 18.2
+    },
+    {
+     "command": "trustd",
+     "cpu_percent": 13.9
+    }
+   ],
+   "mbp128_top_cpu_before_arm": [
+    {
+     "command": "WindowServer",
+     "cpu_percent": 47.7
+    },
+    {
+     "command": "Python",
+     "cpu_percent": 7.0
+    },
+    {
+     "command": "coreaudiod",
+     "cpu_percent": 5.6
+    },
+    {
+     "command": "claude",
+     "cpu_percent": 3.4
+    },
+    {
+     "command": "Sync",
+     "cpu_percent": 3.0
+    }
+   ],
+   "missing_admitted": 0,
+   "peers": {
+    "receive": {
+     "system_cores": 0.24539833885503184,
+     "user_cores": 0.21357730542848677
+    },
+    "send": {
+     "system_cores": 0.25055458260906793,
+     "user_cores": 0.6105453200739129
+    }
+   },
+   "receiver_unprocessed_total": 0,
+   "result_sha256": "666ea2422d42dd941c61399982df007fe056949f76426668ffeb7a8a4a53462c",
+   "scheduled": 6824385,
+   "sender_bbr": {
+    "median_bandwidth_gbps": 3.472246696,
+    "median_window_bytes": 133948.0,
+    "min_window_bytes": 19229,
+    "phase_report_counts": {
+     "5": 57,
+     "6": 1
+    }
+   },
+   "sender_packing_share": 0.12311357340873949,
+   "sender_wait_share": {
+    "congestion_limited": 0.02071031715072163,
+    "out_of_datagrams": 0.8004671220116737,
+    "paced": 4.7487046037236833e-07,
+    "send_queue_full": 0.0
+   },
+   "status": "complete",
+   "unique_received": 6766842,
+   "window_goodput_mbps": 991.5668886666666,
+   "window_qualified": true,
+   "window_reasons": null,
+   "workload": {
+    "connections": 1,
+    "direction": "forward",
+    "drain_ms": 5000,
+    "gomaxprocs_per_endpoint": 4,
+    "layer": "native-wire-v031",
+    "measurement_ms": 60000,
+    "native_policy": "bbrv3-conservative",
+    "payload_bytes": 1099,
+    "profile": "none",
+    "rate_bps": 1000000000,
+    "version": 6,
+    "warmup_ms": 10000
+   }
+  },
+  {
+   "admitted": 6824326,
+   "arm": "r2-off",
+   "attempted": 6824326,
+   "canceled": 0,
+   "deadline_failed": 0,
+   "deficit_union": 70,
+   "env": {
+    "W1460_DIAG": "1",
+    "W1460_NOPROBERTT": "1"
+   },
+   "generator_missed": 59,
+   "generator_missed_share": 8.645467686831854e-06,
+   "goodput_bounds_mbps": [
+    999.966778,
+    1000.0124713333332
+   ],
+   "late": 11,
+   "mbp128_top_cpu_after_arm": [
+    {
+     "command": "WindowServer",
+     "cpu_percent": 45.4
+    },
+    {
+     "command": "hybridsearchd",
+     "cpu_percent": 7.2
+    },
+    {
+     "command": "claude",
+     "cpu_percent": 7.0
+    },
+    {
+     "command": "coreaudiod",
+     "cpu_percent": 3.7
+    },
+    {
+     "command": "Menubar",
+     "cpu_percent": 3.2
+    }
+   ],
+   "mbp128_top_cpu_before_arm": [
+    {
+     "command": "WindowServer",
+     "cpu_percent": 45.6
+    },
+    {
+     "command": "SoundSource",
+     "cpu_percent": 42.1
+    },
+    {
+     "command": "runningboardd",
+     "cpu_percent": 17.3
+    },
+    {
+     "command": "arkaudiod",
+     "cpu_percent": 12.4
+    },
+    {
+     "command": "Mail",
+     "cpu_percent": 11.0
+    }
+   ],
+   "missing_admitted": 0,
+   "peers": {
+    "receive": {
+     "system_cores": 0.24505022039574903,
+     "user_cores": 0.21601254032965114
+    },
+    "send": {
+     "system_cores": 0.25256315685208636,
+     "user_cores": 0.6158578854273007
+    }
+   },
+   "receiver_unprocessed_total": 0,
+   "result_sha256": "54846d6c8efb18f8451a288acc8eff2565ffa18c52814b8c4ea79ba498b5c0b0",
+   "scheduled": 6824385,
+   "sender_bbr": {
+    "median_bandwidth_gbps": 3.359462456,
+    "median_window_bytes": 133948.0,
+    "min_window_bytes": 133948,
+    "phase_report_counts": {
+     "5": 58
+    }
+   },
+   "sender_packing_share": 0.1245296415923503,
+   "sender_wait_share": {
+    "congestion_limited": 5.218868793173765e-06,
+    "out_of_datagrams": 0.8186179805270778,
+    "paced": 2.4615223675128956e-07,
+    "send_queue_full": 1.7423930129638806e-06
+   },
+   "status": "complete",
+   "unique_received": 6824326,
+   "window_goodput_mbps": 999.9896246666666,
+   "window_qualified": true,
+   "window_reasons": null,
+   "workload": {
+    "connections": 1,
+    "direction": "forward",
+    "drain_ms": 5000,
+    "gomaxprocs_per_endpoint": 4,
+    "layer": "native-wire-v031",
+    "measurement_ms": 60000,
+    "native_policy": "bbrv3-conservative",
+    "payload_bytes": 1099,
+    "profile": "none",
+    "rate_bps": 1000000000,
+    "version": 6,
+    "warmup_ms": 10000
+   }
+  },
+  {
+   "admitted": 6771358,
+   "arm": "r3-on",
+   "attempted": 6771358,
+   "canceled": 0,
+   "deadline_failed": 0,
+   "deficit_union": 53042,
+   "env": {
+    "W1460_DIAG": "1"
+   },
+   "generator_missed": 53027,
+   "generator_missed_share": 0.007770223983553096,
+   "goodput_bounds_mbps": [
+    992.2116601333333,
+    992.2432617333333
+   ],
+   "late": 15,
+   "mbp128_top_cpu_after_arm": [
+    {
+     "command": "WindowServer",
+     "cpu_percent": 46.4
+    },
+    {
+     "command": "sysmond",
+     "cpu_percent": 9.6
+    },
+    {
+     "command": "powermetrics",
+     "cpu_percent": 9.4
+    },
+    {
+     "command": "systemstats",
+     "cpu_percent": 8.3
+    },
+    {
+     "command": "Menubar",
+     "cpu_percent": 5.7
+    }
+   ],
+   "mbp128_top_cpu_before_arm": [
+    {
+     "command": "WindowServer",
+     "cpu_percent": 45.1
+    },
+    {
+     "command": "coreaudiod",
+     "cpu_percent": 18.7
+    },
+    {
+     "command": "MuteDeck",
+     "cpu_percent": 2.6
+    },
+    {
+     "command": "launchservicesd",
+     "cpu_percent": 2.6
+    },
+    {
+     "command": "SoundSource",
+     "cpu_percent": 2.5
+    }
+   ],
+   "missing_admitted": 0,
+   "peers": {
+    "receive": {
+     "system_cores": 0.2442183277239536,
+     "user_cores": 0.2141460761139621
+    },
+    "send": {
+     "system_cores": 0.25206388227570803,
+     "user_cores": 0.611118623694842
+    }
+   },
+   "receiver_unprocessed_total": 0,
+   "result_sha256": "d3aa5a2856c41be06217db921437142cfa1e10cb9a776cbafede6b4f14a24b3f",
+   "scheduled": 6824385,
+   "sender_bbr": {
+    "median_bandwidth_gbps": 2.938542992,
+    "median_window_bytes": 133948.0,
+    "min_window_bytes": 11030,
+    "phase_report_counts": {
+     "5": 56,
+     "6": 2
+    }
+   },
+   "sender_packing_share": 0.12361258931415144,
+   "sender_wait_share": {
+    "congestion_limited": 0.01634972907030446,
+    "out_of_datagrams": 0.8039504015048375,
+    "paced": 4.1818133598106616e-06,
+    "send_queue_full": 0.0
+   },
+   "status": "complete",
+   "unique_received": 6771358,
+   "window_goodput_mbps": 992.2274609333333,
+   "window_qualified": true,
+   "window_reasons": null,
+   "workload": {
+    "connections": 1,
+    "direction": "forward",
+    "drain_ms": 5000,
+    "gomaxprocs_per_endpoint": 4,
+    "layer": "native-wire-v031",
+    "measurement_ms": 60000,
+    "native_policy": "bbrv3-conservative",
+    "payload_bytes": 1099,
+    "profile": "none",
+    "rate_bps": 1000000000,
+    "version": 6,
+    "warmup_ms": 10000
+   }
+  }
+ ],
+ "binary_sha256": {
+  "darwin": "a9f94aa609d4f4c0adb2944776f1bc41633361326b38723a7958754afb0f9edd",
+  "linux": "da7e02870878eed6234f3f9404b01a62499ea467c372a8618f8520feacef05e2"
+ },
+ "core_snapshots_mean_busy_percent": {
+  "after-mac-cores": {
+   "E": 33.13383838383838,
+   "P": 3.9084158415841586
+  },
+  "before-mac-cores": {
+   "E": 28.019532055246344,
+   "P": 5.606277294396105
+  }
+ },
+ "issue": 1460,
+ "normative": false,
+ "note": "Instrumented diagnostics only. No record enters any qualification ledger; no gate is qualified.",
+ "venue": "E-LINUX, minimax sends and mbp128 receives over Ethernet at MTU 1500, GOMAXPROCS 4 on both ends"
+}

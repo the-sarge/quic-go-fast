@@ -1,0 +1,35 @@
+{
+  "version": 2,
+  "workload": {
+    "connections": 1,
+    "direction": "forward",
+    "drain_ms": 5000,
+    "gomaxprocs_per_endpoint": 4,
+    "layer": "native-wire-v031",
+    "measurement_ms": 60000,
+    "native_policy": "bbrv3-conservative",
+    "payload_bytes": 1099,
+    "profile": "none",
+    "rate_bps": 1000000000,
+    "version": 6,
+    "warmup_ms": 10000
+  },
+  "endpoints": [
+    {
+      "binary": "/home/josh/wiremux-1460-diag-q1210-ack-restore/endpoint-restored-trace.sh",
+      "output_parent": "/home/josh/wiremux-1460-diag-q1210-ack-restore/workers/restored-trace",
+      "bind_ip": "192.168.1.50",
+      "gomaxprocs": 4,
+      "binary_sha256": "4699c3b635c916cb67b523e5920f925e766683a9c686edc6938f75b754c73b84",
+      "ssh_host": "minimax"
+    },
+    {
+      "binary": "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/run-q1210-ack-restore/local/endpoint-restored-trace.sh",
+      "output_parent": "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/run-q1210-ack-restore/local/workers/restored-trace",
+      "bind_ip": "192.168.1.110",
+      "gomaxprocs": 4,
+      "binary_sha256": "97194a4241d96627686b6ccfb58e18b156c58f3bb729d52ddb24ac412946bd27"
+    }
+  ],
+  "relay_bind_ip": "192.168.1.110"
+}

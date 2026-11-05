@@ -1,0 +1,9 @@
+admitted {"host": "mbp128"}
+admitted {"host": "minimax"}
+staged {"local": "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/run-q1210-ack-restore/local", "remote": "/home/josh/wiremux-1460-diag-q1210-ack-restore"}
+attempt-consumed {"arm": "ack1"}
+attempt-ended {"arm": "ack1", "status": "returned", "exit": 0, "elapsed": 78.45469991711434}
+attempt-consumed {"arm": "restored-trace"}
+attempt-ended {"arm": "restored-trace", "status": "returned", "exit": 0, "elapsed": 78.24766504194122}
+custody-verified-and-remote-removed {"files": 13}
+cleanup-terminal {"status": "released"}

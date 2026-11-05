@@ -1,0 +1,8 @@
+{
+  "archive": "harness-source.tar.gz",
+  "sha256": "74990c026e54d8b09fe4f23e2790c3fa3bdf384d1320f2c7b83111fed877592e",
+  "bytes": 5472078,
+  "historical_source": ".cache/1210/src",
+  "reconstructed_linux_sha256": "da7e02870878eed6234f3f9404b01a62499ea467c372a8618f8520feacef05e2",
+  "reconstructed_darwin_sha256": "a9f94aa609d4f4c0adb2944776f1bc41633361326b38723a7958754afb0f9edd"
+}

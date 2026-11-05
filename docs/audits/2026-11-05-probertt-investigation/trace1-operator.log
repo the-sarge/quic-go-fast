@@ -1,0 +1,7 @@
+admitted {"host": "mbp128"}
+admitted {"host": "minimax"}
+staged {"local": "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/run-q1210-trace1/local", "remote": "/home/josh/wiremux-1460-diag-q1210-trace1"}
+attempt-consumed {"arm": "trace1"}
+attempt-ended {"arm": "trace1", "status": "returned", "exit": 0, "elapsed": 78.48578408302274}
+custody-verified-and-remote-removed {"files": 8}
+cleanup-terminal {"status": "released"}

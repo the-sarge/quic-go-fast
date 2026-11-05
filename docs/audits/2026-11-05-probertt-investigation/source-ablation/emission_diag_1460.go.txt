@@ -1,0 +1,105 @@
+package quic
+
+import (
+	"encoding/json"
+	"os"
+	"strconv"
+	"sync/atomic"
+	"time"
+)
+
+// Diagnostic-only for issue #1460: where the bounded send loop spends time.
+// Conn goroutine only; one report per second to stderr when W1460_DIAG is set.
+var diag1460On = os.Getenv("W1460_DIAG") != ""
+
+const (
+	d1460Prog = iota
+	d1460ProgEmpty
+	d1460Empty
+	d1460Queue
+	d1460Paced
+	d1460Cwnd
+	d1460Hard
+	d1460Other
+	d1460Classes
+)
+
+// d1460Unprocessed counts packets the connection queue refused, on any connection.
+var d1460Unprocessed atomic.Uint64
+
+var d1460Names = [d1460Classes]string{"prog", "prog_empty", "empty", "queue", "paced", "cwnd", "hard", "other"}
+
+var d1460 struct {
+	lastExit, enter, lastReport time.Time
+	lastClass                   int
+	calls                       [d1460Classes]int64
+	workNS, waitNS              [d1460Classes]int64
+	allowance                   int64
+}
+
+func diag1460Enter(e *packetEmission) {
+	now := time.Now()
+	d := &d1460
+	d.enter = now
+	if !d.lastExit.IsZero() {
+		d.waitNS[d.lastClass] += now.Sub(d.lastExit).Nanoseconds()
+	}
+	if d.lastReport.IsZero() {
+		d.lastReport = now
+	}
+	if now.Sub(d.lastReport) >= time.Second {
+		diag1460Report(e, now)
+	}
+}
+
+func diag1460Exit(result *emissionResult) {
+	now := time.Now()
+	d := &d1460
+	class := d1460Other
+	switch {
+	case result.err != nil:
+	case result.stop == emissionQueueFull:
+		class = d1460Queue
+	case result.stop == emissionPaced:
+		class = d1460Paced
+	case result.stop == emissionCongestionLimited:
+		class = d1460Cwnd
+	case result.stop == emissionHardBlocked:
+		class = d1460Hard
+	case result.progress && result.supplyExhausted:
+		class = d1460ProgEmpty
+	case result.progress:
+		class = d1460Prog
+	case result.supplyExhausted:
+		class = d1460Empty
+	}
+	d.calls[class]++
+	d.workNS[class] += now.Sub(d.enter).Nanoseconds()
+	d.lastClass, d.lastExit = class, now
+}
+
+func diag1460Report(e *packetEmission, now time.Time) {
+	d := &d1460
+	out := map[string]any{"diag1460": now.Sub(d.lastReport).Nanoseconds(), "allowance": d.allowance, "tokens": e.bbr.tokens, "policy_rate": e.bbr.rate, "unprocessed_total": d1460Unprocessed.Load()}
+	for i, name := range d1460Names {
+		if d.calls[i] != 0 || d.waitNS[i] != 0 {
+			out[name] = [3]int64{d.calls[i], d.workNS[i], d.waitNS[i]}
+		}
+	}
+	if b := e.bbr.controller; b != nil {
+		phase, rate, bandwidth, minRTT, window, long, short, bwShort, latest := b.Diag1460()
+		out["bbr"] = map[string]any{"phase": phase, "rate": rate, "bw": bandwidth, "min_rtt_ns": minRTT, "window": window, "inflight_long": long, "inflight_short": short, "bw_short": bwShort, "latest_rate": latest}
+	}
+	if line, err := json.Marshal(out); err == nil {
+		_, _ = os.Stderr.Write(append(line, '\n'))
+	}
+	d.calls, d.workNS, d.waitNS = [d1460Classes]int64{}, [d1460Classes]int64{}, [d1460Classes]int64{}
+	d.lastReport = now
+}
+
+func diag1460Int(name string, fallback int) int {
+	if v, err := strconv.Atoi(os.Getenv(name)); err == nil && v > 0 {
+		return v
+	}
+	return fallback
+}

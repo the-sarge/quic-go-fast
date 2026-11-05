@@ -1,0 +1,19 @@
+{
+  "pid": 65048,
+  "command": "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/Resources/Python.app/Contents/MacOS/Python .cache/1210/batch.py q1210-restored1 eth4 .cache/1210/arms-restored1.json /Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/baseline-darwin-arm64 /Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/baseline-linux-amd64",
+  "reason": "Optional uninstrumented repeat withdrawn before host admission and any measurement attempt; traced ordinary/ACK-threshold-one/ordinary comparison already completed.",
+  "pre_cancel_state": {
+    "owner": "wm1460-q1210-restored1",
+    "consumer_kind": "wiremux-stream-qualification",
+    "consumer_id": "wm1460-q1210-restored1",
+    "hosts": {},
+    "status": "claimed",
+    "remote_staged": false,
+    "local_staged": false,
+    "provider_identity": {
+      "provider_sha256": "523abfda07052db9a6205df164e5269305ef1f159903e9d09bb79974311e8def",
+      "config_sha256": "040d14eeeeff4fa5bc090ce508556581f545c8e736ae7b02bf4bb51fc8fb2c01",
+      "state_root": "/Users/josh/code/github.com/the-sarge/infra/.local/garm/provider-state"
+    }
+  }
+}

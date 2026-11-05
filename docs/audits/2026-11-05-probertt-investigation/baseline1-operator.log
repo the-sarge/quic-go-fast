@@ -1,0 +1,13 @@
+admission-wait {"leases": {"mbp128": ["garm-wiremux-arm64-mbp128-vm-jeyphw3t2slo.json"], "minimax": ["garm-wiremux-x64-ctr-afx8pgzpycb4.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-wiremux-arm64-mbp128-vm-jeyphw3t2slo.json"], "minimax": ["garm-wiremux-x64-ctr-afx8pgzpycb4.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-wiremux-arm64-mbp128-vm-jeyphw3t2slo.json"], "minimax": ["garm-wiremux-x64-ctr-afx8pgzpycb4.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-wiremux-arm64-mbp128-vm-jeyphw3t2slo.json"], "minimax": ["garm-wiremux-x64-ctr-afx8pgzpycb4.json"]}}
+admission-wait {"leases": {"mbp128": [], "minimax": ["garm-wiremux-x64-ctr-afx8pgzpycb4.json", "garm-wiremux-xl-x64-dq4tvpd1iweg.json"]}}
+admission-wait {"leases": {"mbp128": [], "minimax": ["garm-wiremux-xl-x64-dq4tvpd1iweg.json"]}}
+admitted {"host": "mbp128"}
+admitted {"host": "minimax"}
+staged {"local": "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/run-q1210-baseline1/local", "remote": "/home/josh/wiremux-1460-diag-q1210-baseline1"}
+attempt-consumed {"arm": "baseline1"}
+attempt-ended {"arm": "baseline1", "status": "returned", "exit": 0, "elapsed": 78.33360220806208}
+custody-verified-and-remote-removed {"files": 7}
+cleanup-terminal {"status": "released"}

@@ -1,0 +1,5 @@
+import json,pathlib,socket,subprocess,time
+p=pathlib.Path('/sys/class/net/enp97s0')
+def stats():return {x.name:int(x.read_text()) for x in (p/'statistics').iterdir()}
+a=pathlib.Path('/proc/stat').read_text();begin=time.time();time.sleep(1);b=pathlib.Path('/proc/stat').read_text()
+print(json.dumps({'host':socket.gethostname(),'observed_unix':time.time(),'sample_seconds':time.time()-begin,'proc_stat_before':a,'proc_stat_after':b,'logical_cpus':__import__('os').cpu_count(),'available_cpus':len(__import__('os').sched_getaffinity(0)),'route':json.loads(subprocess.check_output(['ip','-j','route','get','192.168.1.110'])),'link':{k:(p/k).read_text().strip() for k in ['mtu','speed','duplex','address','operstate']},'counters':stats(),'udp_snmp':pathlib.Path('/proc/net/snmp').read_text(),'neighbor':subprocess.check_output(['ip','-j','neigh','show','dev','enp97s0']).decode()}))

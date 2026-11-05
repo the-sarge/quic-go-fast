@@ -1,0 +1,218 @@
+{
+  "ack1/controller/ack1/receive-stderr.log": {
+    "bytes": 27653,
+    "sha256": "22ce1ad8484c6b35e654e9d2525c8a25c285cbd830af58bb6fa9684dc7850c65"
+  },
+  "ack1/controller/ack1/result.json": {
+    "bytes": 784558,
+    "sha256": "50d61bf678b70a62e5b38d74ce55fe4dc1bce6dd6004f5e789d9c508e0a29170"
+  },
+  "ack1/controller/ack1/send-datagram-ledger.bin.gz": {
+    "bytes": 7550,
+    "sha256": "54334c8cc55aa9684a9c8ab0d5950c10270e21016a281b226b3f4806356338df"
+  },
+  "ack1/controller/ack1/send-stderr.log": {
+    "bytes": 30042,
+    "sha256": "0a9077df35aa7333f014fd0559303d420f184cfc07d572ed819ab664b2eb3c3d"
+  },
+  "ack1/diag1210-1179293.bin.gz": {
+    "bytes": 14135884,
+    "sha256": "f9c1642eb1b7458d4555068237b1061b8ec2a736c5d0c4b71f245d0812c4c587"
+  },
+  "ack1/local/diag1210-53941.bin.gz": {
+    "bytes": 4796743,
+    "sha256": "6545fb809c1889839bec711670471cd23adc0d661d1637a6531deeedfad8ffcd"
+  },
+  "ack1/receipts/after-linux-host.stdout": {
+    "bytes": 16361,
+    "sha256": "8982e7e055dccea51726bb6695189830c7b26ce40e00de7665af7a6d3a2eae98"
+  },
+  "ack1/receipts/after-mac-cores.stdout": {
+    "bytes": 1776,
+    "sha256": "f4a4042dfc5578557b7d3b4927c8ccf7b720b94992632161f64d13c8cb15a34a"
+  },
+  "ack1/receipts/before-linux-host.stdout": {
+    "bytes": 16361,
+    "sha256": "1fa2d16924eb9bb7c9099cdec6a6552d4c6ee1f2181ab951d19ab4ce6f76680d"
+  },
+  "ack1/receipts/before-mac-cores.stdout": {
+    "bytes": 1772,
+    "sha256": "8f5170fb2a34bdd6b0095b0c0daa1e2a60b81da5dff5dcedc4ae0f7879611b81"
+  },
+  "ack1/receipts/execution-errors.json": {
+    "bytes": 3,
+    "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+  },
+  "ack1/receipts/execution-state.json": {
+    "bytes": 706,
+    "sha256": "d53f1990991cd4334003c09b5dd6da77c8387be396e373ab8fa23c0ede3a049d"
+  },
+  "ack1/receipts/local-worker-absence.json": {
+    "bytes": 158,
+    "sha256": "55c641c63f991a0d8df0d2bbbcff603f4c8492c727e94af3d4c5021025770dcd"
+  },
+  "ack1/receipts/remote-custody.json": {
+    "bytes": 265,
+    "sha256": "3a0329789bdec461336a3e2d18edbf5b6d3630892e402870a88a12396658a494"
+  },
+  "baseline1/controller/baseline1/receive-stderr.log": {
+    "bytes": 26841,
+    "sha256": "3dacd66b0b5e026afc09edce1913434790ebd27ba88924d9d43eb581f6c27b91"
+  },
+  "baseline1/controller/baseline1/result.json": {
+    "bytes": 785352,
+    "sha256": "d32689efeb7b8f5bf08b9bb3dc6ac51806a9d5b9dd5865e442e78e9fe7e2a888"
+  },
+  "baseline1/controller/baseline1/send-datagram-ledger.bin.gz": {
+    "bytes": 8768,
+    "sha256": "ca419a7fa913286c3bc9fe7ad31ea800264e103bd75b51318d22df44d5d34564"
+  },
+  "baseline1/controller/baseline1/send-stderr.log": {
+    "bytes": 28596,
+    "sha256": "dc37d37a094069c992d1e9d4a655ba7dceb538972b14afd53337fbad61de3d7b"
+  },
+  "baseline1/receipts/after-linux-host.stdout": {
+    "bytes": 16373,
+    "sha256": "ba16c76b5039a70df6b0084064ef1ceaa6806d27ee878b1e98af0248d777ec6d"
+  },
+  "baseline1/receipts/after-mac-cores.stdout": {
+    "bytes": 1715,
+    "sha256": "3e792489dfd8f63095ca0b9926a8f306b65d598e94866979c389bc18b7461810"
+  },
+  "baseline1/receipts/before-linux-host.stdout": {
+    "bytes": 16368,
+    "sha256": "2d03a730fadaa277b70811867348fa46f2804b8fdf481934214b6f0324e5dcbb"
+  },
+  "baseline1/receipts/before-mac-cores.stdout": {
+    "bytes": 1784,
+    "sha256": "d24372c1faa51849f4484344192c09ec3d7995f63c7de252da76829294bdc1f0"
+  },
+  "baseline1/receipts/execution-errors.json": {
+    "bytes": 3,
+    "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+  },
+  "baseline1/receipts/execution-state.json": {
+    "bytes": 702,
+    "sha256": "417a2ade1f5c1f66955db4810ef68b59fe46a7cc543f65638e3fed2b9aff455c"
+  },
+  "baseline1/receipts/local-worker-absence.json": {
+    "bytes": 156,
+    "sha256": "f18dbfc6ca2b041239cbcaf32006e2c26db1989c06c45c5a0b9c0ee69fb78aa6"
+  },
+  "baseline1/receipts/remote-custody.json": {
+    "bytes": 262,
+    "sha256": "1b3285e0a28bda588002ab298f7b00300d7e130bf3d635f4043c160c78b47e61"
+  },
+  "restored-trace/controller/restored-trace/receive-stderr.log": {
+    "bytes": 27616,
+    "sha256": "d69e51e7cd54cc1a20cb8d107781e68e0af6e8d8a96af4204a4be6d253749e39"
+  },
+  "restored-trace/controller/restored-trace/result.json": {
+    "bytes": 783027,
+    "sha256": "4524dbf54e69d1705240509c3086d06eff91da852f755d4cd541687bcbf9555e"
+  },
+  "restored-trace/controller/restored-trace/send-datagram-ledger.bin.gz": {
+    "bytes": 9859,
+    "sha256": "3ddba83253206bb55443c78a07715945a0ed885328a45f67309521bdd58b4b41"
+  },
+  "restored-trace/controller/restored-trace/send-stderr.log": {
+    "bytes": 29401,
+    "sha256": "9595bc784ed76e1ddd43ac80dbf9153c39a4279e087014392b12b04ef04df44e"
+  },
+  "restored-trace/diag1210-1179743.bin.gz": {
+    "bytes": 15059890,
+    "sha256": "d9d120005710c46e46451f686cb821bb6e56b8e0de89b527642b6dd9fa98f694"
+  },
+  "restored-trace/local/diag1210-56978.bin.gz": {
+    "bytes": 4783792,
+    "sha256": "d782e863df292f421f099bd5fc029db0972755e2585d5a3108174a5dea4b5dec"
+  },
+  "restored-trace/receipts/after-linux-host.stdout": {
+    "bytes": 16361,
+    "sha256": "8982e7e055dccea51726bb6695189830c7b26ce40e00de7665af7a6d3a2eae98"
+  },
+  "restored-trace/receipts/after-mac-cores.stdout": {
+    "bytes": 1776,
+    "sha256": "f4a4042dfc5578557b7d3b4927c8ccf7b720b94992632161f64d13c8cb15a34a"
+  },
+  "restored-trace/receipts/before-linux-host.stdout": {
+    "bytes": 16361,
+    "sha256": "1fa2d16924eb9bb7c9099cdec6a6552d4c6ee1f2181ab951d19ab4ce6f76680d"
+  },
+  "restored-trace/receipts/before-mac-cores.stdout": {
+    "bytes": 1772,
+    "sha256": "8f5170fb2a34bdd6b0095b0c0daa1e2a60b81da5dff5dcedc4ae0f7879611b81"
+  },
+  "restored-trace/receipts/execution-errors.json": {
+    "bytes": 3,
+    "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+  },
+  "restored-trace/receipts/execution-state.json": {
+    "bytes": 706,
+    "sha256": "d53f1990991cd4334003c09b5dd6da77c8387be396e373ab8fa23c0ede3a049d"
+  },
+  "restored-trace/receipts/local-worker-absence.json": {
+    "bytes": 158,
+    "sha256": "55c641c63f991a0d8df0d2bbbcff603f4c8492c727e94af3d4c5021025770dcd"
+  },
+  "restored-trace/receipts/remote-custody.json": {
+    "bytes": 265,
+    "sha256": "3a0329789bdec461336a3e2d18edbf5b6d3630892e402870a88a12396658a494"
+  },
+  "trace1/controller/trace1/receive-stderr.log": {
+    "bytes": 27630,
+    "sha256": "c57925dd18b4d5af4cd70ec31794c7b3f3edbf378261b294e8b049b9fc47b692"
+  },
+  "trace1/controller/trace1/result.json": {
+    "bytes": 783920,
+    "sha256": "330f7f9a623b6df7f7d3fe5dc8cb537d111f6510cdd00d3141b25b2d772b4e23"
+  },
+  "trace1/controller/trace1/send-datagram-ledger.bin.gz": {
+    "bytes": 10296,
+    "sha256": "790eedc83ca2aa6a118b4a14c895ffa21bfb144e6e3bf5ac1df89db9f65da851"
+  },
+  "trace1/controller/trace1/send-stderr.log": {
+    "bytes": 29860,
+    "sha256": "5fc81aaed139e90db7ebb848f7e01e34138e98fa88fa1f6f543716af284baace"
+  },
+  "trace1/diag1210-1178130.bin.gz": {
+    "bytes": 15073728,
+    "sha256": "c7f772ab4448e01b8bbc0b831364fcbec662e0351871b5aa62a1a9ba19f9f003"
+  },
+  "trace1/local/diag1210-41290.bin.gz": {
+    "bytes": 4783932,
+    "sha256": "d11e063235358e6eee11a7a88cc289444c19da5bf8649f3784093abfa567e783"
+  },
+  "trace1/receipts/after-linux-host.stdout": {
+    "bytes": 16359,
+    "sha256": "45366b22de52c20a4eb99b201c7e0f55d49f33ebc37cc57a2d6ee8d29d411259"
+  },
+  "trace1/receipts/after-mac-cores.stdout": {
+    "bytes": 1826,
+    "sha256": "8a3821389fe8407e901d142d91ff800baf71159710402da9e291104d7302d19c"
+  },
+  "trace1/receipts/before-linux-host.stdout": {
+    "bytes": 16368,
+    "sha256": "659e19b0b0f43f254214dc365fc3591ed6636b09eb4031d8fc3d2e6013543f3c"
+  },
+  "trace1/receipts/before-mac-cores.stdout": {
+    "bytes": 1786,
+    "sha256": "1df1b93efd263aa87fb092749b8bfc681a400da26db7b8e42874e7f33d853ed1"
+  },
+  "trace1/receipts/execution-errors.json": {
+    "bytes": 3,
+    "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+  },
+  "trace1/receipts/execution-state.json": {
+    "bytes": 696,
+    "sha256": "81db19e81328a1563363011a42870cb145fdfd4f67f1945f7839b0905b301b2f"
+  },
+  "trace1/receipts/local-worker-absence.json": {
+    "bytes": 153,
+    "sha256": "ec9641a6e5f8c4788dbc43a8da7b5575377667004ce5f77ce4935c4544fb039b"
+  },
+  "trace1/receipts/remote-custody.json": {
+    "bytes": 259,
+    "sha256": "721f298002973cb26b1ed1cc7fe4cb32d58664fb82479f84c0fbcf9576b4063e"
+  }
+}

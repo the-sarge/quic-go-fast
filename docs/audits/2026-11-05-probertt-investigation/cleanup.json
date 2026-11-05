@@ -1,0 +1,24 @@
+{
+  "worktree": "/Volumes/worktrees/quic-go-fast/investigate-1210-native",
+  "branch": "codex/investigate-1210-native",
+  "head": "bc4915ea0de0c238ecfdc51d827f7da67639a789",
+  "restored_files": [
+    "connection.go",
+    "datagram_queue.go",
+    "emission_diag_1460.go",
+    "internal/ackhandler/diag1210_test.go",
+    "internal/ackhandler/received_packet_tracker.go",
+    "internal/congestion/bbr_sender.go",
+    "internal/congestion/diag_1460.go",
+    "internal/congestion/probe_rtt_1460.go",
+    "internal/diag1210/record.go",
+    "packet_emission.go",
+    "packet_emission_bbr.go",
+    "send_queue.go"
+  ],
+  "status_porcelain": "",
+  "active_temporary_instrumentation_removed": true,
+  "source_replay_and_final_race_validation_completed": true,
+  "both_replayed_binary_hashes_match": true,
+  "replay_build_artifacts": "/Users/josh/quic-go-fast-1210-investigation/source-replay"
+}

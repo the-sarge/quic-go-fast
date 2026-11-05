@@ -1,0 +1,8 @@
+{
+  "capture-manifest.json": "e4062acf941486e87e7f2772f12d8c38674d2fb24992d53ed7d229d146380d5c",
+  "config-ack1.json": "72e75e71b8587a83083bf6920d5dbd47ff881a147d835c9a6f34aefde61120fa",
+  "config-restored-trace.json": "e6a43c52c4eee551196d59206a72519b2b2945daa86acc91cd4048a13c1c9c4d",
+  "endpoint-ack1.sh": "789837482d9ca44d98a254dfd55b0810bcb8fb589c2f83045703c0c49cafd048",
+  "endpoint-restored-trace.sh": "e38fe57744aae3cceecd91b8278fc69d1ccd0a332ad4e22a3cba67dc1b1e4bef",
+  "operate_base.py": "ef4c46f96b40a535f7f907a4eafb364176263220a838bd77455bdd201206b1cf"
+}

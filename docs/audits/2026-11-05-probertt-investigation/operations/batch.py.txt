@@ -1,0 +1,361 @@
+#!/usr/bin/env python3
+"""Finite diagnostic batch for issue #1460, adapted from the #2200 kit.
+
+Reuses the retained #2157 operator for provider identity, exclusive admission,
+independent lease witnesses, staging markers, worker absence, archive custody,
+guarded cleanup and release. Only input binding and the launch become per-arm.
+Usage: batch.py NAME tb|eth ARMS.json LOCAL_BINARY REMOTE_BINARY [--prepare-only]
+"""
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import shlex
+import subprocess
+import sys
+import threading
+import time
+
+BASE = Path('/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210')
+OPERATIONS = Path('/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/operations')
+VENUES = {
+    'tb': dict(operator='operate-thunderbolt.py.txt', hosts=['mbp128', 'm4mini'], remote_host='m4mini-tb', remote_home='/Users/josh', remote_platform='m4mini', local_platform='mbp128',
+               send=dict(host='mbp128', source_platform='mbp128', bind='172.16.1.2', gomaxprocs=16, remote=False, iface='bridge0'), receive=dict(host='m4mini', source_platform='m4mini', bind='172.16.1.1', gomaxprocs=12, remote=True, iface='bridge0'), relay='172.16.1.2'),
+    'tbj': dict(operator='operate-thunderbolt.py.txt', hosts=['mbp128', 'm4mini'], remote_host='m4mini-tb', remote_home='/Users/josh', remote_platform='m4mini', local_platform='mbp128', network_script=str(BASE/'mac-network-9000.py'),
+               send=dict(host='mbp128', source_platform='mbp128', bind='172.16.1.2', gomaxprocs=16, remote=False, iface='bridge0'), receive=dict(host='m4mini', source_platform='m4mini', bind='172.16.1.1', gomaxprocs=12, remote=True, iface='bridge0'), relay='172.16.1.2'),
+    'eth': dict(operator='operate-ethernet.py.txt', hosts=['mbp128', 'minimax'], remote_host='minimax', remote_home='/home/josh', remote_platform='linux-amd64', local_platform='darwin-arm64',
+                send=dict(host='minimax', source_platform='linux-amd64', bind='192.168.1.50', gomaxprocs=16, remote=True, iface='enp97s0'), receive=dict(host='mbp128', source_platform='darwin-arm64', bind='192.168.1.110', gomaxprocs=16, remote=False, iface='en8'), relay='192.168.1.110'),
+    'eth4': dict(operator='operate-ethernet.py.txt', hosts=['mbp128', 'minimax'], remote_host='minimax', remote_home='/home/josh', remote_platform='linux-amd64', local_platform='darwin-arm64',
+                send=dict(host='minimax', source_platform='linux-amd64', bind='192.168.1.50', gomaxprocs=4, remote=True, iface='enp97s0'), receive=dict(host='mbp128', source_platform='darwin-arm64', bind='192.168.1.110', gomaxprocs=4, remote=False, iface='en8'), relay='192.168.1.110'),
+}
+PROVIDER_ADMISSION = {
+    'provider_host': 'm4mini.local',
+    'provider_config': '/Users/josh/code/github.com/the-sarge/infra/.local/garm/local-mac-provider.conf',
+    'provider_script': '/Users/josh/code/github.com/the-sarge/infra/scripts/garm/local-mac-provider.sh',
+    'consumer_kind': 'wiremux-stream-qualification',
+    'acquire_action': '--acquire-host-admission-exclusive-consumer',
+    'release_action': '--release-host-admission-consumer',
+    'uncertain_cleanup_action': '--fail-host-admission-consumer',
+}
+ADMISSION_WAIT_SECONDS = 1800
+ARM_WATCHDOG_SECONDS = 170
+BINARY_NAME = 'wiremux-measure-diagnostic'
+
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def endpoint_script(env):
+    lines = ['#!/bin/sh', 'set -eu', 'root="$(CDPATH=\'\' cd -- "$(dirname "$0")" && pwd -P)"']
+    lines += ['export %s=%s' % (key, shlex.quote(str(value))) for key, value in sorted(env.items())]
+    lines.append('export Q1210_OUTPUT_DIR="$root"')
+    lines.append('exec "$root/%s" "$@"' % BINARY_NAME)
+    return '\n'.join(lines)+'\n'
+
+
+def prepare(name, arms, venue, binaries):
+    docs = BASE/('ops-'+name)
+    assert not docs.exists(), 'batch input already frozen: '+str(docs)
+    docs.mkdir(parents=True)
+    root = BASE/('run-'+name)
+    remote = venue['remote_home']+'/wiremux-1460-diag-'+name
+    owner = 'wm1460-'+name
+    text = (OPERATIONS/venue['operator']).read_text()
+    text = text.replace("REPO = Path('/Volumes/worktrees/wiremux/2157-four-wire')", "REPO = Path('/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/helpers')")
+    text = text.replace("'.cache/2157/ops/mac-network.py'", "'docs/research/2157-four-wire/operations/mac-network.py.txt'")
+    if venue.get('network_script'):
+        # Thunderbolt jumbo window only: the same check, requiring the owner's MTU 9000.
+        assert "'docs/research/2157-four-wire/operations/mac-network.py.txt'" in text
+        text = text.replace("'docs/research/2157-four-wire/operations/mac-network.py.txt'", repr(venue['network_script']))
+    text = text.replace("wiremux-2157-", "wiremux-1460-diag-").replace('issue #2157:', 'issue #1460:')
+    (docs/'operate_base.py').write_text(text)
+    def binary_for(end):
+        return binaries['remote'] if end['remote'] else binaries['local']
+
+    def endpoint_entry(role):
+        end = venue[role]
+        return {'host': end['host'], 'role': role, 'source_platform': end['source_platform'], 'source_binary': str(binary_for(end)), 'binary_sha256': sha(binary_for(end)), 'staged_binary': (remote if end['remote'] else str(root/'local'))+'/'+BINARY_NAME}
+
+    def worker_entry(role, script, arm):
+        end = venue[role]
+        base = {'binary': (remote if end['remote'] else str(root/'local'))+'/'+script.name, 'output_parent': (remote if end['remote'] else str(root/'local'))+'/workers/'+arm['name'], 'bind_ip': end['bind'], 'gomaxprocs': end['gomaxprocs'], 'binary_sha256': sha(binary_for(end))}
+        if end['remote']:
+            base['ssh_host'] = venue['remote_host']
+        return base
+
+    manifest = {
+        'proposal_id': owner, 'issue_number': 1460, 'local_artifact_root': str(root), 'remote_staging': remote,
+        'endpoints': [endpoint_entry('send'), endpoint_entry('receive')],
+        'build_id': sha(binaries['local'])[:32]+sha(binaries['remote'])[:32],
+        'venue': venue,
+        'admission': dict(PROVIDER_ADMISSION, owner=owner, consumer_id=owner, hosts_in_acquisition_order=venue['hosts']),
+        'proposed_limits': {'attempts': len(arms), 'replacements': 0, 'outer_watchdog_seconds': ARM_WATCHDOG_SECONDS},
+        'arms': arms, 'inputs': {},
+    }
+    for arm in arms:
+        script = docs/('endpoint-'+arm['name']+'.sh')
+        script.write_text(endpoint_script(dict(arm.get('env', {}), W2200_ARM=arm['name'])))
+        config = {
+            'version': 2,
+            'workload': arm.get('workload', {}),
+            'endpoints': [worker_entry('receive', script, arm), worker_entry('send', script, arm)] if arm.get('swap') else [worker_entry('send', script, arm), worker_entry('receive', script, arm)],
+            'relay_bind_ip': venue['relay'],
+        }
+        (docs/('config-'+arm['name']+'.json')).write_text(json.dumps(config, indent=2)+'\n')
+    (docs/'capture-manifest.json').write_text(json.dumps(manifest, indent=2)+'\n')
+    return docs
+
+
+def load_operator(docs):
+    spec = importlib.util.spec_from_file_location('operate_base', docs/'operate_base.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def install(op, docs):
+    arms = op.MANIFEST['arms']
+    venue = op.MANIFEST['venue']
+    host = venue['remote_host']
+    local_endpoint = next(e for e in op.MANIFEST['endpoints'] if e['host'] == 'mbp128')
+    remote_endpoint = next(e for e in op.MANIFEST['endpoints'] if e['host'] != 'mbp128')
+    frozen = {path.name: sha(path) for path in sorted(docs.iterdir()) if path.is_file() and path.name != 'frozen.json'}
+    (docs/'frozen.json').write_text(json.dumps(frozen, indent=2)+'\n')
+    endpoints = sorted(path.name for path in docs.glob('endpoint-*.sh'))
+
+    def verify_frozen_inputs():
+        for name, digest in frozen.items():
+            assert sha(docs/name) == digest, name
+        return {'manifest_sha256': frozen['capture-manifest.json']}
+
+    def verify_inputs():
+        authorization = verify_frozen_inputs()
+        assert not op.ROOT.exists(), 'capture root must be fresh'
+        for endpoint in op.MANIFEST['endpoints']:
+            assert sha(endpoint['source_binary']) == endpoint['binary_sha256']
+        return authorization
+
+    def claim_execution(authorization):
+        op.ROOT.mkdir(mode=0o700)
+        op.OPS.mkdir(mode=0o700)
+        op.save('execution-claim.json', {'owner': op.STATE['owner'], 'pid': os.getpid(), 'claimed_unix': time.time(), 'manifest_sha256': authorization['manifest_sha256']})
+        op.STATE['status'] = 'claimed'
+        op.save('execution-state.json', op.STATE)
+
+    def acquire():
+        deadline = time.monotonic()+ADMISSION_WAIT_SECONDS
+        round_number = 0
+        while True:
+            assert time.monotonic() < deadline, 'bounded admission wait exhausted'
+            observed = op.preflight_provider()
+            if any(observed['leases'].values()):
+                op.event('admission-wait', leases=observed['leases'])
+                time.sleep(30)
+                continue
+            round_number += 1
+            op.STATE['hosts'] = {}
+            op.STATE['status'] = 'acquiring'
+            op.STATE['admission_round'] = round_number
+            try:
+                op.acquire_once()
+                return
+            except BaseException as error:
+                op.save('admission-round-'+str(round_number)+'.json', op.STATE)
+                if 'retryable-admission-denial:' not in str(error):
+                    raise
+                op.release(True)
+                assert op.STATE['status'] == 'released', op.STATE
+                op.event('admission-race-unwound', round=round_number)
+                time.sleep(30)
+
+    def stage(authorization):
+        import shutil
+        local = op.ROOT/'local'
+        local.mkdir(mode=0o700)
+        (local/'workers').mkdir(mode=0o700)
+        with (local/'.owner.json').open('x') as output:
+            json.dump(op.marker(venue['local_platform']), output)
+        op.STATE['local_staged'] = True
+        endpoint = local_endpoint
+        shutil.copyfile(endpoint['source_binary'], local/BINARY_NAME)
+        (local/BINARY_NAME).chmod(0o700)
+        shutil.copyfile(BASE/'rig-darwin', local/'nativerig')
+        (local/'nativerig').chmod(0o700)
+        for name in endpoints:
+            shutil.copyfile(docs/name, local/name)
+            (local/name).chmod(0o700)
+        assert sha(local/BINARY_NAME) == endpoint['binary_sha256']
+        source = '''import json,pathlib,sys
+root=pathlib.Path(sys.argv[1]);expected=json.loads(sys.argv[2])
+assert str(root.parent) in ('/Users/josh','/home/josh') and root.name.startswith('wiremux-1460-diag-')
+root.mkdir(mode=0o700)
+with (root/'.owner.json').open('x') as output: json.dump(expected,output)
+(root/'workers').mkdir(mode=0o700)
+for arm in json.loads(sys.argv[3]):(root/'workers'/arm).mkdir(mode=0o700)
+assert root.resolve()==root
+print(json.dumps({'root':str(root),'marker':expected}))
+'''
+        for arm in arms:
+            (local/'workers'/arm['name']).mkdir(mode=0o700)
+        op.STATE['remote_staged'] = 'prospective'
+        op.save('execution-state.json', op.STATE)
+        op.remote_python(source, [op.REMOTE, json.dumps(op.marker(venue['remote_platform'])), json.dumps([arm['name'] for arm in arms])], 'remote-create')
+        op.STATE['remote_staged'] = True
+        op.save('execution-state.json', op.STATE)
+        options = ['scp', '-oBatchMode=yes', '-oStrictHostKeyChecking=yes', '-oConnectTimeout=10']
+        op.run(options+[remote_endpoint['source_binary'], host+':'+op.REMOTE+'/'+BINARY_NAME], 'stage-remote-binary', timeout=55)
+        op.run(options+[str(docs/name) for name in endpoints]+[host+':'+op.REMOTE+'/'], 'stage-remote-launchers', timeout=55)
+        rig = BASE/('rig-linux' if host == 'minimax' else 'rig-darwin')
+        op.run(options+[str(rig), host+':'+op.REMOTE+'/nativerig'], 'stage-remote-rig', timeout=55)
+        source = '''import hashlib,json,pathlib,sys
+root=pathlib.Path(sys.argv[1]);expected=json.loads(sys.argv[2]);observed={}
+for name,digest in expected.items():
+ file=root/name;actual=hashlib.sha256(file.read_bytes()).hexdigest();assert actual==digest;file.chmod(0o700);observed[name]=actual
+print(json.dumps(observed))
+'''
+        wanted = {'nativerig': sha(rig), BINARY_NAME: remote_endpoint['binary_sha256'], **{name: frozen[name] for name in endpoints}}
+        op.remote_python(source, [op.REMOTE, json.dumps(wanted)], 'remote-staged-hashes')
+        op.event('staged', local=str(local), remote=op.REMOTE)
+
+    def staged_recheck():
+        verify_frozen_inputs()
+        local = op.ROOT/'local'
+        assert json.loads((local/'.owner.json').read_text()) == op.marker(venue['local_platform'])
+        assert sha(local/BINARY_NAME) == local_endpoint['binary_sha256']
+        op.run(op.SSH+[host, 'true'], 'prelaunch-fresh-ssh', timeout=15)
+
+    def counters(label):
+        interface = 'bridge0' if host == 'm4mini-tb' else 'en8'
+        op.run(['/bin/sh', '-c', 'netstat -s -p udp; netstat -ibn -I '+interface+'; echo TOPCPU; ps -axo pcpu=,nice=,pid=,comm= | sort -rn | head -12'], label+'-local-udp', timeout=20, check=False)
+        remote_command = 'netstat -s -p udp; netstat -ibn -I bridge0' if host == 'm4mini-tb' else 'cat /proc/net/snmp; ip -s link show enp97s0'
+        op.run(op.SSH+[host, remote_command], label+'-remote-udp', timeout=20, check=False)
+
+    def threads(arm, stop):
+        # Cumulative per-thread CPU at two instants inside measurement, outside the data path.
+        mac = "pid=$(ps -axo pid=,command= | grep '[w]iremux-measure-diagnostic -worker' | awk 'NR==1{print $1}'); test -n \"$pid\" && echo pid=$pid && ps -M -p \"$pid\"; /usr/sbin/lsof -nP -a -p \"$pid\" -iUDP"
+        linux = "pid=$(pgrep -x %s | head -1); test -n \"$pid\" && echo pid=$pid && cat /proc/$pid/task/*/stat && grep '^cpu' /proc/stat" % BINARY_NAME[:15]
+        macq = "for i in 1 2 3 4 5 6 7 8; do date +%s; netstat -an -f inet -p udp | grep '192.168.1.110'; sleep 1; done"
+        linq = "for i in 1 2 3 4 5 6 7 8; do date +%s; tc -s qdisc show dev enp97s0; ss -uanm 'src 192.168.1.50'; sleep 1; done"
+        if stop.wait(25):
+            return
+        op.run(['/bin/sh', '-c', mac], 'threads-'+arm+'-t1-local', timeout=10, check=False)
+        op.run(op.SSH+[host, mac if host == 'm4mini-tb' else linux], 'threads-'+arm+'-t1-remote', timeout=10, check=False)
+        results = [threading.Thread(target=op.run, args=(['/bin/sh', '-c', macq], 'queues-'+arm+'-local'), kwargs=dict(timeout=20, check=False)), threading.Thread(target=op.run, args=(op.SSH+[host, macq if host == 'm4mini-tb' else linq], 'queues-'+arm+'-remote'), kwargs=dict(timeout=20, check=False))]
+        for t in results:
+            t.start()
+        for t in results:
+            t.join()
+
+    def raw_arm(arm):
+        # Rig control: no wiremux or QUIC code in the data path.
+        name = arm['name']
+        remote_prefix = shlex.join(['timeout', '60']) if host == 'minimax' else 'perl -e "alarm 60; exec @ARGV"'
+        ends = {}
+        for role in ('send', 'receive'):
+            end = venue[role]
+            verb = 'recv' if role == 'receive' else 'send'
+            args = [verb, '-arm', 'udp', '-iface', end['iface']]
+            if role == 'receive':
+                args += ['-port', '47400']+arm['rig_recv']
+            else:
+                args += ['-target', venue['receive']['bind']+':47400', '-seconds', '10']+arm['rig_send']
+            if end['remote']:
+                ends[role] = op.SSH+[host, remote_prefix+' '+op.REMOTE+'/nativerig '+shlex.join(args)]
+            else:
+                ends[role] = ['perl', '-e', 'alarm 60; exec @ARGV', str(op.ROOT/'local'/'nativerig')]+args
+        logs = op.ROOT/'logs'
+        logs.mkdir(exist_ok=True)
+        op.event('attempt-consumed', arm=name)
+        counters('before-'+name)
+        started = time.monotonic()
+        with (logs/(name+'.recv.json')).open('xb') as ro, (logs/(name+'.recv.err')).open('xb') as re_, (logs/(name+'.send.json')).open('xb') as so, (logs/(name+'.send.err')).open('xb') as se:
+            receiver = subprocess.Popen(ends['receive'], stdout=ro, stderr=re_, start_new_session=True)
+            time.sleep(2)
+            sender = subprocess.Popen(ends['send'], stdout=so, stderr=se, start_new_session=True)
+            qsample = threading.Thread(target=op.run, args=(op.SSH+[host, "sleep 2; for i in 1 2 3 4 5 6; do date +%s; tc -s qdisc show dev enp97s0; sleep 1; done"], 'queues-'+name+'-remote'), kwargs=dict(timeout=20, check=False))
+            qsample.start()
+            codes = [sender.wait(timeout=70), receiver.wait(timeout=70)]
+            qsample.join()
+        op.save('attempt-'+name+'.json', {'arm': name, 'status': 'raw', 'exit': codes, 'started_unix': time.time(), 'elapsed_seconds': time.monotonic()-started, 'argv': ends}, op.ROOT)
+        counters('after-'+name)
+        op.event('attempt-ended', arm=name, status='raw', exit=codes, elapsed=time.monotonic()-started)
+
+    def capture():
+        assert op.STATE['status'] == 'both-held'
+        staged_recheck()
+        attempts = []
+        for arm in arms:
+            name = arm['name']
+            if 'rig_send' in arm:
+                raw_arm(arm)
+                continue
+            counters('before-'+name)
+            out = op.ROOT/'controller'/name
+            out.parent.mkdir(exist_ok=True)
+            logs = op.ROOT/'logs'
+            logs.mkdir(exist_ok=True)
+            argv = [str(op.ROOT/'local'/('endpoint-'+name+'.sh')), '-remote-config', str(docs/('config-'+name+'.json')), '-output', str(out)]
+            op.event('attempt-consumed', arm=name)
+            record = {'arm': name, 'status': 'starting', 'started_unix': time.time(), 'argv': argv}
+            started = time.monotonic()
+            stop = threading.Event()
+            sampler = threading.Thread(target=threads, args=(name, stop))
+            spinner = None
+            if arm.get('spin'):
+                cpus = arm['spin']
+                command = "for c in %s; do timeout 85 taskset -c $c nice -n 19 sh -c 'while :; do :; done' & done; wait; echo spinners-exited" % cpus
+                spinner = threading.Thread(target=op.run, args=(op.SSH+[host, command], 'spinner-'+name), kwargs=dict(timeout=95, check=False))
+                spinner.start()
+            with (logs/(name+'.stdout')).open('xb') as stdout, (logs/(name+'.stderr')).open('xb') as stderr:
+                process = subprocess.Popen(argv, stdout=stdout, stderr=stderr, start_new_session=True)
+                record['pid'] = process.pid
+                record['start_identity'] = op.controller_identity(process.pid)
+                op.save('attempt-'+name+'.json', record, op.ROOT)
+                sampler.start()
+                try:
+                    record['exit'] = process.wait(timeout=ARM_WATCHDOG_SECONDS)
+                    record['status'] = 'returned' if record['exit'] == 0 else 'returned-error'
+                except BaseException as error:
+                    record['status'] = 'interrupted'
+                    record['error'] = str(error)
+                    if process.poll() is None:
+                        op.stop_controller(process, record)
+                    raise
+                finally:
+                    stop.set()
+                    sampler.join()
+                    if spinner is not None:
+                        spinner.join()
+                    record['elapsed_seconds'] = time.monotonic()-started
+                    op.save('attempt-'+name+'.json', record, op.ROOT)
+                    op.event('attempt-ended', arm=name, status=record['status'], exit=record.get('exit'), elapsed=record['elapsed_seconds'])
+            counters('after-'+name)
+            op.local_absence()
+            op.remote_absence()
+            attempts.append(record)
+        op.save('attempts.json', attempts, op.ROOT)
+
+    op.verify_frozen_inputs = verify_frozen_inputs
+    op.verify_inputs = verify_inputs
+    op.claim_execution = claim_execution
+    op.acquire = acquire
+    op.stage = stage
+    op.staged_recheck = staged_recheck
+    op.capture = capture
+
+
+def main():
+    name, venue_name, arms_path, local_binary, remote_binary = sys.argv[1:6]
+    docs = prepare(name, json.loads(Path(arms_path).read_text()), VENUES[venue_name], {'local': Path(local_binary), 'remote': Path(remote_binary)})
+    op = load_operator(docs)
+    install(op, docs)
+    if '--prepare-only' in sys.argv:
+        print('prepared', docs)
+        return
+    op.main()
+
+
+if __name__ == '__main__':
+    main()

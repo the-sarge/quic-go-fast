@@ -18,3 +18,6 @@ fuzzing/*/corpus/
 **/testdata/fuzz/
 
 gomock_reflect_*/
+
+# Retained local working captures for the issue #1210 investigation.
+/.cache/1210/

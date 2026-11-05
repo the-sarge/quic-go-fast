@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+root="$(CDPATH='' cd -- "$(dirname "$0")" && pwd -P)"
+export W1460_DIAG=1
+export W2200_ARM=baseline1
+export Q1210_OUTPUT_DIR="$root"
+exec "$root/wiremux-measure-diagnostic" "$@"

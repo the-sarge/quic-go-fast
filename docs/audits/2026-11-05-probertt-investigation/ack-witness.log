@@ -1,0 +1,6 @@
+=== RUN   TestDiagnostic1210ACKQueueVersusEmission
+    diag1210_test.go:30: threshold_one=false: first packet queues=false; one ACK covers the whole 15-packet receive service batch
+    diag1210_test.go:30: threshold_one=true: first packet queues=true; one ACK covers the whole 15-packet receive service batch
+--- PASS: TestDiagnostic1210ACKQueueVersusEmission (0.00s)
+PASS
+ok  	github.com/quic-go/quic-go/internal/ackhandler	1.218s

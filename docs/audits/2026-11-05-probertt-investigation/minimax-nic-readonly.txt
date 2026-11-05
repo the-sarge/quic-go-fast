@@ -1,0 +1,45 @@
+driver: r8169
+version: 7.0.0-30-generic
+firmware-version: rtl8127a-1_0.0.5 05/14/25
+expansion-rom-version: 
+bus-info: 0000:61:00.0
+supports-statistics: yes
+supports-test: no
+supports-eeprom-access: no
+supports-register-dump: yes
+supports-priv-flags: no
+netlink error: Operation not supported
+Ring parameters for enp97s0:
+Pre-set maximums:
+RX:			256
+RX Mini:		n/a
+RX Jumbo:		n/a
+TX:			256
+TX push buff len:	n/a
+HDS thresh:		n/a
+Current hardware settings:
+RX:			256
+RX Mini:		n/a
+RX Jumbo:		n/a
+TX:			256
+RX Buf Len:		n/a
+CQE Size:		n/a
+TX Push:		off
+RX Push:		off
+TX push buff len:	n/a
+TCP data split:		n/a
+HDS thresh:		n/a
+EEE settings for enp97s0:
+	EEE status: enabled - inactive
+	Tx LPI: 1 (us)
+	Supported EEE link modes:  100baseT/Full
+	                           1000baseT/Full
+	                           10000baseT/Full
+	                           2500baseT/Full
+	                           5000baseT/Full
+	Advertised EEE link modes:  100baseT/Full
+	                            1000baseT/Full
+	                            10000baseT/Full
+	                            2500baseT/Full
+	                            5000baseT/Full
+	Link partner advertised EEE link modes:  Not reported

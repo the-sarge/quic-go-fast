@@ -1,0 +1,9 @@
+{
+  "archive": "/Users/josh/quic-go-fast-1210-investigation/native-captures.tar.gz",
+  "bytes": 160223397,
+  "sha256": "582a380beed69f16f9b9da01e5d66c18390b4370fb9b38fb0c234509d2760c72",
+  "files": 630,
+  "archive_verified": true,
+  "source_inventories_verified": true,
+  "same_machine_backup_only": true
+}

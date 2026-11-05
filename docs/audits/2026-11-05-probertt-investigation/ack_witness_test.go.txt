@@ -1,0 +1,32 @@
+package ackhandler
+
+import (
+	"testing"
+
+	"github.com/quic-go/quic-go/internal/diag1210"
+	"github.com/quic-go/quic-go/internal/monotime"
+	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/utils"
+	"github.com/stretchr/testify/require"
+)
+
+// Diagnostic witness: queueing an ACK and emitting it are separate operations.
+func TestDiagnostic1210ACKQueueVersusEmission(t *testing.T) {
+	original := diag1210.AckEveryPacket
+	defer func() { diag1210.AckEveryPacket = original }()
+	for _, every := range []bool{false, true} {
+		diag1210.AckEveryPacket = every
+		tr := newAppDataReceivedPacketTracker(utils.DefaultLogger)
+		now := monotime.Now()
+		require.NoError(t, tr.ReceivedPacket(1, protocol.ECNNon, now, true))
+		require.Equal(t, every, tr.ackQueued, "one packet queues only in the diagnostic threshold-one arm")
+		for pn := protocol.PacketNumber(2); pn <= 15; pn++ {
+			require.NoError(t, tr.ReceivedPacket(pn, protocol.ECNNon, now, true))
+		}
+		require.Equal(t, 15, tr.ackElicitingPacketsReceivedSinceLastAck)
+		ack := tr.GetAckFrame(monotime.Now(), true)
+		require.NotNil(t, ack)
+		require.Equal(t, protocol.PacketNumber(15), ack.LargestAcked())
+		t.Logf("threshold_one=%v: first packet queues=%v; one ACK covers the whole 15-packet receive service batch", every, every)
+	}
+}

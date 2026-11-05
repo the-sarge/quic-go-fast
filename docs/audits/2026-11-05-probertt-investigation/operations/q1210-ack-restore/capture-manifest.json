@@ -1,0 +1,121 @@
+{
+  "proposal_id": "wm1460-q1210-ack-restore",
+  "issue_number": 1460,
+  "local_artifact_root": "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/run-q1210-ack-restore",
+  "remote_staging": "/home/josh/wiremux-1460-diag-q1210-ack-restore",
+  "endpoints": [
+    {
+      "host": "minimax",
+      "role": "send",
+      "source_platform": "linux-amd64",
+      "source_binary": "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/ablation-linux-amd64",
+      "binary_sha256": "4699c3b635c916cb67b523e5920f925e766683a9c686edc6938f75b754c73b84",
+      "staged_binary": "/home/josh/wiremux-1460-diag-q1210-ack-restore/wiremux-measure-diagnostic"
+    },
+    {
+      "host": "mbp128",
+      "role": "receive",
+      "source_platform": "darwin-arm64",
+      "source_binary": "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/ablation-darwin-arm64",
+      "binary_sha256": "97194a4241d96627686b6ccfb58e18b156c58f3bb729d52ddb24ac412946bd27",
+      "staged_binary": "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/run-q1210-ack-restore/local/wiremux-measure-diagnostic"
+    }
+  ],
+  "build_id": "97194a4241d96627686b6ccfb58e18b14699c3b635c916cb67b523e5920f925e",
+  "venue": {
+    "operator": "operate-ethernet.py.txt",
+    "hosts": [
+      "mbp128",
+      "minimax"
+    ],
+    "remote_host": "minimax",
+    "remote_home": "/home/josh",
+    "remote_platform": "linux-amd64",
+    "local_platform": "darwin-arm64",
+    "send": {
+      "host": "minimax",
+      "source_platform": "linux-amd64",
+      "bind": "192.168.1.50",
+      "gomaxprocs": 4,
+      "remote": true,
+      "iface": "enp97s0"
+    },
+    "receive": {
+      "host": "mbp128",
+      "source_platform": "darwin-arm64",
+      "bind": "192.168.1.110",
+      "gomaxprocs": 4,
+      "remote": false,
+      "iface": "en8"
+    },
+    "relay": "192.168.1.110"
+  },
+  "admission": {
+    "provider_host": "m4mini.local",
+    "provider_config": "/Users/josh/code/github.com/the-sarge/infra/.local/garm/local-mac-provider.conf",
+    "provider_script": "/Users/josh/code/github.com/the-sarge/infra/scripts/garm/local-mac-provider.sh",
+    "consumer_kind": "wiremux-stream-qualification",
+    "acquire_action": "--acquire-host-admission-exclusive-consumer",
+    "release_action": "--release-host-admission-consumer",
+    "uncertain_cleanup_action": "--fail-host-admission-consumer",
+    "owner": "wm1460-q1210-ack-restore",
+    "consumer_id": "wm1460-q1210-ack-restore",
+    "hosts_in_acquisition_order": [
+      "mbp128",
+      "minimax"
+    ]
+  },
+  "proposed_limits": {
+    "attempts": 2,
+    "replacements": 0,
+    "outer_watchdog_seconds": 170
+  },
+  "arms": [
+    {
+      "name": "ack1",
+      "connections": 1,
+      "workload": {
+        "connections": 1,
+        "direction": "forward",
+        "drain_ms": 5000,
+        "gomaxprocs_per_endpoint": 4,
+        "layer": "native-wire-v031",
+        "measurement_ms": 60000,
+        "native_policy": "bbrv3-conservative",
+        "payload_bytes": 1099,
+        "profile": "none",
+        "rate_bps": 1000000000,
+        "version": 6,
+        "warmup_ms": 10000
+      },
+      "env": {
+        "W1460_DIAG": "1",
+        "Q1210_TRACE": "1",
+        "Q1210_ACK1_HOST": "mbp128"
+      }
+    },
+    {
+      "name": "restored-trace",
+      "connections": 1,
+      "workload": {
+        "connections": 1,
+        "direction": "forward",
+        "drain_ms": 5000,
+        "gomaxprocs_per_endpoint": 4,
+        "layer": "native-wire-v031",
+        "measurement_ms": 60000,
+        "native_policy": "bbrv3-conservative",
+        "payload_bytes": 1099,
+        "profile": "none",
+        "rate_bps": 1000000000,
+        "version": 6,
+        "warmup_ms": 10000
+      },
+      "env": {
+        "W1460_DIAG": "1",
+        "Q1210_TRACE": "1"
+      }
+    }
+  ],
+  "inputs": {}
+}

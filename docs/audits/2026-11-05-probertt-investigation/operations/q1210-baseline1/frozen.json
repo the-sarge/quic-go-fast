@@ -1,0 +1,6 @@
+{
+  "capture-manifest.json": "75ed1bb4287df54c2b31be044843d3edd8ab0a4b06aecd8f2d337c90159e7bf7",
+  "config-baseline1.json": "4ee8916dd476acad8e31a8e5d11309a652c9881ddd512b6716928a7a6829154a",
+  "endpoint-baseline1.sh": "6dee8e20fbc4179ea537d036b0ea60e2220696fc25dff1f1791ab62b7a2cabca",
+  "operate_base.py": "ef4c46f96b40a535f7f907a4eafb364176263220a838bd77455bdd201206b1cf"
+}

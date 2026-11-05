@@ -1,0 +1,97 @@
+{
+  "proposal_id": "wm1460-q1210-baseline1",
+  "issue_number": 1460,
+  "local_artifact_root": "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/run-q1210-baseline1",
+  "remote_staging": "/home/josh/wiremux-1460-diag-q1210-baseline1",
+  "endpoints": [
+    {
+      "host": "minimax",
+      "role": "send",
+      "source_platform": "linux-amd64",
+      "source_binary": "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/baseline-linux-amd64",
+      "binary_sha256": "da7e02870878eed6234f3f9404b01a62499ea467c372a8618f8520feacef05e2",
+      "staged_binary": "/home/josh/wiremux-1460-diag-q1210-baseline1/wiremux-measure-diagnostic"
+    },
+    {
+      "host": "mbp128",
+      "role": "receive",
+      "source_platform": "darwin-arm64",
+      "source_binary": "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/baseline-darwin-arm64",
+      "binary_sha256": "a9f94aa609d4f4c0adb2944776f1bc41633361326b38723a7958754afb0f9edd",
+      "staged_binary": "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/run-q1210-baseline1/local/wiremux-measure-diagnostic"
+    }
+  ],
+  "build_id": "a9f94aa609d4f4c0adb2944776f1bc41da7e02870878eed6234f3f9404b01a62",
+  "venue": {
+    "operator": "operate-ethernet.py.txt",
+    "hosts": [
+      "mbp128",
+      "minimax"
+    ],
+    "remote_host": "minimax",
+    "remote_home": "/home/josh",
+    "remote_platform": "linux-amd64",
+    "local_platform": "darwin-arm64",
+    "send": {
+      "host": "minimax",
+      "source_platform": "linux-amd64",
+      "bind": "192.168.1.50",
+      "gomaxprocs": 4,
+      "remote": true,
+      "iface": "enp97s0"
+    },
+    "receive": {
+      "host": "mbp128",
+      "source_platform": "darwin-arm64",
+      "bind": "192.168.1.110",
+      "gomaxprocs": 4,
+      "remote": false,
+      "iface": "en8"
+    },
+    "relay": "192.168.1.110"
+  },
+  "admission": {
+    "provider_host": "m4mini.local",
+    "provider_config": "/Users/josh/code/github.com/the-sarge/infra/.local/garm/local-mac-provider.conf",
+    "provider_script": "/Users/josh/code/github.com/the-sarge/infra/scripts/garm/local-mac-provider.sh",
+    "consumer_kind": "wiremux-stream-qualification",
+    "acquire_action": "--acquire-host-admission-exclusive-consumer",
+    "release_action": "--release-host-admission-consumer",
+    "uncertain_cleanup_action": "--fail-host-admission-consumer",
+    "owner": "wm1460-q1210-baseline1",
+    "consumer_id": "wm1460-q1210-baseline1",
+    "hosts_in_acquisition_order": [
+      "mbp128",
+      "minimax"
+    ]
+  },
+  "proposed_limits": {
+    "attempts": 1,
+    "replacements": 0,
+    "outer_watchdog_seconds": 170
+  },
+  "arms": [
+    {
+      "name": "baseline1",
+      "connections": 1,
+      "workload": {
+        "connections": 1,
+        "direction": "forward",
+        "drain_ms": 5000,
+        "gomaxprocs_per_endpoint": 4,
+        "layer": "native-wire-v031",
+        "measurement_ms": 60000,
+        "native_policy": "bbrv3-conservative",
+        "payload_bytes": 1099,
+        "profile": "none",
+        "rate_bps": 1000000000,
+        "version": 6,
+        "warmup_ms": 10000
+      },
+      "env": {
+        "W1460_DIAG": "1"
+      }
+    }
+  ],
+  "inputs": {}
+}

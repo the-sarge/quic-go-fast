@@ -1,0 +1,23 @@
+[
+  {
+    "name": "restored1",
+    "connections": 1,
+    "workload": {
+      "connections": 1,
+      "direction": "forward",
+      "drain_ms": 5000,
+      "gomaxprocs_per_endpoint": 4,
+      "layer": "native-wire-v031",
+      "measurement_ms": 60000,
+      "native_policy": "bbrv3-conservative",
+      "payload_bytes": 1099,
+      "profile": "none",
+      "rate_bps": 1000000000,
+      "version": 6,
+      "warmup_ms": 10000
+    },
+    "env": {
+      "W1460_DIAG": "1"
+    }
+  }
+]

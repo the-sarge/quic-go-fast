@@ -1,0 +1,24 @@
+{
+  "owner": "wm1460-q1210-baseline1",
+  "consumer_kind": "wiremux-stream-qualification",
+  "consumer_id": "wm1460-q1210-baseline1",
+  "hosts": {
+    "mbp128": {
+      "status": "released",
+      "terminal_exit": 0
+    },
+    "minimax": {
+      "status": "released",
+      "terminal_exit": 0
+    }
+  },
+  "status": "released",
+  "remote_staged": true,
+  "local_staged": true,
+  "provider_identity": {
+    "provider_sha256": "523abfda07052db9a6205df164e5269305ef1f159903e9d09bb79974311e8def",
+    "config_sha256": "040d14eeeeff4fa5bc090ce508556581f545c8e736ae7b02bf4bb51fc8fb2c01",
+    "state_root": "/Users/josh/code/github.com/the-sarge/infra/.local/garm/provider-state"
+  },
+  "admission_round": 1
+}

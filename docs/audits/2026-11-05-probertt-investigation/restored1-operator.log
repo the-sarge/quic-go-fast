@@ -1,0 +1,42 @@
+admission-wait {"leases": {"mbp128": ["garm-gridcast-arm64-ctr-uhegdizinfel.json", "garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-arm64-ctr-uhegdizinfel.json", "garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-arm64-ctr-uhegdizinfel.json", "garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-arm64-ctr-uhegdizinfel.json", "garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-arm64-ctr-uhegdizinfel.json", "garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-arm64-ctr-uhegdizinfel.json", "garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-arm64-ctr-uhegdizinfel.json", "garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json", "garm-wiremux-arm64-mbp128-vm-n8jdg4f1wgpf.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json", "garm-wiremux-x64-ctr-qg5vefcnnpge.json", "garm-wiremux-xl-x64-srzkxbv7qlvx.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-arm64-ctr-uhegdizinfel.json", "garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json", "garm-wiremux-arm64-mbp128-vm-n8jdg4f1wgpf.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json", "garm-wiremux-x64-ctr-qg5vefcnnpge.json", "garm-wiremux-xl-x64-srzkxbv7qlvx.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-arm64-ctr-uhegdizinfel.json", "garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json", "garm-wiremux-arm64-mbp128-vm-n8jdg4f1wgpf.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json", "garm-wiremux-x64-ctr-qg5vefcnnpge.json", "garm-wiremux-xl-x64-srzkxbv7qlvx.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-arm64-ctr-uhegdizinfel.json", "garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json", "garm-wiremux-arm64-mbp128-vm-n8jdg4f1wgpf.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json", "garm-wiremux-x64-ctr-qg5vefcnnpge.json", "garm-wiremux-xl-x64-srzkxbv7qlvx.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-arm64-ctr-uhegdizinfel.json", "garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json", "garm-wiremux-arm64-mbp128-vm-n8jdg4f1wgpf.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json", "garm-wiremux-x64-ctr-qg5vefcnnpge.json", "garm-wiremux-xl-x64-srzkxbv7qlvx.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-arm64-ctr-uhegdizinfel.json", "garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json", "garm-wiremux-x64-ctr-qg5vefcnnpge.json", "garm-wiremux-xl-x64-srzkxbv7qlvx.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-arm64-ctr-uhegdizinfel.json", "garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json", "garm-wiremux-x64-ctr-qg5vefcnnpge.json", "garm-wiremux-xl-x64-srzkxbv7qlvx.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-arm64-ctr-uhegdizinfel.json", "garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json", "garm-wiremux-x64-ctr-qg5vefcnnpge.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-arm64-ctr-uhegdizinfel.json", "garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json", "garm-wiremux-arm64-mbp128-vm-ecibjwfee2br.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json", "garm-wiremux-x64-ctr-zyx8ziorjy7j.json", "garm-wiremux-xl-x64-phykjumusngh.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json", "garm-wiremux-arm64-mbp128-vm-ecibjwfee2br.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json", "garm-wiremux-x64-ctr-zyx8ziorjy7j.json", "garm-wiremux-xl-x64-phykjumusngh.json"]}}
+admission-wait {"leases": {"mbp128": ["garm-gridcast-macos-arm64-small-mbp128-tart-fc163vfcdxqn.json"], "minimax": ["garm-gridcast-win64-s4nrz10osxr0.json", "garm-gridcast-xl-x64-rpltm8phkjs2.json", "garm-wiremux-x64-ctr-zyx8ziorjy7j.json", "garm-wiremux-xl-x64-phykjumusngh.json"]}}
+execution-error {"error": ""}
+cleanup-terminal {"status": "released"}
+  + Exception Group Traceback (most recent call last):
+  |   File "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/batch.py", line 361, in <module>
+  |     main()
+  |     ~~~~^^
+  |   File "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/batch.py", line 357, in main
+  |     op.main()
+  |     ~~~~~~~^^
+  |   File "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/ops-q1210-restored1/operate_base.py", line 523, in main
+  |     raise BaseExceptionGroup('capture execution and cleanup failures', failures)
+  | BaseExceptionGroup: capture execution and cleanup failures (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/ops-q1210-restored1/operate_base.py", line 491, in main
+    |     acquire()
+    |     ~~~~~~~^^
+    |   File "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/batch.py", line 155, in acquire
+    |     time.sleep(30)
+    |     ~~~~~~~~~~^^^^
+    | KeyboardInterrupt
+    +------------------------------------

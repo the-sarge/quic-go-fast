@@ -1,0 +1,2 @@
+# Preserve captured ethtool output bytes, including its empty-field space.
+minimax-nic-readonly.txt -whitespace

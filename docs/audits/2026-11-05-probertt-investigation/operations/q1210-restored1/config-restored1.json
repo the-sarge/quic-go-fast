@@ -1,0 +1,35 @@
+{
+  "version": 2,
+  "workload": {
+    "connections": 1,
+    "direction": "forward",
+    "drain_ms": 5000,
+    "gomaxprocs_per_endpoint": 4,
+    "layer": "native-wire-v031",
+    "measurement_ms": 60000,
+    "native_policy": "bbrv3-conservative",
+    "payload_bytes": 1099,
+    "profile": "none",
+    "rate_bps": 1000000000,
+    "version": 6,
+    "warmup_ms": 10000
+  },
+  "endpoints": [
+    {
+      "binary": "/home/josh/wiremux-1460-diag-q1210-restored1/endpoint-restored1.sh",
+      "output_parent": "/home/josh/wiremux-1460-diag-q1210-restored1/workers/restored1",
+      "bind_ip": "192.168.1.50",
+      "gomaxprocs": 4,
+      "binary_sha256": "da7e02870878eed6234f3f9404b01a62499ea467c372a8618f8520feacef05e2",
+      "ssh_host": "minimax"
+    },
+    {
+      "binary": "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/run-q1210-restored1/local/endpoint-restored1.sh",
+      "output_parent": "/Volumes/worktrees/quic-go-fast/investigate-1210/.cache/1210/run-q1210-restored1/local/workers/restored1",
+      "bind_ip": "192.168.1.110",
+      "gomaxprocs": 4,
+      "binary_sha256": "a9f94aa609d4f4c0adb2944776f1bc41633361326b38723a7958754afb0f9edd"
+    }
+  ],
+  "relay_bind_ip": "192.168.1.110"
+}

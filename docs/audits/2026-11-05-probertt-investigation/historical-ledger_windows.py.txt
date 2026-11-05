@@ -1,0 +1,76 @@
+# Post-hoc decode of retained send ledgers for issue #1460 diagnostic reports.
+# Ledger layout: 32-byte WMLDG001 header, then 3 bits per scheduled slot.
+# Outcome 0 in the low two bits is a generator miss. Slot i is scheduled at
+# i * payload * 8 / rate seconds after the measurement start. Bins are 10 ms; a
+# window is a run of bins with at least 20% misses, merging gaps up to 20 ms.
+# attempted_Gbps is (slots - misses) * payload * 8 / bin time, grouped by scheduled
+# slot. It comes from the send ledger, includes unsuccessful attempts, and is not
+# an arrival rate. Seconds count only bins that hold scheduled slots. Report rows
+# use the same report selection as the run-loop shares, L[12:70]; their ordinals
+# count selected reports and are not elapsed seconds.
+import json, struct, sys
+
+def misses(path, payload, rate):
+    b = open(path, 'rb').read()
+    assert b[:8] == b'WMLDG001'
+    slots = struct.unpack('<Q', b[8:16])[0]
+    d = b[32:]
+    per_bin = payload * 8 / rate / 0.01
+    bins = [0] * (int(slots * per_bin) + 2)
+    total = [0] * len(bins)
+    n = 0
+    for i in range(slots):
+        bit = i * 3
+        idx, sh = bit >> 3, bit & 7
+        v = d[idx] | (d[idx + 1] << 8 if sh > 5 else 0)
+        k = int(i * per_bin)
+        total[k] += 1
+        if (v >> sh) & 3 == 0:
+            bins[k] += 1
+            n += 1
+    return slots, n, bins, total
+
+def windows(bins, total):
+    w = []
+    cur = None
+    for k, (m, t) in enumerate(zip(bins, total)):
+        if t and m / t >= 0.2:
+            if cur and k - cur[1] <= 2:
+                cur[1] = k
+            else:
+                cur = [k, k]
+                w.append(cur)
+    return w
+
+for arg in sys.argv[1:]:
+    b, n = arg.split('/')
+    a = next(x for x in json.load(open(f'arms-{b}.json')) if x['name'] == n)
+    payload, rate = a['workload']['payload_bytes'], a['workload']['rate_bps']
+    slots, m, bins, total = misses(f'run-{b}/controller/{n}/send-datagram-ledger.bin', payload, rate)
+    w = windows(bins, total)
+    inw = sum(sum(bins[s:e + 1]) for s, e in w)
+    print(f'{n}: slots {slots} misses {m} ({100*m/slots:.2f}%); {len(w)} windows hold {100*inw/max(m,1):.1f}% of misses')
+    lw = [x for x in w if (x[1] - x[0] + 1) * 10 >= 150]
+    print(f'  windows of 150 ms or longer: {len(lw)}, holding {100*sum(sum(bins[s:e + 1]) for s, e in lw)/max(m,1):.1f}% of misses')
+    rows = []
+    for s, e in w:
+        mm, tt = sum(bins[s:e + 1]), sum(total[s:e + 1])
+        rows.append((s / 100, (e - s + 1) * 10, 100 * mm / tt, (tt - mm) * payload * 8 / ((e - s + 1) * 0.01) / 1e9, mm * payload * 8 / rate * 1e3))
+    print('  start_s  dur_ms  miss%  attempted_Gbps  missed_ms')
+    for r in rows:
+        print('  %7.2f %6d %6.1f %10.2f %11.0f' % r)
+    # Per second of the schedule.
+    sec = {}
+    for k, (v, t) in enumerate(zip(bins, total)):
+        if t:
+            sec[k // 100] = sec.get(k // 100, 0) + v
+    sv = sorted(sec.values())
+    print(f'  seconds with zero misses: {sum(v == 0 for v in sv)}/{len(sv)}, median {sv[len(sv)//2]}')
+    L = [json.loads(l) for l in open(f'run-{b}/controller/{n}/send-stderr.log') if l.startswith('{"') and 'diag1460' in l[:400]]
+    M = L[12:70]
+    ph = [(i, x['bbr']['window'], x.get('cwnd', [0, 0, 0])[2] / 1e6) for i, x in enumerate(M) if x.get('bbr', {}).get('phase') == 6]
+    hi = [(i, round(x.get('cwnd', [0, 0, 0])[2] / 1e6)) for i, x in enumerate(M) if x.get('cwnd', [0, 0, 0])[2] / 1e6 > 100]
+    print('  phase=6 reports (selected-report ordinal, window bytes, cwnd wait ms):', [(i, w_, round(c)) for i, w_, c in ph])
+    print('  reports with over 100 ms congestion-limited wait (ordinal, ms):', hi)
+    ws = sorted(x['bbr']['window'] for x in M if 'bbr' in x)
+    print('  window bytes median', ws[len(ws) // 2], 'min', ws[0], 'max', ws[-1], '; min_rtt_us median', sorted(x['bbr']['min_rtt_ns'] for x in M if 'bbr' in x)[len(M) // 2] / 1e3)
