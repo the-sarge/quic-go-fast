@@ -2,6 +2,8 @@
 
 **Status:** selected design candidate, not an accepted implementation contract or dispatchable slice. **Date:** 2026-11-05. **Scope:** redesign the private granted endpoint's complete production, admission, native-write and completion cycle. **Related:** [whole-pipeline diagnosis](2026-11-05-native-pipeline-diagnosis.md), [current stopped N-track plan](../adr/2026-11-04-native-endpoint-efficiency-plan.md), [endpoint ownership contract](../adr/2026-10-24-multipath-endpoint-plan.md#endpoint-ownership-contract). Existing N3 #1202 remains stopped. This proposal neither adds a prerequisite issue nor changes the accepted product thresholds.
 
+**Measured update:** the [combined prototype result](2026-11-05-native-grouped-prototype.md) establishes that the implemented grouping, exact admission, terminal batching and writer continuation are insufficient: 53.5% of baseline goodput and 64.9% extra CPU/byte. Keep this as a candidate component, not a sufficient repair or dispatchable graph; the remaining connection-owned recovery work requires redesign.
+
 ## Decision and reason
 
 Make one bounded, immutable endpoint request containing several existing packet buffers the unit of admission, native dispatch and terminal exchange. Construct it in the connection owner, submit it once with its exact size, let the native writer drain its members consecutively, and apply the returned packet facts in order in the connection owner. The endpoint remains the single authority for shared capacity, fairness, deadlines, revocation and native borrow lifetime.
