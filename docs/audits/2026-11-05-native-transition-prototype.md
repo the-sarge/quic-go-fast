@@ -1,8 +1,10 @@
 # Native transition and projection prototype for N3 #1202
 
-**Verdict:** the latest whole-pipeline experiment still fails the unchanged efficiency requirements: **73.2% of baseline goodput and 31.3% extra CPU per useful byte** in one uncontaminated matched pair. It does not qualify N3 [issue #1202](https://github.com/the-sarge/quic-go-fast/issues/1202). [Draft PR #1230](https://github.com/the-sarge/quic-go-fast/pull/1230) remains held. Related: [prior shared-storage result](2026-11-05-native-storage-prototype.md), [pipeline design candidate](2026-11-05-native-pipeline-redesign.md), and [stopped plan](../adr/2026-11-04-native-endpoint-efficiency-plan.md).
+**Verdict at this checkpoint:** this whole-pipeline experiment still fails the unchanged efficiency requirements: **73.2% of baseline goodput and 31.3% extra CPU per useful byte** in one uncontaminated matched pair. It does not qualify N3 [issue #1202](https://github.com/the-sarge/quic-go-fast/issues/1202). [Draft PR #1230](https://github.com/the-sarge/quic-go-fast/pull/1230) remains held. Related: [prior shared-storage result](2026-11-05-native-storage-prototype.md), [pipeline design candidate](2026-11-05-native-pipeline-redesign.md), and [stopped plan](../adr/2026-11-04-native-endpoint-efficiency-plan.md).
 
 The measured source is `faac65e38251e4593b21cfd0fd2ef173cec97ef1`, based on shared-storage source `c8f0e2654aa4328b101e5dd8e77424b4cb8797be`. The source archive SHA-256 is `02b0695311f4fd1e1b7471c43490b2dd84f23a5dce7a1e120aa4dbd4bf653087`; the native binary SHA-256 is `8e4e4ca5c70d7808db0cf1277603b5afb56fc76ea752b93767063771bc007e7a`. A later callback-order correction is preserved at `c09a648c4fcab1f554c5e69a0294e32642a90133`. That corrected source has not been performance-tested, and these measurements must not be attributed to it.
+
+The subsequent [event/lifecycle experiment](2026-11-05-native-event-lifecycle-prototype.md) carries forward the useful components and fixes both recorded callback defects. It reaches 76.2% of its own baseline goodput with 27.0% extra CPU/byte; that distinct source and pair remain below the unchanged targets.
 
 ## Hypothesis and change
 
