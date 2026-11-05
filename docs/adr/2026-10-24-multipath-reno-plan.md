@@ -1,6 +1,6 @@
 # Reno-first QUIC multipath implementation plan
 
-**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8/R9/R10/R11/R12/R13/R14/R15/R16/R20 complete (17/20 slices); R17 #1037 and R18 #1038 are ready. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
+**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8/R9/R10/R11/R12/R13/R14/R15/R16/R20 complete (17/20 slices); R17 #1037 and R18 #1038 are blocked by [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3). Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
 
 ## Binding contract and operating discipline
 
@@ -296,6 +296,8 @@ The owner accepted the following policy for the eventual program; acceptance doe
 2. On a matched ordinary-only unregistered versus opted-in comparison, require at least 95% of baseline useful goodput, no more than 110% of baseline CPU per useful byte, and p99 control/send-completion latency no worse than the larger of 110% of baseline or baseline plus 1 ms. Also require no timeout-only connection closes, bounded memory and the declared fair progress. These are accepted planning tolerances, not measurements or pre-existing SLOs.
 3. For aggregation, require at least a 20% useful-goodput gain over the better single path on the balanced disjoint-path cell, at least 95% of two matched independent connections' useful goodput there, and no more than a 10% reduction in a competing ordinary Reno flow's useful goodput relative to the two-independent-connection comparison on the shared-bottleneck cell. Report asymmetric STREAM completion and DATAGRAM useful delivery separately; a failed cell blocks the corresponding support claim, not an automatic expansion of experiments. No claim of fairness equivalent to one congestion-controlled flow is made for uncoupled multipath.
 
+**Owner-approved metric clarification, 2026-11-04:** in the ordinary comparison, the p99 send-cost term above means elapsed application `Stream.Write` / `SendDatagram` call time, named application send-call latency. It does not mean actual native-send completion or peer acknowledgment; control latency remains application echo latency. The numeric ceiling is unchanged. Native completion, borrow release and deadline behavior remain independently governed and qualified by the endpoint contract. The [efficiency/admission plan](2026-11-04-native-endpoint-efficiency-plan.md#n0-publish-and-repair-the-existing-measurement-deliverable) records the decision and rationale.
+
 Changing these tolerances, benefit timing or the operational ceiling requires an explicit owner decision. Failed evidence does not silently relax them.
 
 ## Program qualification ledger and sequencing
@@ -385,8 +387,8 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 | [R14](#r14) | new | Close via surviving paths and publish path-qualified diagnostics | R1, R12 |
 | [R15](#r15) | complete | Apply sticky primary and bounded backup promotion policy | R10 |
 | [R16](#r16) | new | Complete additive APIs and constructor gates behind disablement | E6, R11, R13, R14, R15 |
-| [R17](#r17) | new | Complete the independent interoperability matrix | R16, R20 |
-| [R18](#r18) | new | Measure ordinary-peer costs on granted endpoints | R16, R20 |
+| [R17](#r17) | new | Complete the independent interoperability matrix | R16, R20, [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3) |
+| [R18](#r18) | split/rework fixture into N0; retain campaign | Measure ordinary-peer costs on granted endpoints | R16, R20, [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3) |
 | [R19](#r19) | new | Enable the qualified experimental Reno profile | R17, R18 |
 | [R20](#r20) | new | Keep the connection on a healthy path after an endpoint fails | R13, R14, R15 |
 
@@ -932,7 +934,7 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 **Delivers:** Run and wire the eight accepted scenarios in both endpoint roles into the pinned required Linux peer job. Include expected-case accounting, negotiated-zero normative vectors and explicit oracle limits; preserve early smoke evidence without claiming it replaces this matrix.
 
-**Blocked by:** R16, R20. **Existing work:** new slice; no unmerged implementation accepted.
+**Blocked by:** R16, R20 and [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3). **Existing work:** new slice; no unmerged implementation accepted.
 
 **Single owner and authority completeness:** Transport integration suite owns maintained job, scenario driver and receipts. Cover constructors, validation and the destruction/cancellation consumers named by this behavior together; no persisted state is introduced.
 
@@ -954,9 +956,13 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 ### R18 — Measure ordinary-peer costs on granted endpoints
 
+**Fixture disposition:** [N0](2026-11-04-native-endpoint-efficiency-plan.md#n0) separately publishes and reviews the preserved ordinary-cost driver. This slice consumes that merged deliverable; the earlier branch is source material, not an accepted dependency. Its counted campaign runs only after N3 merges. Parent #1193 remains open until the fixed-candidate ordinary tolerances pass, so this slice depends on N3 rather than that parent’s closure.
+
+**Combined-candidate admission:** carry the approved issue #1141 contract through N2 and N3 before this campaign. Report offered stateless traffic, reset receive share and background useful bytes alongside ordinary costs; a throughput gain achieved by starving that traffic is not success. The existing numeric thresholds and 36-observation inventory remain fixed; the approved metric clarification above governs application send-call latency.
+
 **Delivers:** Run six accepted ordinary workload/acceleration cells against matched unregistered controls, including mixed multipath and stateless pressure. Record useful goodput, CPU/useful byte, p99 control/send completion, memory, timeout/drop rates and fair progress; publish pass/fail against owner thresholds.
 
-**Blocked by:** R16, R20. **Existing work:** new slice; no unmerged implementation accepted.
+**Blocked by:** R16, R20 and [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3). **Existing work:** retained qualification slice; N0 owns driver publication, and no unmerged implementation is accepted.
 
 **Single owner and authority completeness:** Transport integration suite owns paired workload, resource ledger and qualification receipt; endpoint policy is unchanged. Cover constructors, validation and the destruction/cancellation consumers named by this behavior together; no persisted state is introduced.
 
@@ -966,7 +972,7 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 **Representation, artifacts and closure:** Example-level evidence over the fixed scenario/toolchain domain, parsed by the pinned peer/fixture's existing protocol implementation. This is the explicitly maintained verification deliverable described above; receipts are metadata. Runtime closure is not recursively imposed on the fixture. Missing/incorrect case accounting is a failed claim, not evidence of product failure.
 
-**TDD / evidence budget:** 36 run instances: six cells, two profiles, three paired observations; 60 seconds after 10-second warmup; paired median/range. Build focused driver/accounting regressions first; operational attempts charge the single program ledger. Stop after the fixed cases or first unresolved prerequisite/budget failure; no repeat-until-pass.
+**TDD / evidence budget:** 36 run instances: six cells, two profiles, three paired observations; 60 seconds after 10-second warmup; paired median/range. Use N0’s merged driver/accounting regressions; add only focused fixes required by this campaign’s accepted measurement contract. Operational attempts charge the single program ledger. Stop after the fixed cases or first unresolved prerequisite/budget failure; no repeat-until-pass.
 
 **Context imports:** Accepted product thresholds; Program qualification ledger and sequencing; endpoint limits and exact tested constructors. Include the binding discipline and only the matching closure rows, plus this current slice and direct blocker interfaces; do not load every slice contract.
 

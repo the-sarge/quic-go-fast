@@ -1,0 +1,29 @@
+diff --git i/native_endpoint.go w/native_endpoint.go
+index edd2b8f6b..1c7749539 100644
+--- i/native_endpoint.go
++++ w/native_endpoint.go
+@@ -920,11 +920,22 @@ func (s *endpointState) arbitrate(now time.Time, admitting *endpointParticipant,
+ 		if !free {
+ 			return
+ 		}
++		// DIAG1193: preserve slot order and all caps, but traverse occupied slots per class.
++		occupied := make([]int, 0, 8)
++		for slot, p := range s.participants {
++			if p != nil {
++				occupied = append(occupied, slot)
++			}
++		}
+ 		var candidates [4]*endpointGrant
+ 		var available [4]bool
+ 		for class := endpointData; class <= endpointPublic; class++ {
+-			for offset := range len(s.participants) {
+-				p := s.participants[(s.admissionCursor[class]+offset)%len(s.participants)]
++			first := 0
++			for first < len(occupied) && occupied[first] < s.admissionCursor[class] {
++				first++
++			}
++			for offset := range len(occupied) {
++				p := s.participants[occupied[(first+offset)%len(occupied)]]
+ 				if p == nil || !p.active || (p.class != endpointData && p.class != class) || (p.class == endpointData && class > endpointControl) {
+ 					continue
+ 				}

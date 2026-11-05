@@ -1,0 +1,34 @@
+File: arbitration-probe.test
+Build ID: 14117bf43d7c2284e9e33c81e385057be720ed0a
+Type: cpu
+Time: 2026-11-04 21:16:50 EST
+Duration: 19.99s, Total samples = 18.12s (90.64%)
+Showing nodes accounting for 13.18s, 72.74% of 18.12s total
+Dropped 391 nodes (cum <= 0.09s)
+Showing top 25 nodes out of 161
+      flat  flat%   sum%        cum   cum%
+     5.13s 28.31% 28.31%      5.16s 28.48%  github.com/quic-go/quic-go.(*endpointState).arbitrate
+     2.22s 12.25% 40.56%      8.17s 45.09%  github.com/quic-go/quic-go.(*endpointState).run
+     1.90s 10.49% 51.05%      1.90s 10.49%  internal/runtime/syscall/linux.Syscall6
+     0.74s  4.08% 55.13%      0.74s  4.08%  crypto/internal/fips140/aes/gcm.gcmAesEnc
+     0.55s  3.04% 58.17%      0.87s  4.80%  internal/runtime/maps.(*Iter).Next
+     0.27s  1.49% 59.66%      0.27s  1.49%  internal/sync.(*Mutex).Unlock (inline)
+     0.22s  1.21% 60.87%      1.33s  7.34%  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).unresolvedLocalOutsideHistory
+     0.21s  1.16% 62.03%      0.22s  1.21%  runtime.lock2
+     0.16s  0.88% 62.91%      0.16s  0.88%  runtime.nanotime (inline)
+     0.16s  0.88% 63.80%      0.16s  0.88%  runtime.unlock2
+     0.16s  0.88% 64.68%      0.16s  0.88%  time.runtimeNow
+     0.14s  0.77% 65.45%      0.14s  0.77%  runtime.cputicks
+     0.14s  0.77% 66.23%      0.14s  0.77%  runtime.futex
+     0.13s  0.72% 66.94%      0.17s  0.94%  runtime.casgstatus
+     0.12s  0.66% 67.60%      0.12s  0.66%  crypto/internal/fips140/aes.encryptBlockAsm
+     0.12s  0.66% 68.27%      0.12s  0.66%  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).getPacketNumberSpace (inline)
+     0.11s  0.61% 68.87%      0.14s  0.77%  github.com/quic-go/quic-go/internal/ackhandler.(*packet).Outstanding
+     0.11s  0.61% 69.48%      0.68s  3.75%  runtime.selectgo
+     0.10s  0.55% 70.03%      0.10s  0.55%  internal/runtime/maps.(*groupReference).key (inline)
+     0.10s  0.55% 70.58%      0.10s  0.55%  runtime.memmove
+     0.09s   0.5% 71.08%      0.23s  1.27%  runtime.chanrecv
+     0.09s   0.5% 71.58%      0.76s  4.19%  runtime.mapIterNext
+     0.07s  0.39% 71.96%      0.68s  3.75%  github.com/quic-go/quic-go.(*framer).Append
+     0.07s  0.39% 72.35%      2.32s 12.80%  github.com/quic-go/quic-go.(*packetPacker).appendPacket
+     0.07s  0.39% 72.74%      1.22s  6.73%  github.com/quic-go/quic-go.(*packetPacker).appendShortHeaderPacket

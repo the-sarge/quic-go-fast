@@ -1,0 +1,19 @@
+{
+  "program": "QGF-MP646-20261024",
+  "issue": 1193,
+  "prior_instances": 83,
+  "prior_host_seconds": 1062,
+  "diagnostic_observations_and_failed_attempts": 15,
+  "build_setup_attempts": 3,
+  "instances_charged": 18,
+  "host_seconds_charged": 319,
+  "cumulative_instances": 101,
+  "cumulative_host_seconds": 1381,
+  "remaining_instances": 79,
+  "remaining_host_seconds": 27419,
+  "r18_counted_observations": 0,
+  "failed_setup_attempts": 2,
+  "remaining_scheduled_instances": 124,
+  "scheduled_shortfall_instances": 45,
+  "notes": "One busy-host preflight started no observation and is not an instance. Existing deterministic endpoint tests on Darwin and Linux passed; not campaign observations. No operational ceiling changed."
+}

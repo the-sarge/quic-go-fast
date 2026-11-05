@@ -1,0 +1,46 @@
+[
+  {
+    "cell": "STREAM / GSO on",
+    "baseline_MB_s": 1560.9864853333333,
+    "granted_MB_s": 113.79615066666666,
+    "goodput_ratio": 0.07290015111333051,
+    "cpu_per_useful_byte_ratio": 9.522828376292608,
+    "send_p99_us": [
+      53.247,
+      753.663
+    ]
+  },
+  {
+    "cell": "STREAM / GSO off",
+    "baseline_MB_s": 758.7158506666667,
+    "granted_MB_s": 12.988228166666667,
+    "goodput_ratio": 0.017118698858412145,
+    "cpu_per_useful_byte_ratio": 32.756410669768556,
+    "send_p99_us": [
+      155.647,
+      5505.023
+    ]
+  },
+  {
+    "cell": "DATAGRAM / batching on",
+    "baseline_MB_s": 1171.729335,
+    "granted_MB_s": 121.297295,
+    "goodput_ratio": 0.10351989267214173,
+    "cpu_per_useful_byte_ratio": 6.649950129943657,
+    "send_p99_us": [
+      27.647,
+      188.415
+    ]
+  },
+  {
+    "cell": "DATAGRAM / batching off",
+    "baseline_MB_s": 650.6923966666667,
+    "granted_MB_s": 11.139689166666667,
+    "goodput_ratio": 0.017119746939925056,
+    "cpu_per_useful_byte_ratio": 32.15007546644563,
+    "send_p99_us": [
+      53.247,
+      237.567
+    ]
+  }
+]

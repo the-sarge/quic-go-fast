@@ -1,0 +1,44 @@
+{
+  "sample_stride": 64,
+  "native_sendmsg_attempts": 103902,
+  "take_hit": 103902,
+  "take_empty": 152525,
+  "calls": {
+    "native_endpoint.go:func (e *nativeEndpoint) take(p *endpointParticipant) (endpointResult, bool)": {
+      "count": 256427,
+      "calls_per_sendmsg": 2.4679698177128446,
+      "entry_to_handler": 0.672400149775337,
+      "handler": 0.05766150773839241,
+      "handler_to_resume": 13.021062156764852,
+      "total": 13.751123814278582
+    },
+    "native_ordinary.go:func (e *nativeEndpoint) cancelAdmission(admission endpointAdmission)": {
+      "count": 76236,
+      "calls_per_sendmsg": 0.7337298608303979,
+      "entry_to_handler": 7.477858102434928,
+      "handler": 0.05786062132661629,
+      "handler_to_resume": 17.678603694374477,
+      "total": 25.21432241813602
+    },
+    "native_ordinary.go:func (e *nativeEndpoint) prepare(p *endpointParticipant, lane, size int) (endpointAdmission, error)": {
+      "count": 180138,
+      "calls_per_sendmsg": 1.733729860830398,
+      "entry_to_handler": 2.715925017768301,
+      "handler": 13.17176830135039,
+      "handler_to_resume": 11.899956645344703,
+      "total": 27.787649964463398
+    },
+    "native_ordinary.go:func (e *nativeEndpoint) submit(admission endpointAdmission, request endpointRequest) error": {
+      "count": 103902,
+      "calls_per_sendmsg": 1.0,
+      "entry_to_handler": 2.0808582871226124,
+      "handler": 0.11399630314232903,
+      "handler_to_resume": 20.5347067159581,
+      "total": 22.729561306223044
+    }
+  },
+  "latency_units": "microseconds; mean sampled 1 in 64",
+  "dispatch_to_writer": 5.620038817005545,
+  "native_with_deadlines": 6.36994516327788,
+  "native_return_to_control": 8.092518176216883
+}
