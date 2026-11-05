@@ -39,6 +39,7 @@ type endpointResponseBackend interface {
 	writePublic([]byte, net.Addr, *responseEpoch) (int, error)
 	writeResponse([]byte, net.Addr, packetInfo, *responseEpoch) error
 	revokeResponse(*responseEpoch)
+	awaitDepositedCloses()
 	seal()
 }
 
@@ -81,6 +82,12 @@ func (responses *endpointResponses) child() *endpointResponses {
 func (responses *endpointResponses) revoke() {
 	if responses != nil {
 		responses.backend.revokeResponse(responses.epoch)
+	}
+}
+
+func (responses *endpointResponses) awaitDepositedCloses() {
+	if responses != nil {
+		responses.backend.awaitDepositedCloses()
 	}
 }
 
