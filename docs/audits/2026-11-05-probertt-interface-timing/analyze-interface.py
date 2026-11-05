@@ -6,6 +6,7 @@ uses one endpoint's clock; no cross-host epoch comparison or cohort correction.
 import argparse
 import bisect
 import collections
+import contextlib
 import gzip
 import importlib.util
 import ipaddress
@@ -114,8 +115,9 @@ class Capture:
         self.mode, self.wanted = mode, wanted
         self.packets, self.duplicates = {}, collections.Counter()
         self.rejected, self.counts, self.files = collections.Counter(), collections.Counter(), []
+        self.retained_outputs = []
 
-    def read(self, stream, name="<stream>"):
+    def read(self, stream, name="<stream>", retained_stream=None, retained_name="<stream>"):
         header = stream.read(24)
         if len(header) != 24 or header[:4] not in self.MAGIC:
             raise ValueError("expected complete classic pcap header: " + name)
@@ -125,6 +127,15 @@ class Capture:
             raise ValueError("expected pcap 2.4 Ethernet linktype 1 and snaplen >= 14: " + name)
         info = dict(path=name, timestamp_quantum_ns=quantum, snaplen=snaplen, records=0,
                     timestamp_regressions=0)
+        retained = None
+        def retain(raw):
+            if retained_stream.write(raw) != len(raw):
+                raise OSError("short write to retained pcap: " + retained_name)
+            retained["bytes"] += len(raw)
+        if retained_stream is not None:
+            retained = dict(source=name, path=retained_name, packet_records=0, bytes=0,
+                            selection="Every valid packet with a wanted direction/identity, including all duplicate records. Original global and packet headers and captured bytes are preserved.")
+            retain(header)
         previous = None
         while raw_header := stream.read(16):
             if len(raw_header) != 16:
@@ -156,6 +167,10 @@ class Capture:
                 self.counts["identity_not_needed"] += 1
                 continue
             self.counts["needed_packet_records"] += 1
+            if retained is not None:
+                retain(raw_header)
+                retain(frame)
+                retained["packet_records"] += 1
             if key in self.duplicates:
                 self.duplicates[key] += 1
             elif key in self.packets:
@@ -166,6 +181,8 @@ class Capture:
                               record=info["records"], capture=name)
                 self.packets[key] = packet
         self.files.append(info)
+        if retained is not None:
+            self.retained_outputs.append(retained)
         return self
 
     def quality(self):
@@ -173,7 +190,8 @@ class Capture:
                     unique_needed_identities=len(self.packets),
                     ambiguous_identities=[dict(direction=k[0], identity=k[1], records=n)
                                           for k, n in sorted(self.duplicates.items())],
-                    capture_drop_counts="not stored in pcap; inspect collector stderr separately")
+                    capture_drop_counts="not stored in pcap; inspect collector stderr separately",
+                    retained_outputs=self.retained_outputs)
 
 
 def duration_fields(**values):
@@ -313,7 +331,9 @@ def analyze_rows(data, base, measurement_s, capture):
                     negative_values="Retained and counted in distributions; inspect timing semantics and clocks before interpretation."))
 
 
-def analyze(root, pcaps, arm=None, base_path=None, mode="size-class-v2", sender_ip="192.168.1.50", receiver_ip="192.168.1.110"):
+def analyze(root, pcaps, arm=None, base_path=None, mode="size-class-v2", sender_ip="192.168.1.50", receiver_ip="192.168.1.110", retained_pcap=None):
+    if retained_pcap is not None and len(pcaps) != 1:
+        raise ValueError("--retained-pcap requires exactly one input pcap")
     root = Path(root)
     original = KERNEL.load_base_module()
     candidates = [root/"controller"/arm/"result.json"] if arm else list(root.glob("controller/*/result.json"))
@@ -330,8 +350,11 @@ def analyze(root, pcaps, arm=None, base_path=None, mode="size-class-v2", sender_
         for path in pcaps:
             path = Path(path)
             opener = gzip.open if path.suffix == ".gz" else open
-            with opener(path, "rb") as stream:
-                capture.read(stream, str(path))
+            with contextlib.ExitStack() as stack:
+                stream = stack.enter_context(opener(path, "rb"))
+                retained_stream = (stack.enter_context(open(retained_pcap, "xb"))
+                                   if retained_pcap is not None else None)
+                capture.read(stream, str(path), retained_stream, str(retained_pcap))
         output = analyze_rows(data, base, result["config"]["measurement_ms"]/1000, capture)
     output.update(root=str(root), arm=result_path.parent.name, status=result["status"], summary=result["summary"],
                   baseline_analysis={key: base.get(key) for key in ("headers", "clock_anchor_drift_ns", "probes", "window_alignment_qualified")})
@@ -343,12 +366,14 @@ if __name__ == "__main__":
     parser.add_argument("root", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("--pcap", type=Path, action="append", required=True)
+    parser.add_argument("--retained-pcap", type=Path,
+                        help="Write a new uncompressed classic pcap of all wanted valid packet records, including duplicates; requires one input")
     parser.add_argument("--arm")
     parser.add_argument("--base-analysis", type=Path)
     parser.add_argument("--identity-mode", choices=("size-class-v2", "legacy"), default="size-class-v2")
     parser.add_argument("--sender-ip", default="192.168.1.50")
     parser.add_argument("--receiver-ip", default="192.168.1.110")
     args = parser.parse_args()
-    output = analyze(args.root, args.pcap, args.arm, args.base_analysis, args.identity_mode, args.sender_ip, args.receiver_ip)
+    output = analyze(args.root, args.pcap, args.arm, args.base_analysis, args.identity_mode, args.sender_ip, args.receiver_ip, args.retained_pcap)
     args.output.write_text(json.dumps(output, indent=2) + "\n")
     print(json.dumps({key: output[key] for key in ("arm", "status", "sample_counts", "aggregate", "exclusions")}, indent=2))

@@ -124,6 +124,34 @@ class PacketTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             m.Capture().read(io.BytesIO(raw))
 
+    def test_retained_subset_preserves_bytes_duplicates_and_analysis(self):
+        wanted = {("receive", m.identity(len(DATA), DATA)), ("send", m.identity(len(ACK), ACK))}
+        packets = [(1_000_099_990_000, frame()),
+                   (1_000_100_120_000, frame(ACK, True, ports=(443, 1234))),
+                   (1_000_100_121_000, frame(b"other valid unselected payload"))]
+        for duplicate in (False, True):
+            records = packets + ([packets[0]] if duplicate else [])
+            for endian, nano in (("<", False), (">", True)):
+                original = pcap(records, endian=endian, nano=nano)
+                retained = io.BytesIO()
+                full = m.Capture(wanted=wanted).read(original, "original", retained, "subset")
+                expected = pcap(records[:2] + ([packets[0]] if duplicate else []), endian=endian, nano=nano)
+                self.assertEqual(retained.getvalue(), expected.getvalue())
+                retained.seek(0)
+                subset = m.Capture(wanted=wanted).read(retained, "subset")
+                self.assertEqual(full.duplicates, subset.duplicates)
+                self.assertEqual(set(full.packets), set(subset.packets))
+                self.assertEqual(full.counts["needed_packet_records"], subset.counts["needed_packet_records"])
+                self.assertEqual(full.retained_outputs[0]["packet_records"], 3 if duplicate else 2)
+                self.assertEqual(full.retained_outputs[0]["bytes"], len(retained.getvalue()))
+                data, base = witness()
+                full_result = m.analyze_rows(data, base, 1, full)
+                subset_result = m.analyze_rows(data, base, 1, subset)
+                for key in ("sample_counts", "aggregate", "exclusions"):
+                    self.assertEqual(full_result[key], subset_result[key], key)
+                self.assertEqual(full.counts["records"], len(records))
+                self.assertEqual(full.counts["identity_not_needed"], 1)
+
     def test_duplicate_identity_has_no_winner(self):
         c = m.Capture().read(pcap([(0, frame()), (1000, frame()), (2000, frame())]))
         key = ("receive", m.identity(len(DATA), DATA))
