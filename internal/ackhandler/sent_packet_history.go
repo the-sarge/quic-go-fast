@@ -17,6 +17,10 @@ type sentPacketHistory struct {
 	// Derived local evidence, bounded by the retained history span. Pending and
 	// proven-unsubmitted PNs do not contribute to packet-distance recovery.
 	unqualifiedLocal []protocol.PacketNumber
+	// Unresolved token membership follows physical slots, including interior holes.
+	// It is independent of packet-distance qualification and allocated only locally.
+	unresolvedLocal    []bool
+	numUnresolvedLocal int
 	// Keep probes in send order for timeouts, with indexed O(1) removal on ACKs.
 	pathProbePackets list.List[packetWithPacketNumber]
 	pathProbeIndex   map[protocol.PacketNumber]*list.Element[packetWithPacketNumber]
@@ -56,7 +60,7 @@ func (h *sentPacketHistory) checkSequentialPacketNumberUse(pn protocol.PacketNum
 func (h *sentPacketHistory) SkippedPacket(pn protocol.PacketNumber) {
 	h.checkSequentialPacketNumberUse(pn)
 	if len(h.packets) > 0 {
-		h.packets = append(h.packets, nil)
+		h.appendPacket(nil, false)
 	}
 	if len(h.skippedPackets) == maxSkippedPackets {
 		h.skippedPackets = slices.Delete(h.skippedPackets, 0, 1)
@@ -69,7 +73,7 @@ func (h *sentPacketHistory) SentPacket(pn protocol.PacketNumber, p *packet) {
 	if p.local != nil {
 		h.unqualifiedLocal = append(h.unqualifiedLocal, pn)
 	}
-	h.packets = append(h.packets, p)
+	h.appendPacket(p, p.local != nil)
 	if p.Outstanding() {
 		h.numOutstanding++
 	}
@@ -77,11 +81,36 @@ func (h *sentPacketHistory) SentPacket(pn protocol.PacketNumber, p *packet) {
 
 func (h *sentPacketHistory) SentPathProbePacket(pn protocol.PacketNumber, p *packet) {
 	h.checkSequentialPacketNumberUse(pn)
-	h.packets = append(h.packets, &packet{isPathProbePacket: true})
+	h.appendPacket(&packet{isPathProbePacket: true}, false)
 	if h.pathProbeIndex == nil {
 		h.pathProbeIndex = make(map[protocol.PacketNumber]*list.Element[packetWithPacketNumber])
 	}
 	h.pathProbeIndex[pn] = h.pathProbePackets.PushBack(packetWithPacketNumber{PacketNumber: pn, packet: p})
+}
+
+func (h *sentPacketHistory) appendPacket(p *packet, unresolved bool) {
+	h.packets = append(h.packets, p)
+	if !unresolved && h.unresolvedLocal == nil {
+		return
+	}
+	if cap(h.unresolvedLocal) < len(h.packets) {
+		members := make([]bool, len(h.packets)-1, cap(h.packets))
+		copy(members, h.unresolvedLocal)
+		h.unresolvedLocal = members
+	}
+	h.unresolvedLocal = append(h.unresolvedLocal, unresolved)
+	if unresolved {
+		h.numUnresolvedLocal++
+	}
+}
+
+// completeLocal consumes membership only after the handler validates the token
+// and current space epoch. A packet pointer may already have become a hole.
+func (h *sentPacketHistory) completeLocal(pn protocol.PacketNumber) {
+	if i, ok := h.getIndex(pn); ok && h.unresolvedLocal != nil && h.unresolvedLocal[i] {
+		h.unresolvedLocal[i] = false
+		h.numUnresolvedLocal--
+	}
 }
 
 func (h *sentPacketHistory) Packets() iter.Seq2[protocol.PacketNumber, *packet] {
@@ -210,6 +239,9 @@ func (h *sentPacketHistory) releaseRetained() {
 	}
 	clear(h.packets)
 	h.packets = h.packets[:0]
+	clear(h.unresolvedLocal)
+	h.unresolvedLocal = h.unresolvedLocal[:0]
+	h.numUnresolvedLocal = 0
 	h.unqualifiedLocal = nil
 	h.numOutstanding = 0
 	h.firstPacketNumber = protocol.InvalidPacketNumber
@@ -243,13 +275,21 @@ func (h *sentPacketHistory) cleanupStart() {
 	for i, p := range h.packets {
 		if p != nil {
 			h.packets = h.packets[i:]
+			if h.unresolvedLocal != nil {
+				h.unresolvedLocal = h.unresolvedLocal[i:]
+			}
 			h.firstPacketNumber += protocol.PacketNumber(i)
 			first, _ := slices.BinarySearch(h.unqualifiedLocal, h.firstPacketNumber)
 			h.unqualifiedLocal = h.unqualifiedLocal[first:]
 			return
 		}
+		if h.unresolvedLocal != nil && h.unresolvedLocal[i] {
+			h.unresolvedLocal[i] = false
+			h.numUnresolvedLocal--
+		}
 	}
 	h.packets = h.packets[:0]
+	h.unresolvedLocal = h.unresolvedLocal[:0]
 	h.firstPacketNumber = protocol.InvalidPacketNumber
 	h.unqualifiedLocal = h.unqualifiedLocal[:0]
 }

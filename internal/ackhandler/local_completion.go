@@ -200,6 +200,9 @@ func (h *sentPacketHandler) CompleteLocalPacket(token LocalCompletionToken, outc
 	// held undo only after that scan and every ECN transition in this operation.
 	defer h.settleLocalUndo(returnedAt)
 	delete(h.local.records, token.id)
+	if ps := h.getPacketNumberSpace(r.level); ps != nil && ps.localEpoch == r.epoch {
+		ps.history.completeLocal(r.pn)
+	}
 	r.outcome = outcome
 	r.eligibleAt = returnedAt
 	if r.acked && outcome == LocalPacketUnsubmitted {
@@ -286,12 +289,12 @@ func (h *sentPacketHandler) unresolvedLocalOutsideHistory() int {
 	if h.local == nil {
 		return 0
 	}
-	n := 0
-	for _, r := range h.local.records {
-		ps := h.getPacketNumberSpace(r.level)
-		if ps == nil || ps.localEpoch != r.epoch || ps.history.Len() == 0 || r.pn < ps.history.firstPacketNumber || r.pn > ps.history.highestPacketNumber {
-			n++
-		}
+	n := len(h.local.records) - h.appDataPackets.history.numUnresolvedLocal
+	if h.initialPackets != nil {
+		n -= h.initialPackets.history.numUnresolvedLocal
+	}
+	if h.handshakePackets != nil {
+		n -= h.handshakePackets.history.numUnresolvedLocal
 	}
 	return n
 }
