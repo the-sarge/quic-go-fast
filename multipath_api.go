@@ -250,6 +250,14 @@ func (c *Conn) legacyPathsBlocked() error {
 // returns after validation. Cancellation before an ID is committed releases only local
 // reservations; afterward the connection retires the attempt, and the returned context
 // error says nothing about the wire. It never closes or takes over t.
+//
+// A connection runs one local open or migration at a time, and a concurrent one returns
+// [ErrMultipathBackpressureV1]. When the connection itself fails an admitted attempt, that
+// attempt has already stopped counting by the time the error returns, unless a probe it
+// submitted is still unresolved, in which case it counts until the probe resolves. So a retry
+// can't be refused merely by the attempt it follows; path credit, connection IDs, target
+// health, peer policy and a competing operation still decide its result. A returned context
+// error promises none of this, since the connection's cleanup can still be running.
 func (c *Conn) OpenPathV1(ctx context.Context, t *Transport, remote *net.UDPAddr) (*Path, error) {
 	if err := c.requireMultipath(); err != nil {
 		return nil, err
@@ -327,7 +335,8 @@ func (p *Path) StateV1() (MultipathPathStateV1, error) {
 // MigrateV1 moves this client path to t under the same wire ID, keeping its remote address,
 // packet numbers and keys. It consumes no path credit. It waits within ctx for a spare
 // connection ID and for validation, with the old tuple untouched, and returns success only
-// after cutover; cancellation after the connection commits still reports success.
+// after cutover; cancellation after the connection commits still reports success. A failed
+// attempt releases the connection's one local operation as [Conn.OpenPathV1] describes.
 func (p *Path) MigrateV1(ctx context.Context, t *Transport) error {
 	if p.conn == nil {
 		return ErrMultipathWrongModeV1

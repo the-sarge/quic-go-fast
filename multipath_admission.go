@@ -131,8 +131,9 @@ const (
 	pathOpenFinished
 )
 
-// finish publishes the connection's failure unless cancellation already won. A success
-// claims first, so nothing activates for a caller told it canceled, and sends last.
+// finish publishes a failure that has nothing to settle, unless cancellation already won.
+// A success claims first, so nothing activates for a caller told it canceled, and sends
+// last. An admitted attempt's failure does the same through failOperation.
 func (r *pathOpenRequest) finish(err error) {
 	if r.claim() {
 		r.done <- err
@@ -714,15 +715,11 @@ func (p *pathCreditRegistry) service(now monotime.Time) error {
 			continue
 		}
 		if p.attemptTargetFailed(m) {
-			m.candidate.request.finish(errPathTargetFailed)
-			p.retireCandidate(m)
+			p.failCandidate(m, errPathTargetFailed)
 			p.conn.scheduleSending()
 		}
 		if candidate := m.candidate; candidate != nil && !now.Before(candidate.probe.validationDeadline) {
-			if candidate.request != nil {
-				candidate.request.finish(errPathValidationTimeout)
-			}
-			p.retireCandidate(m)
+			p.failCandidate(m, errPathValidationTimeout)
 		}
 		p.serviceCutover(m, now)
 		if m.suspect {
@@ -735,6 +732,11 @@ func (p *pathCreditRegistry) service(now monotime.Time) error {
 		p.signalTerminal(id, terminal)
 	}
 	p.serviceRetained(now)
+	// A reported failure's obligation may have just settled. A canceled request stays with
+	// serviceRequest, since its cutoff may not exist yet.
+	if request := p.conn.pathOpen.Load(); request != nil && request.outcome.Load() == pathOpenFinished {
+		p.releaseOperation(request)
+	}
 	p.serviceDetachments()
 	err := p.replenish()
 	p.publishPaths()
@@ -806,9 +808,7 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 		if m := p.members[request.id]; m != nil && !m.live && p.terminals[request.id] == nil {
 			p.decline(request.id, 0, context.Canceled)
 		}
-		if terminal := p.terminals[request.id]; terminal == nil || terminal.signaled {
-			p.conn.pathOpen.CompareAndSwap(request, nil)
-		}
+		p.releaseOperation(request)
 		return nil
 	}
 	if request.canceled() {
@@ -896,20 +896,60 @@ func (p *pathCreditRegistry) refuseRequest(request *pathOpenRequest, err error) 
 }
 
 // retireMember is the submission cutoff. It revokes future submissions at once;
-// signalTerminal waits for the ones already started.
-func (p *pathCreditRegistry) retireMember(id protocol.PathID, err error) {
+// signalTerminal waits for the ones already started. It returns the attempt whose failure
+// the caller must report, which a canceled caller has already left.
+func (p *pathCreditRegistry) retireMember(id protocol.PathID) *pathOpenRequest {
 	m := p.members[id]
 	if m == nil {
-		return
+		return nil
 	}
 	m.response, m.announce = nil, false
 	m.established.retire()
-	if candidate := m.candidate; candidate != nil {
-		if request := candidate.request; request != nil {
-			request.finish(err) // a canceled caller has already returned
-		}
-		p.retireCandidate(m)
+	if m.candidate == nil {
+		return nil
 	}
+	return p.endCandidate(m)
+}
+
+// endCandidate retires a candidate, and returns its request if the failure is the
+// connection's to report. Claiming first keeps a later cancellation from replacing it.
+func (p *pathCreditRegistry) endCandidate(m *pathMember) *pathOpenRequest {
+	request := m.candidate.request
+	if request != nil && !request.claim() {
+		request = nil
+	}
+	p.retireCandidate(m)
+	return request
+}
+
+// failCandidate ends a live path's candidate, reporting after the cutoff.
+func (p *pathCreditRegistry) failCandidate(m *pathMember, err error) {
+	if request := p.endCandidate(m); request != nil {
+		p.failOperation(request, err)
+	}
+}
+
+// failOperation reports a failure the connection claimed, once its cutoff is in place. The
+// slot goes first unless the attempt's own obligation holds it, so a caller that retries at
+// once doesn't meet this request. Nothing here waits for a native return.
+func (p *pathCreditRegistry) failOperation(request *pathOpenRequest, err error) {
+	p.serviceRetained(monotime.Now())
+	p.releaseOperation(request)
+	request.done <- err
+}
+
+// releaseOperation frees a decided request's slot, unless its own obligation still holds it:
+// an open's terminal until it signals, or a migration's aborted entry until it resolves. A
+// newer request keeps the slot.
+func (p *pathCreditRegistry) releaseOperation(request *pathOpenRequest) {
+	if request.migrate {
+		if request.retained != nil && !request.retained.released {
+			return
+		}
+	} else if terminal := p.terminals[request.id]; terminal != nil && !terminal.signaled {
+		return
+	}
+	p.conn.pathOpen.CompareAndSwap(request, nil)
 }
 
 // signalTerminal queues the abandonment once no submission can follow it. Keys

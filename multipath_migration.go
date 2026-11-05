@@ -202,9 +202,7 @@ func (p *pathCreditRegistry) serviceMigration(request *pathOpenRequest, now mono
 		if m != nil && m.candidate != nil && m.candidate.request == request {
 			p.retireCandidate(m)
 		}
-		if request.retained == nil || request.retained.released {
-			p.conn.pathOpen.CompareAndSwap(request, nil)
-		}
+		p.releaseOperation(request)
 		return nil
 	}
 	if request.canceled() {
@@ -322,10 +320,7 @@ func (p *pathCreditRegistry) serviceCutover(m *pathMember, now monotime.Time) {
 	}
 	if !p.conn.connIDManager.pathDestinationUsable(m.id, candidate.connID) {
 		// The peer retired it during the fence, so this attempt has nothing to cut over to.
-		if request != nil {
-			request.finish(errPathCandidateCIDRetired)
-		}
-		p.retireCandidate(m)
+		p.failCandidate(m, errPathCandidateCIDRetired)
 		return
 	}
 	if request != nil && !request.claim() {

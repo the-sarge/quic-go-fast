@@ -424,9 +424,12 @@ func (p *pathCreditRegistry) beginTerminal(id protocol.PathID, code uint64, err 
 	p.terminals[id] = terminal
 	p.nextID = max(p.nextID, id+1)
 	p.observe(p.members[id], "retiring")
-	p.retireMember(id, err)
+	request := p.retireMember(id)
 	p.reselect(monotime.Now())
 	p.signalTerminal(id, terminal)
+	if request != nil {
+		p.failOperation(request, err)
+	}
 	return terminal
 }
 
