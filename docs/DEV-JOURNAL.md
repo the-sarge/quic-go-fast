@@ -9350,3 +9350,26 @@ PR #1197 passed independent source/contract/slice review, owner approval, clean 
 ### Next
 
 Publish the thin child issues and OmniFocus mapping, then let the operator dispatch verified frontier children through `$implement-architecture-slice`. N0 can run alongside either N1 or N2; sequential N1/N2 implementation is recommended because their files overlap. [Program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live view of child identities, readiness and blockers.
+
+---
+
+## Sparse native endpoint participant traversal landed - 2026-11-04 23:18 EST
+
+**Main:** `575406b879ec`
+**Actor:** Codex
+
+### Completed
+
+[N1 — Traverse occupied endpoint participants (#1200)](https://github.com/the-sarge/quic-go-fast/issues/1200) merged in [PR #1204](https://github.com/the-sarge/quic-go-fast/pull/1204) as `575406b879ecd59562d5ec1a1316bbd8a7fc3c46`. Admission and retry-deadline walks use a slot-ordered index maintained at canonical installation and final retirement. Retiring native borrows remain indexed until actual return; slot reuse cannot retain the released identity. The index reserves 4,098 pointers once per endpoint (32,784 logical bytes on 64-bit targets), without a per-operation rebuild. Admission/service policy, participant/payload limits and the command-owned control context are preserved.
+
+The product PR also records N1 completion and the remaining frontier in the [efficiency plan](adr/2026-11-04-native-endpoint-efficiency-plan.md#n1) and [program index](adr/2026-10-24-multipath-program.md). This journal append carries no product-state transition.
+
+### Validation
+
+Five deterministic scenarios cover sparse cursor wrap, retained terminal/current ownership and retirement/reuse, fixed-class/path service turns, staggered retry deadlines, and seal/fault cleanup. The inherited large-admission case now includes sparse slots. Root-package tests, named endpoint/participant/stop cases, vet, tidiness and whitespace checks passed. Configured local lint passed for Darwin and the existing Linux, Windows, FreeBSD, OpenBSD and Solaris type-check targets. Compiler diagnostics confirm nonescaping inlined traversal at both hot call sites.
+
+RAS initial run `20261105T034850-b93b22113470a3b672fbc762` and replacement run `20261105T040403-df03555b614c1c737ca671ca` produced no findings. In each round, three configured reviewers completed and Claude Fable failed with a process error; configured quorum was met without narrowing the panel. The first hosted lint run exposed test build-tag and constant-lane coverage defects; both were fixed before the replacement review. Final head `b8e6e65143e32f32d7ccb600ab10ef22c5355af5` passed exact-head local certification and all 17 hosted checks against unchanged main `33b3f113478c7da602213338af5f3eb857349d65`: [unit run](https://github.com/the-sarge/quic-go-fast/actions/runs/41965451051), [integration/race run](https://github.com/the-sarge/quic-go-fast/actions/runs/41965451015), and [lint run](https://github.com/the-sarge/quic-go-fast/actions/runs/41965451036). No review follow-up or untraced runtime effect remains. N1 used no operational performance instances and does not qualify the combined endpoint performance outcome.
+
+### Next
+
+N0 [#1199](https://github.com/the-sarge/quic-go-fast/issues/1199) and N2 [#1201](https://github.com/the-sarge/quic-go-fast/issues/1201) remain the frontier; N3 [#1202](https://github.com/the-sarge/quic-go-fast/issues/1202) still waits on both. Parent [#1193](https://github.com/the-sarge/quic-go-fast/issues/1193) remains open through its independent final-candidate acceptance. [Program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live view of readiness and blockers. Recommend N2 next for the runtime track.
