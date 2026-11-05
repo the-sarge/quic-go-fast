@@ -9284,3 +9284,46 @@ R17 [#1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and R18 [#103
 ### Next
 
 R17 [#1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and R18 [#1038](https://github.com/the-sarge/quic-go-fast/issues/1038) remain the frontier, per [the program index](adr/2026-10-24-multipath-program.md), the live view.
+
+---
+
+## Deposited close survives Transport.Close - 2026-11-04 20:04 EST
+
+**Main:** `0364e358533e`
+**Actor:** Claude Code
+
+### Summary
+
+[PR #1190](https://github.com/the-sarge/quic-go-fast/pull/1190) merged as `0364e3585`, closing [#1185](https://github.com/the-sarge/quic-go-fast/issues/1185). `Transport.Close` no longer loses a CONNECTION_CLOSE a connection has already handed to its native endpoint, so a peer hears the close instead of waiting for its idle timeout. This clears the last blocker on R17 [#1037](https://github.com/the-sarge/quic-go-fast/issues/1037), whose runs allow no repeat-until-pass.
+
+### Completed
+
+- `Transport.Close` now waits for each close already deposited before it seals, for at most the write budget plus `endpointTolerance`. Past that bound it seals as before, and that close is lost.
+- The wait ends on the participant's `retired` signal or an endpoint fault. `endpointParticipant.closeDeposited` is the one new fact, so a `Close` with no deposited close doesn't wait, and a live connection still ends abruptly.
+- `TestMultipathAddrOwnedLifecycle` dropped its workaround and now requires the server to hear the close. The caller-owned and HTTP/3 routes have the same check.
+- The endpoint plan's three statements of the old rule now state this exception. The dated E5 re-audit is unchanged.
+
+### Decisions
+
+- The wait goes in `Transport.Close`, per the owner's decision on the [#1185 brief](https://github.com/the-sarge/quic-go-fast/issues/1185#issuecomment-6646029315). That brief records why `CloseWithError` and single-use teardown were rejected.
+- The signal is `retired`, not the held-close state. A mutation using `closings` passed the held case and failed the case where the writer had already claimed the close.
+- The wait sits on `nativeEndpoint` and reaches `Close` through `t.responses`, not on `Transport` with a platform stub as planned. Lint found the new field unused on OpenBSD and Solaris with the first placement.
+
+### Validation
+
+- `TestNativeTransportCloseWaitsForDepositedClose` has six `synctest` subtests. Five guard mutations each failed the expected subtest.
+- Writer-delay sweep on minimax, with the delay not merged, on main `832d0fbce` against the fix at `b076210c6`. Lost closes, without and then with the fix:
+
+| Owner | No delay | 1 ms | 20 ms |
+| --- | --- | --- | --- |
+| `DialAddr` helper | 42 of 200, then 0 of 200 | 20 of 20, then 0 of 20 | 20 of 20, then 0 of 20 |
+| Caller-owned `Transport` | 37 of 200, then 0 of 200 | 20 of 20, then 0 of 20 | 20 of 20, then 0 of 20 |
+| HTTP/3 default client | 21 of 100, then 0 of 100 | 20 of 20, then 0 of 20 | 20 of 20, then 0 of 20 |
+
+- At `b076210c6`: shuffled root and `http3` suites and a focused race run on Linux amd64 and Darwin arm64, lint on six GOOS values, `go vet` and `go mod tidy -diff`.
+- RAS run `20261105T004319-53352e6d4fdd2d1960cbd75b` at that head had no findings from `claude-opus`, `codex-astra` and `codex-sol`. `claude-fable` failed on launch and contributed no review.
+- Main then moved by one journal entry that doesn't overlap the diff. I merged it in, leaving the Go tree unchanged, and all 17 hosted checks passed on the merged head `d0c33a1fb`. No new RAS review ran for that.
+
+### Next
+
+R17 [#1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and R18 [#1038](https://github.com/the-sarge/quic-go-fast/issues/1038) are the frontier, per [the program index](adr/2026-10-24-multipath-program.md), the live view.
