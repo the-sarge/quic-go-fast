@@ -74,6 +74,20 @@ Named diagnostic helpers and identified diagnostic-only clock sites account for 
 
 Memory profiles estimate whole-role cumulative allocation, including warmup and shutdown: baseline server 96,797,508 objects / 4,287,964,196 bytes; candidate server 82,518,872 objects / 7,586,240,577 bytes. These are sampled estimates at different work volumes, not 60-second allocation rates or exact counts. They do not justify calling the candidate allocation-free.
 
+## Components to carry forward
+
+Failure of the combined candidate does not invalidate every component. An individual improvement does not need to close the whole performance gap to be worth retaining. Judge it by its demonstrated contribution, behavior preservation, maintenance cost and fit with the eventual architecture. The measured cost limits reject a claim of sufficiency; they are not a blanket rejection of incremental improvement.
+
+| Component | Current disposition | Evidence and limit |
+| --- | --- | --- |
+| Exact history rank and ECN deque projections | Carry forward into the next integrated candidate unless a simpler representation supersedes them | Preserve logical behavior; the combined experiment shows lower corresponding mechanism costs. It does not isolate each component’s causal contribution. |
+| Explicit connection progress and bounded endpoint Exchange | Retain the corrected design as a candidate building block | Redundant emission turns fell; readiness and reentrant-order tests explain necessary behavior. Endpoint CPU/byte did not materially fall, so further simplification remains worthwhile. Use the corrected source, not the measured pre-fix checkpoint. |
+| Direct canonical identity and eager exact PTO summary | Retain as existing candidate components | Remove a redundant lookup and repeated derivation while preserving late-token identity and exact timer semantics; inherited from earlier experiments. |
+| Separate connection sidecar and native envelope lifetimes | Preserve the ownership boundary; reevaluate concrete caches/layout with the next interface | Native borrow and callback lifetimes are independently real. Their separation prevents premature reuse, without making every current allocation or layout permanent. |
+| Manual canonical-cell reuse | Park the current proposal | Its small directly attributed opportunity is outweighed by added holder/borrow bookkeeping and unresolved rooting behavior. Small benefit alone would not justify rejection if a simpler safe implementation existed. |
+
+These are implementation assets and design evidence, not already merged improvements. Integrating them into the larger redesign still requires preserving their behavioral guarantees and validating the resulting whole pipeline. There is no requirement to manufacture a standalone PR or a new benchmark gate for each component.
+
 ## Decision on further representation work
 
 Do not integrate the proposed manual canonical-cell reuse design as the next efficiency repair. Its fresh-allocation target is a small part of the remaining cost, while its correctness surface expands across pending tokens, protocol attachment, physical history, local ECN, rich qualification, retired ACK carriers and callback/iterator borrows. The temporary proposal requires issuance generations, explicit holds, precise transient borrows and separate owner allocation; a simple pool or owner-wide quarantine is insufficient.
@@ -94,4 +108,4 @@ Raw observations, CPU/block/mutex/memory profiles, counters, source identity, le
 
 **Review scope:** independent source review cleared the corrected endpoint/connection checkpoint within its stated scope. Independent analysis recomputed the paired metrics, checked source/binary identity consistency and 37 available artifact hashes, and separated callable owners from overlapping mechanisms. This does not clear the recorded carrier/rooting limitations, certify the corrected source’s performance, or establish a viable replacement architecture.
 
-Recommendation: retain the useful transition/projection experiment and its corrected checkpoint as diagnostic evidence, reject it as sufficient for N3 #1202, and keep draft PR #1230 held. Continue architecture design only with a concrete cross-owner cost reduction; neither another clean rerun nor manual cell reuse is justified by this result.
+Recommendation: carry the useful components and corrected checkpoint into the broader redesign, while rejecting this combination as sufficient for N3 #1202 and keeping draft PR #1230 held. Evaluate smaller improvements by benefit, complexity and architectural fit; require a cross-owner cost argument before claiming the full gap is solved. Neither repeating this clean measurement unchanged nor integrating the current manual-reuse proposal is justified by this result.
