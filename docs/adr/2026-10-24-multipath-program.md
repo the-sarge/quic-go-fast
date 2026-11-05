@@ -1,6 +1,6 @@
 # QUIC multipath #646 program
 
-**Identity:** `QGF-MP646-20261024`. **Status:** owner-approved supplemental N-track handoff; implementation in progress, with 26 of 39 slices complete. **Tracking issue:** [#646](https://github.com/the-sarge/quic-go-fast/issues/646). The track plans own current outcomes, invariants, evidence and stops. Issues and OmniFocus own current state and live child mappings; historical review and qualification receipts remain behind the plans' audit links. Public endpoint activation and multipath negotiation remain disabled until R19 #1039.
+**Identity:** `QGF-MP646-20261024`. **Status:** owner-approved supplemental N-track handoff; implementation in progress, with 27 of 39 slices complete. **Tracking issue:** [#646](https://github.com/the-sarge/quic-go-fast/issues/646). The track plans own current outcomes, invariants, evidence and stops. Issues and OmniFocus own current state and live child mappings; historical review and qualification receipts remain behind the plans' audit links. Public endpoint activation and multipath negotiation remain disabled until R19 #1039.
 
 ## Tracks and frontier
 
@@ -9,7 +9,7 @@
 | E — native endpoint | [Endpoint plan](2026-10-24-multipath-endpoint-plan.md) | [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012) | 9 | 9/9 complete; N3 supplies affected native requalification after its control change |
 | R — Reno primary/backup | [Reno plan](2026-10-24-multipath-reno-plan.md) | [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013) | 20 | 17/20 complete; R17 #1037 and R18 #1038 on hold until N3 merges; R19 #1039 still gated by both |
 | B — BBR/aggregation | [BBR plan](2026-10-24-multipath-bbr-plan.md) | [#1014](https://github.com/the-sarge/quic-go-fast/issues/1014) | 6 | 0/6; B1 #1040 requires R19 #1039 and its existing Q2 #599 receipt |
-| N — endpoint efficiency/admission | [Efficiency plan](2026-11-04-native-endpoint-efficiency-plan.md) | [#1193](https://github.com/the-sarge/quic-go-fast/issues/1193) | 4 | N0, N1 and N2 are the frontier; N3 requires all three; child issue links pending publication |
+| N — endpoint efficiency/admission | [Efficiency plan](2026-11-04-native-endpoint-efficiency-plan.md) | [#1193](https://github.com/the-sarge/quic-go-fast/issues/1193) | 4 | 1/4 complete: N1 #1200; N0 #1199 and N2 #1201 are the frontier; N3 #1202 still requires N0 and N2 |
 
 N0 publishes/reworks the preserved ordinary-cost driver; N1 makes participant traversal sparse under the existing endpoint owner; N2 implements the approved public/stateless admission contract for issue #1141. They have no correctness dependency on one another. N0 can run alongside either runtime slice in isolated worktrees. N1 and N2 overlap endpoint code/tests, so recommend sequential implementation and current-main reconciliation. N3 consumes all three and removes control command/ack rendezvous while preserving independent timer/native progress. R17 #1037 and R18 #1038 become startable after N3's combined runtime change and native evidence merge, not after parent #1193 closes.
 
