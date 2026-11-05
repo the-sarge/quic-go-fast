@@ -1,6 +1,6 @@
 # Jumbo packets implementation plan
 
-**Date:** 2026-11-05. **Status:** Accepted; not yet implemented. **Identity:** `JP-20261105-F`. **Parent:** pending. **Depends on:** nothing for F1 and F4. **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions. **Audit history:** this plan's merging PR.
+**Date:** 2026-11-05. **Status:** Accepted; not yet implemented. **Identity:** `JP-20261105-F`. **Parent:** pending. **Depends on:** nothing for F1. **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions. **Audit history:** this plan's merging PR.
 
 This plan comes from a downstream consumer's owner-approved program. It stands on its own: an implementer needs nothing outside this repository. "The consumer" below means that downstream program, whose qualification results reach this repository through F11's and F12's issues.
 
@@ -76,7 +76,7 @@ Throwaway builds that raised the constant and pinned the size carried over 8 Gbp
 | [F1](#f1) | rework #1208 | One Transport-owned value at 1452, threaded to advertisement, discovery and readers | None | n/a |
 | [F2](#f2) | new | Configured readers and receive queues carry 8,972-byte packets whole | F1 | n/a |
 | [F3](#f3) | new | Two-stage search, effective ceiling and stage-one size reporting | F1 | n/a |
-| [F4](#f4) | new | Stream frames larger than 1,452 bytes, through writer and parser | None | n/a |
+| [F4](#f4) | new | Stream frames larger than 1,452 bytes, through writer and a parser limit set by configuration | F1 | n/a |
 | [F5](#f5) | new | Two configured Transports carry a stream at about 8,957-byte packets over loopback | F2, F3, F4 | n/a |
 | [F6](#f6) | new | A refused send falls back to the tested size and stays down | F5 | n/a |
 | [F7](#f7) | new | Transport-generated confirmation probes and the drop to the initial size | F6 | F6's unconfirmed fallback |
@@ -86,20 +86,20 @@ Throwaway builds that raised the constant and pinned the size carried over 8 Gbp
 | [F11](#f11) | conditional | Several short DATAGRAMs in one jumbo packet, with weighted admission | F5; the consumer's comparison selecting this design | n/a |
 | [F12](#f12) | new | The release that claims jumbo, at the qualified commit | The consumer's qualification; the first independent release | n/a |
 
-F1 and F4 are the frontier. F2 and F3 are parallel after F1. F10 is parallel with F6–F9. Nothing here waits for the quicquic-go identity transition before F12, and that transition doesn't wait for this.
+F1 is the frontier. F2, F3 and F4 are parallel after F1. F10 is parallel with F6–F9. Nothing here waits for the quicquic-go identity transition before F12, and that transition doesn't wait for this.
 
 ## Implementation slices
 
 <a id="f1"></a>
 ### F1 — Separate the packet ceiling from the buffer constant
 
-**Delivers:** one unexported per-Transport value, zero meaning 1452, that decides the largest packet this endpoint advertises, searches for, or cuts a read at. It's fixed once the Transport initializes, and each connection and reader holds it from construction. No production path can set anything else. The census at the pinned commit:
+**Delivers:** one unexported per-Transport value, zero meaning 1452, that decides the largest packet this endpoint advertises, searches for, or cuts a read at where a reader cuts today. It's fixed once the Transport initializes, and each connection and reader holds it from construction. No production path can set anything else. Readers differ, and each keeps its behavior at the default: the basic reader, default slot and Windows reader cut to a prefix; a read slot rejects a full slot, and slot sizing stays with F2; a managed read delivers whole ([`sys_conn_oob.go` L304](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/sys_conn_oob.go#L304)); a coalesced read delivers up to the large tier whole and only cuts above it ([`coalesced_read.go` L53-L61](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/coalesced_read.go#L53-L61)). The census at the pinned commit:
 
 | Class | Sites | This slice |
 | --- | --- | --- |
 | Advertised size | `connection.go` L385, L520 | Reads the value |
 | Discovery ceiling | `connection.go` L1129, L2903. L2903 repeats `peerMaxPacketSize` and can call it | Reads the value |
-| Read limits | `sys_conn.go` L166, `sys_conn_oob.go` L245, `sys_conn_windows.go` L207, L231, `coalesced_read.go` L61 | Reads the value |
+| Cutting reads | `sys_conn.go` L166, `sys_conn_oob.go` L245, `sys_conn_windows.go` L207, L231, `coalesced_read.go` L61 | Reads the value; no reader's default behavior changes |
 | Initial-size clip | `config.go` L104-L105 | Stays on the constant permanently |
 | Buffer tiers and queue admission | `buffer_pool.go` L57, L79, L120, `coalesced_read.go` L53, `connection.go` L2265, L2291, `internal/wire/pool.go` L14, L29 | Untouched, F2 and F4 |
 | Stream frame limits | `send_stream.go` L351, L477, L481, L491, L717, L721 | Untouched, F4 |
@@ -113,7 +113,7 @@ F1 and F4 are the frontier. F2 and F3 are parallel after F1. F10 is parallel wit
 
 **Artifacts / representation / closure:** no new shipped behavior and no new safety enforcement; tests are ordinary verification aids. Domain: client and server connections and every reader type. Owner: the Transport. Guarantee: canonical-subset, on wire-visible values, read limits and allocations, not identical timing. Closure: this slice supplies the default-value pin for [the first row](#contract-closure).
 
-**TDD and evidence budget:** written first, with `InitialPacketSize` 1232: (1) a default-value pin: both perspectives advertise exactly 1452, discovery on a path carrying 1452 or more probes 1342, 1397, 1424, 1438 and settles at 1438, a reader cuts at 1452; (2) a threading proof: with a test-set 1400 at both ends, both advertise 1400, the search probes 1316, 1358, 1379 and settles at 1379, and readers cut at 1400. One guard mutation per owner: bypass the value at the advertisement, the discovery ceiling and a reader, and see the proof fail. Existing `AllocsPerRun` pins stay green, and allocs/op match before and after on `BenchmarkQueueLifetime`, `BenchmarkDatagramParseAndReceive` and `BenchmarkTransfer`, with no timing claim. The repository's normal lanes, including cross-compile for the Windows reader. One review plus at most one replacement.
+**TDD and evidence budget:** written first, with `InitialPacketSize` 1232: (1) a default-value pin: both perspectives advertise exactly 1452, discovery on a path carrying 1452 or more probes 1342, 1397, 1424, 1438 and settles at 1438, the cutting readers cut at 1452; (2) a threading proof: with a test-set 1400 at both ends, both advertise 1400, the search probes 1316, 1358, 1379 and settles at 1379, and the cutting readers cut at 1400. Existing managed and coalesced delivery tests, such as `TestGROReadCopiesLargeSegmentsIntoLargeTier`, stay green. One guard mutation per owner: bypass the value at the advertisement, the discovery ceiling and a reader, and see the proof fail. Existing `AllocsPerRun` pins stay green, and allocs/op match before and after on `BenchmarkQueueLifetime`, `BenchmarkDatagramParseAndReceive` and `BenchmarkTransfer`, with no timing claim. The repository's normal lanes, including cross-compile for the Windows reader. One review plus at most one replacement.
 
 **Context:** at most 18k dispatch input tokens: this slice, the Decision section, the census sites and the two constructors' callers.
 
@@ -132,7 +132,7 @@ F1 and F4 are the frontier. F2 and F3 are parallel after F1. F10 is parallel wit
 
 **Artifacts / representation / closure:** shipped behavior behind a test seam. Domain: every reader type on a configured Transport. Guarantee: canonical-subset on delivered length and tier. Closure row: unconfigured Transports take no new tier.
 
-**TDD and evidence budget:** written first: a real-socket loopback test per reader type available on the platform, sending 8,972 bytes and asserting whole delivery, plus one byte over asserting today's truncation handling. A queue test forcing depth past 256 with jumbo packets and asserting release doesn't panic. A pin that an unconfigured Transport takes no jumbo-tier buffer. Heap figures recorded in the PR. Hosted lanes. One review plus at most one replacement.
+**TDD and evidence budget:** written first: a real-socket loopback test per reader type available on the platform, sending 8,972 bytes and asserting whole delivery, plus one byte over asserting that reader's existing handling: a cut prefix, a rejected full slot, or whole delivery on the managed and coalesced readers. A queue test forcing depth past 256 with jumbo packets and asserting release doesn't panic. A pin that an unconfigured Transport takes no jumbo-tier buffer. Heap figures recorded in the PR. Hosted lanes. One review plus at most one replacement.
 
 **Context:** at most 18k: this slice, the Decision section, `buffer_pool.go`, the reader functions and the queue admission code.
 
@@ -160,19 +160,19 @@ F1 and F4 are the frontier. F2 and F3 are parallel after F1. F10 is parallel wit
 <a id="f4"></a>
 ### F4 — Carry stream frames larger than 1,452 bytes
 
-**Delivers:** a frame pool with two sizes chosen by payload, used by both the writer and the parser ([`stream_frame.go` L66](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/internal/wire/stream_frame.go#L66) errors above pool capacity today), frame splitting that picks the right one ([L183](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/internal/wire/stream_frame.go#L183) would panic otherwise), and the large-allocation branches in `send_stream.go` no longer capping a frame at 1,452 when the packet allows more. The limit on what `Write` copies ([L351](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/send_stream.go#L351)) stays 1,452, so `Write` timing doesn't change. In production, `maxBytes` never exceeds the standard size until F9, so this is inert.
+**Delivers:** a frame pool with two sizes chosen by payload, frame splitting that picks the right one ([`stream_frame.go` L183](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/internal/wire/stream_frame.go#L183) would panic otherwise), the large-allocation branches in `send_stream.go` no longer capping a frame at 1,452 when the packet allows more, and a parser limit that comes from the connection's local ceiling. An unconfigured connection keeps today's rejection of an oversized STREAM frame ([`stream_frame.go` L66](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/internal/wire/stream_frame.go#L66)), which a peer ignoring the advertised limit can reach today, because large datagrams already arrive whole through some readers. The limit on what `Write` copies ([`send_stream.go` L351](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/send_stream.go#L351)) stays 1,452, so `Write` timing doesn't change. In production, `maxBytes` never exceeds the standard size and the parser limit stays at the default until F9, so this is inert.
 
-**Disposition / blocked by:** new. Blocked by nothing: frame size follows the `maxBytes` the packer passes and the bytes on the wire, not the ceiling value.
+**Disposition / blocked by:** new. Blocked by F1, which supplies the value the parser limit comes from.
 
-**Owner / authority:** the wire package's pool owns frame tiers.
+**Owner / authority:** the wire package's pool owns frame tiers, and the connection's local ceiling sets the parser limit.
 
 **Seams / blast radius:** a small frame in flight still pins a standard buffer, not a jumbo one, and that's the reason for two sizes. Untraced: `Write` through the other large-frame branch; the slice traces it and records the result.
 
 **Artifacts / representation / closure:** shipped behavior, inert. Guarantee: example-level on frame round trips. Closure row: payloads at or below 1,452 use the standard frame.
 
-**TDD and evidence budget:** written first: pop, split and parse frames at 8,900 bytes through both `send_stream.go` branches, resend after a split, and a pin that a 100-byte frame takes the standard tier. `BenchmarkTransfer` allocs/op match. One review plus at most one replacement.
+**TDD and evidence budget:** written first: pop, split and parse frames at 8,900 bytes through both `send_stream.go` branches with a configured parser limit, resend after a split, and a pin that a 100-byte frame takes the standard tier. `TestParseStreamFrameRejectsLongFrames` stays green at the default. `BenchmarkTransfer` allocs/op match. One review plus at most one replacement.
 
-**Context:** at most 14k: this slice, `send_stream.go`, `internal/wire/pool.go` and `stream_frame.go`.
+**Context:** at most 14k: this slice, F1's value, `send_stream.go`, `internal/wire/pool.go`, `stream_frame.go` and `frame_parser.go`.
 
 **Audit / stops:** merging with F5 is rejected because frames are independently testable and F5 is already large. Stop if `Write` timing must change for frames to carry jumbo payloads.
 
@@ -189,7 +189,7 @@ F1 and F4 are the frontier. F2 and F3 are parallel after F1. F10 is parallel wit
 
 **Artifacts / representation / closure:** shipped behavior behind the test seam. Guarantee: example-level on loopback. Closure row: size at or below 1452 takes today's buffers.
 
-**TDD and evidence budget:** written first: the loopback stream test, skipped only where the platform's loopback can't carry 8,972, asserting size above 8,900 and data intact, under BBR and Reno. A DATAGRAM of 1,400 bytes delivered at jumbo size. A peer capped at 1452 stays capped. One review plus at most one replacement.
+**TDD and evidence budget:** written first: the loopback stream test, skipped only where the platform's loopback can't carry 8,972, asserting size above 8,900 and data intact, under BBR and Reno. A DATAGRAM of 1,400 bytes delivered at jumbo size. A peer capped at 1452 stays capped, including through a path reset: the effective ceiling stays capped, discovery is unchanged and recovery stays off. F2's no-jumbo-tier pin also observes representative unconfigured sends and padded discovery probes, so it catches a wrong default in this slice's buffer helper. One review plus at most one replacement.
 
 **Context:** at most 24k, by function rather than whole file: this slice, the Decision section, F2–F4's merged interfaces, the buffer sites listed by `getPacketBuffer` in `packet_emission*.go` and `packet_packer.go`, and the two guards.
 
@@ -274,17 +274,17 @@ F1 and F4 are the frontier. F2 and F3 are parallel after F1. F10 is parallel wit
 <a id="f10"></a>
 ### F10 — Batch jumbo packets on Linux GSO
 
-**Delivers:** on Linux, a configured connection's segmented sends use the existing 64 KiB tier instead of the [20 KiB buffer](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/packet_emission_bbr.go#L154), so a batch holds 7 jumbo packets instead of 2.
+**Delivers:** on Linux, a connection whose current packet size is above 1452 uses the existing 64 KiB tier and byte budget for segmented sends instead of the [20 KiB limit](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/packet_emission_bbr.go#L154), so a batch holds 7 jumbo packets instead of 2. A configured connection still sending at the standard size keeps today's batches.
 
 **Disposition / blocked by:** new. Blocked by F5.
 
 **Owner / authority:** emission's buffer helper.
 
-**Seams / blast radius:** Linux send path on configured connections only. Software GSO behavior on specific NICs isn't traced here.
+**Seams / blast radius:** Linux send path at sizes above 1452 only, under both the Reno batch path and the BBR budget. Software GSO behavior on specific NICs isn't traced here.
 
 **Artifacts / representation / closure:** shipped behavior. Guarantee: example-level. Closure: not triggered, because failure costs throughput on one platform only.
 
-**TDD and evidence budget:** written first: a Linux test on loopback or a throwaway network namespace asserting more than two segments in a batch and data intact. MTU 1500 batches unchanged. One review plus at most one replacement.
+**TDD and evidence budget:** written first: a Linux test on loopback or a throwaway network namespace asserting more than two segments in a batch and data intact, under Reno and BBR. Batches unchanged on an unconfigured connection, on a configured one whose peer advertises 1452, and on an active one still at the standard size. One review plus at most one replacement.
 
 **Context:** at most 10k: this slice and `packet_emission_gso.go`.
 
@@ -295,7 +295,7 @@ F1 and F4 are the frontier. F2 and F3 are parallel after F1. F10 is parallel wit
 
 **Delivers:** when the size is above 1452, the packer fills a packet with queued DATAGRAM frames, leaving room so streams aren't starved, and receive admission is weighted by DATAGRAMs per packet so a discard stays visible to the sender. MTU 1500 packing doesn't change.
 
-**Disposition / blocked by:** conditional. Blocked by F5 and by the consumer's comparison selecting this design. It closes with no code if the comparison doesn't select it, because the consumer's rule tries this design first whenever it passes.
+**Disposition / blocked by:** conditional. Blocked by F5 and by the consumer's comparison selecting this design. There's no cycle: the comparison runs a throwaway patch the consumer owns, packing without weighted admission, built on a fork commit that contains F5. This slice is the real implementation, and qualification runs on the commit that contains it. It closes with no code if the comparison doesn't select it, because the consumer's rule tries this design first whenever it passes.
 
 **Owner / authority:** the packer owns packing, and connection admission owns the weighting.
 
@@ -334,8 +334,8 @@ Triggered for three invariants, each with a material consequence and several ind
 
 | Invariant | Enforcement owner | Classes | Disposition | Evidence |
 | --- | --- | --- | --- | --- |
-| An unconfigured Transport behaves as today | The Transport's value, default 1452 | Client, server, each reader type | No new tier, advertisement or probe | F1 pin and threading proof; F2 tier pin; F9 pin through the public surface |
-| A configured connection that isn't jumbo-active sends and fails as today | The connection's effective ceiling | Peer advertises 1452; a size refusal; a path change | Advertises the larger size and pays read buffers; no stage two; no recovery | F3 peer row; F5 peer-capped test; F6 never-above-1452 row |
+| An unconfigured Transport behaves as today | The Transport's value, default 1452 | Client, server, each reader type; sends and padded probes; STREAM parsing | No new tier, advertisement or probe; oversized STREAM frames still rejected | F1 pin and threading proof; F2 tier pin, also covering F5's sends; F4 parser pin; F9 pin through the public surface |
+| A configured connection that isn't jumbo-active sends and fails as today | The connection's effective ceiling | Peer advertises 1452; a size refusal; a path change | Advertises the larger size and pays read buffers; no stage two; no recovery | F3 peer row; F5 peer-capped test, including a path reset; F6 never-above-1452 row; F10 peer-capped batches |
 | A jumbo-active connection whose path shrinks continues at a confirmed smaller size or reaches the initial size, and never wedges silently | The run loop's recovery routine | Local refusal; far-side drop with and without return traffic; DATAGRAM-only; a failing fallback; a long outage with restore | Falls back, or no change on an outage | F6, F7 and F8 lists, then the consumer's real-link shrink |
 
 Partial loss on equal-cost paths is a declared non-goal. Guarantees are canonical-subset on wire-visible values and buffer tier for the first two, and example-level for the third.
