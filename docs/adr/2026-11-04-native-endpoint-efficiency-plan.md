@@ -1,6 +1,6 @@
 # Native endpoint efficiency and admission implementation plan
 
-**Date:** 2026-11-04. **Status:** owner-approved; independent technical slice audit passed; 1/4 slices complete (N1). **Identity:** `QGF-MP646-20261024-N`. **Parent:** [ordinary endpoint regression (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193). **Program:** [multipath #646](2026-10-24-multipath-program.md). **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [source, diagnosis and slice audit](../audits/2026-11-04-native-endpoint-efficiency-handoff.md).
+**Date:** 2026-11-04. **Status:** owner-approved; independent technical slice audit passed; 2/4 slices complete (N0 and N1); N2 #1201 is the frontier and N3 #1202 remains blocked by N2. **Identity:** `QGF-MP646-20261024-N`. **Parent:** [ordinary endpoint regression (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193). **Program:** [multipath #646](2026-10-24-multipath-program.md). **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [source, diagnosis and slice audit](../audits/2026-11-04-native-endpoint-efficiency-handoff.md).
 
 ## Goal and accepted boundary
 
@@ -78,14 +78,14 @@ Repair observed driver failure boundaries before reuse: charge an attempted obse
 
 | Slice | Identity | Disposition / outcome | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| [N0](#n0) | `QGF-MP646-20261024-N0` | Rework and publish the R18 ordinary-cost driver | None | Unmerged driver dependency |
+| [N0](#n0) | `QGF-MP646-20261024-N0` | Complete: ordinary-cost driver published ([#1199](https://github.com/the-sarge/quic-go-fast/issues/1199)) | None | Unmerged driver dependency |
 | [N1](#n1) | `QGF-MP646-20261024-N1` | Complete — sparse participant traversal under existing endpoint control | None | Per-operation unused-slot traversal; diagnostic rebuilt index is not imported |
 | [N2](#n2) | `QGF-MP646-20261024-N2` | Admit eligible public/stateless work while protecting persistent grants | None | One-shot readiness/grant dependence |
 | [N3](#n3) | `QGF-MP646-20261024-N3` | Inline synchronized control, independent progress and combined native requalification | N0, N1, N2 | Command/ack mutation path |
 
-**Current frontier:** N1 [#1200](https://github.com/the-sarge/quic-go-fast/issues/1200) is complete. N0 [#1199](https://github.com/the-sarge/quic-go-fast/issues/1199) and N2 [#1201](https://github.com/the-sarge/quic-go-fast/issues/1201) remain the frontier; N3 [#1202](https://github.com/the-sarge/quic-go-fast/issues/1202) still waits for N0 and N2. The graph retains all correctness edges, including completed predecessors.
+**Current frontier:** N0 [#1199](https://github.com/the-sarge/quic-go-fast/issues/1199) and N1 [#1200](https://github.com/the-sarge/quic-go-fast/issues/1200) are complete. N2 [#1201](https://github.com/the-sarge/quic-go-fast/issues/1201) is the remaining frontier; N3 [#1202](https://github.com/the-sarge/quic-go-fast/issues/1202) still waits for N2. The graph retains all correctness edges, including completed predecessors.
 
-N0, N1 and N2 have no correctness blockers. N0 is parallel-safe with either runtime slice in isolated worktrees. N1 and N2 overlap endpoint admission code/tests: recommend serial implementation with current-main reconciliation, without inventing a dependency between independent behaviors. N3 consumes all three and qualifies the combined candidate. Shared root-package validation requires current-main reconciliation.
+N2 #1201 has no correctness blockers and must reconcile its endpoint admission code/tests with the completed N1 #1200 traversal change. N0 #1199 introduced no runtime authority change. N3 consumes all three and qualifies the combined candidate. Shared root-package validation requires current-main reconciliation.
 
 R17 #1037 and R18 #1038 remain on hold until N3's runtime fix and native evidence merge. Replace their administrative blocker on parent #1193 with the actual N3 child after this plan is published. This implements the owner's “fix first, then qualify the fixed candidate” order and removes a parent/qualification cycle. R18 resumes as the existing 36-observation qualification slice, consuming the merged N0 driver; it does not grow a performance-specific runtime path. Parent #1193 remains open after its four children merge until R18 reports all accepted ordinary tolerances passing on that fixed candidate. Issue #1141 stays a linked admission acceptance tracker, not a separately dispatchable child; it remains open until N2, N3's combined native contention evidence and R18's affected workload satisfy its independent criteria. Neither tracker blocks a runtime child, avoiding a second qualification cycle. R17 and R18 may run independently after N3 but must serialize use of a shared measurement host. R19's existing qualification dependencies and public disablement remain unchanged.
 
@@ -102,7 +102,7 @@ All slices preserve packet construction before recovery registration and registr
 <a id="n0"></a>
 ### N0 — Publish the ordinary-peer cost driver
 
-**Delivers / acceptance:** the root-package Linux amd64 fixture and Python driver are on main, with the accepted six cells and 36 counted observations represented exactly; diagnostic mode and accounting remain distinct; a failed role, invalid/missing evidence or tolerance failure returns nonzero and retains its charged attempt. Inputs identify the exact candidate/binary, comparator, kernel/toolchain, seed, CPU allocation, remaining ledger and per-invocation timeout. No live campaign runs in this slice. Child issue: pending.
+**Delivers / acceptance:** the root-package Linux amd64 fixture and Python driver are on main, with the accepted six cells and 36 counted observations represented exactly; diagnostic mode and accounting remain distinct; a failed role, invalid/missing evidence or tolerance failure returns nonzero and retains its charged attempt. Inputs identify the exact candidate/binary, comparator, kernel/toolchain, seed, CPU allocation, remaining ledger and per-invocation timeout. No live campaign runs in this slice. Child issue: [N0 — Publish the ordinary-peer cost driver (#1199)](https://github.com/the-sarge/quic-go-fast/issues/1199). **Current state:** complete; the driver and fixture are published, with no operational observations charged by N0.
 
 **Owner and authority:** the transport integration suite owns the measurement records, failure classification and attempt accounting end to end. Validate before starting and charge every started attempt, including exceptions and child-process cleanup; no partial invocation disappears from the ledger. No runtime authority changes, persisted schema migration or new execution service. Temporary source material from R18's branch is removed as a dependency by this merge.
 
