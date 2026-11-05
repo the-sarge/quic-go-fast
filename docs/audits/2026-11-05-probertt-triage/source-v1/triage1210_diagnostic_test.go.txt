@@ -1,0 +1,131 @@
+package quic
+
+import (
+	"context"
+	"os"
+	"testing"
+	"testing/synctest"
+	"time"
+
+	"github.com/quic-go/quic-go/internal/ackhandler"
+	"github.com/quic-go/quic-go/internal/congestion"
+	"github.com/quic-go/quic-go/internal/monotime"
+	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/stretchr/testify/require"
+)
+
+// Throwaway diagnostic for issue #1210; not a qualification or product test.
+func TestTriage1210ScheduledProbe(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		monotime.Triage1210SetClockOrigin()
+		clientPC, serverPC, closeNetwork := newSimnetLink(t, 100*time.Microsecond)
+		defer closeNetwork()
+		defer clientPC.Close()
+		defer serverPC.Close()
+		clientTr, serverTr := &Transport{Conn: clientPC}, &Transport{Conn: serverPC}
+		defer clientTr.Close()
+		defer serverTr.Close()
+		serverTLS, clientTLS := silentDropTLSConfigs()
+		conf := &Config{EnableDatagrams: true, DisablePathMTUDiscovery: true, InitialPacketSize: 1280}
+		require.NoError(t, conf.SetCongestionControlV1("bbrv3"))
+		ln, err := serverTr.Listen(serverTLS, conf.Clone())
+		require.NoError(t, err)
+		defer ln.Close()
+		client, err := clientTr.Dial(context.Background(), ln.Addr(), clientTLS, conf.Clone())
+		require.NoError(t, err)
+		server, err := ln.Accept(context.Background())
+		require.NoError(t, err)
+		synctest.Wait()
+		if os.Getenv("TRIAGE1210_ACK") == "1" {
+			server.receivedPacketHandler.Triage1210ImmediateACK()
+		}
+		var received, admitted, missed uint64
+		recvDone := make(chan struct{})
+		go func() {
+			defer close(recvDone)
+			for {
+				data, err := server.ReceiveDatagram(context.Background())
+				if err != nil {
+					return
+				}
+				received += uint64(len(data))
+			}
+		}()
+		const payload = 1099
+		const rate = 125000000 // application bytes per second: 1 Gbps
+		const duration = 5600 * time.Millisecond
+		start := time.Now()
+		sendDone := make(chan struct{})
+		go func() {
+			defer close(sendDone)
+			data := make([]byte, payload)
+			for slot := int64(0); ; slot++ {
+				due := start.Add(time.Duration(slot * payload * int64(time.Second) / rate))
+				if due.Sub(start) >= duration {
+					return
+				}
+				if delay := time.Until(due); delay > 0 {
+					time.Sleep(delay)
+				}
+				if time.Since(due) > time.Millisecond {
+					missed++
+					continue
+				}
+				if err := client.SendDatagram(data); err != nil {
+					return
+				}
+				admitted++
+			}
+		}()
+		type metrics struct {
+			n                                                int
+			received                                         uint64
+			window, flight, pending, rate, tokens, latestRTT float64
+			stops                                            map[congestion.SendLimitation]int
+		}
+		groups := map[bool]*metrics{false: {stops: make(map[congestion.SendLimitation]int)}, true: {stops: make(map[congestion.SendLimitation]int)}}
+		var previousReceived uint64
+		var wasProbe bool
+		for time.Since(start) < duration {
+			time.Sleep(100 * time.Microsecond)
+			synctest.Wait()
+			p := client.emission.bbr
+			probe := p.controller.InProbeRTT()
+			stats := client.ConnectionStats()
+			ds := client.sentPacketHandler.(interface {
+				DeliveryStats() congestion.DeliveryStats
+			}).DeliveryStats()
+			_, allowance := client.sentPacketHandler.(interface {
+				SendAllowance(monotime.Time) (ackhandler.SendMode, protocol.ByteCount)
+			}).SendAllowance(monotime.Now())
+			m := groups[probe]
+			if time.Since(start) > time.Second {
+				m.n++
+				m.received += received - previousReceived
+				m.window += float64(p.controller.GetCongestionWindow())
+				m.flight += float64(p.controller.GetCongestionWindow() - allowance)
+				m.pending += float64(p.credit.pending)
+				m.rate += float64(p.rate)
+				m.tokens += float64(p.tokens) / 1e9
+				m.latestRTT += float64(stats.LatestRTT)
+				m.stops[ds.Stop]++
+			}
+			if probe != wasProbe {
+				t.Logf("phase transition t=%s probe=%t window=%d minRTT=%s latestRTT=%s outstanding=%d pending=%d rate=%d", time.Since(start), probe, p.controller.GetCongestionWindow(), stats.MinRTT, stats.LatestRTT, ds.Outstanding, p.credit.pending, p.rate)
+			}
+			wasProbe = probe
+			previousReceived = received
+		}
+		<-sendDone
+		synctest.Wait()
+		for _, probe := range []bool{false, true} {
+			m := groups[probe]
+			n := float64(m.n)
+			t.Logf("probe=%t samples=%d deliveredMbps=%.3f avgWindow=%.1f avgOutstanding=%.1f avgPending=%.1f avgPacingMbps=%.3f avgCredit=%.1f avgLatestRTTus=%.3f stops=%v", probe, m.n, float64(m.received)*8/(n*100), m.window/n, m.flight/n, m.pending/n, m.rate/n*8/1e6, m.tokens/n, m.latestRTT/n/1000, m.stops)
+		}
+		t.Logf("admitted=%d missed=%d received=%d", admitted, missed, received)
+		require.Greater(t, groups[true].n, 0, "must exercise ProbeRTT")
+		require.NoError(t, client.CloseWithError(0, "diagnostic done"))
+		<-recvDone
+	})
+}

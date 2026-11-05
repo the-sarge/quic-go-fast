@@ -1,0 +1,94 @@
+{
+  "native2": [
+    {
+      "rtt_eligible_ack_events": 4122,
+      "observed_interval_ms": 200.08154100000002,
+      "acknowledged_transport_mbps": 562.8699551049539,
+      "median_window_bytes": 5120.0,
+      "median_prior_flight_bytes": 4500.0,
+      "median_pending_local_bytes": 0.0,
+      "median_model_min_rtt_us": 21.792,
+      "median_raw_rtt_us": 51.25,
+      "mean_raw_rtt_us": 53.68127923338185,
+      "median_model_pacing_mbps": 1145.129224,
+      "window_over_model_min_rtt_mbps": 1879.588839941263,
+      "observed_over_optimistic": 0.2994644058019325
+    }
+  ],
+  "native-ack1": [
+    {
+      "rtt_eligible_ack_events": 6489,
+      "observed_interval_ms": 200.12941700000002,
+      "acknowledged_transport_mbps": 594.247551323252,
+      "median_window_bytes": 5120,
+      "median_prior_flight_bytes": 4500,
+      "median_pending_local_bytes": 0,
+      "median_model_min_rtt_us": 21.583,
+      "median_raw_rtt_us": 46.333,
+      "mean_raw_rtt_us": 51.302662351672055,
+      "median_model_pacing_mbps": 1089.912256,
+      "window_over_model_min_rtt_mbps": 1897.789927257564,
+      "observed_over_optimistic": 0.31312609619652704
+    },
+    {
+      "rtt_eligible_ack_events": 4826,
+      "observed_interval_ms": 156.376208,
+      "acknowledged_transport_mbps": 583.3069439821691,
+      "median_window_bytes": 5120.0,
+      "median_prior_flight_bytes": 4500.0,
+      "median_pending_local_bytes": 0.0,
+      "median_model_min_rtt_us": 21.042,
+      "median_raw_rtt_us": 48.792,
+      "mean_raw_rtt_us": 52.27936033982594,
+      "median_model_pacing_mbps": 1212.72008,
+      "window_over_model_min_rtt_mbps": 1946.5830244273359,
+      "observed_over_optimistic": 0.29965685340021486
+    }
+  ],
+  "native-restored": [
+    {
+      "rtt_eligible_ack_events": 4550,
+      "observed_interval_ms": 199.909416,
+      "acknowledged_transport_mbps": 553.9498549683123,
+      "median_window_bytes": 5120.0,
+      "median_prior_flight_bytes": 4500.0,
+      "median_pending_local_bytes": 0.0,
+      "median_model_min_rtt_us": 23.167,
+      "median_raw_rtt_us": 47.6875,
+      "mean_raw_rtt_us": 53.75179406593407,
+      "median_model_pacing_mbps": 1420.6278,
+      "window_over_model_min_rtt_mbps": 1768.0321146458325,
+      "observed_over_optimistic": 0.31331436255007056
+    }
+  ],
+  "native-validation": [
+    {
+      "rtt_eligible_ack_events": 5373,
+      "observed_interval_ms": 200.031958,
+      "acknowledged_transport_mbps": 633.979536409877,
+      "median_window_bytes": 5120,
+      "median_prior_flight_bytes": 4500,
+      "median_pending_local_bytes": 0,
+      "median_model_min_rtt_us": 21.125,
+      "median_raw_rtt_us": 41.541,
+      "mean_raw_rtt_us": 47.004251070165644,
+      "median_model_pacing_mbps": 1085.420896,
+      "window_over_model_min_rtt_mbps": 1938.9349112426034,
+      "observed_over_optimistic": 0.326973088541471
+    },
+    {
+      "rtt_eligible_ack_events": 6000,
+      "observed_interval_ms": 200.03475,
+      "acknowledged_transport_mbps": 697.1951823370689,
+      "median_window_bytes": 5120.0,
+      "median_prior_flight_bytes": 4500.0,
+      "median_pending_local_bytes": 0.0,
+      "median_model_min_rtt_us": 21.25,
+      "median_raw_rtt_us": 38.708,
+      "mean_raw_rtt_us": 42.67418933333334,
+      "median_model_pacing_mbps": 1092.564488,
+      "window_over_model_min_rtt_mbps": 1927.5294117647059,
+      "observed_over_optimistic": 0.36170404357086705
+    }
+  ]
+}

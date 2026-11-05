@@ -1,0 +1,9 @@
+package congestion
+
+import "time"
+
+// Triage1210FeedbackObserver is a disposable diagnostic hook, installed before
+// connection creation and removed only after all connections have joined.
+var Triage1210FeedbackObserver func(*BBRSender, FeedbackEvent)
+
+func (b *BBRSender) Triage1210MinimumRTT() time.Duration { return b.minimumRTT }

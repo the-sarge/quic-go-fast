@@ -1,0 +1,134 @@
+package quic
+
+import (
+	"context"
+	"encoding/json"
+	"os"
+	"runtime"
+	"sort"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/quic-go/quic-go/internal/ackhandler"
+	"github.com/quic-go/quic-go/internal/congestion"
+	"github.com/stretchr/testify/require"
+)
+
+func TestTriage1210NativeProbe(t *testing.T) {
+	if os.Getenv("TRIAGE1210_ACK") == "1" {
+		ackhandler.Triage1210DefaultThreshold = 1
+	}
+	defer func() { ackhandler.Triage1210DefaultThreshold = 0 }()
+	var mx sync.Mutex
+	type observation struct {
+		At      int64  `json:"at"`
+		Probe   bool   `json:"probe"`
+		Window  int64  `json:"window"`
+		Flight  int64  `json:"flight"`
+		Pending int64  `json:"pending"`
+		Rate    uint64 `json:"rate"`
+		RawRTT  int64  `json:"raw_rtt"`
+		MinRTT  int64  `json:"min_rtt"`
+		Acked   int64  `json:"acked"`
+	}
+	var observations []observation
+	var skippedAckedBytes int64
+	congestion.Triage1210FeedbackObserver = func(b *congestion.BBRSender, e congestion.FeedbackEvent) {
+		if !b.InProbeRTT() {
+			return
+		}
+		if e.RawRTT <= 0 {
+			mx.Lock()
+			for _, p := range e.Acked {
+				skippedAckedBytes += int64(p.Length)
+			}
+			mx.Unlock()
+			return
+		}
+		o := observation{int64(e.Time), true, int64(b.GetCongestionWindow()), int64(e.PriorInFlight), int64(e.PendingLocal), b.PacingRate(), int64(e.RawRTT), int64(b.Triage1210MinimumRTT()), 0}
+		for _, p := range e.Acked {
+			o.Acked += int64(p.Length)
+		}
+		mx.Lock()
+		observations = append(observations, o)
+		mx.Unlock()
+	}
+	defer func() { congestion.Triage1210FeedbackObserver = nil }()
+	clientPC, serverPC := newUDPConnLocalhost(t), newUDPConnLocalhost(t)
+	defer clientPC.Close()
+	defer serverPC.Close()
+	clientTr, serverTr := &Transport{Conn: clientPC}, &Transport{Conn: serverPC}
+	defer clientTr.Close()
+	defer serverTr.Close()
+	serverTLS, clientTLS := silentDropTLSConfigs()
+	conf := &Config{EnableDatagrams: true, DisablePathMTUDiscovery: true, InitialPacketSize: 1280}
+	ln, err := serverTr.Listen(serverTLS, conf.Clone())
+	require.NoError(t, err)
+	defer ln.Close()
+	require.NoError(t, conf.SetCongestionControlV1("bbrv3"))
+	client, err := clientTr.Dial(context.Background(), ln.Addr(), clientTLS, conf)
+	require.NoError(t, err)
+	server, err := ln.Accept(context.Background())
+	require.NoError(t, err)
+	recvDone := make(chan struct{})
+	var received uint64
+	go func() {
+		defer close(recvDone)
+		for {
+			p, err := server.ReceiveDatagram(context.Background())
+			if err != nil {
+				return
+			}
+			received += uint64(len(p))
+		}
+	}()
+	start := time.Now()
+	var admitted, missed uint64
+	const payload = 1099
+	const rate = 125000000
+	data := make([]byte, payload)
+	for slot := int64(0); ; slot++ {
+		due := start.Add(time.Duration(slot * payload * int64(time.Second) / rate))
+		if due.Sub(start) >= 15*time.Second {
+			break
+		}
+		for time.Now().Before(due) {
+			runtime.Gosched()
+		}
+		if time.Since(due) > time.Millisecond {
+			missed++
+			continue
+		}
+		require.NoError(t, client.SendDatagram(data))
+		admitted++
+	}
+	time.Sleep(20 * time.Millisecond)
+	stats := client.ConnectionStats()
+	require.NoError(t, client.CloseWithError(0, "diagnostic complete"))
+	<-recvDone
+	clientTr.Close()
+	serverTr.Close()
+	mx.Lock()
+	defer mx.Unlock()
+	if out := os.Getenv("TRIAGE1210_OUTPUT"); out != "" {
+		data, err := json.MarshalIndent(observations, "", "  ")
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(out, data, 0600))
+	}
+	var rtts []int64
+	var totalWindow, totalRTT, totalAcked, totalFlight, totalPending int64
+	for _, o := range observations {
+		rtts = append(rtts, o.RawRTT)
+		totalWindow += o.Window
+		totalRTT += o.RawRTT
+		totalAcked += o.Acked
+		totalFlight += o.Flight
+		totalPending += o.Pending
+	}
+	sort.Slice(rtts, func(i, j int) bool { return rtts[i] < rtts[j] })
+	n := len(rtts)
+	t.Logf("ProbeRTT acknowledged bytes without eligible RTT: %d", skippedAckedBytes)
+	require.Greater(t, n, 0, "must enter ProbeRTT")
+	t.Logf("native admitted=%d missed=%d received=%d minRTT=%s latestRTT=%s samples=%d avgWindow=%d avgFlight=%d avgPending=%d rawRTTmean=%s rawRTTp50=%s rawRTTp95=%s ackedBytes=%d", admitted, missed, received, stats.MinRTT, stats.LatestRTT, n, totalWindow/int64(n), totalFlight/int64(n), totalPending/int64(n), time.Duration(totalRTT/int64(n)), time.Duration(rtts[n/2]), time.Duration(rtts[n*95/100]), totalAcked)
+}

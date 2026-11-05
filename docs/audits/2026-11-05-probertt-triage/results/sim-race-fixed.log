@@ -1,0 +1,9 @@
+=== RUN   TestTriage1210ScheduledProbe
+    triage1210_diagnostic_test.go:145: phase transition t=4.9989s probe=true window=6603 minRTT=100µs latestRTT=100µs flight=6603 pending=0 rate=130752523
+    triage1210_diagnostic_test.go:145: phase transition t=5.199s probe=false window=131072 minRTT=100µs latestRTT=100µs flight=67500 pending=0 rate=130752523
+    triage1210_diagnostic_test.go:155: probe=false samples=43999 deliveredMbps=1000.277 avgWindow=135955.5 avgOutstanding=13361.9 avgPending=172.2 avgPacingMbps=1805.776 avgCredit=64590.9 avgLatestRTTus=100.000 stops=map[1:43996 5:3]
+    triage1210_diagnostic_test.go:155: probe=true samples=2001 deliveredMbps=439.820 avgWindow=6603.0 avgOutstanding=5625.9 avgPending=70.8 avgPacingMbps=1046.020 avgCredit=62180.2 avgLatestRTTus=100.000 stops=map[4:2001]
+    triage1210_diagnostic_test.go:157: admitted=624333 missed=12610 received=686135373
+--- PASS: TestTriage1210ScheduledProbe (82.29s)
+PASS
+ok  	github.com/quic-go/quic-go	83.506s

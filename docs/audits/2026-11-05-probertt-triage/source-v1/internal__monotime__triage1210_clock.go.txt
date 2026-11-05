@@ -1,0 +1,8 @@
+package monotime
+
+import "time"
+
+// Triage1210SetClockOrigin is a throwaway fixture adapter. synctest starts in
+// 2000, before the process-level origin; BBR rejects non-positive event times.
+// Call before creating any connection, inside the diagnostic bubble only.
+func Triage1210SetClockOrigin() { start = time.Now().Add(-time.Hour) }

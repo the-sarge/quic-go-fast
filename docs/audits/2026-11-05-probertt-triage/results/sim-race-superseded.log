@@ -1,0 +1,2267 @@
+=== RUN   TestTriage1210ScheduledProbe
+==================
+WARNING: DATA RACE
+Write at 0x00c0000e4010 by goroutine 48:
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1.1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:51 +0xa0
+
+Previous read at 0x00c0000e4010 by goroutine 10:
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:117 +0xb10
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 48 (running) created at:
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:44 +0x748
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c00013dd80 by goroutine 21:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).SetMaxDatagramSize()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:546 +0x164
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:88 +0x40c
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c00013dd80 by goroutine 10:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).GetCongestionWindow()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:112 +0x30
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SendAllowance()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1297 +0x44
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:100 +0xd74
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001c8ff8 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).sentPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:414 +0x7dc
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacketWithContext()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:353 +0xd0
+  github.com/quic-go/quic-go.(*packetEmission).register()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_local.go:49 +0x144
+  github.com/quic-go/quic-go.(*packetEmission).registerPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:392 +0x138
+  github.com/quic-go/quic-go.(*packetEmission).appendPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:274 +0x3ac
+  github.com/quic-go/quic-go.(*packetEmission).boundedDatagrams()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:183 +0x224
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:166 +0xdb0
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001c8ff8 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryIdle()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:206 +0xa0
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:219 +0x23c
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001e48e0 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sentLocal()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/bbr_recovery.go:121 +0x334
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:95 +0x488
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).sentPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:421 +0x918
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacketWithContext()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:353 +0xd0
+  github.com/quic-go/quic-go.(*packetEmission).register()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_local.go:49 +0x144
+  github.com/quic-go/quic-go.(*packetEmission).registerPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:392 +0x138
+  github.com/quic-go/quic-go.(*packetEmission).appendPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:274 +0x3ac
+  github.com/quic-go/quic-go.(*packetEmission).boundedDatagrams()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:183 +0x224
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:166 +0xdb0
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001e48e0 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:216 +0x260
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001e4840 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*deliverySampler).sent()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:295 +0x2f4
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:124 +0x928
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).sentPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:421 +0x918
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacketWithContext()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:353 +0xd0
+  github.com/quic-go/quic-go.(*packetEmission).register()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_local.go:49 +0x144
+  github.com/quic-go/quic-go.(*packetEmission).registerPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:392 +0x138
+  github.com/quic-go/quic-go.(*packetEmission).appendPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:274 +0x3ac
+  github.com/quic-go/quic-go.(*packetEmission).boundedDatagrams()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:183 +0x224
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:166 +0xdb0
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001e4840 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:217 +0x294
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001e49f8 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*deliveryRecords).set()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_records.go:96 +0x690
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:125 +0x990
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).sentPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:421 +0x918
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacketWithContext()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:353 +0xd0
+  github.com/quic-go/quic-go.(*packetEmission).register()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_local.go:49 +0x144
+  github.com/quic-go/quic-go.(*packetEmission).registerPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:392 +0x138
+  github.com/quic-go/quic-go.(*packetEmission).appendPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:274 +0x3ac
+  github.com/quic-go/quic-go.(*packetEmission).boundedDatagrams()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:183 +0x224
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:166 +0xdb0
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001e49f8 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*deliveryRecords).len()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_records.go:66 +0x74
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:217 +0x64
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001f41c8 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHistory).SentPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_history.go:72 +0x204
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).sentPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:430 +0xa00
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacketWithContext()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:353 +0xd0
+  github.com/quic-go/quic-go.(*packetEmission).register()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_local.go:49 +0x144
+  github.com/quic-go/quic-go.(*packetEmission).registerPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:392 +0x138
+  github.com/quic-go/quic-go.(*packetEmission).appendPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:274 +0x3ac
+  github.com/quic-go/quic-go.(*packetEmission).boundedDatagrams()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:183 +0x224
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:166 +0xdb0
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001f41c8 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHistory).Len()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_history.go:150 +0x50
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).localTrackedPackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1317 +0x24
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).numTrackedPackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1309 +0x5c
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).sendMode()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1354 +0x80
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SendAllowance()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1301 +0xe0
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:100 +0xd74
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001e48b1 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ObserveDeliveryStop()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:231 +0x4c
+  github.com/quic-go/quic-go.(*packetEmission).observeDeliveryResult()
+      /Volumes/worktrees/quic-go-fast/triage-1210/delivery_sampling.go:72 +0x1c8
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded.func2()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:73 +0x184
+  runtime.deferreturn()
+      /usr/local/go/src/runtime/panic.go:668 +0x58
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001e48b1 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:219 +0x2f8
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001e4b58 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:146 +0x12c
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:585 +0xa6c
+  github.com/quic-go/quic-go.(*Conn).handleAckFrame()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2491 +0x84
+  github.com/quic-go/quic-go.(*Conn).handleFrames()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2094 +0x3ec
+  github.com/quic-go/quic-go.(*Conn).handleUnpackedShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2012 +0xa8
+  github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1492 +0xa3c
+  github.com/quic-go/quic-go.(*Conn).handleOnePacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1381 +0xd38
+  github.com/quic-go/quic-go.(*Conn).handlePackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1244 +0x3ac
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:767 +0xc40
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001e4b58 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:218 +0x190
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001c9030 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:677 +0x1748
+  github.com/quic-go/quic-go.(*Conn).handleAckFrame()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2491 +0x84
+  github.com/quic-go/quic-go.(*Conn).handleFrames()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2094 +0x3ec
+  github.com/quic-go/quic-go.(*Conn).handleUnpackedShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2012 +0xa8
+  github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1492 +0xa3c
+  github.com/quic-go/quic-go.(*Conn).handleOnePacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1381 +0xd38
+  github.com/quic-go/quic-go.(*Conn).handlePackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1244 +0x3ac
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:767 +0xc40
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001c9030 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).sendMode()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1378 +0x2dc
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SendAllowance()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1301 +0xe0
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:100 +0xd74
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001f41c8 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHistory).cleanupStart()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_history.go:245 +0xa8
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHistory).Remove()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_history.go:182 +0x33c
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).detectAndRemoveAckedPackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:859 +0xa84
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:539 +0x680
+  github.com/quic-go/quic-go.(*Conn).handleAckFrame()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2491 +0x84
+  github.com/quic-go/quic-go.(*Conn).handleFrames()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2094 +0x3ec
+  github.com/quic-go/quic-go.(*Conn).handleUnpackedShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2012 +0xa8
+  github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1492 +0xa3c
+  github.com/quic-go/quic-go.(*Conn).handleOnePacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1381 +0xd38
+  github.com/quic-go/quic-go.(*Conn).handlePackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1244 +0x3ac
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:767 +0xc40
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001f41c8 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHistory).Len()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_history.go:150 +0x50
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).localTrackedPackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1317 +0x24
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).numTrackedPackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1309 +0x5c
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).sendMode()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1354 +0x80
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SendAllowance()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1301 +0xe0
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:100 +0xd74
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001e4b58 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:148 +0x19c
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:585 +0xa6c
+  github.com/quic-go/quic-go.(*Conn).handleAckFrame()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2491 +0x84
+  github.com/quic-go/quic-go.(*Conn).handleFrames()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2094 +0x3ec
+  github.com/quic-go/quic-go.(*Conn).handleUnpackedShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2012 +0xa8
+  github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1492 +0xa3c
+  github.com/quic-go/quic-go.(*Conn).handleOnePacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1381 +0xd38
+  github.com/quic-go/quic-go.(*Conn).handlePackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1244 +0x3ac
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:767 +0xc40
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001e4b58 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:218 +0x190
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001e49f8 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*deliveryRecords).take()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_records.go:138 +0x378
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:162 +0x404
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:585 +0xa6c
+  github.com/quic-go/quic-go.(*Conn).handleAckFrame()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2491 +0x84
+  github.com/quic-go/quic-go.(*Conn).handleFrames()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2094 +0x3ec
+  github.com/quic-go/quic-go.(*Conn).handleUnpackedShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2012 +0xa8
+  github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1492 +0xa3c
+  github.com/quic-go/quic-go.(*Conn).handleOnePacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1381 +0xd38
+  github.com/quic-go/quic-go.(*Conn).handlePackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1244 +0x3ac
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:767 +0xc40
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001e49f8 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*deliveryRecords).len()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_records.go:66 +0x74
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:217 +0x64
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001c8ff8 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).removeFromBytesInFlight()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:232 +0x1574
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:654 +0x14e0
+  github.com/quic-go/quic-go.(*Conn).handleAckFrame()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2491 +0x84
+  github.com/quic-go/quic-go.(*Conn).handleFrames()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2094 +0x3ec
+  github.com/quic-go/quic-go.(*Conn).handleUnpackedShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2012 +0xa8
+  github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1492 +0xa3c
+  github.com/quic-go/quic-go.(*Conn).handleOnePacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1381 +0xd38
+  github.com/quic-go/quic-go.(*Conn).handlePackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1244 +0x3ac
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:767 +0xc40
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001c8ff8 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryIdle()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:206 +0xa0
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:219 +0x23c
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001e4840 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*deliverySampler).feedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:322 +0x36c
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).finishCongestionFeedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:231 +0x5fc
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:684 +0x177c
+  github.com/quic-go/quic-go.(*Conn).handleAckFrame()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2491 +0x84
+  github.com/quic-go/quic-go.(*Conn).handleFrames()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2094 +0x3ec
+  github.com/quic-go/quic-go.(*Conn).handleUnpackedShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2012 +0xa8
+  github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1492 +0xa3c
+  github.com/quic-go/quic-go.(*Conn).handleOnePacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1381 +0xd38
+  github.com/quic-go/quic-go.(*Conn).handlePackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1244 +0x3ac
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:767 +0xc40
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001e4840 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:217 +0x294
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001e48b1 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ObserveDeliveryStop()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:231 +0x4c
+  github.com/quic-go/quic-go.(*packetEmission).observeDeliveryResult()
+      /Volumes/worktrees/quic-go-fast/triage-1210/delivery_sampling.go:80 +0x260
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded.func2()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:73 +0x184
+  runtime.deferreturn()
+      /usr/local/go/src/runtime/panic.go:668 +0x58
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001e48b1 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:219 +0x2f8
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001e48b2 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*deliverySampler).sent()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:296 +0x310
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:124 +0x928
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).sentPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:421 +0x918
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacketWithContext()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:353 +0xd0
+  github.com/quic-go/quic-go.(*packetEmission).register()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_local.go:49 +0x144
+  github.com/quic-go/quic-go.(*packetEmission).registerPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:392 +0x138
+  github.com/quic-go/quic-go.(*packetEmission).appendPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:274 +0x3ac
+  github.com/quic-go/quic-go.(*packetEmission).boundedDatagrams()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:183 +0x224
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:166 +0xdb0
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001e48b2 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryIdle()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:206 +0x50
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:219 +0x23c
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c000362098 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*spaceSlots).push()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/recovery_index.go:205 +0x2fc
+  github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sentLocal()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/bbr_recovery.go:141 +0x638
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:95 +0x488
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).sentPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:421 +0x918
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacketWithContext()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:353 +0xd0
+  github.com/quic-go/quic-go.(*packetEmission).register()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_local.go:49 +0x144
+  github.com/quic-go/quic-go.(*packetEmission).registerPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:392 +0x138
+  github.com/quic-go/quic-go.(*packetEmission).appendPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:274 +0x3ac
+  github.com/quic-go/quic-go.(*packetEmission).boundedDatagrams()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:183 +0x224
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:166 +0xdb0
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c000362098 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).recordBytes()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/bbr_recovery.go:94 +0x3b0
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:218 +0xa8
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c00013dd88 by goroutine 21:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).Feedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:257 +0x1490
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).finishCongestionFeedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:237 +0x740
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:684 +0x177c
+  github.com/quic-go/quic-go.(*Conn).handleAckFrame()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2491 +0x84
+  github.com/quic-go/quic-go.(*Conn).handleFrames()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2094 +0x3ec
+  github.com/quic-go/quic-go.(*Conn).handleUnpackedShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2012 +0xa8
+  github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1492 +0xa3c
+  github.com/quic-go/quic-go.(*Conn).handleOnePacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1381 +0xd38
+  github.com/quic-go/quic-go.(*Conn).handlePackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1244 +0x3ac
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:767 +0xc40
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c00013dd88 by goroutine 10:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).InProbeRTT()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe_rtt.go:103 +0xbb4
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:93 +0xb7c
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001e48b2 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ObserveDeliveryStop()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:232 +0x60
+  github.com/quic-go/quic-go.(*packetEmission).observeDeliveryResult()
+      /Volumes/worktrees/quic-go-fast/triage-1210/delivery_sampling.go:80 +0x260
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded.func2()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:73 +0x184
+  runtime.deferreturn()
+      /usr/local/go/src/runtime/panic.go:668 +0x58
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001e48b2 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryIdle()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:206 +0x50
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:219 +0x23c
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c00013dd80 by goroutine 21:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).applyACK()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:315 +0x2f0
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).Feedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:273 +0x1914
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).finishCongestionFeedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:237 +0x740
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:684 +0x177c
+  github.com/quic-go/quic-go.(*Conn).handleAckFrame()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2491 +0x84
+  github.com/quic-go/quic-go.(*Conn).handleFrames()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2094 +0x3ec
+  github.com/quic-go/quic-go.(*Conn).handleUnpackedShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2012 +0xa8
+  github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1492 +0xa3c
+  github.com/quic-go/quic-go.(*Conn).handleOnePacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1381 +0xd38
+  github.com/quic-go/quic-go.(*Conn).handlePackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1244 +0x3ac
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:767 +0xc40
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c00013dd80 by goroutine 10:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).GetCongestionWindow()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:112 +0x30
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SendAllowance()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1297 +0x44
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:100 +0xd74
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c00013dd88 by goroutine 21:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).startProbeRefill()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe.go:57 +0x1ac
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).updateProbePhase()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe.go:107 +0x18c
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).updateProbeCycle()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe.go:93 +0x29c
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).Feedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:263 +0x1644
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).finishCongestionFeedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:237 +0x740
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:684 +0x177c
+  github.com/quic-go/quic-go.(*Conn).handleAckFrame()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2491 +0x84
+  github.com/quic-go/quic-go.(*Conn).handleFrames()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2094 +0x3ec
+  github.com/quic-go/quic-go.(*Conn).handleUnpackedShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2012 +0xa8
+  github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1492 +0xa3c
+  github.com/quic-go/quic-go.(*Conn).handleOnePacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1381 +0xd38
+  github.com/quic-go/quic-go.(*Conn).handlePackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1244 +0x3ac
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:767 +0xc40
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c00013dd88 by goroutine 10:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).InProbeRTT()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe_rtt.go:103 +0xbb4
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:93 +0xb7c
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c00013dd88 by goroutine 21:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).updateProbePhase()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe.go:113 +0x2b4
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).updateProbeCycle()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe.go:93 +0x29c
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).Feedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:263 +0x1644
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).finishCongestionFeedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:237 +0x740
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:684 +0x177c
+  github.com/quic-go/quic-go.(*Conn).handleAckFrame()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2491 +0x84
+  github.com/quic-go/quic-go.(*Conn).handleFrames()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2094 +0x3ec
+  github.com/quic-go/quic-go.(*Conn).handleUnpackedShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2012 +0xa8
+  github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1492 +0xa3c
+  github.com/quic-go/quic-go.(*Conn).handleOnePacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1381 +0xd38
+  github.com/quic-go/quic-go.(*Conn).handlePackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1244 +0x3ac
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:767 +0xc40
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c00013dd88 by goroutine 10:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).InProbeRTT()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe_rtt.go:103 +0xbb4
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:93 +0xb7c
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c00013dd88 by goroutine 21:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).startProbeDown()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe.go:41 +0x38
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).updateProbePhase()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe.go:136 +0x584
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).updateProbeCycle()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe.go:93 +0x29c
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).Feedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:263 +0x1644
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).finishCongestionFeedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:237 +0x740
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:684 +0x177c
+  github.com/quic-go/quic-go.(*Conn).handleAckFrame()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2491 +0x84
+  github.com/quic-go/quic-go.(*Conn).handleFrames()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2094 +0x3ec
+  github.com/quic-go/quic-go.(*Conn).handleUnpackedShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2012 +0xa8
+  github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1492 +0xa3c
+  github.com/quic-go/quic-go.(*Conn).handleOnePacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1381 +0xd38
+  github.com/quic-go/quic-go.(*Conn).handlePackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1244 +0x3ac
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:767 +0xc40
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c00013dd88 by goroutine 10:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).InProbeRTT()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe_rtt.go:103 +0xbb4
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:93 +0xb7c
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001e48b2 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ObserveDeliveryStop()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:232 +0x80
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ObserveDeliveryLimitation()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:240 +0x4c
+  github.com/quic-go/quic-go.(*packetEmission).confirmSupplyGap()
+      /Volumes/worktrees/quic-go-fast/triage-1210/delivery_sampling.go:91 +0x150
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:151 +0xcec
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001e48b2 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryIdle()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:206 +0x50
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:219 +0x23c
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001e48b1 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ObserveDeliveryStop()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:231 +0x6c
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ObserveDeliveryLimitation()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:240 +0x4c
+  github.com/quic-go/quic-go.(*packetEmission).confirmSupplyGap()
+      /Volumes/worktrees/quic-go-fast/triage-1210/delivery_sampling.go:91 +0x150
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:151 +0xcec
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001e48b1 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:219 +0x2f8
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001e48b2 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ObserveDeliveryStop()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:232 +0x60
+  github.com/quic-go/quic-go.(*packetEmission).observeDeliveryResult()
+      /Volumes/worktrees/quic-go-fast/triage-1210/delivery_sampling.go:72 +0x1c8
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded.func2()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:73 +0x184
+  runtime.deferreturn()
+      /usr/local/go/src/runtime/panic.go:668 +0x58
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001e48b2 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryIdle()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:206 +0x50
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:219 +0x23c
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001e48e8 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sentLocal()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/bbr_recovery.go:116 +0x1d8
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:95 +0x488
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).sentPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:421 +0x918
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacketWithContext()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:353 +0xd0
+  github.com/quic-go/quic-go.(*packetEmission).register()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_local.go:49 +0x144
+  github.com/quic-go/quic-go.(*packetEmission).registerPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:392 +0x138
+  github.com/quic-go/quic-go.(*packetEmission).appendPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:274 +0x3ac
+  github.com/quic-go/quic-go.(*packetEmission).boundedDatagrams()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:183 +0x224
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:166 +0xdb0
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001e48e8 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).DeliveryStats()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/delivery_sampler.go:216 +0x274
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:97 +0xc90
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0000e4010 by goroutine 48:
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1.1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:51 +0xa0
+
+Previous read at 0x00c0000e4010 by goroutine 10:
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:104 +0xe14
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 48 (running) created at:
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:44 +0x748
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c000172570 by goroutine 21:
+  github.com/quic-go/quic-go.(*bbrSendPolicy).budget()
+      /Volumes/worktrees/quic-go-fast/triage-1210/bbr_send_policy.go:52 +0x16c
+  github.com/quic-go/quic-go.(*bbrSendPolicy).update()
+      /Volumes/worktrees/quic-go-fast/triage-1210/bbr_send_policy.go:41 +0x50
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:89 +0x444
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c000172570 by goroutine 10:
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:109 +0x1024
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c000172560 by goroutine 21:
+  github.com/quic-go/quic-go.(*bbrSendPolicy).update()
+      /Volumes/worktrees/quic-go-fast/triage-1210/bbr_send_policy.go:42 +0xbc
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:89 +0x444
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c000172560 by goroutine 10:
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:108 +0xfdc
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c000172508 by goroutine 21:
+  github.com/quic-go/quic-go.(*localSendCredit).reserve()
+      /Volumes/worktrees/quic-go-fast/triage-1210/local_send_credit.go:61 +0x190
+  github.com/quic-go/quic-go.(*packetEmission).reserveLocal()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:42 +0xa8
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:157 +0xd90
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c000172508 by goroutine 10:
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:107 +0xf94
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c000172570 by goroutine 21:
+  github.com/quic-go/quic-go.(*bbrSendPolicy).budget()
+      /Volumes/worktrees/quic-go-fast/triage-1210/bbr_send_policy.go:54 +0x134
+  github.com/quic-go/quic-go.(*bbrSendPolicy).update()
+      /Volumes/worktrees/quic-go-fast/triage-1210/bbr_send_policy.go:41 +0x50
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:89 +0x444
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c000172570 by goroutine 10:
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:109 +0x1024
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001f41c8 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHistory).SkippedPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_history.go:59 +0x140
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).PopPacketNumber()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1278 +0xd8
+  github.com/quic-go/quic-go.(*packetPacker).commitShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_packer.go:1199 +0x170
+  github.com/quic-go/quic-go.(*packetPacker).appendShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_packer.go:1113 +0x258
+  github.com/quic-go/quic-go.(*packetPacker).appendPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_packer.go:604 +0x2f4
+  github.com/quic-go/quic-go.(*packetEmission).appendPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:264 +0x1f0
+  github.com/quic-go/quic-go.(*packetEmission).boundedDatagrams()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:183 +0x224
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:166 +0xdb0
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001f41c8 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHistory).Len()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_history.go:150 +0x50
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).localTrackedPackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1317 +0x24
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).numTrackedPackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1309 +0x5c
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).sendMode()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1354 +0x80
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SendAllowance()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1301 +0xe0
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:100 +0xd74
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c00013dd88 by goroutine 21:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).checkProbeRTT()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe_rtt.go:32 +0xe0
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).Feedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:271 +0x18d4
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).finishCongestionFeedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:237 +0x740
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:684 +0x177c
+  github.com/quic-go/quic-go.(*Conn).handleAckFrame()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2491 +0x84
+  github.com/quic-go/quic-go.(*Conn).handleFrames()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2094 +0x3ec
+  github.com/quic-go/quic-go.(*Conn).handleUnpackedShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2012 +0xa8
+  github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1492 +0xa3c
+  github.com/quic-go/quic-go.(*Conn).handleOnePacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1381 +0xd38
+  github.com/quic-go/quic-go.(*Conn).handlePackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1244 +0x3ac
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:767 +0xc40
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c00013dd88 by goroutine 10:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).InProbeRTT()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe_rtt.go:103 +0xbb4
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:93 +0xb7c
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+    triage1210_diagnostic_test.go:114: phase transition t=4.9989s probe=true window=6603 minRTT=100µs latestRTT=100µs outstanding=12375 pending=0 rate=130752523
+==================
+WARNING: DATA RACE
+Write at 0x00c00013dd80 by goroutine 21:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).boundWindow()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:346 +0x234
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).SetMaxDatagramSize()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:542 +0x128
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:88 +0x40c
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c00013dd80 by goroutine 10:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).GetCongestionWindow()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:112 +0x30
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SendAllowance()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1297 +0x44
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:100 +0xd74
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c0001c8ff8 by goroutine 21:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).removeFromBytesInFlight()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:232 +0x1574
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:654 +0x14e0
+  github.com/quic-go/quic-go.(*Conn).handleAckFrame()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2491 +0x84
+  github.com/quic-go/quic-go.(*Conn).handleFrames()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2094 +0x3ec
+  github.com/quic-go/quic-go.(*Conn).handleUnpackedShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2012 +0xa8
+  github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1492 +0xa3c
+  github.com/quic-go/quic-go.(*Conn).handleOnePacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1381 +0xd38
+  github.com/quic-go/quic-go.(*Conn).handlePackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1244 +0x3ac
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:767 +0xc40
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c0001c8ff8 by goroutine 10:
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SendAllowance()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1297 +0x54
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:100 +0xd74
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c000172508 by goroutine 21:
+  github.com/quic-go/quic-go.(*localSendCredit).reserve()
+      /Volumes/worktrees/quic-go-fast/triage-1210/local_send_credit.go:61 +0x190
+  github.com/quic-go/quic-go.(*packetEmission).reserveLocal()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:42 +0xa8
+  github.com/quic-go/quic-go.(*packetEmission).sendBounded()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission_bbr.go:138 +0x944
+  github.com/quic-go/quic-go.(*packetEmission).send()
+      /Volumes/worktrees/quic-go-fast/triage-1210/packet_emission.go:151 +0x134
+  github.com/quic-go/quic-go.(*Conn).triggerSending()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2963 +0x64
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:853 +0x1118
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c000172508 by goroutine 10:
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:107 +0xf94
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c00013dd80 by goroutine 21:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).boundWindow()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:346 +0x234
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).checkProbeRTT()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe_rtt.go:45 +0x1c8
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).Feedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:271 +0x18d4
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).finishCongestionFeedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:237 +0x740
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:684 +0x177c
+  github.com/quic-go/quic-go.(*Conn).handleAckFrame()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2491 +0x84
+  github.com/quic-go/quic-go.(*Conn).handleFrames()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2094 +0x3ec
+  github.com/quic-go/quic-go.(*Conn).handleUnpackedShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2012 +0xa8
+  github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1492 +0xa3c
+  github.com/quic-go/quic-go.(*Conn).handleOnePacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1381 +0xd38
+  github.com/quic-go/quic-go.(*Conn).handlePackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1244 +0x3ac
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:767 +0xc40
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c00013dd80 by goroutine 10:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).GetCongestionWindow()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:112 +0x30
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SendAllowance()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:1297 +0x44
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:100 +0xd74
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Write at 0x00c00013dd88 by goroutine 21:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).startProbeDown()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe.go:41 +0x38
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).finishProbeRTT()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe_rtt.go:93 +0x188
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).checkProbeRTT()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe_rtt.go:54 +0x360
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).Feedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_sender.go:271 +0x18d4
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).finishCongestionFeedback()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/congestion_dispatch.go:237 +0x740
+  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/ackhandler/sent_packet_handler.go:684 +0x177c
+  github.com/quic-go/quic-go.(*Conn).handleAckFrame()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2491 +0x84
+  github.com/quic-go/quic-go.(*Conn).handleFrames()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2094 +0x3ec
+  github.com/quic-go/quic-go.(*Conn).handleUnpackedShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:2012 +0xa8
+  github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1492 +0xa3c
+  github.com/quic-go/quic-go.(*Conn).handleOnePacket()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1381 +0xd38
+  github.com/quic-go/quic-go.(*Conn).handlePackets()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:1244 +0x3ac
+  github.com/quic-go/quic-go.(*Conn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/connection.go:767 +0xc40
+  github.com/quic-go/quic-go.(*wrappedConn).run()
+      /Volumes/worktrees/quic-go-fast/triage-1210/conn_wrapped_test.go:7 +0xd4
+  github.com/quic-go/quic-go.(*Transport).doDial.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:429 +0x3c
+
+Previous read at 0x00c00013dd88 by goroutine 10:
+  github.com/quic-go/quic-go/internal/congestion.(*BBRSender).InProbeRTT()
+      /Volumes/worktrees/quic-go-fast/triage-1210/internal/congestion/bbr_probe_rtt.go:103 +0xbb4
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:93 +0xb7c
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 21 (running) created at:
+  github.com/quic-go/quic-go.(*Transport).doDial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:428 +0xa24
+  github.com/quic-go/quic-go.(*Transport).dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:323 +0x1f4
+  github.com/quic-go/quic-go.(*Transport).Dial()
+      /Volumes/worktrees/quic-go-fast/triage-1210/transport.go:294 +0x564
+  github.com/quic-go/quic-go.TestTriage1210ScheduledProbe.func1()
+      /Volumes/worktrees/quic-go-fast/triage-1210/triage1210_diagnostic_test.go:34 +0x534
+  testing.tRunner()
+      /usr/local/go/src/testing/testing.go:2195 +0x164
+  testing.testingSynctestTest.gowrap1()
+      /usr/local/go/src/testing/testing.go:2309 +0x34
+
+Goroutine 10 (running) created at:
+  testing/synctest.testingSynctestTest()
+      /usr/local/go/src/testing/testing.go:2309 +0x498
+  testing/synctest.Test.func1()
+      /usr/local/go/src/testing/synctest/synctest.go:292 +0x3c
+==================
+    triage1210_diagnostic_test.go:114: phase transition t=5.199s probe=false window=131072 minRTT=100µs latestRTT=100µs outstanding=67500 pending=0 rate=130752523
+    triage1210_diagnostic_test.go:124: probe=false samples=43999 deliveredMbps=1000.275 avgWindow=135727.6 avgOutstanding=13361.7 avgPending=0.0 avgPacingMbps=1795.757 avgCredit=64590.7 avgLatestRTTus=100.000 stops=map[1:43996 5:3]
+    triage1210_diagnostic_test.go:124: probe=true samples=2001 deliveredMbps=439.864 avgWindow=6603.0 avgOutstanding=5625.9 avgPending=0.0 avgPacingMbps=1046.020 avgCredit=62214.7 avgLatestRTTus=100.000 stops=map[4:2001]
+    triage1210_diagnostic_test.go:126: admitted=624333 missed=12610 received=686135373
+    testing.go:1867: race detected during execution of test
+--- FAIL: TestTriage1210ScheduledProbe (100.35s)
+FAIL
+FAIL	github.com/quic-go/quic-go	100.593s
+FAIL

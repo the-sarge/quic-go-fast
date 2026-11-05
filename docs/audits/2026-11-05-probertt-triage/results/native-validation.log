@@ -1,0 +1,6 @@
+=== RUN   TestTriage1210NativeProbe
+    triage1210_native_test.go:131: ProbeRTT acknowledged bytes without eligible RTT: 0
+    triage1210_native_test.go:133: native admitted=1686279 missed=19818 received=1853220621 minRTT=21.125µs latestRTT=66.584µs samples=11373 avgWindow=5120 avgFlight=4228 avgPending=219 rawRTTmean=44.719µs rawRTTp50=39.75µs rawRTTp95=68.083µs ackedBytes=33289429
+--- PASS: TestTriage1210NativeProbe (15.03s)
+PASS
+ok  	github.com/quic-go/quic-go	15.238s

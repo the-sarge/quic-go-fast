@@ -1,0 +1,7 @@
+package ackhandler
+
+// Set only before starting connections, for the native diagnostic.
+var Triage1210DefaultThreshold int
+
+// Triage1210ImmediateACK is a throwaway ablation, not a supported ACK policy.
+func (h *ReceivedPacketHandler) Triage1210ImmediateACK() { h.appDataPackets.ackThreshold = 1 }

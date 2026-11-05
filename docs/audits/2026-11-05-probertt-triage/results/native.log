@@ -1,0 +1,10 @@
+=== RUN   TestTriage1210NativeProbe
+    triage1210_native_test.go:116: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/triage-1210/triage1210_native_test.go:116
+        	Error:      	"0" is not greater than "0"
+        	Test:       	TestTriage1210NativeProbe
+        	Messages:   	must enter ProbeRTT
+--- FAIL: TestTriage1210NativeProbe (7.03s)
+FAIL
+FAIL	github.com/quic-go/quic-go	7.232s
+FAIL

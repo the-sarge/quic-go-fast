@@ -1,0 +1,120 @@
+{
+  "archive": "/Users/josh/wiremux-1460-native-probertt-v1/native-probertt-v1-runs.tar.gz",
+  "sha256": "0c815b1f413ead6c43ca41c049aa35c79b05750538adb8b63161556a6718742e",
+  "samples": [
+    {
+      "arm": "r1-on",
+      "member": "run-r1/controller/r1-on/send-stderr.log",
+      "line": 35,
+      "sample": {
+        "allowance": 1213,
+        "bbr": {
+          "bw": 453852987,
+          "bw_short": 18446744073709551615,
+          "inflight_long": 4611686018427387903,
+          "inflight_short": 4611686018427387903,
+          "latest_rate": 46252865,
+          "min_rtt_ns": 84739,
+          "phase": 6,
+          "rate": 453852987,
+          "window": 19229
+        },
+        "cwnd": [
+          2719,
+          972034,
+          152235248
+        ],
+        "diag1460": 1000179349,
+        "empty": [
+          81237,
+          37521919,
+          687095138
+        ],
+        "policy_rate": 449314457,
+        "prog": [
+          63959,
+          111951475,
+          10403535
+        ],
+        "tokens": 65536000000000,
+        "unprocessed_total": 0
+      }
+    },
+    {
+      "arm": "r3-on",
+      "member": "run-r1/controller/r3-on/send-stderr.log",
+      "line": 13,
+      "sample": {
+        "allowance": 896,
+        "bbr": {
+          "bw": 262289666,
+          "bw_short": 18446744073709551615,
+          "inflight_long": 4611686018427387903,
+          "inflight_short": 4611686018427387903,
+          "latest_rate": 19705027,
+          "min_rtt_ns": 84107,
+          "phase": 6,
+          "rate": 262289666,
+          "window": 11030
+        },
+        "cwnd": [
+          1254,
+          503811,
+          87067197
+        ],
+        "diag1460": 1000347815,
+        "empty": [
+          88000,
+          40551713,
+          743840127
+        ],
+        "policy_rate": 259666769,
+        "prog": [
+          69634,
+          116895406,
+          11489561
+        ],
+        "tokens": 61783570514944,
+        "unprocessed_total": 0
+      }
+    },
+    {
+      "arm": "r3-on",
+      "member": "run-r1/controller/r3-on/send-stderr.log",
+      "line": 69,
+      "sample": {
+        "allowance": 1149,
+        "bbr": {
+          "bw": 427376211,
+          "bw_short": 18446744073709551615,
+          "inflight_long": 4611686018427387903,
+          "inflight_short": 4611686018427387903,
+          "latest_rate": 36968485,
+          "min_rtt_ns": 89688,
+          "phase": 6,
+          "rate": 427376211,
+          "window": 19165
+        },
+        "cwnd": [
+          439,
+          223063,
+          23111111
+        ],
+        "diag1460": 1000058183,
+        "empty": [
+          93885,
+          43063864,
+          798678851
+        ],
+        "policy_rate": 423102448,
+        "prog": [
+          73322,
+          122796755,
+          12184539
+        ],
+        "tokens": 61186209070400,
+        "unprocessed_total": 0
+      }
+    }
+  ]
+}

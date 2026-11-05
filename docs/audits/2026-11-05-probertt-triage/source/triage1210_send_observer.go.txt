@@ -1,0 +1,4 @@
+package quic
+
+// Installed before connections start; snapshots run on their state owner.
+var triage1210SendObserver func(*Conn)

@@ -1,0 +1,5 @@
+=== RUN   TestTriage1210NativeProbe
+    triage1210_native_test.go:123: native admitted=1695654 missed=10443 received=1863523746 minRTT=23.167µs latestRTT=77.834µs samples=4550 avgWindow=5120 avgFlight=4287 avgPending=173 rawRTTmean=53.751µs rawRTTp50=47.708µs rawRTTp95=94.292µs ackedBytes=13846974
+--- PASS: TestTriage1210NativeProbe (15.03s)
+PASS
+ok  	github.com/quic-go/quic-go	15.207s

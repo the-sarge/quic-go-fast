@@ -1,0 +1,40 @@
+diff --git i/connection.go w/connection.go
+index ca6ad3dbe..bf479abb8 100644
+--- i/connection.go
++++ w/connection.go
+@@ -2961,6 +2961,9 @@ func (c *Conn) lowerUnsetInitialPacketSize() {
+ 
+ func (c *Conn) triggerSending(now monotime.Time) emissionResult {
+ 	result := c.emission.send(now, c.handshakeConfirmed)
++	if triage1210SendObserver != nil {
++		triage1210SendObserver(c)
++	}
+ 	c.traceBBR(now)
+ 	c.pacingDeadline = result.deadline
+ 	c.blocked = result.blocked
+diff --git i/internal/ackhandler/received_packet_tracker.go w/internal/ackhandler/received_packet_tracker.go
+index 26a6ed0e6..b0515f6bb 100644
+--- i/internal/ackhandler/received_packet_tracker.go
++++ w/internal/ackhandler/received_packet_tracker.go
+@@ -123,6 +123,7 @@ func newAppDataReceivedPacketTracker(logger utils.Logger) *appDataReceivedPacket
+ 	h := &appDataReceivedPacketTracker{
+ 		receivedPacketTracker: *newReceivedPacketTracker(),
+ 		maxAckDelay:           protocol.MaxAckDelay,
++		ackThreshold:          Triage1210DefaultThreshold,
+ 		logger:                logger,
+ 	}
+ 	return h
+diff --git i/internal/congestion/bbr_sender.go w/internal/congestion/bbr_sender.go
+index 5bfdf109d..51ac9b2d0 100644
+--- i/internal/congestion/bbr_sender.go
++++ w/internal/congestion/bbr_sender.go
+@@ -141,6 +141,9 @@ func (b *BBRSender) advanceSampling(generation, delivered uint64) {
+ }
+ 
+ func (b *BBRSender) Feedback(e FeedbackEvent) {
++	if Triage1210FeedbackObserver != nil {
++		Triage1210FeedbackObserver(b, e)
++	}
+ 	if b.closed || e.PathGeneration != b.pathGeneration || e.SampleGeneration < b.modelSampleFloor {
+ 		return
+ 	}
