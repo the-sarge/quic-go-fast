@@ -1,0 +1,2 @@
+# Preserve unified-diff context indentation in frozen diagnostic evidence.
+arbitration-probe.patch -whitespace

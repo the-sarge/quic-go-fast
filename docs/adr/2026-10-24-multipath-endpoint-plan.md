@@ -20,6 +20,10 @@ Preserve [ADR 0001](0001-upstream-compatibility.md), [ADR 0003](0003-follow-stab
 
 **Contained-design comparison:** changing the owner to do synchronous native I/O would remove a handoff but violate the accepted responsive connection loop. Requiring all PacketConn implementations to cancel would change a closed compatibility contract. Retain one endpoint control/writer boundary, with connection-owned policy and fact-only completion. Do not duplicate protocol decisions in route adapters. Revisit only if those public/responsiveness contracts are explicitly changed; all other rejected slice split/merge alternatives below have `none: rejected on merit` unless their stated context or contract stop is reached.
 
+## Efficiency follow-up
+
+The [native endpoint efficiency plan](2026-11-04-native-endpoint-efficiency-plan.md) packages issue [#1193](https://github.com/the-sarge/quic-go-fast/issues/1193). Its synchronized endpoint control is an equivalent mechanism under the ownership contract below: one state owner, independent progress and one native writer remain. The endpoint limits, deadlines, fairness, failure semantics and grant-return obligations below are unchanged. N3 owns affected native requalification before R17 #1037 and R18 #1038 resume.
+
 ## Goal and current shape
 
 Make an explicitly granted native endpoint own its complete asynchronous send lifetime behind one boundary. This supplies local ownership completion for ordinary and later multipath traffic while leaving unregistered I/O intact.

@@ -1,0 +1,34 @@
+File: base.test
+Build ID: 19559a31ec4d4cdab4e0a697ee0199ceb5f696b6
+Type: cpu
+Time: 2026-11-04 21:11:18 EST
+Duration: 19.99s, Total samples = 17.18s (85.93%)
+Showing nodes accounting for 15.34s, 89.29% of 17.18s total
+Dropped 251 nodes (cum <= 0.09s)
+Showing top 25 nodes out of 92
+      flat  flat%   sum%        cum   cum%
+    12.86s 74.85% 74.85%     12.88s 74.97%  github.com/quic-go/quic-go.(*endpointState).arbitrate
+     0.90s  5.24% 80.09%     14.28s 83.12%  github.com/quic-go/quic-go.(*endpointState).run
+     0.61s  3.55% 83.64%      0.61s  3.55%  internal/runtime/syscall/linux.Syscall6
+     0.24s  1.40% 85.04%      0.24s  1.40%  crypto/internal/fips140/aes/gcm.gcmAesEnc
+     0.17s  0.99% 86.03%      0.17s  0.99%  runtime.futex
+     0.12s   0.7% 86.73%      0.26s  1.51%  internal/runtime/maps.(*Iter).Next
+     0.09s  0.52% 87.25%      0.10s  0.58%  runtime.lock2
+     0.06s  0.35% 87.60%      0.31s  1.80%  runtime.selectgo
+     0.04s  0.23% 87.83%      0.38s  2.21%  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).localTrackedPackets
+     0.03s  0.17% 88.01%      0.64s  3.73%  github.com/quic-go/quic-go.(*packetPacker).appendPacket
+     0.03s  0.17% 88.18%      0.34s  1.98%  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).unresolvedLocalOutsideHistory
+     0.02s  0.12% 88.30%      0.39s  2.27%  github.com/quic-go/quic-go.(*packetPacker).appendShortHeaderPacket
+     0.02s  0.12% 88.42%      0.10s  0.58%  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).localPTOTimeAndSpace
+     0.02s  0.12% 88.53%      0.19s  1.11%  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).sentPacket
+     0.02s  0.12% 88.65%      0.53s  3.08%  net.(*UDPConn).WriteMsgUDPAddrPort
+     0.02s  0.12% 88.77%      0.09s  0.52%  runtime.closechan
+     0.01s 0.058% 88.82%      0.28s  1.63%  crypto/internal/fips140/aes/gcm.seal
+     0.01s 0.058% 88.88%      0.09s  0.52%  github.com/quic-go/quic-go.(*SendStream).popStreamFrame
+     0.01s 0.058% 88.94%      0.14s  0.81%  github.com/quic-go/quic-go.(*framer).Append
+     0.01s 0.058% 89.00%      2.81s 16.36%  github.com/quic-go/quic-go.(*nativeEndpoint).do.func1
+     0.01s 0.058% 89.06%      0.20s  1.16%  github.com/quic-go/quic-go.(*nativeOrdinarySender).consume
+     0.01s 0.058% 89.12%      0.19s  1.11%  github.com/quic-go/quic-go.(*nativeOrdinarySender).consumeParticipant
+     0.01s 0.058% 89.17%      1.08s  6.29%  github.com/quic-go/quic-go.(*packetEmission).appendPacket
+     0.01s 0.058% 89.23%      0.43s  2.50%  github.com/quic-go/quic-go.(*packetEmission).register
+     0.01s 0.058% 89.29%      1.44s  8.38%  github.com/quic-go/quic-go.(*packetEmission).withGSO
