@@ -9388,3 +9388,24 @@ N0 [#1199](https://github.com/the-sarge/quic-go-fast/issues/1199) and N2 [#1201]
 **Validation:** [PR #1203's final validation receipt](https://github.com/the-sarge/quic-go-fast/pull/1203#issuecomment-6649828035) records the bounded reviews, exact-head verification and current-main reconciliation. On `aaeaf3e87ee7eadd445e936d3add94bab28a0242`, 62 Python tests, root Go tests, Linux fixture compilation and focused histogram/accounting tests, vet, module tidiness and documentation checks passed. All 17 applicable [hosted checks for PR #1203](https://github.com/the-sarge/quic-go-fast/pull/1203/checks) passed, including the [unit workflow](https://github.com/the-sarge/quic-go-fast/actions/runs/41968828990). No throughput observations were charged.
 
 **Next:** [N2 (#1201)](https://github.com/the-sarge/quic-go-fast/issues/1201) is the remaining frontier. [N3 (#1202)](https://github.com/the-sarge/quic-go-fast/issues/1202) waits on N2; [R18 (#1038)](https://github.com/the-sarge/quic-go-fast/issues/1038) waits on N3 for counted qualification. See [the program tracker (#646)](https://github.com/the-sarge/quic-go-fast/issues/646) for live state.
+
+---
+
+## N2 auxiliary admission landed (#1201) - 2026-11-05 00:23 EST
+
+**Main:** `25199768eafa`
+**Actor:** Codex
+
+### Completed
+
+Merged [N2 — Admit eligible public and stateless work (#1201)](https://github.com/the-sarge/quic-go-fast/issues/1201) through [PR #1206](https://github.com/the-sarge/quic-go-fast/pull/1206). Eligible public/stateless requests now use their existing allowances while preserving a selected persistent data/control grant's final completion record, lease and notification. Both admission policies share endpoint-owned reservation, commit and terminal disposal; capacities, retry floors, writer service, response authorization and native borrows remain unchanged. The product PR owns N2 completion and the N3 frontier transition.
+
+### Validation
+
+The real-adapter held-grant regression failed with backpressure before the change. Five new deterministic scenario families plus extended large-request and service-turn tests passed. Initial RAS review `20261105T044159-a9cfd0f27ac0858f8d47000f` found a stale status label and an overly broad test build constraint; both were fixed and verified. Replacement review `20261105T045357-ea5602185cfe96ce1c5dc53c` found no remaining findings or follow-ups. Both reviews retained the configured panel; Fable failed to execute, while the other three reviewers and synthesis completed with quorum.
+
+[Exact-head certification for PR #1206](https://github.com/the-sarge/quic-go-fast/pull/1206#issuecomment-6650263695) passed on `a01e4ab0dcf011da7de61904c580551d5f4ee08c` against `e243f863dd5b8ab10fb5a80c0a3c6363b0d78fe4`: root-package tests, focused race tests, vet, tidy, whitespace, relative links and clean/live-head checks. Root tests also compile for OpenBSD, NetBSD and Solaris, with the new reservation tests selected only on Darwin, Linux and FreeBSD. All 17 hosted checks succeeded: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/41972152608), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/41972152734), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/41972152917), [cross compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/41972152625) and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/41972152698). No operational campaign, new platform qualification or performance claim was added.
+
+### Next
+
+N0 (#1199), N1 (#1200) and N2 (#1201) are complete: 3/4 N-track slices and 29/39 program slices. [N3 — Synchronize endpoint control and qualify the combined candidate (#1202)](https://github.com/the-sarge/quic-go-fast/issues/1202) is now unblocked. [Admission acceptance tracker #1141](https://github.com/the-sarge/quic-go-fast/issues/1141) remains open through N3 (#1202) and R18 (#1038) qualification; the live frontier is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646). No deferred review follow-ups or newly untraced effects remain in N2's accepted boundary.
