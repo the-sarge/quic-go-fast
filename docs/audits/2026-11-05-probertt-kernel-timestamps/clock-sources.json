@@ -1,0 +1,7 @@
+{
+  "linux": "https://docs.kernel.org/networking/timestamping.html",
+  "darwin_ip_savecontrol": "https://github.com/apple-oss-distributions/xnu/blob/main/bsd/netinet/ip_input.c",
+  "darwin_udp_delivery": "https://github.com/apple-oss-distributions/xnu/blob/main/bsd/netinet/udp_usrreq.c",
+  "darwin_clock_gettime": "https://github.com/apple-oss-distributions/Libc/blob/main/gen/clock_gettime.c",
+  "scope": "Public source explains boundaries; installed SDK and real delayed-read socket witnesses validate local constants and clock mapping. Public main is not asserted identical to the running Darwin build."
+}

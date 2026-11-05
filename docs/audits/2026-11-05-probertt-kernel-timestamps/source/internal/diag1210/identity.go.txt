@@ -1,0 +1,41 @@
+// Temporary packet-identity observation for issue #1210. Not a production API.
+package diag1210
+
+import "os"
+
+// KernelEnabled enables this observer independently from the retained original trace.
+var KernelEnabled = Enabled && os.Getenv("Q1210_KERNEL_TRACE") != ""
+
+// Identity fingerprints the UDP payload's length and first 32 protected bytes.
+// It must be called before receive decryption mutates those bytes, and once per
+// GSO/GRO segment, never on a multi-segment aggregate. FNV-1a provides a
+// deterministic 64-bit value; its sign has no special meaning.
+// This is an offline correlation key, not authentication or collision proof.
+// Analysis must reject ambiguous joins. Empty payloads have no identity.
+func Identity(b []byte) int64 {
+	if len(b) == 0 {
+		return 0
+	}
+	const offset uint64 = 14695981039346656037
+	const prime uint64 = 1099511628211
+	h := offset
+	n := uint64(len(b))
+	for i := 0; i < 8; i++ {
+		h = (h ^ (n & 0xff)) * prime
+		n >>= 8
+	}
+	for _, v := range b[:min(32, len(b))] {
+		h = (h ^ uint64(v)) * prime
+	}
+	if h == 0 {
+		h = 1
+	}
+	return int64(h)
+}
+
+// SelectedIdentity retains about one in 16 protected UDP payloads in either
+// direction. Complete data/ACK cycles need both independent identities, so the
+// joint expected rate is 1/256 before GSO and missing-observation exclusions.
+func SelectedIdentity(id int64) bool {
+	return KernelEnabled && id != 0 && uint64(id)&15 == 0
+}

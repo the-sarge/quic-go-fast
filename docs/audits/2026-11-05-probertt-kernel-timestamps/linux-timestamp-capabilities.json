@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "ssh",
+    "-oBatchMode=yes",
+    "-oConnectTimeout=5",
+    "minimax",
+    "uname -a; ethtool -T enp97s0"
+  ],
+  "returncode": 0,
+  "stdout": "Linux minimax 7.0.0-30-generic #30-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 31 18:22:54 UTC 2026 x86_64 GNU/Linux\nTime stamping parameters for enp97s0:\nCapabilities:\n\tsoftware-transmit\n\tsoftware-receive\n\tsoftware-system-clock\nPTP Hardware Clock: none\nHardware Transmit Timestamp Modes: none\nHardware Receive Filter Modes: none\n",
+  "stderr": ""
+}

@@ -1,0 +1,32 @@
+{
+  "generated_at_utc": "2026-11-05T16:38:56.602582+00:00",
+  "worktree": "/Volumes/worktrees/quic-go-fast/kernel1210-socket-observer",
+  "branch": "codex/kernel1210-socket-observer",
+  "head": "bc4915ea0de0c238ecfdc51d827f7da67639a789",
+  "expected_owned_files": [
+    "connection.go",
+    "datagram_queue.go",
+    "diag_kernel1210.go",
+    "diag_kernel1210_darwin.go",
+    "diag_kernel1210_freebsd.go",
+    "diag_kernel1210_linux.go",
+    "diag_kernel1210_test.go",
+    "emission_diag_1460.go",
+    "internal/ackhandler/received_packet_tracker.go",
+    "internal/congestion/bbr_sender.go",
+    "internal/congestion/diag_1460.go",
+    "internal/congestion/probe_rtt_1460.go",
+    "internal/diag1210/identity.go",
+    "internal/diag1210/record.go",
+    "packet_emission.go",
+    "packet_emission_bbr.go",
+    "send_queue.go",
+    "sys_conn_oob.go"
+  ],
+  "all_hashes_verified_before_cleanup": true,
+  "source_archive": "/private/tmp/q1210-kernel-observer-validation/owned-source.tar.gz",
+  "source_archive_sha256": "cf1c572a32aca7c61fafc5e998c3b7e72523f88e2df00685c2f4fbf404729639",
+  "clean_after": true,
+  "retained_binary": "/private/tmp/q1210-kernel-socket-linux.test",
+  "retained_binary_sha256": "21d6f7cf754cc0439f8813d0d4a38ce8b20596f2889d9aca72e04ed09b30a67d"
+}

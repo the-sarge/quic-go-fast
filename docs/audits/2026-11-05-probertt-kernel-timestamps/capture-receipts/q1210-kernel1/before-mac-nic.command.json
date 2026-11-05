@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "netstat",
+    "-ibn",
+    "-I",
+    "en8"
+  ],
+  "exit": 0,
+  "started_unix": 1793896908.591087,
+  "finished_unix": 1793896908.598646
+}

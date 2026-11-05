@@ -1,0 +1,277 @@
+{
+  "issue": 1210,
+  "scope": "Temporary socket timestamp observer; no production controller, ACK policy, packet contents, or protocol rcvTime replacement.",
+  "evidence_kind": "Test stdout below is transcribed from successful tool results, not original stdout log files. Source and binary hashes were read from retained bytes. Cleanup receipt was generated directly by the hash-verifying cleanup script.",
+  "captured_at_utc": "2026-11-05T16:40:30.928175+00:00",
+  "base_commit": "bc4915ea0de0c238ecfdc51d827f7da67639a789",
+  "validation": [
+    {
+      "test": "TestDiagnostic1210KernelSocketWitness",
+      "platform": "darwin/arm64",
+      "command": "Q1210_TRACE=1 Q1210_KERNEL_TRACE=1 Q1210_MACH_NUMER=125 Q1210_MACH_DENOM=3 go test -race . -run ^TestDiagnostic1210KernelSocketWitness$ -count=1",
+      "result": "PASS",
+      "stdout_transcription": "ok  github.com/quic-go/quic-go  1.244s",
+      "source_revision": "Final socket observer files, with maintenance after original protocol receive timestamp; historical source-ablation surrounding overlay, before root integration of additional identity hooks.",
+      "checks": [
+        "Real UDP socket returns nonzero kernel RX timestamp, no parse/missing/truncation errors.",
+        "Converted kernel timestamp is at or after send start minus 1 ms tolerance and at or before batch return plus calibration half-bracket.",
+        "An intentional 8 ms delayed read leaves over 4 ms between kernel timestamp and batch return, excluding recv-time generation and wrong Mach tick units.",
+        "Original p.rcvTime remains at or after the separately captured batch-return boundary."
+      ]
+    },
+    {
+      "test": "TestDiagnostic1210KernelDisabled",
+      "platform": "darwin/arm64",
+      "command": "go test -race . -run ^TestDiagnostic1210KernelDisabled$ -count=1",
+      "result": "PASS",
+      "stdout_transcription": "ok  github.com/quic-go/quic-go  1.202s",
+      "source_revision": "Before final maintenance-order correction; disabled gate path unchanged by that correction.",
+      "checks": [
+        "No observer state when Q1210_KERNEL_TRACE is absent.",
+        "Ordinary 128-byte receive ancillary buffers retained."
+      ]
+    },
+    {
+      "test": "Compile Linux socket witness",
+      "platform": "linux/amd64",
+      "command": "GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go test -c -o /private/tmp/q1210-kernel-socket-linux.test .",
+      "result": "PASS compilation; Linux runtime execution belongs to root host-admission run and has not been performed by this agent.",
+      "binary": "/private/tmp/q1210-kernel-socket-linux.test",
+      "sha256": "21d6f7cf754cc0439f8813d0d4a38ce8b20596f2889d9aca72e04ed09b30a67d",
+      "runtime_checks_encoded_in_witness": [
+        "Actual delayed-read RX timestamp boundaries.",
+        "Selected ordinary UDP send yields one TX_SCHED and one TX_SOFTWARE result.",
+        "If GSO is enabled, a four-segment send yields four received datagrams and one additional SCHED/software pair."
+      ]
+    }
+  ],
+  "clock_provenance": {
+    "darwin": {
+      "host_observed": "Darwin mbp128.local 27.2.0 arm64",
+      "installed_header": "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/sys/socket.h",
+      "socket_option": {
+        "SO_TIMESTAMP_MONOTONIC": 2048,
+        "SCM_TIMESTAMP_MONOTONIC": 4,
+        "payload": "native-endian uint64 mach_absolute_time ticks"
+      },
+      "read_only_ctypes_mach_timebase_info": {
+        "numer": 125,
+        "denom": 3,
+        "evidence_kind": "tool result transcription"
+      },
+      "calibration": "CLOCK_UPTIME_RAW (8), scaled mach_absolute_time, bracketed by monotime.Now. Setup chooses the narrowest of 32 brackets. Diagnostic origin offset and half-bracket retained in event30. About once per second event34 records another bracket without changing the original conversion offset.",
+      "conversion": "kernel_mono_ns = floor(raw_ticks * numer / denom) + setup_offset_ns; implemented with quotient/remainder arithmetic.",
+      "wrong_clock_avoided": "CLOCK_MONOTONIC_RAW (4) uses mach_continuous_time and includes sleep; it is not the same clock as SCM_TIMESTAMP_MONOTONIC.",
+      "boundary": "Public XNU creates the stamp in ip_savecontrol during UDP delivery before sbappendaddr. It is not NIC ingress or a hardware timestamp.",
+      "public_source_version_limit": "Public main source is supporting provenance and is not asserted to be the exact source revision of the running Darwin kernel; installed constants and the real delayed-read witness verify the runtime API and conversion."
+    },
+    "linux": {
+      "socket_option": "SO_TIMESTAMPING_NEW: RX_SOFTWARE | SOFTWARE | OPT_ID | OPT_TSONLY | OPT_RX_FILTER; no socket-wide TX requests.",
+      "selected_tx": "Per-send SO_TIMESTAMPING_NEW cmsg requests TX_SCHED | TX_SOFTWARE; SCM_TS_OPT_ID carries a submission ID. Only a selected first GSO-segment identity triggers a request.",
+      "clock": "Software timestamp ts[0] is system realtime in nanoseconds. RX converts with the matching batch-return anchor; ERRQUEUE retains its own near-read mono/realtime anchor.",
+      "anchor": "One time.Now supplies UnixNano and monotime.FromTime of the same Time value. This avoids deliberately pairing separate user calls, but does not imply atomic kernel/userspace clocks or eliminate realtime adjustments.",
+      "boundary": "RX software is after device driver handoff into the kernel stack; TX_SCHED is before packet scheduler, TX_SOFTWARE before passing the packet to the NIC. Neither is wire departure.",
+      "gso": "A kernel TX timestamp is a submission/first-segment observation shared with a GSO cohort, not proof of a separate wire departure for every segment.",
+      "lifecycle": "Bounded nonblocking ERRQUEUE drain in RawConn.Control after selected writes and when RX-side maintenance sees outstanding requests; no extra socket or close owner. Unmatched tail timestamps must be counted and excluded."
+    },
+    "cross_host": "No subtraction of unsynchronized endpoint clock offsets. Subtract endpoint-local elapsed intervals when forming a round-trip remainder."
+  },
+  "primary_sources": [
+    {
+      "url": "https://docs.kernel.org/networking/timestamping.html",
+      "supports": "Linux API flags, software timestamp boundaries, per-send cmsgs, error queue IDs, GSO caveat requires observed granularity."
+    },
+    {
+      "url": "https://github.com/apple-oss-distributions/xnu/blob/main/bsd/netinet/ip_input.c#L3189-L3217",
+      "supports": "Mach absolute timestamp construction for SCM_TIMESTAMP_MONOTONIC."
+    },
+    {
+      "url": "https://github.com/apple-oss-distributions/xnu/blob/main/bsd/netinet/udp_usrreq.c#L725-L783",
+      "supports": "Timestamp/control creation before UDP receive-buffer append."
+    },
+    {
+      "url": "https://github.com/apple-oss-distributions/Libc/blob/main/gen/clock_gettime.c#L98-L126",
+      "supports": "UPTIME_RAW maps mach_absolute_time; MONOTONIC_RAW maps mach_continuous_time; scaling by timebase numerator/denominator."
+    },
+    {
+      "url": "https://github.com/torvalds/linux/blob/master/net/core/sock.c",
+      "supports": "SO_TIMESTAMPING_NEW accepted for send cmsg; SCM_TS_OPT_ID requires OPT_ID and supplies u32 explicit ID."
+    },
+    {
+      "local_path": "/usr/local/go/src/runtime/sys_darwin.go:286",
+      "supports": "Installed Go nanotime converts mach_absolute_time using numerator/denominator."
+    }
+  ],
+  "event_schema": {
+    "encoding": "Each record is 16 little-endian int64 values. Index0 is kind; remaining unused fields are zero. Lists below name indexes1 onward.",
+    "30": [
+      "mono",
+      "socketID",
+      "platform:1Linux/2Darwin/3FreeBSD",
+      "active",
+      "errno",
+      "flags",
+      "clock:1UnixNs/2MachTicks",
+      "numer",
+      "denom",
+      "machToDiagOffsetNs",
+      "calibrationHalfBracketNs",
+      "oobBufferSize",
+      "schemaVersion"
+    ],
+    "31": [
+      "originalProtocolRcvTime",
+      "ciphertextIdentity",
+      "rawKernelStamp",
+      "convertedKernelMono",
+      "batchReturnMono",
+      "batchReturnUnixNs",
+      "batchSequence",
+      "batchCount",
+      "msgFlags",
+      "payloadLength",
+      "clock",
+      "socketID",
+      "stampValid",
+      "parseErrno",
+      "GROSegmentSize"
+    ],
+    "32": [
+      "writeEndMono",
+      "kernelExplicitIDOrDarwinLocalID",
+      "firstSegmentIdentity",
+      "writeStartMono",
+      "writeStartUnixNs",
+      "writeEndUnixNs",
+      "totalBytes",
+      "GSOSize",
+      "acceptedBytes",
+      "errno",
+      "socketID",
+      "segmentCount"
+    ],
+    "33": [
+      "errqueueReadMono",
+      "kernelID",
+      "eeInfo:0Software/1Sched",
+      "rawKernelUnixNs",
+      "anchorMono",
+      "anchorUnixNs",
+      "eeErrno",
+      "eeOrigin",
+      "msgFlags",
+      "payloadBytesReturned",
+      "oobBytesReturned",
+      "socketID",
+      "extendedErrValid",
+      "stampParseErrno"
+    ],
+    "34": [
+      "now",
+      "socketID",
+      "uptimeRawNs",
+      "monoBefore",
+      "monoAfter",
+      "inferredOffset",
+      "halfBracket",
+      "initialOffset",
+      "numer",
+      "denom"
+    ],
+    "38": [
+      "mono",
+      "socketID",
+      "where",
+      "errno",
+      "errorCount"
+    ],
+    "39": [
+      "mono",
+      "socketID",
+      "RXDecodedReads",
+      "RXSelected",
+      "RXMissing",
+      "RXTruncatedIncludingRejected",
+      "TXKernelRequests",
+      "TXErrqueueResults",
+      "errors",
+      "RXGRODecodedReads",
+      "validSCHEDResults",
+      "validSOFTWAREResults"
+    ],
+    "error_locations": {
+      "1": "ReadBatch/read error",
+      "2": "Invalid observed lengths",
+      "3": "RX timestamp parse",
+      "4": "Selected write error",
+      "5": "ERRQUEUE recv error",
+      "6": "ERRQUEUE ancillary parse",
+      "7": "ERRQUEUE timestamp parse",
+      "8": "ERRQUEUE control truncation",
+      "9": "Unexpected extended-error metadata",
+      "10": "128-entry drain bound reached",
+      "11": "RawConn.Control error",
+      "12": "Darwin periodic clock query",
+      "13": "Received data/control truncation"
+    },
+    "caveats": [
+      "For GRO, identity is the first segment and the timestamp is aggregate; do not infer exact per-segment arrival.",
+      "Darwin row32 is userspace write only, without a kernel TX result; native batch sends bypass this hook and require identity-selected ACK event8 from the separately integrated trace hooks.",
+      "RX row31 is emitted after the original ancillary decode and stores the original protocol rcvTime. Observer maintenance executes afterward, once per batch.",
+      "Stats are periodic and on read errors, not a claim of a guaranteed final snapshot before connection recorder flush."
+    ]
+  },
+  "cleanup": {
+    "generated_at_utc": "2026-11-05T16:38:56.602582+00:00",
+    "worktree": "/Volumes/worktrees/quic-go-fast/kernel1210-socket-observer",
+    "branch": "codex/kernel1210-socket-observer",
+    "head": "bc4915ea0de0c238ecfdc51d827f7da67639a789",
+    "expected_owned_files": [
+      "connection.go",
+      "datagram_queue.go",
+      "diag_kernel1210.go",
+      "diag_kernel1210_darwin.go",
+      "diag_kernel1210_freebsd.go",
+      "diag_kernel1210_linux.go",
+      "diag_kernel1210_test.go",
+      "emission_diag_1460.go",
+      "internal/ackhandler/received_packet_tracker.go",
+      "internal/congestion/bbr_sender.go",
+      "internal/congestion/diag_1460.go",
+      "internal/congestion/probe_rtt_1460.go",
+      "internal/diag1210/identity.go",
+      "internal/diag1210/record.go",
+      "packet_emission.go",
+      "packet_emission_bbr.go",
+      "send_queue.go",
+      "sys_conn_oob.go"
+    ],
+    "all_hashes_verified_before_cleanup": true,
+    "source_archive": "/private/tmp/q1210-kernel-observer-validation/owned-source.tar.gz",
+    "source_archive_sha256": "cf1c572a32aca7c61fafc5e998c3b7e72523f88e2df00685c2f4fbf404729639",
+    "clean_after": true,
+    "retained_binary": "/private/tmp/q1210-kernel-socket-linux.test",
+    "retained_binary_sha256": "21d6f7cf754cc0439f8813d0d4a38ce8b20596f2889d9aca72e04ed09b30a67d"
+  },
+  "source_manifest": {
+    "connection.go": "94a87c7ea4fcde4990f8d3ff48235ebd244d5930119864a1f0f06a4d8964cb4a",
+    "datagram_queue.go": "69bf59fe25a05c91766aadbd53905bd58ffaafd86cec7495e181426266051fa2",
+    "diag_kernel1210.go": "a6cfeb32eb166345c11d5378f7632048d297e93a418a73cef7cae596bd4e8cef",
+    "diag_kernel1210_darwin.go": "71ae560e362ed091fa2fe30987a9389a697dafcd5962a1c01df697330a5417d3",
+    "diag_kernel1210_freebsd.go": "e501e4119649b32702ce80a6f1cdc37fde1eadd0f8c1346a7d3d59abb19fe815",
+    "diag_kernel1210_linux.go": "799a2c55ff1c41f08e8166f57acfffc46c212b49ff229ffe12a6e90059e137d1",
+    "diag_kernel1210_test.go": "898eab5b99980f93c53a5c3977a4da3c9a4b7bcb8b74ea0833462009e02a2c79",
+    "emission_diag_1460.go": "8e1249f89c46957c212e2a18abb8651d2f656b6661ff6ca8a1b33c76c45e51e8",
+    "internal/ackhandler/received_packet_tracker.go": "1acc50236f820101eed733515f6c0cc4b946fbf41f40897876bb0802fabb8c96",
+    "internal/congestion/bbr_sender.go": "f0d1016fec3d7ef3d38e08a39f4c2b29898a95cd7853591f25581f4db526db37",
+    "internal/congestion/diag_1460.go": "a9a939b707cd94a8e44aa485e4f25c6ed73c34540f7283eb8e178eac6ce8e7d4",
+    "internal/congestion/probe_rtt_1460.go": "3517802df4a017741503cf4e9529f050e4c2c5f9e2cfd5d3f8a4875676b29c8a",
+    "internal/diag1210/identity.go": "f888639d60dad4856998f4e887c673fee00d791bd6ef720efaed356901943c91",
+    "internal/diag1210/record.go": "0b1d40a3cf2ad1078f788663d347fe291c1a28945ea5b145ce62e00f294b993a",
+    "packet_emission.go": "7f1b2811f4c4f0d075bff0dea7815e1289c5b137a1f71ee54ce0d8ccf1e52ad5",
+    "packet_emission_bbr.go": "dfe3e0cca94f18cfebb395b78d646571c7bf24433abd6df5e51ca01c415ae8b0",
+    "send_queue.go": "d4646f6846d8d7cf6cfa428c849848833aeeafcaf32c08782d66d13a87810867",
+    "sys_conn_oob.go": "4f04e0642fb92d6f2c4a5a43dc8b9bad806b1ee90ba27c9f4c125c6066ae8a42"
+  },
+  "recommendation": "Run the Linux real-socket witness under admitted host ownership before native traffic; require observed setup success and interpret only complete timestamp matches with explicit GSO/GRO granularity."
+}

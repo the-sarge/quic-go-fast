@@ -1,0 +1,8 @@
+{
+  "sys_conn_oob.go": "4f04e0642fb92d6f2c4a5a43dc8b9bad806b1ee90ba27c9f4c125c6066ae8a42",
+  "diag_kernel1210.go": "a6cfeb32eb166345c11d5378f7632048d297e93a418a73cef7cae596bd4e8cef",
+  "diag_kernel1210_darwin.go": "71ae560e362ed091fa2fe30987a9389a697dafcd5962a1c01df697330a5417d3",
+  "diag_kernel1210_freebsd.go": "e501e4119649b32702ce80a6f1cdc37fde1eadd0f8c1346a7d3d59abb19fe815",
+  "diag_kernel1210_linux.go": "799a2c55ff1c41f08e8166f57acfffc46c212b49ff229ffe12a6e90059e137d1",
+  "diag_kernel1210_test.go": "898eab5b99980f93c53a5c3977a4da3c9a4b7bcb8b74ea0833462009e02a2c79"
+}

@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "/bin/sh",
+    "-c",
+    "netstat -s -p udp; netstat -ibn -I en8; echo TOPCPU; ps -axo pcpu=,nice=,pid=,comm= | sort -rn | head -12"
+  ],
+  "exit": 0,
+  "started_unix": 1793896992.069411,
+  "finished_unix": 1793896992.1512902
+}

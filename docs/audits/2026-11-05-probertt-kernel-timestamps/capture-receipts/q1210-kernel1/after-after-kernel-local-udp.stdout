@@ -1,0 +1,48 @@
+udp:
+	3257490857 datagram received
+		0 with incomplete header
+		0 with bad data length field
+		1 with bad checksum
+		2 with no checksum
+		1504034730 checksummed in software
+			1503017418 datagrams (3304443147 byte) over IPv4
+			1017312 datagrams (271013641 bytes) over IPv6
+		397256 dropped due to no socket
+		58399 broadcast/multicast datagrams undelivered
+		678 IPv6 multicast datagrams undelivered
+		0 time multicast source filter matched
+		444806 dropped due to full socket buffers
+		0 not for hashed pcb
+		3256590395 delivered
+	2808141852 datagram output
+		3718988172 checksummed in software
+			3712762515 datagram (2139691791 bytes) over IPv4
+			6225657 datagrams (1907119489 bytes) over IPv6
+	153806 duplicate IMCP packets for port unreachable suppressed
+	242774 ICMP packets for port unreachable not suppressed
+Name       Mtu   Network       Address            Ipkts Ierrs     Ibytes    Opkts Oerrs     Obytes  Coll
+en8        1500  <Link#16>   02:00:00:00:00:00 11135368119     0 14865927772081 3487777465     0 4350448253366     0
+en8        1500  fe80::18aa: fe80:10::18aa:69c 11135368119     - 14865927772081 3487777465     - 4350448253366     -
+en8        1500  fded:7eff:f fded:7eff:fa:1:14 11135368119     - 14865927772081 3487777465     - 4350448253366     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11135368119     - 14865927772081 3487777465     - 4350448253366     -
+en8        1500  192.168.1     192.168.1.110   11135368119     - 14865927772081 3487777465     - 4350448253366     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11135368119     - 14865927772081 3487777465     - 4350448253366     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11135368119     - 14865927772081 3487777465     - 4350448253366     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11135368119     - 14865927772081 3487777465     - 4350448253366     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11135368119     - 14865927772081 3487777465     - 4350448253366     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11135368119     - 14865927772081 3487777465     - 4350448253366     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11135368119     - 14865927772081 3487777465     - 4350448253366     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11135368119     - 14865927772081 3487777465     - 4350448253366     -
+TOPCPU
+253.1  0  1509 /usr/libexec/hybridsearchd
+ 46.2  0   684 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+ 26.2  0  3113 /System/Library/ExtensionKit/Extensions/TGOnDeviceInferenceProviderService.appex/Contents/MacOS/TGOnDeviceInferenceProviderService
+ 15.6  0 84280 /System/Applications/Mail.app/Contents/MacOS/Mail
+  9.2  0 53909 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/157.0.8103.38/Helpers/Google Chrome Helper (Aperitif Renderer).app/Contents/MacOS/Google Chrome Helper (Aperitif Renderer)
+  8.2  0   853 /usr/sbin/coreaudiod
+  4.2  0  2824 /Applications/Setapp/AlDente Pro.app/Contents/MacOS/AlDente
+  4.2  0  1006 /System/Library/PrivateFrameworks/ModelCatalogRuntime.framework/Versions/A/modelcatalogd
+  3.5  0   664 /usr/libexec/dasd
+  3.0  0   759 /usr/libexec/lsd
+  2.6  0  2838 /Applications/Resilio Sync.app/Contents/MacOS/Resilio Sync
+  2.4  0   678 /usr/sbin/notifyd

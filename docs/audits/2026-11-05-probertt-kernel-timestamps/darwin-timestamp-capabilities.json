@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "/bin/sh",
+    "-c",
+    "uname -a; /usr/sbin/tcpdump -J -i en8; ls -l /dev/bpf0 /dev/bpf1"
+  ],
+  "returncode": 0,
+  "stdout": "Darwin mbp128.local 27.2.0 Darwin Kernel Version 27.2.0: Wed Oct 14 23:44:56 PDT 2026; root:xnu-13432.41.4~25/RELEASE_ARM64_T6041 arm64\ncrw-------  1 root  wheel  0x17000000 Oct 29 12:41 /dev/bpf0\ncrw-------  1 root  wheel  0x17000001 Nov  5 11:27 /dev/bpf1\n",
+  "stderr": "Time stamp types for en8 (use option -j to set):\n  host (Host)\n"
+}

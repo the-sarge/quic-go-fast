@@ -1,0 +1,82 @@
+// Temporary diagnostic for issue #1210. Not a production API.
+package diag1210
+
+import (
+	"bufio"
+	"encoding/binary"
+	"encoding/json"
+	"fmt"
+	"github.com/quic-go/quic-go/internal/monotime"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
+)
+
+var AckEveryPacket = func() bool {
+	host, _ := os.Hostname()
+	return os.Getenv("Q1210_ACK1_HOST") != "" && strings.Split(host, ".")[0] == os.Getenv("Q1210_ACK1_HOST")
+}()
+var Enabled = os.Getenv("Q1210_TRACE") != ""
+var mu sync.Mutex
+var rows [][16]int64
+var dropped int64
+var flushed bool
+var originMono = monotime.Now()
+var originWall = time.Now().UnixNano()
+
+const capacity = 4000000
+
+func init() {
+	if Enabled {
+		rows = make([][16]int64, 0, capacity)
+	}
+}
+func Pick(pn int64) bool { return Enabled && pn >= 0 && uint64(pn)*11400714819323198485>>59 == 0 }
+func Add(kind int64, values ...int64) {
+	if !Enabled {
+		return
+	}
+	var row [16]int64
+	row[0] = kind
+	copy(row[1:], values)
+	mu.Lock()
+	defer mu.Unlock()
+	if flushed || len(rows) == capacity {
+		dropped++
+		return
+	}
+	rows = append(rows, row)
+}
+func Drop(n int64) { mu.Lock(); dropped += n; mu.Unlock() }
+func Flush() {
+	if !Enabled {
+		return
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if flushed {
+		return
+	}
+	flushed = true
+	path := filepath.Join(os.Getenv("Q1210_OUTPUT_DIR"), fmt.Sprintf("diag1210-%d.bin", os.Getpid()))
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[DEBUG-1210] flush: %v\n", err)
+		return
+	}
+	w := bufio.NewWriterSize(f, 1024*1024)
+	err = binary.Write(w, binary.LittleEndian, rows)
+	if err == nil {
+		err = w.Flush()
+	}
+	if e := f.Close(); err == nil {
+		err = e
+	}
+	endMono := monotime.Now()
+	endWall := time.Now().UnixNano()
+	header := map[string]any{"diag1210": path, "records": len(rows), "ack_threshold_one": AckEveryPacket, "dropped": dropped, "record_int64s": 16, "origin_mono_ns": int64(originMono), "origin_unix_ns": originWall, "end_mono_ns": int64(endMono), "end_unix_ns": endWall, "error": fmt.Sprint(err), "clock": "monotime; Unix anchor is a sequential observation, never cross-host one-way time"}
+	b, _ := json.Marshal(header)
+	fmt.Fprintf(os.Stderr, "[DEBUG-1210] %s\n", b)
+}

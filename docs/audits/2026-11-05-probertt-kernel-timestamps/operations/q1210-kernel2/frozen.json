@@ -1,0 +1,13 @@
+{
+  "batch.py.txt": "7fc8723c55f4ae6dab6afd0885c9b6afbf4d463c4fbdbe3c47cab95cbfd6dbd8",
+  "capture-manifest.json": "7135fd52f44daa5068231f53e345757b3622d879ae9a3b365e509aed2f2edff5",
+  "config-after-kernel.json": "46a4b54bc0ff0fd378c29e0ffef747487bbc5e8ff97b996fb96d9cb5124bbfb1",
+  "config-before-kernel.json": "3c6f12fb9fbbca0b1796ed73e3647a97881ae90cb73520ebe82d5b60979f90ed",
+  "config-kernel.json": "537eee5e34ee63ddae24064fc29c7b8e3cdc4815731468b5e4df62c360c7d9c6",
+  "endpoint-after-kernel.sh": "a48538e5a5230fe815efc0fc8442a4532184b250df335fbd1aba6d648252bd59",
+  "endpoint-before-kernel.sh": "13885f0aa4980012d573c699009f4ebcbb7975a6d486e7d82a435b91f199971d",
+  "endpoint-kernel.sh": "27f2e081dccf0e24eb41ebb6230180ce551d44c6dc11b601ceed0c364e33e6ca",
+  "kernel-operator.py.txt": "ca29e716254e20f992fffaf4639dc76a7ddf7d8416ce3cb98fa7172d22ad2c37",
+  "kernel-witness.json": "3426a530ced5bc332fe4288699d216a8ecef9a83ba157f5b0219ea586b5a328a",
+  "operate_base.py": "e3ea0e0dc0fb213ff153ce76a379581051b2e98fa68720b32d078a6e8fd7ada6"
+}

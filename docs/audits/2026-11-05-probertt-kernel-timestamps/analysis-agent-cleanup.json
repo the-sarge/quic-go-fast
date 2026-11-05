@@ -1,0 +1,34 @@
+{
+  "worktree": "/Volumes/worktrees/quic-go-fast/kernel1210-analysis",
+  "branch": "codex/kernel1210-analysis",
+  "head": "318d8ca6afa1102fe5724e38e722d1091a8d77e4",
+  "verified_root_copies": {
+    "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/docs/audits/2026-11-05-probertt-kernel-timestamps/analyze-kernel.py": "c54bdf806903ff0f94bb97d3b9c8f49c09a3abbff31b03f3fa0b84b343d19c98",
+    "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/docs/audits/2026-11-05-probertt-kernel-timestamps/analyze-kernel-test.py": "48794d39427d6c68bf3f4891b168d2bbf8899d68ee68fdbdfb1ca21e96308cc9"
+  },
+  "removed_own_files": [
+    "docs/audits/2026-11-05-probertt-kernel-timestamps/analyze-kernel.py",
+    "docs/audits/2026-11-05-probertt-kernel-timestamps/analyze-kernel-test.py"
+  ],
+  "status_before": "## codex/kernel1210-analysis\n?? docs/audits/2026-11-05-probertt-kernel-timestamps/\n",
+  "status_after": "## codex/kernel1210-analysis\n",
+  "active_analysis_files_removed": true,
+  "root_files_unchanged": true,
+  "validation": [
+    "clock-offset invariance",
+    "full-cycle 255=20+100+35+100 us witness",
+    "duplicate identity/submission rejection",
+    "Darwin and Linux CTRUNC rejection",
+    "GRO aggregate rejection",
+    "raw/converted clock consistency",
+    "partial cycle preserved without Linux TX observations",
+    "published bundle replay; previous output fields unchanged"
+  ],
+  "retained_local_audit_outputs": [
+    "/tmp/q1210-review-partial.py",
+    "/tmp/q1210-partial-cycle-review.json",
+    "/tmp/q1210-kernel-analysis-partial.json",
+    "/tmp/q1210-kernel-analysis-partial.log"
+  ],
+  "timestamp_utc": "2026-11-05T17:02:21.893420+00:00"
+}

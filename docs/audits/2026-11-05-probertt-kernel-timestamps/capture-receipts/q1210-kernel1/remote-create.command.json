@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "-oServerAliveInterval=2",
+    "-oServerAliveCountMax=2",
+    "minimax",
+    "python3 - /home/josh/wiremux-1460-diag-q1210-kernel1 '{\"proposal_id\": \"wm1460-q1210-kernel1\", \"owner\": \"wm1460-q1210-kernel1\", \"build_id\": \"b3f10a8dd4d6071ab58c7322638b18c292c4dde77ede3366a5710df893c4bf1d\", \"binary_sha256\": \"92c4dde77ede3366a5710df893c4bf1d7fc900a3b8f17e3f844fdd6d05b52463\"}' '[\"before-kernel\", \"kernel\", \"after-kernel\"]'"
+  ],
+  "exit": 0,
+  "started_unix": 1793896907.194826,
+  "finished_unix": 1793896907.375533
+}

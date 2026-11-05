@@ -1,0 +1,382 @@
+package quic
+
+import (
+	"errors"
+	"fmt"
+	"github.com/quic-go/quic-go/internal/diag1210"
+	"net"
+	"sync"
+
+	"github.com/quic-go/quic-go/internal/monotime"
+	"github.com/quic-go/quic-go/internal/protocol"
+)
+
+type sender interface {
+	Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN, metadata sendMetadata)
+	SendProbe(*packetBuffer, net.Addr, packetInfo) error
+	Run() error
+	WouldBlock() bool
+	Available() <-chan struct{}
+	Close()
+}
+
+// sendMetadata is captured by the connection loop, never read from it by the worker.
+type sendMetadata struct {
+	diagPNs [8]int64
+	diagN   int
+
+	terminalReceipts [2]*pathAbandonReceipt
+	credit           *sendReservation
+	handshake        bool
+	pathGeneration   uint64
+}
+
+// handshakeSendFeedback retains the latest eligible failure without retaining buffers.
+// Publishing and consuming the coalesced wakeup under the lock prevents lost wakeups.
+type handshakeSendFeedback struct {
+	mu         sync.Mutex
+	generation uint64
+	pending    bool
+	wakeup     chan struct{}
+}
+
+func (f *handshakeSendFeedback) publish(generation uint64) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.generation, f.pending = generation, true
+	select {
+	case f.wakeup <- struct{}{}:
+	default:
+	}
+}
+
+func (f *handshakeSendFeedback) take() (uint64, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	generation, pending := f.generation, f.pending
+	f.pending = false
+	select {
+	case <-f.wakeup:
+	default:
+	}
+	return generation, pending
+}
+
+type queueEntry struct {
+	metadata sendMetadata
+	buf      *packetBuffer
+	gsoSize  uint16
+	ecn      protocol.ECN
+}
+
+// release retires storage before returning its local byte credit.
+func (e queueEntry) release() {
+	e.buf.Release()
+	e.metadata.credit.complete()
+}
+
+// batchSender is an optional sendConn capability: submit several packets that
+// share an ECN marking (and use no GSO segmentation) as one batched send.
+// sendBatch returns how many leading packets the kernel accepted
+// (0 <= accepted <= len(bufs)); accepted packets are on the wire and must
+// never be resent. A nil error with accepted < len(bufs) means the kernel
+// observably declined the remainder (a short count, or an errno that the
+// kernel only reports when nothing was sent); the worker then retries the
+// first unaccepted entry through the per-packet path, where size errors and
+// handshake MTU feedback attach to the correct entry. A non-nil error means
+// kernel progress for the offered packets is unknowable (the syscall's error
+// convention discards the count); the worker must fail the send path without
+// resending anything, so no packet can be duplicated.
+type batchSender interface {
+	batchSendAvailable() bool
+	sendBatch(bufs [][]byte, ecn protocol.ECN) (int, error)
+}
+
+type sendQueue struct {
+	queue       chan queueEntry
+	closeCalled chan struct{} // runStopped when Close() is called
+	runStopped  chan struct{} // runStopped when the run loop returns
+	available   chan struct{}
+	conn        sendConn
+	// authorized is conn when it authorizes each of several submissions.
+	authorized authorizedWriter
+	feedback   *handshakeSendFeedback
+	// authority is checked again before each socket submission of queued
+	// work; nil is ungrouped.
+	authority *connAuthority
+	// qos is the connection's send thread QoS; nil leaves the thread alone.
+	qos *sendThreadQoS
+
+	// Scratch reused across batched sends; the run loop is the only user.
+	batchScratch []queueEntry
+	bufsScratch  [][]byte
+}
+
+var _ sender = &sendQueue{}
+
+// sendQueueCapacity is the queue depth of every connection, whatever its
+// congestion controller. It bounds how many packets the connection loop can
+// queue ahead of the send worker; on a batch-capable socket the worker
+// signals room only once it has finished with each batched group. It bounds
+// entries only: congestion control (and, for BBR, local send credit) still
+// bounds the bytes behind them.
+const sendQueueCapacity = 32
+
+// maxSendBatch caps how many queued packets one batched group coalesces. It
+// follows the queue's depth, so a full queue of packets that share their
+// (gsoSize, ecn) forms one group, with one room signal when the worker
+// finishes it, instead of several smaller groups. It also bounds a group that
+// keeps growing while the connection loop refills the queue during the drain.
+const maxSendBatch = sendQueueCapacity
+
+// authorizedWriter is a sendConn that can make several socket submissions for
+// one write, and authorizes each of them.
+type authorizedWriter interface {
+	writeAuthorized(b []byte, gsoSize uint16, ecn protocol.ECN, permit submissionPermit) error
+}
+
+func newSendQueue(conn sendConn, feedback *handshakeSendFeedback) sender {
+	authorized, _ := conn.(authorizedWriter)
+	return &sendQueue{
+		authorized:  authorized,
+		conn:        conn,
+		feedback:    feedback,
+		runStopped:  make(chan struct{}),
+		closeCalled: make(chan struct{}),
+		available:   make(chan struct{}, 1),
+		queue:       make(chan queueEntry, sendQueueCapacity),
+	}
+}
+
+// Send consumes a packet buffer, transferring it to the worker or releasing it if stopped.
+// It's guaranteed to not block. The sole producer must finish sending before calling Close.
+// Callers need to make sure that there's actually space in the send queue by calling WouldBlock.
+// Otherwise Send will panic.
+func (h *sendQueue) Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN, metadata sendMetadata) {
+	select {
+	case h.queue <- queueEntry{buf: p, gsoSize: gsoSize, ecn: ecn, metadata: metadata}:
+		// clear available channel if we've reached capacity
+		if len(h.queue) == cap(h.queue) {
+			select {
+			case <-h.available:
+			default:
+			}
+		}
+	case <-h.runStopped:
+		p.Release()
+		metadata.credit.complete()
+	default:
+		panic("sendQueue.Send would have blocked")
+	}
+}
+
+// SendProbe borrows storage for one synchronous write. Network-policy failure
+// reaches the connection's normal error path; ordinary I/O remains best effort.
+// The emission caller releases it after this method returns.
+func (h *sendQueue) SendProbe(p *packetBuffer, addr net.Addr, info packetInfo) error {
+	if !h.authority.permitsWork() {
+		return nil
+	}
+	if err := h.conn.WriteTo(p.Data, addr, info); errors.Is(err, errNetworkAdmissionDenied) {
+		return err
+	}
+	return nil
+}
+
+func (h *sendQueue) WouldBlock() bool {
+	return len(h.queue) == cap(h.queue)
+}
+
+func (h *sendQueue) Available() <-chan struct{} {
+	return h.available
+}
+
+func (h *sendQueue) Run() error {
+	defer close(h.runStopped)
+	// Restoring the thread precedes runStopped, so Close returns only after it.
+	qos := h.qos.begin()
+	defer qos.release()
+	var shouldClose bool
+	for {
+		if shouldClose && len(h.queue) == 0 {
+			return nil
+		}
+		select {
+		case <-h.closeCalled:
+			h.closeCalled = nil // prevent this case from being selected again
+			// make sure that all queued packets are actually sent out
+			shouldClose = true
+		case e := <-h.queue:
+			if bs, ok := h.conn.(batchSender); ok && bs.batchSendAvailable() {
+				if err := h.runBatched(e, bs); err != nil {
+					return err
+				}
+				qos.check()
+				continue
+			}
+			if err := h.writeEntry(e); err != nil {
+				e.release()
+				return err
+			}
+			e.release()
+			select {
+			case h.available <- struct{}{}:
+			default:
+			}
+			qos.check()
+		}
+	}
+}
+
+// writeEntry sends one entry through the per-packet path with the existing
+// per-entry error attribution. The additional size-error check enables:
+// 1. Checking for "datagram too large" message from the kernel, as such,
+// 2. Path MTU discovery, and
+// 3. Eventual detection of loss PingFrame.
+// The caller keeps ownership of the entry's buffer. A fenced candidate's
+// entry is discarded here, before any of its submissions.
+func (h *sendQueue) writeEntry(e queueEntry) error {
+	if !h.authority.permitsWork() {
+		return nil
+	}
+	var started monotime.Time
+	if diag1210.Enabled && e.metadata.diagN > 0 {
+		started = monotime.Now()
+	}
+	var err error
+	if h.authorized != nil {
+		err = h.authorized.writeAuthorized(e.buf.Data, e.gsoSize, e.ecn, submissionPermit{authority: h.authority})
+	} else {
+		err = h.conn.Write(e.buf.Data, e.gsoSize, e.ecn)
+	}
+	if started != 0 {
+		ended := monotime.Now()
+		for _, pn := range e.metadata.diagPNs[:e.metadata.diagN] {
+			diag1210.Add(8, int64(ended), pn, int64(started), int64(e.buf.Len()), 1)
+		}
+	}
+	if err == nil {
+		for _, receipt := range e.metadata.terminalReceipts {
+			if receipt != nil {
+				receipt.publish(monotime.Now())
+			}
+		}
+	}
+	if err != nil {
+		if errors.Is(err, errSubmissionDenied) {
+			return nil // fenced during the write; the caller releases the entry
+		}
+		if !isSendMsgSizeErr(err) {
+			return err
+		}
+		if h.feedback != nil && e.metadata.handshake && e.gsoSize == 0 && e.buf.Len() > protocol.MinInitialPacketSize {
+			h.feedback.publish(e.metadata.pathGeneration)
+		}
+	}
+	return nil
+}
+
+// runBatched drains entries already queued behind e that share its
+// (gsoSize, ecn) into one group and sends each group through
+// sendBatchEntries. An entry that differs flushes the current group and
+// starts a new one, preserving submission order.
+func (h *sendQueue) runBatched(e queueEntry, bs batchSender) error {
+	group := append(h.batchScratch[:0], e)
+	defer func() { h.batchScratch = group[:0] }()
+	for len(h.queue) > 0 && len(group) < maxSendBatch {
+		next := <-h.queue
+		if next.gsoSize != group[0].gsoSize || next.ecn != group[0].ecn || next.metadata.hasTerminalReceipt() || group[0].metadata.hasTerminalReceipt() {
+			if err := h.sendBatchEntries(group, bs); err != nil {
+				next.release()
+				return err
+			}
+			group = append(group[:0], next)
+			continue
+		}
+		group = append(group, next)
+	}
+	return h.sendBatchEntries(group, bs)
+}
+
+// sendBatchEntries owns every entry in the group: it releases all their
+// buffers and signals availability before returning. Accepted entries are
+// never resent; after every batched submission the first unaccepted entry is
+// retried through the per-packet path so error attribution lands on the
+// correct entry, and the remaining tail re-enters batching. Each iteration
+// consumes at least one entry, so the loop terminates.
+func (h *sendQueue) sendBatchEntries(group []queueEntry, bs batchSender) error {
+	defer func() {
+		for _, e := range group {
+			e.release()
+		}
+		select {
+		case h.available <- struct{}{}:
+		default:
+		}
+	}()
+	i := 0
+	for i < len(group) {
+		if !h.authority.permitsWork() {
+			return nil // the deferred release retires the revoked remainder
+		}
+		if remaining := group[i:]; len(remaining) >= 2 && remaining[0].gsoSize == 0 && bs.batchSendAvailable() {
+			bufs := h.bufsScratch[:0]
+			for _, e := range remaining {
+				bufs = append(bufs, e.buf.Data)
+			}
+			var started monotime.Time
+			if diag1210.Enabled {
+				started = monotime.Now()
+			}
+			accepted, err := bs.sendBatch(bufs, remaining[0].ecn)
+			if diag1210.Enabled {
+				ended := monotime.Now()
+				for j, entry := range remaining {
+					if j >= accepted {
+						break
+					}
+					for _, pn := range entry.metadata.diagPNs[:entry.metadata.diagN] {
+						diag1210.Add(8, int64(ended), pn, int64(started), int64(entry.buf.Len()), int64(accepted))
+					}
+				}
+			}
+			clear(bufs)
+			h.bufsScratch = bufs[:0]
+			if accepted < 0 || accepted > len(remaining) {
+				// Invalid progress cannot identify a safe remainder to retry.
+				if err != nil {
+					return err
+				}
+				return fmt.Errorf("quic: invalid send batch accepted count %d of %d", accepted, len(remaining))
+			}
+			i += accepted
+			if err != nil {
+				// Progress for the unaccepted remainder is unknowable, so a
+				// per-packet retry could resend a packet the kernel already
+				// sent. Fail the send path instead — the same fatal handling
+				// the per-packet path applies to this error class — and never
+				// duplicate.
+				return err
+			}
+			if accepted == len(remaining) {
+				continue
+			}
+		}
+		if err := h.writeEntry(group[i]); err != nil {
+			return err
+		}
+		i++
+	}
+	return nil
+}
+
+func (h *sendQueue) Close() {
+	close(h.closeCalled)
+	// wait until the run loop returned
+	<-h.runStopped
+	// The producer has stopped and the worker can no longer own a queued entry.
+	// A fatal write may have left entries, including a Send racing worker exit.
+	for len(h.queue) > 0 {
+		(<-h.queue).release()
+	}
+}

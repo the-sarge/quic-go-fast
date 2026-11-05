@@ -1,0 +1,48 @@
+udp:
+	3265413848 datagram received
+		0 with incomplete header
+		0 with bad data length field
+		1 with bad checksum
+		2 with no checksum
+		1504035260 checksummed in software
+			1503017685 datagrams (3304502524 byte) over IPv4
+			1017575 datagrams (271068766 bytes) over IPv6
+		397703 dropped due to no socket
+		58430 broadcast/multicast datagrams undelivered
+		678 IPv6 multicast datagrams undelivered
+		0 time multicast source filter matched
+		444806 dropped due to full socket buffers
+		0 not for hashed pcb
+		3264512908 delivered
+	2808753769 datagram output
+		3718988622 checksummed in software
+			3712762627 datagram (2139717943 bytes) over IPv4
+			6225995 datagrams (1907198106 bytes) over IPv6
+	153807 duplicate IMCP packets for port unreachable suppressed
+	243220 ICMP packets for port unreachable not suppressed
+Name       Mtu   Network       Address            Ipkts Ierrs     Ibytes    Opkts Oerrs     Obytes  Coll
+en8        1500  <Link#16>   02:00:00:00:00:00 11143344528     0 14875219615037 3488408380     0 4350566365248     0
+en8        1500  fe80::18aa: fe80:10::18aa:69c 11143344528     - 14875219615037 3488408380     - 4350566365248     -
+en8        1500  fded:7eff:f fded:7eff:fa:1:14 11143344528     - 14875219615037 3488408380     - 4350566365248     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11143344528     - 14875219615037 3488408380     - 4350566365248     -
+en8        1500  192.168.1     192.168.1.110   11143344528     - 14875219615037 3488408380     - 4350566365248     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11143344528     - 14875219615037 3488408380     - 4350566365248     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11143344528     - 14875219615037 3488408380     - 4350566365248     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11143344528     - 14875219615037 3488408380     - 4350566365248     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11143344528     - 14875219615037 3488408380     - 4350566365248     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11143344528     - 14875219615037 3488408380     - 4350566365248     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11143344528     - 14875219615037 3488408380     - 4350566365248     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11143344528     - 14875219615037 3488408380     - 4350566365248     -
+TOPCPU
+ 32.4  0   684 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+  6.7  0 53185 /var/folders/ph/8tf9wjq95wjcv0qf93zg96c00000gn/T/go-build443522182/b001/transfer.test
+  6.6  0 13787 /usr/libexec/spotlightknowledged.updater
+  5.0  0     1 /sbin/launchd
+  4.7  0   664 /usr/libexec/dasd
+  4.6  0 14073 /Users/josh/Library/Application Support/Claude/claude-code/2.1.309/5af865b9901c/claude.app/Contents/MacOS/claude
+  4.1  0  1558 /usr/bin/ssh-agent
+  3.7  0   853 /usr/sbin/coreaudiod
+  3.6  0  2824 /Applications/Setapp/AlDente Pro.app/Contents/MacOS/AlDente
+  2.5  0  2779 /Users/josh/Library/Application Support/iStat Menus 7/iStat Menus Menubar.app/Contents/MacOS/iStat Menus Menubar
+  2.3  0  2838 /Applications/Resilio Sync.app/Contents/MacOS/Resilio Sync
+  2.2  0 59972 /opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/Resources/Python.app/Contents/MacOS/Python

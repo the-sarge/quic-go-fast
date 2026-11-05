@@ -1,0 +1,14 @@
+{"kind": "admitted", "utc": "2026-11-05T16:48:06.643534+00:00", "host": "mbp128"}
+{"kind": "admitted", "utc": "2026-11-05T16:48:07.233483+00:00", "host": "minimax"}
+{"kind": "staged", "utc": "2026-11-05T16:48:08.333642+00:00", "local": "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/run-q1210-kernel2/local", "remote": "/home/josh/wiremux-1460-diag-q1210-kernel2"}
+{"kind": "kernel-socket-witness-start", "utc": "2026-11-05T16:48:11.264772+00:00", "scope": "loopback validation; not a native physical-path workload attempt"}
+{"kind": "kernel-socket-witness-passed", "utc": "2026-11-05T16:48:12.027919+00:00"}
+{"kind": "kernel-metadata-witness-passed", "utc": "2026-11-05T16:48:12.757552+00:00"}
+{"kind": "attempt-consumed", "utc": "2026-11-05T16:48:13.147712+00:00", "arm": "before-kernel"}
+{"kind": "attempt-ended", "utc": "2026-11-05T16:49:31.700223+00:00", "arm": "before-kernel", "status": "returned", "exit": 0, "elapsed": 78.55181008402724}
+{"kind": "attempt-consumed", "utc": "2026-11-05T16:49:32.664877+00:00", "arm": "kernel"}
+{"kind": "attempt-ended", "utc": "2026-11-05T16:50:51.451302+00:00", "arm": "kernel", "status": "returned", "exit": 0, "elapsed": 78.78602112503722}
+{"kind": "attempt-consumed", "utc": "2026-11-05T16:50:52.460665+00:00", "arm": "after-kernel"}
+{"kind": "attempt-ended", "utc": "2026-11-05T16:52:10.920023+00:00", "arm": "after-kernel", "status": "returned", "exit": 0, "elapsed": 78.45470591599587}
+{"kind": "custody-verified-and-remote-removed", "utc": "2026-11-05T16:52:23.726895+00:00", "files": 20}
+{"kind": "cleanup-terminal", "utc": "2026-11-05T16:52:24.710122+00:00", "status": "released"}

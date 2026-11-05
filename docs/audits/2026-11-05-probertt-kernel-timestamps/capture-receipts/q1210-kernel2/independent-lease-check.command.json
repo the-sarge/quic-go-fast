@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "-oServerAliveInterval=2",
+    "-oServerAliveCountMax=2",
+    "m4mini.local",
+    "python3 - '{\"provider_sha256\": \"523abfda07052db9a6205df164e5269305ef1f159903e9d09bb79974311e8def\", \"config_sha256\": \"040d14eeeeff4fa5bc090ce508556581f545c8e736ae7b02bf4bb51fc8fb2c01\", \"state_root\": \"/Users/josh/code/github.com/the-sarge/infra/.local/garm/provider-state\"}' wm1460-q1210-kernel2 '[\"mbp128\", \"minimax\"]' /Users/josh/code/github.com/the-sarge/infra/scripts/garm/local-mac-provider.sh /Users/josh/code/github.com/the-sarge/infra/.local/garm/local-mac-provider.conf"
+  ],
+  "exit": 0,
+  "started_unix": 1793897544.543691,
+  "finished_unix": 1793897544.708432
+}

@@ -1,0 +1,10 @@
+{
+  "base": "bc4915ea0de0c238ecfdc51d827f7da67639a789",
+  "source_worktree": "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210-native",
+  "branch": "codex/kernel-timestamps-1210-native",
+  "observer": "Linux software RX/TX and Darwin kernel UDP-delivery RX; no physical wire timestamps",
+  "rows_capacity": 4000000,
+  "record_bytes": 128,
+  "files": 18,
+  "ordinary_ack_policy": true
+}

@@ -1,0 +1,12 @@
+import ctypes as C,json,plistlib,subprocess,time,socket
+lib=C.CDLL('/usr/lib/libSystem.B.dylib');lib.mach_host_self.restype=C.c_uint
+classes={x['logical-cpu-id']:x['cluster-type'].rstrip(b'\0').decode() for y in plistlib.loads(subprocess.check_output(['ioreg','-a','-l','-p','IODeviceTree','-r','-n','cpus'])) for x in y.get('IORegistryEntryChildren',[]) if 'logical-cpu-id' in x}
+def snap():
+ n=C.c_uint();count=C.c_uint();p=C.POINTER(C.c_uint)()
+ code=lib.host_processor_info(lib.mach_host_self(),2,C.byref(n),C.byref(p),C.byref(count));assert code==0,code
+ values=[list(p[i*4:i*4+4]) for i in range(n.value)]
+ return values
+begin=time.time();a=snap();time.sleep(1);b=snap();rows=[]
+for i,(x,y) in enumerate(zip(a,b)):
+ ds=[(q-p)&0xffffffff for p,q in zip(x,y)];rows.append(dict(logical_cpu=i,core_class=classes.get(i),ticks_delta=ds,busy_percent=100*(sum(ds)-ds[2])/sum(ds) if sum(ds) else None))
+print(json.dumps(dict(host=socket.gethostname(),observed_unix=time.time(),interval_seconds=time.time()-begin,method='Mach PROCESSOR_CPU_LOAD_INFO mapped to IORegistry logical-cpu-id/cluster-type',cpus=rows)))

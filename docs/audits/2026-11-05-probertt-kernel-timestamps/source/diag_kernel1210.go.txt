@@ -1,0 +1,204 @@
+//go:build darwin || linux || freebsd
+
+package quic
+
+// Temporary bounded socket timestamp observation for issue #1210. No kernel
+// timestamp replaces protocol rcvTime or participates in controller decisions.
+import (
+	"encoding/binary"
+	"errors"
+	"github.com/quic-go/quic-go/internal/diag1210"
+	"github.com/quic-go/quic-go/internal/monotime"
+	"golang.org/x/net/ipv4"
+	"golang.org/x/sys/unix"
+	"sync"
+	"sync/atomic"
+	"syscall"
+	"time"
+	"unsafe"
+)
+
+type kernel1210Socket struct {
+	raw                                         syscall.RawConn
+	socketID                                    int64
+	active                                      bool
+	clock                                       int64
+	numer, denom                                uint64
+	offset, uncertainty                         int64
+	nextID                                      atomic.Uint32
+	batchSequence                               uint64 // receive-loop owned
+	drainMu                                     sync.Mutex
+	rxCount, rxSelected, rxMissing, rxTruncated atomic.Uint64
+	rxGRO, txSchedule, txSoftware               atomic.Uint64
+	lastCalibration                             int64
+	lastMaintainedSequence                      int64
+	txRequests, txResults, errors               atomic.Uint64
+	lastStats                                   atomic.Int64
+}
+type kernel1210Batch struct{ mono, wall, sequence, count int64 }
+type kernel1210TX struct {
+	id         uint32
+	identity   int64
+	size, gso  int
+	mono, wall int64
+}
+
+var kernel1210SocketIDs atomic.Int64
+
+func kernel1210Anchor() (int64, int64) {
+	t := time.Now()
+	return int64(monotime.FromTime(t)), t.UnixNano()
+}
+func kernel1210Errno(err error) int64 {
+	if err == nil {
+		return 0
+	}
+	var e syscall.Errno
+	if errors.As(err, &e) {
+		return int64(e)
+	}
+	return -1
+}
+func newKernel1210Socket(raw syscall.RawConn) *kernel1210Socket {
+	if !diag1210.KernelEnabled {
+		return nil
+	}
+	k := &kernel1210Socket{raw: raw, socketID: kernel1210SocketIDs.Add(1)}
+	flags, err := k.configure()
+	k.active = err == nil
+	diag1210.Add(30, int64(monotime.Now()), k.socketID, k.platform(), boolInt1210(k.active), kernel1210Errno(err), flags, k.clock, int64(k.numer), int64(k.denom), k.offset, k.uncertainty, 512, 1)
+	return k
+}
+func boolInt1210(b bool) int64 {
+	if b {
+		return 1
+	}
+	return 0
+}
+func (k *kernel1210Socket) batchReturned(n int, err error) kernel1210Batch {
+	if k == nil {
+		return kernel1210Batch{}
+	}
+	m, w := kernel1210Anchor()
+	k.batchSequence++
+	b := kernel1210Batch{mono: m, wall: w, sequence: int64(k.batchSequence), count: int64(n)}
+	if err != nil {
+		k.errorEvent(1, err)
+		k.maintenance(b, true)
+	}
+	return b
+}
+func (k *kernel1210Socket) observeRX(msg ipv4.Message, buf []byte, batch kernel1210Batch, originalReceiveTime monotime.Time, groSize int) {
+	if k == nil || !k.active {
+		return
+	}
+	// The caller already captured the original protocol receive timestamp.
+	// Maintenance cannot move that boundary; run only once for this batch.
+	defer k.maintenance(batch, false)
+	k.rxCount.Add(1)
+	if groSize > 0 {
+		k.rxGRO.Add(1)
+	}
+	if msg.N < 0 || msg.N > len(buf) || msg.NN < 0 || msg.NN > len(msg.OOB) {
+		k.errorEvent(2, unix.EINVAL)
+		return
+	}
+	raw, err := k.receiveStamp(msg.OOB[:msg.NN])
+	if raw == 0 {
+		k.rxMissing.Add(1)
+	}
+	if err != nil {
+		k.errorEvent(3, err)
+	}
+	identityData := buf[:msg.N]
+	if groSize > 0 && groSize < len(identityData) {
+		identityData = identityData[:groSize]
+	}
+	identity := diag1210.Identity(identityData)
+	if !diag1210.SelectedIdentity(identity) {
+		return
+	}
+	k.rxSelected.Add(1)
+	converted := int64(0)
+	if raw != 0 {
+		if k.clock == 1 {
+			converted = raw + batch.mono - batch.wall
+		} else {
+			converted = k.convertMach(uint64(raw))
+		}
+	}
+	diag1210.Add(31, int64(originalReceiveTime), identity, raw, converted, batch.mono, batch.wall, batch.sequence, batch.count, int64(msg.Flags), int64(msg.N), k.clock, k.socketID, boolInt1210(raw != 0 && err == nil), kernel1210Errno(err), int64(groSize))
+}
+func (k *kernel1210Socket) convertMach(t uint64) int64 {
+	if k.denom == 0 {
+		return 0
+	}
+	return int64(t/k.denom*k.numer+(t%k.denom)*k.numer/k.denom) + k.offset
+}
+func (k *kernel1210Socket) errorEvent(where int64, err error) {
+	n := k.errors.Add(1)
+	if n <= 16 || n&(n-1) == 0 {
+		diag1210.Add(38, int64(monotime.Now()), k.socketID, where, kernel1210Errno(err), int64(n))
+	}
+}
+func (k *kernel1210Socket) maybeStats(now int64, force bool) {
+	previous := k.lastStats.Load()
+	if !force && now-previous < int64(time.Second) {
+		return
+	}
+	if !k.lastStats.CompareAndSwap(previous, now) {
+		return
+	}
+	diag1210.Add(39, now, k.socketID, int64(k.rxCount.Load()), int64(k.rxSelected.Load()), int64(k.rxMissing.Load()), int64(k.rxTruncated.Load()), int64(k.txRequests.Load()), int64(k.txResults.Load()), int64(k.errors.Load()), int64(k.rxGRO.Load()), int64(k.txSchedule.Load()), int64(k.txSoftware.Load()))
+}
+func (t *kernel1210TX) begin() {
+	if t != nil {
+		t.mono, t.wall = kernel1210Anchor()
+	}
+}
+func (k *kernel1210Socket) finishTX(t *kernel1210TX, n int, err error) {
+	if k == nil || t == nil {
+		return
+	}
+	m, w := kernel1210Anchor()
+	segments := 1
+	if t.gso > 0 {
+		segments = (t.size + t.gso - 1) / t.gso
+	}
+	diag1210.Add(32, m, int64(t.id), t.identity, t.mono, t.wall, w, int64(t.size), int64(t.gso), int64(n), kernel1210Errno(err), k.socketID, int64(segments))
+	if err != nil {
+		k.errorEvent(4, err)
+	}
+	k.drain()
+	k.maybeStats(m, false)
+}
+func kernel1210AppendUint32(oob []byte, typ int, value uint32) []byte {
+	start := len(oob)
+	oob = append(oob, make([]byte, unix.CmsgSpace(4))...)
+	h := (*unix.Cmsghdr)(unsafe.Pointer(&oob[start]))
+	h.Level = unix.SOL_SOCKET
+	h.Type = int32(typ)
+	h.SetLen(unix.CmsgLen(4))
+	binary.NativeEndian.PutUint32(oob[start+unix.CmsgLen(0):], value)
+	return oob
+}
+
+// Called before existing truncation rejection so rejected reads are counted.
+func (k *kernel1210Socket) observeReadFlags(flags int) {
+	if k != nil && k.active && flags&(unix.MSG_CTRUNC|unix.MSG_TRUNC) != 0 {
+		k.rxTruncated.Add(1)
+		k.errorEvent(13, unix.EOVERFLOW)
+	}
+}
+
+func (k *kernel1210Socket) maintenance(batch kernel1210Batch, force bool) {
+	if !force && k.lastMaintainedSequence == batch.sequence {
+		return
+	}
+	k.lastMaintainedSequence = batch.sequence
+	if k.txRequests.Load()*2 > k.txResults.Load() {
+		k.drain()
+	}
+	k.clockWitness(batch.mono)
+	k.maybeStats(batch.mono, force)
+}

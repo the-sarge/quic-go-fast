@@ -1,0 +1,327 @@
+{
+  "arm": "kernel",
+  "status": "complete",
+  "sample_counts": {
+    "sender_rx": 325,
+    "receiver_rx": 4961,
+    "sender_tx": 418,
+    "complete_cycles": 2,
+    "partial_cycles": 14
+  },
+  "aggregate": {
+    "sender_rx": {
+      "batch_return_to_protocol_receive_time_us": {
+        "n": 325,
+        "mean": 0.08521230769230768,
+        "p50": 0.08,
+        "p95": 0.14,
+        "p99": 0.19,
+        "min": 0.04,
+        "max": 0.321,
+        "negative": 0
+      },
+      "kernel_to_protocol_receive_time_us": {
+        "n": 325,
+        "mean": 4.410729230769231,
+        "p50": 3.586,
+        "p95": 8.436,
+        "p99": 16.17,
+        "min": 2.024,
+        "max": 38.001,
+        "negative": 0
+      },
+      "kernel_to_read_batch_return_us": {
+        "n": 325,
+        "mean": 4.325516923076923,
+        "p50": 3.497,
+        "p95": 8.346,
+        "p99": 16.12,
+        "min": 1.913,
+        "max": 37.881,
+        "negative": 0
+      },
+      "protocol_receive_to_authenticated_processing_us": {
+        "n": 325,
+        "mean": 2.216387692307692,
+        "p50": 1.923,
+        "p95": 3.176,
+        "p99": 6.762,
+        "min": 1.032,
+        "max": 19.647,
+        "negative": 0
+      }
+    },
+    "receiver_rx": {
+      "batch_return_to_protocol_receive_time_us": {
+        "n": 4961,
+        "mean": 1.169447893569845,
+        "p50": 1.0,
+        "p95": 2.834,
+        "p99": 4.375,
+        "min": 0.0,
+        "max": 46.375,
+        "negative": 0
+      },
+      "kernel_to_protocol_receive_time_us": {
+        "n": 4961,
+        "mean": 13.661904454747027,
+        "p50": 10.563,
+        "p95": 21.146,
+        "p99": 99.146,
+        "min": 4.437,
+        "max": 626.021,
+        "negative": 0
+      },
+      "kernel_to_read_batch_return_us": {
+        "n": 4961,
+        "mean": 12.492456561177182,
+        "p50": 9.521,
+        "p95": 19.688,
+        "p99": 97.104,
+        "min": 3.479,
+        "max": 623.521,
+        "negative": 0
+      },
+      "protocol_receive_to_authenticated_processing_us": {
+        "n": 4961,
+        "mean": 9.29892279782302,
+        "p50": 8.208,
+        "p95": 16.5,
+        "p99": 28.75,
+        "min": 0.708,
+        "max": 72.167,
+        "negative": 0
+      }
+    },
+    "sender_tx": {
+      "scheduler_to_software_tx_us": {
+        "n": 418,
+        "mean": 1.8046052631578948,
+        "p50": 1.843,
+        "p95": 2.845,
+        "p99": 5.641,
+        "min": 0.3,
+        "max": 7.925,
+        "negative": 0
+      },
+      "timestamp_read_after_software_tx_us": {
+        "n": 418,
+        "mean": 5.664078947368421,
+        "p50": 4.664,
+        "p95": 13.155,
+        "p99": 19.576,
+        "min": 1.643,
+        "max": 27.882,
+        "negative": 0
+      },
+      "wall_clock_offset_change_start_to_event_us": {
+        "n": 418,
+        "mean": 0.015947368421052634,
+        "p50": 0.01,
+        "p95": 0.01,
+        "p99": 0.011,
+        "min": 0.0,
+        "max": 3.997,
+        "negative": 0
+      },
+      "write_call_us": {
+        "n": 418,
+        "mean": 7.516055023923444,
+        "p50": 6.923,
+        "p95": 15.289,
+        "p99": 28.404,
+        "min": 2.024,
+        "max": 36.989,
+        "negative": 0
+      },
+      "write_start_to_scheduler_us": {
+        "n": 418,
+        "mean": 1.8480287081339712,
+        "p50": 1.638,
+        "p95": 2.755,
+        "p99": 7.724,
+        "min": 1.112,
+        "max": 10.249,
+        "negative": 0
+      },
+      "write_start_to_software_tx_us": {
+        "n": 418,
+        "mean": 3.652633971291866,
+        "p50": 3.5465,
+        "p95": 5.54,
+        "p99": 14.407,
+        "min": 1.413,
+        "max": 17.412,
+        "negative": 0
+      }
+    },
+    "complete_cycles": {
+      "raw_rtt_us": {
+        "n": 2,
+        "mean": 216.87650000000002,
+        "p50": 216.87650000000002,
+        "p95": 215.824,
+        "p99": 215.824,
+        "min": 215.824,
+        "max": 217.929,
+        "negative": 0
+      },
+      "receiver_batch_return_to_protocol_receive_us": {
+        "n": 2,
+        "mean": 0.0205,
+        "p50": 0.0205,
+        "p95": 0.0,
+        "p99": 0.0,
+        "min": 0.0,
+        "max": 0.041,
+        "negative": 0
+      },
+      "receiver_protocol_receive_to_ack_write_us": {
+        "n": 2,
+        "mean": 12.979,
+        "p50": 12.979,
+        "p95": 11.167,
+        "p99": 11.167,
+        "min": 11.167,
+        "max": 14.791,
+        "negative": 0
+      },
+      "receiver_socket_delivery_to_ack_write_start_us": {
+        "n": 2,
+        "mean": 27.2085,
+        "p50": 27.2085,
+        "p95": 26.688,
+        "p99": 26.688,
+        "min": 26.688,
+        "max": 27.729,
+        "negative": 0
+      },
+      "receiver_socket_to_batch_return_us": {
+        "n": 2,
+        "mean": 14.209,
+        "p50": 14.209,
+        "p95": 12.938,
+        "p99": 12.938,
+        "min": 12.938,
+        "max": 15.48,
+        "negative": 0
+      },
+      "residual_after_measured_local_durations_us": {
+        "n": 2,
+        "mean": 173.958,
+        "p50": 173.958,
+        "p95": 173.206,
+        "p99": 173.206,
+        "min": 173.206,
+        "max": 174.71,
+        "negative": 0
+      },
+      "sender_batch_return_to_protocol_receive_us": {
+        "n": 2,
+        "mean": 0.09,
+        "p50": 0.09,
+        "p95": 0.07,
+        "p99": 0.07,
+        "min": 0.07,
+        "max": 0.11,
+        "negative": 0
+      },
+      "sender_kernel_rx_to_batch_return_us": {
+        "n": 2,
+        "mean": 3.8825000000000003,
+        "p50": 3.8825000000000003,
+        "p95": 3.567,
+        "p99": 3.567,
+        "min": 3.567,
+        "max": 4.198,
+        "negative": 0
+      },
+      "sender_kernel_rx_to_protocol_receive_us": {
+        "n": 2,
+        "mean": 3.9725,
+        "p50": 3.9725,
+        "p95": 3.677,
+        "p99": 3.677,
+        "min": 3.677,
+        "max": 4.268,
+        "negative": 0
+      },
+      "sender_logical_send_to_software_tx_us": {
+        "n": 2,
+        "mean": 11.7375,
+        "p50": 11.7375,
+        "p95": 11.662,
+        "p99": 11.662,
+        "min": 11.662,
+        "max": 11.813,
+        "negative": 0
+      },
+      "sender_scheduler_to_software_tx_us": {
+        "n": 2,
+        "mean": 0.802,
+        "p50": 0.802,
+        "p95": 0.632,
+        "p99": 0.632,
+        "min": 0.632,
+        "max": 0.972,
+        "negative": 0
+      },
+      "sender_write_start_to_scheduler_us": {
+        "n": 2,
+        "mean": 1.2625,
+        "p50": 1.2625,
+        "p95": 1.202,
+        "p99": 1.202,
+        "min": 1.202,
+        "max": 1.323,
+        "negative": 0
+      }
+    },
+    "partial_cycles": {
+      "raw_rtt_us": {
+        "n": 14,
+        "mean": 220.0767142857143,
+        "p50": 219.67700000000002,
+        "p95": 234.549,
+        "p99": 234.549,
+        "min": 201.377,
+        "max": 235.441,
+        "negative": 0
+      },
+      "receiver_socket_delivery_to_ack_write_start_us": {
+        "n": 14,
+        "mean": 20.619285714285716,
+        "p50": 19.271,
+        "p95": 26.688,
+        "p99": 26.688,
+        "min": 15.729,
+        "max": 27.729,
+        "negative": 0
+      },
+      "remaining_including_sender_logical_send_to_tx_us": {
+        "n": 14,
+        "mean": 195.6582142857143,
+        "p50": 196.74450000000002,
+        "p95": 209.788,
+        "p99": 209.788,
+        "min": 179.771,
+        "max": 212.171,
+        "negative": 0
+      },
+      "sender_kernel_rx_to_protocol_receive_us": {
+        "n": 14,
+        "mean": 3.7992142857142857,
+        "p50": 3.662,
+        "p95": 4.468,
+        "p99": 4.468,
+        "min": 3.036,
+        "max": 4.729,
+        "negative": 0
+      }
+    }
+  },
+  "exclusions": {
+    "cycle_missing_or_inconsistent_identity_link": 439,
+    "cycle_missing_kernel_or_ack_write_boundary": 24
+  }
+}

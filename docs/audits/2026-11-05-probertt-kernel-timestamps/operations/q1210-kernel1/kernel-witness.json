@@ -1,0 +1,5 @@
+{
+  "path": ".cache/1210/kernel-socket-witness-linux.test",
+  "sha256": "481b30ed305598d335dbffb59e8cd2141fa6905734bde954d7dd1fd9dcdfcbd1",
+  "test": "TestDiagnostic1210KernelSocketWitness"
+}

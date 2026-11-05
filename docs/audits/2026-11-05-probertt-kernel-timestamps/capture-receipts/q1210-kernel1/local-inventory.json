@@ -1,0 +1,85 @@
+{
+  "root": "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/run-q1210-kernel1",
+  "files": [
+    {
+      "path": "local/.owner.json",
+      "bytes": 237,
+      "sha256": "1791d401fd49e8cf6d7b88e198f6551971f45f5402bf8d2b384c440fba898e0f"
+    },
+    {
+      "path": "local/diag1210-50148.bin",
+      "bytes": 52094592,
+      "sha256": "f89a4c6619cf28ba2107877b8e97d670bd2f13f89ba2fb2a798f10114d4a4b7a"
+    },
+    {
+      "path": "local/diag1210-52514.bin",
+      "bytes": 2176,
+      "sha256": "dfeb2b753a0a7b3ceb9807a829c08eec5a0b6c0770b6eb9ce1a6596290079e0e"
+    },
+    {
+      "path": "local/diag1210-52581.bin",
+      "bytes": 52240896,
+      "sha256": "324efb63daa920749052911f46c00e594733e2d2636835141dc3fdf68dcb058b"
+    },
+    {
+      "path": "local/endpoint-after-kernel.sh",
+      "bytes": 220,
+      "sha256": "a48538e5a5230fe815efc0fc8442a4532184b250df335fbd1aba6d648252bd59"
+    },
+    {
+      "path": "local/endpoint-before-kernel.sh",
+      "bytes": 221,
+      "sha256": "13885f0aa4980012d573c699009f4ebcbb7975a6d486e7d82a435b91f199971d"
+    },
+    {
+      "path": "local/endpoint-kernel.sh",
+      "bytes": 296,
+      "sha256": "27f2e081dccf0e24eb41ebb6230180ce551d44c6dc11b601ceed0c364e33e6ca"
+    },
+    {
+      "path": "local/nativerig",
+      "bytes": 13468066,
+      "sha256": "9f595bcd7898359a8d6fb1d09e7bf9ad6d9da65b7dc282e6148a7a8baed977a3"
+    },
+    {
+      "path": "local/wiremux-measure-diagnostic",
+      "bytes": 17510562,
+      "sha256": "b3f10a8dd4d6071ab58c7322638b18c264c25a7897488fb854eabe450ac509a7"
+    },
+    {
+      "path": "local/workers/after-kernel/66c45f540f18542d2439f21ece58471b-receive/identity.json",
+      "bytes": 11857,
+      "sha256": "e77bc81ba1e9935a3d5fce6370fde620f9a54a9da97fb67f3829b9fe784d5975"
+    },
+    {
+      "path": "local/workers/after-kernel/66c45f540f18542d2439f21ece58471b-receive/receive-datagram-ledger.bin",
+      "bytes": 2559177,
+      "sha256": "ff4da702e3970964c93b5f3ac99608a42a44de145273194880ca2e1e1a52cb89"
+    },
+    {
+      "path": "local/workers/after-kernel/66c45f540f18542d2439f21ece58471b-receive/result.json",
+      "bytes": 344453,
+      "sha256": "ec149378c413ebf0bf80ad0557a8bec2d279809b0291c45dcc83dc93a843bbbb"
+    },
+    {
+      "path": "local/workers/before-kernel/0ed19312fb06d1280efe7c52fbbb0f49-receive/identity.json",
+      "bytes": 11857,
+      "sha256": "1e253522dd997416f9bf8a6ea5ebddc6fbf1a23b3d1ddbcec7fcaa031fa995de"
+    },
+    {
+      "path": "local/workers/before-kernel/0ed19312fb06d1280efe7c52fbbb0f49-receive/receive-datagram-ledger.bin",
+      "bytes": 2559177,
+      "sha256": "c1cb575699aed5a6574db9f1ed1bfb7576242a4b2dc2dc001de254f94b80e906"
+    },
+    {
+      "path": "local/workers/before-kernel/0ed19312fb06d1280efe7c52fbbb0f49-receive/result.json",
+      "bytes": 344476,
+      "sha256": "51f6b7afccdf0860ada33e19f9b44874026e082a782370ef3ee63d1876cbd31f"
+    },
+    {
+      "path": "local/workers/kernel/0560ad858ce08aee2ed9030dd4137b2a-receive/identity.json",
+      "bytes": 11857,
+      "sha256": "316471e255b172ef067057087089ac77e97cffb7518c47f5d68f5549dde032bc"
+    }
+  ]
+}

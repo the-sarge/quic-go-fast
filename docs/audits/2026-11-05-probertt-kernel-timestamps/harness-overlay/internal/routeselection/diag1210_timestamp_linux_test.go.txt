@@ -1,0 +1,50 @@
+package routeselection
+
+import (
+	"encoding/binary"
+	"errors"
+	"golang.org/x/sys/unix"
+	"net"
+	"testing"
+	"unsafe"
+)
+
+func TestDiagnostic1210TimestampMetadata(t *testing.T) {
+	saved := diagnostic1210Timestamps
+	defer func() { diagnostic1210Timestamps = saved }()
+	binding := &PacketBinding{network: "udp4", index: 1, source: net.IPv4(127, 0, 0, 1)}
+	cmsg := func(level, typ int32, data []byte) []byte {
+		b := make([]byte, unix.CmsgSpace(len(data)))
+		h := (*unix.Cmsghdr)(unsafe.Pointer(&b[0]))
+		h.Level, h.Type = level, typ
+		h.SetLen(unix.CmsgLen(len(data)))
+		copy(b[unix.CmsgLen(0):], data)
+		return b
+	}
+	word := func(n uint32) []byte { b := make([]byte, 4); binary.NativeEndian.PutUint32(b, n); return b }
+	stamp := cmsg(unix.SOL_SOCKET, unix.SO_TIMESTAMPING_NEW, word(unix.SOF_TIMESTAMPING_TX_SCHED|unix.SOF_TIMESTAMPING_TX_SOFTWARE))
+	id := cmsg(unix.SOL_SOCKET, unix.SCM_TS_OPT_ID, word(7))
+	metadata := append(append([]byte{}, stamp...), id...)
+	diagnostic1210Timestamps = false
+	if err := binding.checkMetadata(metadata); !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("disabled observer accepted metadata: %v", err)
+	}
+	diagnostic1210Timestamps = true
+	if err := binding.checkMetadata(metadata); err != nil {
+		t.Fatal(err)
+	}
+	bad := [][]byte{
+		cmsg(unix.SOL_SOCKET, unix.SO_TIMESTAMPING_NEW, word(unix.SOF_TIMESTAMPING_TX_HARDWARE)),
+		cmsg(unix.SOL_SOCKET, unix.SCM_TS_OPT_ID, []byte{1}),
+		cmsg(unix.SOL_SOCKET, unix.SO_SNDBUF, word(1000)),
+		append(append([]byte{}, metadata...), cmsg(unix.SOL_SOCKET, unix.SCM_TS_OPT_ID, word(8))...),
+	}
+	foreign := make([]byte, unix.SizeofInet4Pktinfo)
+	binary.NativeEndian.PutUint32(foreign, 2)
+	bad = append(bad, append(append([]byte{}, metadata...), cmsg(unix.IPPROTO_IP, unix.IP_PKTINFO, foreign)...))
+	for i, b := range bad {
+		if err := binding.checkMetadata(b); !errors.Is(err, ErrUnsupported) {
+			t.Fatalf("case %d: unexpected acceptance: %v", i, err)
+		}
+	}
+}

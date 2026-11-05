@@ -1,0 +1,12 @@
+[
+  {
+    "run": "q1210-kernel1",
+    "files": 277,
+    "final_inventory_sha256": "cde62af78c24f8fa633cbd9b1b20bb155dd68f45ed1c3b134e0e6a38c8ec0734"
+  },
+  {
+    "run": "q1210-kernel2",
+    "files": 308,
+    "final_inventory_sha256": "9ebd7084ee15d576b1e091182badfb998f95ada9750d8792fcc2f79b9e435b05"
+  }
+]

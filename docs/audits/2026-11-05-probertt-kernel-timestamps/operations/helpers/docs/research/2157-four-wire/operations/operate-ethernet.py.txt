@@ -1,0 +1,528 @@
+import ctypes
+import datetime
+import hashlib
+import json
+import os
+from pathlib import Path
+import shlex
+import shutil
+import signal
+import socket
+import subprocess
+import sys
+import tarfile
+import time
+
+if not __debug__:
+    raise RuntimeError('capture operator requires enabled safety assertions')
+
+REPO = Path('/Volumes/worktrees/wiremux/2157-four-wire')
+DOCS = Path(__file__).resolve().parent
+MANIFEST = json.loads((DOCS/'capture-manifest.json').read_text())
+ROOT = Path(MANIFEST['local_artifact_root'])
+OPS = ROOT/'ops'
+REMOTE = MANIFEST['remote_staging']
+ADMISSION = MANIFEST['admission']
+SSH = ['ssh', '-T', '-oBatchMode=yes', '-oStrictHostKeyChecking=yes', '-oConnectTimeout=10', '-oServerAliveInterval=2', '-oServerAliveCountMax=2']
+STATE = {'owner': ADMISSION['owner'], 'consumer_kind': ADMISSION['consumer_kind'], 'consumer_id': ADMISSION['consumer_id'], 'hosts': {}, 'status': 'not-started', 'remote_staged': False, 'local_staged': False}
+DIRECTIVE = 'Set a persistent goal: resolve issue #2157 end to end.'
+HELPERS = ('docs/research/2152-warmup-diagnosis/operations/mac-core-snapshot.py.txt', 'docs/research/2152-warmup-diagnosis/operations/linux-host-snapshot.py.txt')
+
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def save(name, value, parent=None):
+    parent = OPS if parent is None else parent
+    path = parent/name
+    path.write_text(json.dumps(value, indent=2)+'\n')
+
+
+def event(kind, **fields):
+    with (OPS/'execution-ledger.jsonl').open('a') as output:
+        output.write(json.dumps({'kind': kind, 'utc': datetime.datetime.now(datetime.timezone.utc).isoformat(), **fields})+'\n')
+        output.flush()
+        os.fsync(output.fileno())
+    print(kind, json.dumps(fields), flush=True)
+
+
+def run(argv, label, *, data=None, timeout=30, check=True):
+    base = label
+    index = 1
+    while (OPS/(label+'.command.json')).exists():
+        index += 1
+        label = base+'-'+str(index)
+    started = time.time()
+    try:
+        result = subprocess.run(argv, input=data, capture_output=True, timeout=timeout)
+    except subprocess.TimeoutExpired as error:
+        (OPS/(label+'.stdout')).write_bytes(error.stdout or b'')
+        (OPS/(label+'.stderr')).write_bytes(error.stderr or b'')
+        save(label+'.command.json', {'argv': argv, 'timed_out': True, 'started_unix': started, 'finished_unix': time.time()})
+        raise
+    (OPS/(label+'.stdout')).write_bytes(result.stdout)
+    (OPS/(label+'.stderr')).write_bytes(result.stderr)
+    save(label+'.command.json', {'argv': argv, 'exit': result.returncode, 'started_unix': started, 'finished_unix': time.time()})
+    if check:
+        result.check_returncode()
+    return result
+
+
+def remote_python(source, args, label, host='minimax', check=True):
+    return run(SSH+[host, shlex.join(['python3', '-', *args])], label, data=source.encode(), timeout=55, check=check)
+
+
+def provider(action, host, label):
+    args = [action, STATE['owner'], host, STATE['consumer_kind'], STATE['consumer_id']]
+    if action == ADMISSION['uncertain_cleanup_action']:
+        args.append('issue #2157: owned cleanup/custody unconfirmed; inspect retained execution receipts')
+    source = '''import hashlib,json,os,pathlib,sys
+script,config=sys.argv[1:3];identity=json.loads(sys.argv[3])
+for name,key in [(script,'provider_sha256'),(config,'config_sha256')]:assert hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()==identity[key]
+os.execve(script,[script,*sys.argv[4:]],dict(os.environ,GARM_PROVIDER_CONFIG_FILE=config))
+'''
+    return remote_python(source, [ADMISSION['provider_script'], ADMISSION['provider_config'], json.dumps(STATE['provider_identity']), *args], label, host=ADMISSION['provider_host'], check=False)
+
+
+def marker(platform):
+    binary = next(endpoint for endpoint in MANIFEST['endpoints'] if endpoint['source_platform'] == platform)
+    return dict(proposal_id=MANIFEST['proposal_id'], owner=STATE['owner'], build_id=MANIFEST['build_id'], binary_sha256=binary['binary_sha256'])
+
+
+def verify_inputs():
+    authorization = verify_frozen_inputs()
+    assert not (OPS/'execution-state.json').exists(), 'execution state already exists; never restart blindly'
+    assert MANIFEST['proposed_limits']['attempts'] == 1 and MANIFEST['proposed_limits']['replacements'] == 0
+    assert not ROOT.exists(), 'capture root must be fresh'
+    for endpoint in MANIFEST['endpoints']:
+        assert sha(endpoint['source_binary']) == endpoint['binary_sha256']
+    return authorization
+
+
+def verify_frozen_inputs():
+    authorization = json.loads((DOCS/'execution-authorization.json').read_text())
+    assert authorization['execution_authorized'] is True
+    assert authorization['owner_directive'] == DIRECTIVE
+    assert authorization['manifest_sha256'] == sha(DOCS/'capture-manifest.json')
+    assert authorization['operator_sha256'] == sha(__file__)
+    assert authorization['validation_sha256'] == sha(DOCS/'capture-validation.json')
+    assert authorization['dispositions_sha256'] == sha(DOCS/'REVIEW-DISPOSITIONS.md')
+    assert authorization['unresolved_blockers'] == []
+    assert set(authorization['helper_sha256']) == set(HELPERS)
+    for name, digest in MANIFEST['inputs'].items():
+        assert sha(DOCS/name) == digest, name
+    for name, digest in authorization['helper_sha256'].items():
+        assert sha(REPO/name) == digest, name
+    return authorization
+
+
+def claim_execution(authorization):
+    ROOT.mkdir(mode=0o700)
+    OPS.mkdir(mode=0o700)
+    save('execution-claim.json', {'owner': STATE['owner'], 'pid': os.getpid(), 'claimed_unix': time.time(), 'manifest_sha256': authorization['manifest_sha256']})
+    STATE['status'] = 'claimed'
+    save('execution-state.json', STATE)
+    for name in (*MANIFEST['inputs'], 'capture-manifest.json', 'execution-authorization.json', 'capture-validation.json'):
+        shutil.copyfile(DOCS/name, ROOT/name)
+
+
+def preflight_provider():
+    source = '''import hashlib,json,pathlib,socket,subprocess,sys
+script=pathlib.Path(sys.argv[1]);config=pathlib.Path(sys.argv[2])
+text=script.read_text()
+for token in ['--acquire-host-admission-exclusive-consumer','--release-host-admission-consumer','--fail-host-admission-consumer']: assert token in text,token
+assert 'STATE_ROOT="${GARM_LOCAL_PROVIDER_STATE_ROOT:-${REPO_ROOT}/.local/garm-provider}"' in text
+shell='set -eu; DEFAULT_REPO_ROOT="$1"; GARM_PROVIDER_CONFIG_FILE="$2"; GARM_LOCAL_PROVIDER_REPO_ROOT="${GARM_LOCAL_PROVIDER_REPO_ROOT:-$DEFAULT_REPO_ROOT}"; GARM_LOCAL_PROVIDER_STATE_ROOT="${GARM_LOCAL_PROVIDER_STATE_ROOT:-}"; source "$GARM_PROVIDER_CONFIG_FILE"; REPO_ROOT="${GARM_LOCAL_PROVIDER_REPO_ROOT:-$DEFAULT_REPO_ROOT}"; printf "%s\\n" "${GARM_LOCAL_PROVIDER_STATE_ROOT:-${REPO_ROOT}/.local/garm-provider}"'
+resolved=subprocess.check_output(['bash','-c',shell,'resolve-state',str(script.parents[2]),str(config)],text=True).strip()
+assert resolved.startswith('/') and '\\n' not in resolved
+state=pathlib.Path(resolved).resolve(strict=True);assert state.is_dir() and (state/'host-leases').is_dir()
+leases={}
+for host in ['mbp128','minimax']:
+ directory=state/'host-leases'/host
+ leases[host]=sorted(path.name for path in directory.iterdir()) if directory.exists() else []
+print(json.dumps({'host':socket.gethostname(),'revision':subprocess.check_output(['git','-C',str(script.parents[2]),'rev-parse','HEAD'],text=True).strip(),'provider_sha256':hashlib.sha256(script.read_bytes()).hexdigest(),'config_sha256':hashlib.sha256(config.read_bytes()).hexdigest(),'config_exists':config.is_file(),'state_root':str(state),'leases':leases}))
+'''
+    result = remote_python(source, [ADMISSION['provider_script'], ADMISSION['provider_config']], 'provider-preflight', host=ADMISSION['provider_host'])
+    observed = json.loads(result.stdout)
+    assert observed['config_exists']
+    identity = {key: observed[key] for key in ('provider_sha256', 'config_sha256', 'state_root')}
+    assert 'provider_identity' not in STATE or STATE['provider_identity'] == identity, 'provider identity changed'
+    STATE['provider_identity'] = identity
+    save('execution-state.json', STATE)
+    return observed
+
+
+def lease_observation(host=None):
+    source = '''import hashlib,json,pathlib,socket,sys
+identity=json.loads(sys.argv[1]);owner=sys.argv[2];hosts=json.loads(sys.argv[3]);script,config=sys.argv[4:6]
+for name,key in [(script,'provider_sha256'),(config,'config_sha256')]:assert hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()==identity[key]
+root=pathlib.Path(identity['state_root']);assert root.resolve(strict=True)==root and (root/'host-leases').is_dir()
+leases={}
+for host in hosts:
+ path=root/'host-leases'/host/(owner+'.json')
+ try:payload=json.loads(path.read_text());absent=False
+ except FileNotFoundError:payload=None;absent=True
+ leases[host]={'path':str(path),'absent':absent,'lease':payload}
+print(json.dumps({'host':socket.gethostname(),'state_root':str(root),'owner':owner,'leases':leases}))
+'''
+    hosts = [host] if host else ADMISSION['hosts_in_acquisition_order']
+    result = remote_python(source, [json.dumps(STATE['provider_identity']), STATE['owner'], json.dumps(hosts), ADMISSION['provider_script'], ADMISSION['provider_config']], 'held-lease-'+host if host else 'independent-lease-check', host=ADMISSION['provider_host'])
+    observed = json.loads(result.stdout)
+    assert observed['state_root'] == STATE['provider_identity']['state_root'] and observed['owner'] == STATE['owner']
+    assert set(observed['leases']) == set(hosts)
+    for selected in hosts:
+        assert observed['leases'][selected]['path'] == str(Path(observed['state_root'])/'host-leases'/selected/(STATE['owner']+'.json'))
+    return observed
+
+
+def acquire_once():
+    for host in ADMISSION['hosts_in_acquisition_order']:
+        STATE['hosts'][host] = {'status': 'prospective'}
+        save('execution-state.json', STATE)
+        result = provider(ADMISSION['acquire_action'], host, 'admit-'+host)
+        if result.returncode:
+            STATE['hosts'][host]['status'] = 'denied' if b'retryable-admission-denial:' in result.stderr else 'uncertain'
+            raise RuntimeError('admission '+host+': '+result.stderr.decode(errors='replace'))
+        lease = json.loads(result.stdout)
+        expected = dict(instance_id=STATE['owner'], host=host, exclusive_host=True, consumer_kind=STATE['consumer_kind'], consumer_id=STATE['consumer_id'])
+        assert all(lease.get(key) == value for key, value in expected.items()), lease
+        witness = lease_observation(host)['leases'][host]
+        assert witness['absent'] is False and witness['lease'] == lease, witness
+        STATE['hosts'][host]['status'] = 'held'
+        save('lease-'+host+'.json', lease)
+        save('execution-state.json', STATE)
+        event('admitted', host=host)
+    STATE['status'] = 'both-held'
+    save('execution-state.json', STATE)
+
+
+def acquire():
+    round_number = 0
+    while True:
+        observed = preflight_provider()
+        if any(observed['leases'].values()):
+            event('admission-wait', leases=observed['leases'])
+            time.sleep(30)
+            continue
+        round_number += 1
+        STATE['hosts'] = {}
+        STATE['status'] = 'acquiring'
+        STATE['admission_round'] = round_number
+        try:
+            acquire_once()
+            return
+        except BaseException as error:
+            save('admission-round-'+str(round_number)+'.json', STATE)
+            if 'retryable-admission-denial:' not in str(error):
+                raise
+            release(True)
+            assert STATE['status'] == 'released', STATE
+            event('admission-race-unwound', round=round_number)
+            time.sleep(30)
+
+
+def stage(authorization):
+    local = ROOT/'local'
+    local.mkdir(mode=0o700)
+    (local/'workers').mkdir(mode=0o700)
+    (local/'sidecars').mkdir(mode=0o700)
+    with (local/'.owner.json').open('x') as output:
+        json.dump(marker('darwin-arm64'), output)
+    STATE['local_staged'] = True
+    endpoint = MANIFEST['endpoints'][1]
+    shutil.copyfile(endpoint['source_binary'], local/'wiremux-measure-diagnostic')
+    shutil.copyfile(DOCS/'endpoint.sh', local/'endpoint.sh')
+    for name in ('wiremux-measure-diagnostic', 'endpoint.sh'):
+        (local/name).chmod(0o700)
+    assert sha(local/'wiremux-measure-diagnostic') == endpoint['binary_sha256']
+    assert sha(local/'endpoint.sh') == MANIFEST['inputs']['endpoint.sh']
+    save('local-staged-modes.json', {name: {'mode': oct((local/name).stat().st_mode & 0o777), 'executable': os.access(local/name, os.X_OK)} for name in ('wiremux-measure-diagnostic', 'endpoint.sh')})
+    source = '''import json,pathlib,sys
+root=pathlib.Path(sys.argv[1]);expected=json.loads(sys.argv[2])
+assert root.parent==pathlib.Path('/home/josh') and root.name.startswith('wiremux-2157-')
+root.mkdir(mode=0o700)
+with (root/'.owner.json').open('x') as output: json.dump(expected,output)
+(root/'workers').mkdir(mode=0o700);(root/'sidecars').mkdir(mode=0o700)
+assert root.resolve()==root
+print(json.dumps({'root':str(root),'marker':expected}))
+'''
+    STATE['remote_staged'] = 'prospective'
+    save('execution-state.json', STATE)
+    remote_python(source, [REMOTE, json.dumps(marker('linux-amd64'))], 'remote-create')
+    STATE['remote_staged'] = True
+    save('execution-state.json', STATE)
+    endpoint = MANIFEST['endpoints'][0]
+    options = ['scp', '-oBatchMode=yes', '-oStrictHostKeyChecking=yes', '-oConnectTimeout=10']
+    run(options+[endpoint['source_binary'], 'minimax:'+REMOTE+'/wiremux-measure-diagnostic'], 'stage-linux-binary', timeout=55)
+    run(options+[str(DOCS/'endpoint.sh'), 'minimax:'+REMOTE+'/endpoint.sh'], 'stage-linux-launcher', timeout=55)
+    source = '''import hashlib,json,pathlib,sys
+root=pathlib.Path(sys.argv[1]);observed={}
+for name,digest in [('wiremux-measure-diagnostic',sys.argv[2]),('endpoint.sh',sys.argv[3])]:
+ file=root/name;actual=hashlib.sha256(file.read_bytes()).hexdigest();assert actual==digest;file.chmod(0o700)
+ observed[name]={'sha256':actual,'mode':oct(file.stat().st_mode & 0o777)}
+print(json.dumps(observed))
+'''
+    remote_python(source, [REMOTE, endpoint['binary_sha256'], MANIFEST['inputs']['endpoint.sh']], 'remote-staged-hashes')
+    event('staged', local=str(local), remote=REMOTE)
+
+
+def staged_recheck():
+    verify_frozen_inputs()
+    endpoint = MANIFEST['endpoints'][1]
+    local = ROOT/'local'
+    assert json.loads((local/'.owner.json').read_text()) == marker('darwin-arm64')
+    assert sha(local/'wiremux-measure-diagnostic') == endpoint['binary_sha256']
+    assert sha(local/'endpoint.sh') == MANIFEST['inputs']['endpoint.sh']
+    assert all(os.access(local/name, os.X_OK) for name in ('wiremux-measure-diagnostic', 'endpoint.sh'))
+    source = '''import hashlib,json,os,pathlib,sys
+root=pathlib.Path(sys.argv[1]);expected=json.loads(sys.argv[2]);assert json.loads((root/'.owner.json').read_text())==expected
+for name,digest in [('wiremux-measure-diagnostic',expected['binary_sha256']),('endpoint.sh',sys.argv[3])]:
+ assert hashlib.sha256((root/name).read_bytes()).hexdigest()==digest and os.access(root/name,os.X_OK)
+print(json.dumps({'staged_hashes_and_execute_modes_match':True}))
+'''
+    remote_python(source, [REMOTE, json.dumps(marker('linux-amd64')), MANIFEST['inputs']['endpoint.sh']], 'prelaunch-remote-recheck')
+    run(SSH+['minimax', 'true'], 'prelaunch-fresh-ssh', timeout=15)
+
+
+def snapshot(label):
+    observed = {'host': socket.gethostname(), 'logical_cpus': os.cpu_count()}
+    assert observed['host'].split('.')[0] == 'mbp128' and observed['logical_cpus'] >= 16
+    commands = [('route', ['route', '-n', 'get', '192.168.1.50']), ('interface', ['ifconfig', 'en8']), ('nic', ['netstat', '-ibn', '-I', 'en8']), ('neighbor', ['arp', '-n', '192.168.1.50']), ('udp', ['netstat', '-s', '-p', 'udp'])]
+    for key, argv in commands:
+        result = run(argv, label+'-mac-'+key, check=key in ('route', 'interface'))
+        observed[key] = result.stdout.decode()
+        observed[key+'_exit'] = result.returncode
+    assert 'interface: en8' in observed['route'] and 'inet 192.168.1.110 ' in observed['interface']
+    assert 'mtu 1500' in observed['interface'] and '10Gbase-T' in observed['interface'] and 'full-duplex' in observed['interface']
+    save(label+'-mac-network.json', observed)
+    source = REPO/'docs/research/2152-warmup-diagnosis/operations/mac-core-snapshot.py.txt'
+    result = run([sys.executable, str(source)], label+'-mac-cores', timeout=15)
+    cores = json.loads(result.stdout)
+    assert {entry['core_class'] for entry in cores['cpus']} == {'E', 'P'}
+    linux = (REPO/'docs/research/2152-warmup-diagnosis/operations/linux-host-snapshot.py.txt').read_text()
+    result = remote_python(linux, [], label+'-linux-host')
+    data = json.loads(result.stdout)
+    assert data['host'] == 'minimax' and data['available_cpus'] >= 16
+    assert data['route'][0]['dev'] == 'enp97s0' and data['route'][0]['prefsrc'] == '192.168.1.50'
+    assert data['link']['speed'] == '10000' and data['link']['duplex'] == 'full' and data['link']['mtu'] == '1500'
+
+
+def controller_identity(pid):
+    return subprocess.check_output(['ps', '-p', str(pid), '-o', 'pid=,lstart='], text=True).strip()
+
+
+def stop_controller(process, record):
+    for sig, grace in ((signal.SIGINT, 5), (signal.SIGTERM, 5), (signal.SIGKILL, 5)):
+        if process.poll() is not None:
+            return
+        assert controller_identity(process.pid) == record['start_identity'], 'controller start identity changed'
+        assert os.getpgid(process.pid) == process.pid, 'controller process group changed'
+        os.killpg(process.pid, sig)
+        record.setdefault('signals', []).append({'signal': sig.name, 'unix': time.time()})
+        save('attempt.json', record, ROOT)
+        try:
+            process.wait(timeout=grace)
+            return
+        except subprocess.TimeoutExpired:
+            pass
+    raise RuntimeError('owned controller did not join after bounded escalation')
+
+
+def capture():
+    assert STATE['status'] == 'both-held'
+    staged_recheck()
+    with (ROOT/'attempt.json').open('x') as output:
+        json.dump({'status': 'launch-intent', 'attempt': MANIFEST['proposal_id'], 'config_sha256': sha(DOCS/'capture-config.json')}, output)
+    event('attempt-consumed', manifest_sha256=sha(DOCS/'capture-manifest.json'))
+    started = time.monotonic()
+    record = {'status': 'starting', 'started_unix': time.time(), 'argv': MANIFEST['controller_argv']}
+    process = None
+    try:
+        with (ROOT/'controller.stdout').open('xb') as stdout, (ROOT/'controller.stderr').open('xb') as stderr:
+            process = subprocess.Popen(MANIFEST['controller_argv'], stdout=stdout, stderr=stderr, start_new_session=True)
+            record['pid'] = process.pid
+            record['start_identity'] = controller_identity(process.pid)
+            save('attempt.json', record, ROOT)
+            record['exit'] = process.wait(timeout=MANIFEST['proposed_limits']['outer_watchdog_seconds'])
+            record['status'] = 'returned' if record['exit'] == 0 else 'returned-error'
+    except BaseException as error:
+        record['status'] = 'interrupted'
+        record['error'] = str(error)
+        if process is not None and process.poll() is None:
+            stop_controller(process, record)
+        raise
+    finally:
+        if process is not None:
+            record['exit'] = process.poll()
+        record['elapsed_seconds'] = time.monotonic()-started
+        record['finished_unix'] = time.time()
+        save('attempt.json', record, ROOT)
+        event('attempt-ended', **record)
+
+
+def local_absence():
+    binary = MANIFEST['endpoints'][1]['staged_binary']
+    library = ctypes.CDLL('/usr/lib/libproc.dylib')
+    observed = []
+    for line in subprocess.check_output(['ps', '-axo', 'pid='], text=True).splitlines():
+        pid = int(line.strip())
+        buffer = ctypes.create_string_buffer(4096)
+        if library.proc_pidpath(pid, buffer, len(buffer)) > 0 and buffer.value.decode() == binary:
+            observed.append({'pid': pid, 'binary': binary, 'start_identity': subprocess.check_output(['ps', '-p', str(pid), '-o', 'lstart='], text=True).strip()})
+    save('local-worker-absence.json', {'binary': binary, 'live_processes': observed})
+    assert not observed, observed
+
+
+def remote_absence():
+    source = '''import json,os,pathlib,sys
+binary=sys.argv[1];found=[]
+for root in pathlib.Path('/proc').iterdir():
+ if not root.name.isdigit():continue
+ try:
+  if str((root/'exe').resolve(strict=True))==binary:found.append({'pid':int(root.name),'binary':binary,'stat':(root/'stat').read_text()})
+ except (FileNotFoundError,PermissionError,ProcessLookupError):pass
+print(json.dumps({'binary':binary,'live_processes':found}));assert not found,found
+'''
+    remote_python(source, [MANIFEST['endpoints'][0]['staged_binary']], 'remote-worker-absence')
+
+
+def verify_archive(archive, inventory):
+    expected = {entry['path']: entry for entry in inventory['files']}
+    assert len(expected) == len(inventory['files']), 'duplicate inventory entry'
+    actual = set()
+    with tarfile.open(archive, 'r:gz') as packed:
+        for member in packed.getmembers():
+            path = Path(member.name)
+            assert not path.is_absolute() and '..' not in path.parts
+            assert member.isdir() or member.isfile(), member.name
+            if member.isfile():
+                name = str(path)
+                assert name in expected and name not in actual, name
+                content = packed.extractfile(member).read()
+                assert len(content) == expected[name]['bytes'] and hashlib.sha256(content).hexdigest() == expected[name]['sha256'], name
+                actual.add(name)
+    assert actual == set(expected)
+    return len(actual)
+
+
+def collect_remove():
+    local_absence()
+    if STATE['local_staged']:
+        files = []
+        for path in sorted((ROOT/'local').rglob('*')):
+            assert not path.is_symlink(), str(path)
+            if path.is_file():
+                files.append({'path': str(path.relative_to(ROOT)), 'bytes': path.stat().st_size, 'sha256': sha(path)})
+        save('local-inventory.json', {'root': str(ROOT), 'files': files})
+    if not STATE['remote_staged']:
+        return
+    remote_absence()
+    source = '''import hashlib,json,pathlib,sys
+root=pathlib.Path(sys.argv[1]);expected=json.loads(sys.argv[2]);assert root.resolve()==root
+assert json.loads((root/'.owner.json').read_text())==expected
+files=[]
+for path in sorted(root.rglob('*')):
+ assert not path.is_symlink(),str(path)
+ if path.is_file():files.append({'path':str(path.relative_to(root)),'bytes':path.stat().st_size,'sha256':hashlib.sha256(path.read_bytes()).hexdigest()})
+print(json.dumps({'root':str(root),'files':files}))
+'''
+    result = remote_python(source, [REMOTE, json.dumps(marker('linux-amd64'))], 'remote-inventory')
+    inventory = json.loads(result.stdout)
+    archive = ROOT/'remote-worker-files.tar.gz'
+    with archive.open('xb') as output:
+        command = SSH+['minimax', shlex.join(['tar', '-C', REMOTE, '-czf', '-', '.'])]
+        result = subprocess.run(command, stdout=output, stderr=subprocess.PIPE, timeout=55)
+        (OPS/'remote-archive.stderr').write_bytes(result.stderr)
+        result.check_returncode()
+    file_count = verify_archive(archive, inventory)
+    save('remote-custody.json', {'archive': str(archive), 'bytes': archive.stat().st_size, 'sha256': sha(archive), 'files': file_count, 'verified': True})
+    source = '''import hashlib,json,pathlib,shutil,sys
+root=pathlib.Path(sys.argv[1]);expected=json.loads(sys.argv[2]);assert root.resolve()==root and root.parent==pathlib.Path('/home/josh')
+assert root.name.startswith('wiremux-2157-') and json.loads((root/'.owner.json').read_text())==expected
+assert hashlib.sha256((root/'wiremux-measure-diagnostic').read_bytes()).hexdigest()==expected['binary_sha256']
+shutil.rmtree(root);print(json.dumps({'path':str(root),'staging_absent':not root.exists()}))
+'''
+    remote_python(source, [REMOTE, json.dumps(marker('linux-amd64'))], 'remote-staging-cleanup')
+    event('custody-verified-and-remote-removed', files=file_count)
+
+
+def release(cleanup_ok):
+    action = ADMISSION['release_action'] if cleanup_ok else ADMISSION['uncertain_cleanup_action']
+    for host, admission in reversed(list(STATE['hosts'].items())):
+        if admission['status'] == 'denied':
+            continue
+        try:
+            result = provider(action, host, 'terminal-'+host)
+            admission['status'] = 'released' if cleanup_ok and result.returncode == 0 else 'cleanup-retained'
+            admission['terminal_exit'] = result.returncode
+        except BaseException as error:
+            admission['status'] = 'cleanup-retained'
+            admission['terminal_error'] = str(error)
+        save('execution-state.json', STATE)
+    try:
+        absence = lease_observation()
+        STATE['status'] = 'released' if cleanup_ok and all(entry['absent'] for entry in absence['leases'].values()) and all(entry['status'] in ('released', 'denied') for entry in STATE['hosts'].values()) else 'cleanup-retained'
+    except BaseException as error:
+        STATE['status'] = 'cleanup-retained'
+        STATE['independent_check_error'] = str(error)
+        save('execution-state.json', STATE)
+        event('cleanup-terminal', status=STATE['status'], error=str(error))
+        raise
+    save('execution-state.json', STATE)
+    event('cleanup-terminal', status=STATE['status'])
+
+
+def final_inventory():
+    files = []
+    for path in sorted(ROOT.rglob('*')):
+        assert not path.is_symlink(), str(path)
+        if path.is_file() and path != ROOT/'final-inventory.json':
+            files.append({'path': str(path.relative_to(ROOT)), 'bytes': path.stat().st_size, 'sha256': sha(path)})
+    save('final-inventory.json', {'root': str(ROOT), 'files': files, 'excludes': ['final-inventory.json']}, ROOT)
+
+
+def main():
+    authorization = verify_inputs()
+    claim_execution(authorization)
+    failures = []
+    cleanup_ok = False
+    try:
+        acquire()
+        stage(authorization)
+        snapshot('before')
+        try:
+            capture()
+        except BaseException as error:
+            failures.append(error)
+            event('capture-error', error=str(error))
+        finally:
+            try:
+                snapshot('after')
+            except BaseException as error:
+                failures.append(error)
+                event('after-snapshot-error', error=str(error))
+    except BaseException as error:
+        failures.append(error)
+        event('execution-error', error=str(error))
+    finally:
+        try:
+            collect_remove()
+            cleanup_ok = True
+        except BaseException as error:
+            event('cleanup-error', error=str(error))
+            failures.append(error)
+        try:
+            release(cleanup_ok)
+        except BaseException as error:
+            failures.append(error)
+            event('release-error', error=str(error))
+        save('execution-errors.json', [{'type': type(error).__name__, 'error': str(error)} for error in failures])
+        final_inventory()
+    if failures:
+        raise BaseExceptionGroup('capture execution and cleanup failures', failures)
+    assert STATE['status'] == 'released', STATE
+
+
+if __name__ == '__main__':
+    main()

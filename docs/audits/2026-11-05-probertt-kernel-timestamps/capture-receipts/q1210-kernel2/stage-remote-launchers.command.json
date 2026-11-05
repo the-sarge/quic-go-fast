@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "scp",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/ops-q1210-kernel2/endpoint-after-kernel.sh",
+    "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/ops-q1210-kernel2/endpoint-before-kernel.sh",
+    "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/ops-q1210-kernel2/endpoint-kernel.sh",
+    "minimax:/home/josh/wiremux-1460-diag-q1210-kernel2/"
+  ],
+  "exit": 0,
+  "started_unix": 1793897287.807914,
+  "finished_unix": 1793897287.9607732
+}

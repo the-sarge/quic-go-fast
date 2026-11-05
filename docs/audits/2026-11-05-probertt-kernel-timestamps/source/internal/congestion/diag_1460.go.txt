@@ -1,0 +1,21 @@
+package congestion
+
+import (
+	"os"
+	"strconv"
+
+	"github.com/quic-go/quic-go/internal/protocol"
+)
+
+// diag1460WindowMult is a diagnostic-only send-side window override for issue #1460.
+var diag1460WindowMult = func() protocol.ByteCount {
+	if v, err := strconv.Atoi(os.Getenv("W1460_WINMULT")); err == nil && v > 0 {
+		return protocol.ByteCount(v)
+	}
+	return 1
+}()
+
+// Diag1460 is a diagnostic-only read of the private model for issue #1460.
+func (b *BBRSender) Diag1460() (phase int, rate, bandwidth uint64, minRTTNS int64, window, inflightLong, inflightShort int64, bandwidthShort, latestRate uint64) {
+	return int(b.phase), b.rate, b.bandwidth, b.minimumRTT.Nanoseconds(), int64(b.window), int64(b.inflightLong), int64(b.inflightShort), b.bandwidthShort, b.latestRate
+}

@@ -1,0 +1,18 @@
+{
+  "platform": "darwin-arm64",
+  "toolchain": "go version go1.27.3 darwin/arm64",
+  "argv": [
+    "go",
+    "build",
+    "-buildvcs=false",
+    "-trimpath",
+    "-ldflags=-X github.com/GridSwarm/wiremux/internal/measurement.nativeProductRevision=8282a84652387d3e2f644dfac1310da479fbe6b4 -X github.com/GridSwarm/wiremux/internal/measurement.nativeHarnessRevision=b88eee5b23df2476dbe98717308e287c35d6efa0 -X github.com/GridSwarm/wiremux/internal/measurement.nativeHarnessDelta=a67028dd0091291a2441e4c2ec87b5f43173962c50e1b76d2d76a4ef9b17f464 -X github.com/GridSwarm/wiremux/internal/measurement.nativeBuildRecipe=contextual-v1 -X github.com/GridSwarm/wiremux/internal/measurement.nativeForkRevision=bc4915ea0de0c238ecfdc51d827f7da67639a789 -X github.com/GridSwarm/wiremux/internal/measurement.nativeForkVersion=v0.62.1-fast.8.0.20261102233542-bc4915ea0de0 -X github.com/GridSwarm/wiremux/internal/measurement.nativeForkSum=h1:MFb8XOpOqlSIotaretnTH9avowadzPMVIpsEdKJFkRA=",
+    "-o",
+    "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/kernel-darwin-arm64",
+    "./cmd/wiremux-measure"
+  ],
+  "cwd": "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/build/src",
+  "output": "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/kernel-darwin-arm64",
+  "bytes": 17510562,
+  "sha256": "b3f10a8dd4d6071ab58c7322638b18c264c25a7897488fb854eabe450ac509a7"
+}

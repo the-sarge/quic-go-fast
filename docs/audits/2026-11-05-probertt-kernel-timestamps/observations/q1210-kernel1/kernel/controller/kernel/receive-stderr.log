@@ -1,0 +1,2 @@
+[DEBUG-1210] {"ack_threshold_one":false,"clock":"monotime; Unix anchor is a sequential observation, never cross-host one-way time","diag1210":"/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/run-q1210-kernel1/local/diag1210-52514.bin","dropped":0,"end_mono_ns":3600031422625,"end_unix_ns":1793896991464515000,"error":"\u003cnil\u003e","origin_mono_ns":3600000179042,"origin_unix_ns":1793896991433271000,"record_int64s":16,"records":17}
+context canceled

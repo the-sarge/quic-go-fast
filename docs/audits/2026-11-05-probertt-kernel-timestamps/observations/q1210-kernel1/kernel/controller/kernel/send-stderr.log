@@ -1,0 +1,2 @@
+[DEBUG-1210] {"ack_threshold_one":false,"clock":"monotime; Unix anchor is a sequential observation, never cross-host one-way time","diag1210":"/home/josh/wiremux-1460-diag-q1210-kernel1/diag1210-1422039.bin","dropped":0,"end_mono_ns":3600060938677,"end_unix_ns":1793896991463500492,"error":"\u003cnil\u003e","origin_mono_ns":3600000238998,"origin_unix_ns":1793896991402800713,"record_int64s":16,"records":11}
+selection: metadata "enp97s0": selection: unsupported enforcement or combination (<nil>)

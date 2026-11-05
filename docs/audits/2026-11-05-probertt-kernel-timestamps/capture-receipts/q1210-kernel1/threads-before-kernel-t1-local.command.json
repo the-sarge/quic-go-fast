@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "/bin/sh",
+    "-c",
+    "pid=$(ps -axo pid=,command= | grep '[w]iremux-measure-diagnostic -worker' | awk 'NR==1{print $1}'); test -n \"$pid\" && echo pid=$pid && ps -M -p \"$pid\"; /usr/sbin/lsof -nP -a -p \"$pid\" -iUDP"
+  ],
+  "exit": 0,
+  "started_unix": 1793896936.940772,
+  "finished_unix": 1793896937.0479648
+}

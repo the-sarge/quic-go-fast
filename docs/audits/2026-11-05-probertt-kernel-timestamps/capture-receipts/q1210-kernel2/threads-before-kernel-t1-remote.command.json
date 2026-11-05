@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "-oServerAliveInterval=2",
+    "-oServerAliveCountMax=2",
+    "minimax",
+    "pid=$(pgrep -x wiremux-measure | head -1); test -n \"$pid\" && echo pid=$pid && cat /proc/$pid/task/*/stat && grep '^cpu' /proc/stat"
+  ],
+  "exit": 0,
+  "started_unix": 1793897318.2612,
+  "finished_unix": 1793897318.4215329
+}

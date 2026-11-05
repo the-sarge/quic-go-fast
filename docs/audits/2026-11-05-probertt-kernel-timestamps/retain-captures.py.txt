@@ -1,0 +1,75 @@
+from pathlib import Path
+import gzip,hashlib,json,shutil,tarfile
+ROOT=Path('/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210')
+REPORT=ROOT/'docs/audits/2026-11-05-probertt-kernel-timestamps'
+CACHE=ROOT/'.cache/1210'
+
+def digest(p):
+    h=hashlib.sha256()
+    with Path(p).open('rb') as f:
+        while b:=f.read(1024*1024):h.update(b)
+    return h.hexdigest()
+
+def packed(source,target):
+    target.parent.mkdir(parents=True,exist_ok=True)
+    with target.open('xb') as f,gzip.GzipFile(filename='',mode='wb',fileobj=f,mtime=0,compresslevel=6) as z:
+        shutil.copyfileobj(source,z,1024*1024)
+
+def header(p):
+    found=[json.loads(line.split('[DEBUG-1210] ',1)[1]) for line in p.read_text().splitlines() if line.startswith('[DEBUG-1210] {')]
+    return found[0] if len(found)==1 else None
+
+verified=[]
+for run in ['q1210-kernel1','q1210-kernel2']:
+    capture=CACHE/('run-'+run);inputs=CACHE/('ops-'+run)
+    inv=json.loads((capture/'final-inventory.json').read_text())
+    assert json.loads((capture/'ops/execution-state.json').read_text())['status']=='released'
+    for entry in inv['files']:
+        p=capture/entry['path'];assert p.stat().st_size==entry['bytes'] and digest(p)==entry['sha256'],p
+    observed={str(p.relative_to(capture)) for p in capture.rglob('*') if p.is_file()}
+    assert observed=={x['path'] for x in inv['files']}|{'final-inventory.json'}
+    verified.append({'run':run,'files':len(inv['files']),'final_inventory_sha256':digest(capture/'final-inventory.json')})
+    shutil.copytree(inputs,REPORT/'operations'/run,ignore=shutil.ignore_patterns('__pycache__'))
+    shutil.copytree(capture/'ops',REPORT/'capture-receipts'/run)
+    shutil.copyfile(capture/'final-inventory.json',REPORT/'capture-receipts'/run/'final-inventory.json')
+    for p in capture.glob('attempt*.json'):shutil.copyfile(p,REPORT/'capture-receipts'/run/p.name)
+    with tarfile.open(capture/'remote-worker-files.tar.gz') as archive:
+        for arm in ['before-kernel','kernel','after-kernel']:
+            directory=capture/'controller'/arm
+            out=REPORT/'observations'/run/arm
+            target=out/'controller'/arm;target.mkdir(parents=True)
+            for name in ['result.json','config.json','send-stderr.log','receive-stderr.log','send-identity.json','receive-identity.json']:
+                if (directory/name).exists():shutil.copyfile(directory/name,target/name)
+            ledger=directory/'send-datagram-ledger.bin'
+            if ledger.exists():
+                with ledger.open('rb') as source:packed(source,target/'send-datagram-ledger.bin.gz')
+            for role in ['send','receive']:
+                h=header(directory/(role+'-stderr.log'))
+                if not h:continue
+                name=Path(h['diag1210']).name
+                if role=='send':
+                    matches=[m for m in archive.getmembers() if m.isfile() and Path(m.name).name==name];assert len(matches)==1
+                    with archive.extractfile(matches[0]) as source:packed(source,out/(name+'.gz'))
+                else:
+                    with (capture/'local'/name).open('rb') as source:packed(source,out/'local'/(name+'.gz'))
+manifest={str(p.relative_to(REPORT/'observations')):{'bytes':p.stat().st_size,'sha256':digest(p)} for p in sorted((REPORT/'observations').rglob('*')) if p.is_file()}
+(REPORT/'observations/manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+(REPORT/'capture-inventory-verification.json').write_text(json.dumps(verified,indent=2)+'\n')
+print(json.dumps({'published_observation_files':len(manifest),'compressed_bytes':sum(x['bytes'] for x in manifest.values()),'max_file_bytes':max(x['bytes'] for x in manifest.values())}),flush=True)
+archive_root=Path('/Users/josh/quic-go-fast-1210-kernel-timestamps');archive_root.mkdir(exist_ok=True)
+archive_path=archive_root/'native-captures.tar.gz';assert not archive_path.exists()
+expected={}
+with tarfile.open(archive_path,'w:gz') as archive:
+    for run in ['q1210-kernel1','q1210-kernel2']:
+        for prefix in ['run-','ops-']:
+            folder=CACHE/(prefix+run)
+            archive.add(folder,arcname=folder.name,recursive=True)
+            for p in folder.rglob('*'):
+                assert not p.is_symlink()
+                if p.is_file():expected[folder.name+'/'+str(p.relative_to(folder))]=digest(p)
+with tarfile.open(archive_path) as archive:
+    actual={m.name:hashlib.sha256(archive.extractfile(m).read()).hexdigest() for m in archive.getmembers() if m.isfile()}
+assert actual==expected
+receipt={'path':str(archive_path),'bytes':archive_path.stat().st_size,'sha256':digest(archive_path),'verified_files':len(expected),'same_machine_archive':True,'independent_disaster_recovery':False}
+(REPORT/'full-capture-custody.json').write_text(json.dumps(receipt,indent=2)+'\n')
+print(json.dumps(receipt),flush=True)

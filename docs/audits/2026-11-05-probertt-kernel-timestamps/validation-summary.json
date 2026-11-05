@@ -1,0 +1,9 @@
+{
+  "published_observation_manifest_verified": true,
+  "all_native_host_leases_released": true,
+  "relative_report_links_valid": true,
+  "max_file_bytes": 48333519,
+  "independent_report_review": "Figures, adverse outcomes, partial and full cycle limits checked against retained results; no actionable findings. This is a transcription of the review result, not a raw log.",
+  "final_source_replay_hashes_match": true,
+  "active_source_cleanup_verified": true
+}

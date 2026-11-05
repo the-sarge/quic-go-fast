@@ -1,0 +1,56 @@
+1793897017
+qdisc pfifo_fast 0: root refcnt 2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
+ Sent 16026996091410 bytes 12208124512 pkt (dropped 409661634, overlimits 0 requeues 116337364) 
+ backlog 0b 0p requeues 116337364
+State  Recv-Q Send-Q        Local Address:Port  Peer Address:Port
+UNCONN 960    2304   192.168.1.50%enp97s0:33789      0.0.0.0:*   
+	 skmem:(r960,rb8388608,t2304,tb8388608,f3136,w0,o0,bl0,d0)
+1793897018
+qdisc pfifo_fast 0: root refcnt 2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
+ Sent 16027129987507 bytes 12208239378 pkt (dropped 409661634, overlimits 0 requeues 116337375) 
+ backlog 0b 0p requeues 116337375
+State  Recv-Q Send-Q        Local Address:Port  Peer Address:Port
+UNCONN 0      11084  192.168.1.50%enp97s0:33789      0.0.0.0:*   
+	 skmem:(r0,rb8388608,t11084,tb8388608,f4096,w0,o0,bl0,d0)
+1793897019
+qdisc pfifo_fast 0: root refcnt 2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
+ Sent 16027264070078 bytes 12208354422 pkt (dropped 409661634, overlimits 0 requeues 116337376) 
+ backlog 0b 0p requeues 116337376
+State  Recv-Q Send-Q        Local Address:Port  Peer Address:Port
+UNCONN 0      4172   192.168.1.50%enp97s0:33789      0.0.0.0:*   
+	 skmem:(r0,rb8388608,t4172,tb8388608,f4096,w0,o0,bl0,d0)
+1793897020
+qdisc pfifo_fast 0: root refcnt 2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
+ Sent 16027398334341 bytes 12208469607 pkt (dropped 409661634, overlimits 0 requeues 116337381) 
+ backlog 0b 0p requeues 116337381
+State  Recv-Q Send-Q        Local Address:Port  Peer Address:Port
+UNCONN 0      6912   192.168.1.50%enp97s0:33789      0.0.0.0:*   
+	 skmem:(r0,rb8388608,t6912,tb8388608,f4096,w0,o0,bl0,d0)
+1793897021
+qdisc pfifo_fast 0: root refcnt 2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
+ Sent 16027532728390 bytes 12208584913 pkt (dropped 409661634, overlimits 0 requeues 116337382) 
+ backlog 0b 0p requeues 116337382
+State  Recv-Q Send-Q        Local Address:Port  Peer Address:Port
+UNCONN 0      0      192.168.1.50%enp97s0:33789      0.0.0.0:*   
+	 skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)
+1793897022
+qdisc pfifo_fast 0: root refcnt 2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
+ Sent 16027666996356 bytes 12208700104 pkt (dropped 409661634, overlimits 0 requeues 116337390) 
+ backlog 0b 0p requeues 116337390
+State  Recv-Q Send-Q        Local Address:Port  Peer Address:Port
+UNCONN 0      8562   192.168.1.50%enp97s0:33789      0.0.0.0:*   
+	 skmem:(r0,rb8388608,t8562,tb8388608,f4096,w0,o0,bl0,d0)
+1793897023
+qdisc pfifo_fast 0: root refcnt 2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
+ Sent 16027801339890 bytes 12208815361 pkt (dropped 409661634, overlimits 0 requeues 116337390) 
+ backlog 0b 0p requeues 116337390
+State  Recv-Q Send-Q        Local Address:Port  Peer Address:Port
+UNCONN 0      2304   192.168.1.50%enp97s0:33789      0.0.0.0:*   
+	 skmem:(r0,rb8388608,t2304,tb8388608,f4096,w0,o0,bl0,d0)
+1793897024
+qdisc pfifo_fast 0: root refcnt 2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
+ Sent 16027935674624 bytes 12208930595 pkt (dropped 409661634, overlimits 0 requeues 116337403) 
+ backlog 0b 0p requeues 116337403
+State  Recv-Q Send-Q        Local Address:Port  Peer Address:Port
+UNCONN 0      2304   192.168.1.50%enp97s0:33789      0.0.0.0:*   
+	 skmem:(r0,rb8388608,t2304,tb8388608,f4096,w0,o0,bl0,d0)

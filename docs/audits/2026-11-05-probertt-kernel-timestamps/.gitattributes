@@ -1,0 +1,2 @@
+# Preserve exact captured command output, including native trailing whitespace.
+capture-receipts/**/*.stdout -whitespace

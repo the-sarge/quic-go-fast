@@ -1,0 +1,25 @@
+pid=62092
+USER   PID   TT   %CPU STAT PRI     STIME     UTIME COMMAND
+josh 62092   ??    0.0 S    31T   0:00.01   0:00.01 /Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/run-q1210-kernel2/local/wiremux-measure-diagnostic -worker
+     62092         5.8 S    31T   0:01.08   0:00.22 
+     62092        10.2 R    31T   0:00.91   0:00.94 
+     62092         8.1 S    31T   0:00.85   0:00.86 
+     62092         0.0 S    31T   0:00.00   0:00.00 
+     62092         6.9 S    31T   0:00.87   0:00.89 
+     62092         6.0 S    31T   0:00.88   0:00.89 
+     62092         0.0 S    31T   0:00.00   0:00.00 
+     62092         0.0 S    31T   0:00.00   0:00.00 
+     62092         0.0 S    31T   0:00.40   0:00.40 
+     62092         8.7 S    31T   0:00.49   0:00.50 
+COMMAND     PID USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+wiremux-m 62092 josh    7u  IPv4 0x5a0ce60e270f672a      0t0  UDP 192.168.1.110:64407->192.168.1.50:50529
+wiremux-m 62092 josh    8u  IPv6 0xc95b2967d2439a64      0t0  UDP [fe80:10::18aa:69c9:fde7:6d22]:63500
+wiremux-m 62092 josh    9u  IPv6 0x19f39ee65a373c83      0t0  UDP [fded:7eff:fa:1:1481:23ce:6fe4:52b1]:52361
+wiremux-m 62092 josh   10u  IPv6 0xb30e4ac9c1ec1492      0t0  UDP [2601:18b:8780:8a51:c76:2073:2049:9134]:60310
+wiremux-m 62092 josh   11u  IPv6 0xc860850c1cd36b82      0t0  UDP [2601:18b:8780:8a51:f42f:132:e8cb:91db]:49910
+wiremux-m 62092 josh   12u  IPv6 0xab711b950caeab21      0t0  UDP [2601:18b:8780:8a51:28f5:d838:65b4:ea43]:62906
+wiremux-m 62092 josh   13u  IPv6 0xabc2d084d312f57f      0t0  UDP [2601:18b:8780:8a51:d152:38f4:5bb3:dc9c]:54912
+wiremux-m 62092 josh   14u  IPv6 0x5d72ecde7cd10223      0t0  UDP [2601:18b:8780:8a51:c976:4b9c:16d:5f8c]:62130
+wiremux-m 62092 josh   15u  IPv6 0x33ac6a401d44acbb      0t0  UDP [2601:18b:8780:8a51:683c:4e1f:ec3d:d812]:55738
+wiremux-m 62092 josh   16u  IPv6 0xa919b594f0eba6f3      0t0  UDP [2601:18b:8780:8a51:d9ca:2e10:e49f:d256]:63848
+wiremux-m 62092 josh   17u  IPv6 0x8ae5f00521175c56      0t0  UDP [2601:18b:8780:8a51:285c:b66b:3bf:f6f0]:58378

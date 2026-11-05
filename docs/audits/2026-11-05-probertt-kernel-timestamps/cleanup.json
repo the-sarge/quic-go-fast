@@ -1,0 +1,61 @@
+{
+  "worktrees": [
+    {
+      "worktree": "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210-native",
+      "branch": "codex/kernel-timestamps-1210-native",
+      "head": "bc4915ea0de0c238ecfdc51d827f7da67639a789",
+      "status_porcelain": "",
+      "restored_files": [
+        "connection.go",
+        "datagram_queue.go",
+        "diag_kernel1210.go",
+        "diag_kernel1210_darwin.go",
+        "diag_kernel1210_freebsd.go",
+        "diag_kernel1210_linux.go",
+        "diag_kernel1210_test.go",
+        "emission_diag_1460.go",
+        "internal/ackhandler/received_packet_tracker.go",
+        "internal/congestion/bbr_sender.go",
+        "internal/congestion/diag_1460.go",
+        "internal/congestion/probe_rtt_1460.go",
+        "internal/diag1210/identity.go",
+        "internal/diag1210/record.go",
+        "packet_emission.go",
+        "packet_emission_bbr.go",
+        "send_queue.go",
+        "sys_conn_oob.go"
+      ],
+      "replay_artifacts": null
+    },
+    {
+      "worktree": "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210-replay",
+      "branch": "codex/kernel-timestamps-1210-replay",
+      "head": "bc4915ea0de0c238ecfdc51d827f7da67639a789",
+      "status_porcelain": "",
+      "restored_files": [
+        "connection.go",
+        "datagram_queue.go",
+        "diag_kernel1210.go",
+        "diag_kernel1210_darwin.go",
+        "diag_kernel1210_freebsd.go",
+        "diag_kernel1210_linux.go",
+        "diag_kernel1210_test.go",
+        "emission_diag_1460.go",
+        "internal/ackhandler/received_packet_tracker.go",
+        "internal/congestion/bbr_sender.go",
+        "internal/congestion/diag_1460.go",
+        "internal/congestion/probe_rtt_1460.go",
+        "internal/diag1210/identity.go",
+        "internal/diag1210/record.go",
+        "packet_emission.go",
+        "packet_emission_bbr.go",
+        "send_queue.go",
+        "sys_conn_oob.go"
+      ],
+      "replay_artifacts": "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/replayed-final-build"
+    }
+  ],
+  "harness_diagnostic_overlay_removed_from_build_scratch": true,
+  "source_manifests_verified_before_removal": true,
+  "both_final_replay_hashes_match": true
+}

@@ -1,0 +1,28 @@
+{
+  "worktree": "/Volumes/worktrees/quic-go-fast/kernel1210-identity-observer",
+  "branch": "codex/kernel1210-identity-observer",
+  "head": "bc4915ea0de0c238ecfdc51d827f7da67639a789",
+  "clean": true,
+  "source_backup": "/private/tmp/q1210-identity-final-source",
+  "checked_files": {
+    "emission_diag_1460.go": "8e1249f89c46957c212e2a18abb8651d2f656b6661ff6ca8a1b33c76c45e51e8",
+    "internal/congestion/diag_1460.go": "a9a939b707cd94a8e44aa485e4f25c6ed73c34540f7283eb8e178eac6ce8e7d4",
+    "internal/congestion/probe_rtt_1460.go": "3517802df4a017741503cf4e9529f050e4c2c5f9e2cfd5d3f8a4875676b29c8a",
+    "internal/diag1210/record.go": "0b1d40a3cf2ad1078f788663d347fe291c1a28945ea5b145ce62e00f294b993a",
+    "connection.go": "47f081fc2d09db83a2ec9e98bfc485bce8354bcda9e6f2a878232f6ba8562eab",
+    "datagram_queue.go": "69bf59fe25a05c91766aadbd53905bd58ffaafd86cec7495e181426266051fa2",
+    "internal/ackhandler/received_packet_tracker.go": "1acc50236f820101eed733515f6c0cc4b946fbf41f40897876bb0802fabb8c96",
+    "internal/congestion/bbr_sender.go": "f0d1016fec3d7ef3d38e08a39f4c2b29898a95cd7853591f25581f4db526db37",
+    "packet_emission.go": "12df26ae8ce6cfb107fa617092b9fde7928be88d8e26d901e39926547df15c33",
+    "packet_emission_bbr.go": "dfe3e0cca94f18cfebb395b78d646571c7bf24433abd6df5e51ca01c415ae8b0",
+    "send_queue.go": "d4646f6846d8d7cf6cfa428c849848833aeeafcaf32c08782d66d13a87810867",
+    "internal/diag1210/identity.go": "f888639d60dad4856998f4e887c673fee00d791bd6ef720efaed356901943c91"
+  },
+  "validation_script": "/private/tmp/q1210-identity-validation.py",
+  "validation_result": "/private/tmp/q1210-identity-validation.json",
+  "focused_race_check": {
+    "command": "Q1210_TRACE=1 Q1210_KERNEL_TRACE=1 Q1210_OUTPUT_DIR=/private/tmp go test -race . -run ^TestEmission -count=1",
+    "observed_tool_result": "ok github.com/quic-go/quic-go 1.366s",
+    "note": "Result transcribed from execution-tool output; not a raw log file."
+  }
+}

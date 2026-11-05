@@ -1,0 +1,20 @@
+admission-wait {"leases": {"mbp128": [], "minimax": ["garm-gridcast-win64-h3pb2wldte2x.json"]}}
+admission-wait {"leases": {"mbp128": [], "minimax": ["garm-gridcast-win64-h3pb2wldte2x.json"]}}
+admission-wait {"leases": {"mbp128": [], "minimax": ["garm-gridcast-win64-h3pb2wldte2x.json"]}}
+admission-wait {"leases": {"mbp128": [], "minimax": ["garm-gridcast-win64-h3pb2wldte2x.json"]}}
+admission-wait {"leases": {"mbp128": [], "minimax": ["garm-gridcast-win64-h3pb2wldte2x.json"]}}
+admission-wait {"leases": {"mbp128": [], "minimax": ["garm-gridcast-win64-h3pb2wldte2x.json"]}}
+admission-wait {"leases": {"mbp128": [], "minimax": ["garm-gridcast-win64-h3pb2wldte2x.json"]}}
+admitted {"host": "mbp128"}
+admitted {"host": "minimax"}
+staged {"local": "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/run-q1210-kernel1/local", "remote": "/home/josh/wiremux-1460-diag-q1210-kernel1"}
+kernel-socket-witness-start {"scope": "loopback validation; not a native physical-path workload attempt"}
+kernel-socket-witness-passed {}
+attempt-consumed {"arm": "before-kernel"}
+attempt-ended {"arm": "before-kernel", "status": "returned", "exit": 0, "elapsed": 78.34062691708095}
+attempt-consumed {"arm": "kernel"}
+attempt-ended {"arm": "kernel", "status": "returned-error", "exit": 1, "elapsed": 0.3381559170084074}
+attempt-consumed {"arm": "after-kernel"}
+attempt-ended {"arm": "after-kernel", "status": "returned", "exit": 0, "elapsed": 78.1098030420253}
+custody-verified-and-remote-removed {"files": 17}
+cleanup-terminal {"status": "released"}

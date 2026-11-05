@@ -1,0 +1,50 @@
+[
+  {
+    "arm": "before-kernel",
+    "status": "returned",
+    "started_unix": 1793897293.147821,
+    "argv": [
+      "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/run-q1210-kernel2/local/endpoint-before-kernel.sh",
+      "-remote-config",
+      "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/ops-q1210-kernel2/config-before-kernel.json",
+      "-output",
+      "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/run-q1210-kernel2/controller/before-kernel"
+    ],
+    "pid": 60194,
+    "start_identity": "60194 Thu Nov  5 11:48:13 2026",
+    "exit": 0,
+    "elapsed_seconds": 78.55181008402724
+  },
+  {
+    "arm": "kernel",
+    "status": "returned",
+    "started_unix": 1793897372.664979,
+    "argv": [
+      "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/run-q1210-kernel2/local/endpoint-kernel.sh",
+      "-remote-config",
+      "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/ops-q1210-kernel2/config-kernel.json",
+      "-output",
+      "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/run-q1210-kernel2/controller/kernel"
+    ],
+    "pid": 62078,
+    "start_identity": "62078 Thu Nov  5 11:49:32 2026",
+    "exit": 0,
+    "elapsed_seconds": 78.78602112503722
+  },
+  {
+    "arm": "after-kernel",
+    "status": "returned",
+    "started_unix": 1793897452.4650528,
+    "argv": [
+      "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/run-q1210-kernel2/local/endpoint-after-kernel.sh",
+      "-remote-config",
+      "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/ops-q1210-kernel2/config-after-kernel.json",
+      "-output",
+      "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/run-q1210-kernel2/controller/after-kernel"
+    ],
+    "pid": 63967,
+    "start_identity": "63967 Thu Nov  5 11:50:52 2026",
+    "exit": 0,
+    "elapsed_seconds": 78.45470591599587
+  }
+]

@@ -1,0 +1,16 @@
+{
+  "arm": "kernel",
+  "status": "returned-error",
+  "started_unix": 1793896991.128913,
+  "argv": [
+    "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/run-q1210-kernel1/local/endpoint-kernel.sh",
+    "-remote-config",
+    "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/ops-q1210-kernel1/config-kernel.json",
+    "-output",
+    "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/run-q1210-kernel1/controller/kernel"
+  ],
+  "pid": 52502,
+  "start_identity": "52502 Thu Nov  5 11:43:11 2026",
+  "exit": 1,
+  "elapsed_seconds": 0.3381559170084074
+}

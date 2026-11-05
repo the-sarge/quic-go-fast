@@ -1,0 +1,100 @@
+//go:build darwin
+
+package quic
+
+import (
+	"encoding/binary"
+	"github.com/quic-go/quic-go/internal/diag1210"
+	"github.com/quic-go/quic-go/internal/monotime"
+	"golang.org/x/sys/unix"
+	"os"
+	"strconv"
+)
+
+func (k *kernel1210Socket) platform() int64 { return 2 }
+func (k *kernel1210Socket) configure() (int64, error) {
+	// Operator queries mach_timebase_info on the actual host and retains it.
+	// SCM_TIMESTAMP_MONOTONIC carries mach_absolute_time ticks, not nanoseconds.
+	n, e1 := strconv.ParseUint(os.Getenv("Q1210_MACH_NUMER"), 10, 32)
+	d, e2 := strconv.ParseUint(os.Getenv("Q1210_MACH_DENOM"), 10, 32)
+	if e1 != nil || e2 != nil || n == 0 || d == 0 {
+		return unix.SO_TIMESTAMP_MONOTONIC, unix.EINVAL
+	}
+	k.numer, k.denom, k.clock = n, d, 2
+	// CLOCK_UPTIME_RAW uses mach_absolute_time. MONOTONIC_RAW includes sleep
+	// and is a different clock. Retain the tightest bracket's conversion error.
+	best := int64(1 << 62)
+	for i := 0; i < 32; i++ {
+		var t unix.Timespec
+		before := int64(monotime.Now())
+		err := unix.ClockGettime(unix.CLOCK_UPTIME_RAW, &t)
+		after := int64(monotime.Now())
+		if err != nil {
+			return unix.SO_TIMESTAMP_MONOTONIC, err
+		}
+		width := after - before
+		if width < best {
+			best = width
+			k.offset = before + width/2 - t.Nano()
+			k.uncertainty = (width + 1) / 2
+		}
+	}
+	var setupErr error
+	err := k.raw.Control(func(fd uintptr) {
+		setupErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_TIMESTAMP_MONOTONIC, 1)
+	})
+	if err != nil {
+		return unix.SO_TIMESTAMP_MONOTONIC, err
+	}
+	return unix.SO_TIMESTAMP_MONOTONIC, setupErr
+}
+func (k *kernel1210Socket) receiveStamp(oob []byte) (int64, error) {
+	for len(oob) > 0 {
+		h, b, rest, err := unix.ParseOneSocketControlMessage(oob)
+		if err != nil {
+			return 0, err
+		}
+		if h.Level == unix.SOL_SOCKET && h.Type == unix.SCM_TIMESTAMP_MONOTONIC {
+			if len(b) != 8 {
+				return 0, unix.EINVAL
+			}
+			return int64(binary.NativeEndian.Uint64(b)), nil
+		}
+		oob = rest
+	}
+	return 0, nil
+}
+func (k *kernel1210Socket) prepareTX(b, oob []byte, gso uint16) ([]byte, *kernel1210TX) {
+	if k == nil || !k.active || len(b) == 0 {
+		return oob, nil
+	}
+	first := b
+	if gso > 0 && int(gso) < len(first) {
+		first = first[:int(gso)]
+	}
+	identity := diag1210.Identity(first)
+	if !diag1210.SelectedIdentity(identity) {
+		return oob, nil
+	}
+	// Darwin has no supported TX timestamp request here. ID is diagnostic only;
+	// no cmsg is attached and there will be no matching kind33 kernel event.
+	return oob, &kernel1210TX{id: k.nextID.Add(1), identity: identity, size: len(b), gso: int(gso)}
+}
+func (k *kernel1210Socket) drain() {}
+
+func (k *kernel1210Socket) clockWitness(now int64) {
+	if !k.active || now-k.lastCalibration < 1000000000 {
+		return
+	}
+	k.lastCalibration = now
+	var t unix.Timespec
+	before := int64(monotime.Now())
+	err := unix.ClockGettime(unix.CLOCK_UPTIME_RAW, &t)
+	after := int64(monotime.Now())
+	if err != nil {
+		k.errorEvent(12, err)
+		return
+	}
+	width := after - before
+	diag1210.Add(34, now, k.socketID, t.Nano(), before, after, before+width/2-t.Nano(), (width+1)/2, k.offset, int64(k.numer), int64(k.denom))
+}

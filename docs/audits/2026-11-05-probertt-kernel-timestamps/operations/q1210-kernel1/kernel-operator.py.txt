@@ -1,0 +1,67 @@
+"""Owned extension of retained admission/custody operator for issue #1210."""
+import hashlib
+import importlib.util
+import json
+from pathlib import Path
+import shlex
+import shutil
+import sys
+
+BASE = Path('/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210')
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+spec = importlib.util.spec_from_file_location('batch1210', BASE/'batch.py')
+batch = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(batch)
+name = sys.argv[1]
+local_binary, remote_binary, witness = map(Path, sys.argv[2:5])
+arms = json.loads((BASE/'arms-kernel.json').read_text())
+docs = batch.prepare(name, arms, batch.VENUES['eth4'], {'local': local_binary, 'remote': remote_binary})
+shutil.copyfile(__file__, docs/'kernel-operator.py.txt')
+shutil.copyfile(BASE/'batch.py', docs/'batch.py.txt')
+inputs = {'path':str(witness),'sha256':sha(witness),'test':'TestDiagnostic1210KernelSocketWitness'}
+(docs/'kernel-witness.json').write_text(json.dumps(inputs,indent=2)+'\n')
+op = batch.load_operator(docs)
+batch.install(op, docs)
+old_stage, old_capture, old_absence = op.stage, op.capture, op.remote_absence
+witness_name = 'kernel-socket-witness.test'
+remote_witness = op.REMOTE+'/'+witness_name
+
+def stage(authorization):
+    assert sha(witness) == inputs['sha256']
+    old_stage(authorization)
+    op.run(['scp','-oBatchMode=yes','-oStrictHostKeyChecking=yes','-oConnectTimeout=10',str(witness),'minimax:'+remote_witness], 'stage-kernel-witness', timeout=55)
+    source = '''import hashlib,json,pathlib,sys
+root=pathlib.Path(sys.argv[1]);name=sys.argv[2];digest=sys.argv[3]
+assert root.resolve()==root and root.parent==pathlib.Path('/home/josh') and root.name.startswith('wiremux-1460-diag-q1210-')
+p=root/name;assert hashlib.sha256(p.read_bytes()).hexdigest()==digest;p.chmod(0o700)
+(root/'kernel-witness').mkdir(mode=0o700)
+print(json.dumps({'path':str(p),'sha256':digest}))
+'''
+    op.remote_python(source,[op.REMOTE,witness_name,inputs['sha256']],'kernel-witness-staged')
+
+def remote_absence():
+    old_absence()
+    source = '''import json,pathlib,sys
+binary=sys.argv[1];found=[]
+for p in pathlib.Path('/proc').iterdir():
+ if not p.name.isdigit():continue
+ try:
+  if str((p/'exe').resolve(strict=True))==binary:found.append(int(p.name))
+ except (FileNotFoundError,PermissionError,ProcessLookupError):pass
+print(json.dumps({'binary':binary,'live_processes':found}));assert not found
+'''
+    op.remote_python(source,[remote_witness],'kernel-witness-absence')
+
+def capture():
+    command=['env','Q1210_TRACE=1','Q1210_KERNEL_TRACE=1','Q1210_OUTPUT_DIR='+op.REMOTE+'/kernel-witness','timeout','45',remote_witness,'-test.v','-test.run=^'+inputs['test']+'$','-test.count=1']
+    op.event('kernel-socket-witness-start',scope='loopback validation; not a native physical-path workload attempt')
+    op.run(op.SSH+['minimax',shlex.join(command)],'linux-kernel-socket-witness',timeout=55)
+    remote_absence()
+    op.event('kernel-socket-witness-passed')
+    old_capture()
+
+op.stage, op.capture, op.remote_absence = stage, capture, remote_absence
+op.main()

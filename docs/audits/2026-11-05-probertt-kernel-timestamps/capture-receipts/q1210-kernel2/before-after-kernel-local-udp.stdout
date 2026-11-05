@@ -1,0 +1,48 @@
+udp:
+	3273330830 datagram received
+		0 with incomplete header
+		0 with bad data length field
+		1 with bad checksum
+		2 with no checksum
+		1504035417 checksummed in software
+			1503017763 datagrams (3304518430 byte) over IPv4
+			1017654 datagrams (271083816 bytes) over IPv6
+		397803 dropped due to no socket
+		58436 broadcast/multicast datagrams undelivered
+		678 IPv6 multicast datagrams undelivered
+		0 time multicast source filter matched
+		444806 dropped due to full socket buffers
+		0 not for hashed pcb
+		3272429784 delivered
+	2809355240 datagram output
+		3718988750 checksummed in software
+			3712762659 datagram (2139723479 bytes) over IPv4
+			6226091 datagrams (1907214714 bytes) over IPv6
+	153807 duplicate IMCP packets for port unreachable suppressed
+	243320 ICMP packets for port unreachable not suppressed
+Name       Mtu   Network       Address            Ipkts Ierrs     Ibytes    Opkts Oerrs     Obytes  Coll
+en8        1500  <Link#16>   02:00:00:00:00:00 11151265944     0 14884452349972 3489011517     0 4350615915157     0
+en8        1500  fe80::18aa: fe80:10::18aa:69c 11151265944     - 14884452349972 3489011517     - 4350615915157     -
+en8        1500  fded:7eff:f fded:7eff:fa:1:14 11151265944     - 14884452349972 3489011517     - 4350615915157     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11151265944     - 14884452349972 3489011517     - 4350615915157     -
+en8        1500  192.168.1     192.168.1.110   11151265944     - 14884452349972 3489011517     - 4350615915157     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11151265944     - 14884452349972 3489011517     - 4350615915157     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11151265944     - 14884452349972 3489011517     - 4350615915157     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11151265944     - 14884452349972 3489011517     - 4350615915157     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11151265944     - 14884452349972 3489011517     - 4350615915157     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11151265944     - 14884452349972 3489011517     - 4350615915157     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11151265944     - 14884452349972 3489011517     - 4350615915157     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11151265944     - 14884452349972 3489011517     - 4350615915157     -
+TOPCPU
+ 38.1  0   684 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+ 28.1  0 53185 /var/folders/ph/8tf9wjq95wjcv0qf93zg96c00000gn/T/go-build443522182/b001/transfer.test
+ 12.4  0   853 /usr/sbin/coreaudiod
+  8.8  0 38370 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent
+  8.5  0  1419 /System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app/Contents/MacOS/Safari
+  5.0  0 38369 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent
+  4.5  0   615 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd
+  2.8  0 59972 /opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/Resources/Python.app/Contents/MacOS/Python
+  2.8  0   677 /usr/sbin/bluetoothd
+  2.5  0  2838 /Applications/Resilio Sync.app/Contents/MacOS/Resilio Sync
+  2.5  0  1558 /usr/bin/ssh-agent
+  2.2  0 10799 /System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine

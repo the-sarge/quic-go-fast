@@ -1,0 +1,16 @@
+{
+  "platform": "linux-test",
+  "toolchain": "go version go1.27.3 darwin/arm64",
+  "argv": [
+    "go",
+    "test",
+    "-c",
+    "-o",
+    "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/kernel-socket-witness-linux.test",
+    "."
+  ],
+  "cwd": "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210-native",
+  "output": "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/kernel-socket-witness-linux.test",
+  "bytes": 21812880,
+  "sha256": "9e38867ced0da2d9563287f36c49a8352b4c633954f4d4536ebb908a2567c382"
+}

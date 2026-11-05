@@ -1,0 +1,14 @@
+admitted {"host": "mbp128"}
+admitted {"host": "minimax"}
+staged {"local": "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/run-q1210-kernel2/local", "remote": "/home/josh/wiremux-1460-diag-q1210-kernel2"}
+kernel-socket-witness-start {"scope": "loopback validation; not a native physical-path workload attempt"}
+kernel-socket-witness-passed {}
+kernel-metadata-witness-passed {}
+attempt-consumed {"arm": "before-kernel"}
+attempt-ended {"arm": "before-kernel", "status": "returned", "exit": 0, "elapsed": 78.55181008402724}
+attempt-consumed {"arm": "kernel"}
+attempt-ended {"arm": "kernel", "status": "returned", "exit": 0, "elapsed": 78.78602112503722}
+attempt-consumed {"arm": "after-kernel"}
+attempt-ended {"arm": "after-kernel", "status": "returned", "exit": 0, "elapsed": 78.45470591599587}
+custody-verified-and-remote-removed {"files": 20}
+cleanup-terminal {"status": "released"}

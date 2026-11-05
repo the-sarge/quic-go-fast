@@ -1,0 +1,20 @@
+{"kind": "admission-wait", "utc": "2026-11-05T16:38:14.647191+00:00", "leases": {"mbp128": [], "minimax": ["garm-gridcast-win64-h3pb2wldte2x.json"]}}
+{"kind": "admission-wait", "utc": "2026-11-05T16:38:44.863424+00:00", "leases": {"mbp128": [], "minimax": ["garm-gridcast-win64-h3pb2wldte2x.json"]}}
+{"kind": "admission-wait", "utc": "2026-11-05T16:39:15.086523+00:00", "leases": {"mbp128": [], "minimax": ["garm-gridcast-win64-h3pb2wldte2x.json"]}}
+{"kind": "admission-wait", "utc": "2026-11-05T16:39:45.292127+00:00", "leases": {"mbp128": [], "minimax": ["garm-gridcast-win64-h3pb2wldte2x.json"]}}
+{"kind": "admission-wait", "utc": "2026-11-05T16:40:15.488184+00:00", "leases": {"mbp128": [], "minimax": ["garm-gridcast-win64-h3pb2wldte2x.json"]}}
+{"kind": "admission-wait", "utc": "2026-11-05T16:40:45.690012+00:00", "leases": {"mbp128": [], "minimax": ["garm-gridcast-win64-h3pb2wldte2x.json"]}}
+{"kind": "admission-wait", "utc": "2026-11-05T16:41:15.890652+00:00", "leases": {"mbp128": [], "minimax": ["garm-gridcast-win64-h3pb2wldte2x.json"]}}
+{"kind": "admitted", "utc": "2026-11-05T16:41:46.514155+00:00", "host": "mbp128"}
+{"kind": "admitted", "utc": "2026-11-05T16:41:47.149258+00:00", "host": "minimax"}
+{"kind": "staged", "utc": "2026-11-05T16:41:48.173565+00:00", "local": "/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210/.cache/1210/run-q1210-kernel1/local", "remote": "/home/josh/wiremux-1460-diag-q1210-kernel1"}
+{"kind": "kernel-socket-witness-start", "utc": "2026-11-05T16:41:50.879710+00:00", "scope": "loopback validation; not a native physical-path workload attempt"}
+{"kind": "kernel-socket-witness-passed", "utc": "2026-11-05T16:41:51.512686+00:00"}
+{"kind": "attempt-consumed", "utc": "2026-11-05T16:41:51.930588+00:00", "arm": "before-kernel"}
+{"kind": "attempt-ended", "utc": "2026-11-05T16:43:10.271799+00:00", "arm": "before-kernel", "status": "returned", "exit": 0, "elapsed": 78.34062691708095}
+{"kind": "attempt-consumed", "utc": "2026-11-05T16:43:11.128839+00:00", "arm": "kernel"}
+{"kind": "attempt-ended", "utc": "2026-11-05T16:43:11.467275+00:00", "arm": "kernel", "status": "returned-error", "exit": 1, "elapsed": 0.3381559170084074}
+{"kind": "attempt-consumed", "utc": "2026-11-05T16:43:12.303449+00:00", "arm": "after-kernel"}
+{"kind": "attempt-ended", "utc": "2026-11-05T16:44:30.413640+00:00", "arm": "after-kernel", "status": "returned", "exit": 0, "elapsed": 78.1098030420253}
+{"kind": "custody-verified-and-remote-removed", "utc": "2026-11-05T16:44:38.528250+00:00", "files": 17}
+{"kind": "cleanup-terminal", "utc": "2026-11-05T16:44:39.454108+00:00", "status": "released"}

@@ -1,0 +1,28 @@
+from pathlib import Path
+import hashlib,json,os,subprocess,sys
+root=Path('/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210')
+source=Path('/Volumes/worktrees/quic-go-fast/kernel-timestamps-1210-native')
+cache=root/'.cache/1210'
+report=root/'docs/audits/2026-11-05-probertt-kernel-timestamps'
+platform=sys.argv[1]
+assert platform in ('linux-amd64','darwin-arm64','linux-test','darwin-test')
+assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=source,text=True).strip()=='bc4915ea0de0c238ecfdc51d827f7da67639a789'
+assert subprocess.check_output(['git','branch','--show-current'],cwd=source,text=True).strip()=='codex/kernel-timestamps-1210-native'
+env=dict(os.environ,GOTOOLCHAIN='local',GOPROXY='off',GOFLAGS='',CGO_ENABLED='0',GOMAXPROCS='4')
+version=subprocess.check_output(['go','version'],env=env,text=True).strip();assert version.startswith('go version go1.27.3 ')
+receipts=json.loads((root/'docs/audits/2026-11-05-probertt-investigation/ablation-builds.json').read_text())
+if platform.endswith('-test'):
+    system=platform.split('-')[0];arch='arm64' if system=='darwin' else 'amd64'
+    output=cache/('kernel-socket-witness-'+system+'.test')
+    argv=['go','test','-c','-o',str(output),'.'];cwd=source
+else:
+    system,arch=platform.split('-');output=cache/('kernel-'+platform)
+    receipt=next(r for r in receipts if r['platform']==platform)
+    flags=[a for a in receipt['argv'] if a.startswith('-') and a!='-o']
+    argv=['go','build',*flags,'-o',str(output),'./cmd/wiremux-measure'];cwd=cache/'build/src'
+with (report/('build-'+platform+'.log')).open('w') as log:
+    result=subprocess.run(argv,cwd=cwd,env=dict(env,GOOS=system,GOARCH=arch),stdout=log,stderr=subprocess.STDOUT)
+assert result.returncode==0,(platform,result.returncode)
+receipt={'platform':platform,'toolchain':version,'argv':argv,'cwd':str(cwd),'output':str(output),'bytes':output.stat().st_size,'sha256':hashlib.sha256(output.read_bytes()).hexdigest()}
+(report/('build-'+platform+'.json')).write_text(json.dumps(receipt,indent=2)+'\n')
+print(json.dumps(receipt),flush=True)

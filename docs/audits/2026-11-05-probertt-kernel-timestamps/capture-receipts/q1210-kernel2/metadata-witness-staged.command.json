@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "-oServerAliveInterval=2",
+    "-oServerAliveCountMax=2",
+    "minimax",
+    "python3 - /home/josh/wiremux-1460-diag-q1210-kernel2/harness-metadata-witness.test 6a86294acab64b9494eadad20add8cae0a51ebf63eb75c3a58f0fdf2d9c39ac7"
+  ],
+  "exit": 0,
+  "started_unix": 1793897288.870107,
+  "finished_unix": 1793897289.021972
+}

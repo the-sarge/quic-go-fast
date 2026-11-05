@@ -1,0 +1,19 @@
+Ip: Forwarding DefaultTTL InReceives InHdrErrors InAddrErrors ForwDatagrams InUnknownProtos InDiscards InDelivers OutRequests OutDiscards OutNoRoutes ReasmTimeout ReasmReqds ReasmOKs ReasmFails FragOKs FragFails FragCreates OutTransmits
+Ip: 1 64 37154825148 0 11 255080728 0 0 36898644223 48402562181 409677785 27 0 20 10 0 0 0 0 48657646429
+Icmp: InMsgs InErrors InCsumErrors InDestUnreachs InTimeExcds InParmProbs InSrcQuenchs InRedirects InEchos InEchoReps InTimestamps InTimestampReps InAddrMasks InAddrMaskReps OutMsgs OutErrors OutRateLimitGlobal OutRateLimitHost OutDestUnreachs OutTimeExcds OutParmProbs OutSrcQuenchs OutRedirects OutEchos OutEchoReps OutTimestamps OutTimestampReps OutAddrMasks OutAddrMaskReps
+Icmp: 239317 596 0 30578 7 0 0 3 171801 36928 0 0 0 0 279000 0 0 35327 68714 0 0 0 0 38485 171801 0 0 0 0
+IcmpMsg: InType0 InType3 InType5 InType8 InType11 OutType0 OutType3 OutType8
+IcmpMsg: 36928 30578 3 171801 7 171801 68714 38485
+Tcp: RtoAlgorithm RtoMin RtoMax MaxConn ActiveOpens PassiveOpens AttemptFails EstabResets CurrEstab InSegs OutSegs RetransSegs InErrs OutRsts InCsumErrors
+Tcp: 1 200 120000 -1 131790 427934 1563 23392 2 265432293 707517724 55054 25 76689 0
+Udp: InDatagrams NoPorts InErrors OutDatagrams RcvbufErrors SndbufErrors InCsumErrors IgnoredMulti MemErrors
+Udp: 44898369213 55660 52724 47785877165 52724 409660677 0 336195 0
+UdpLite: InDatagrams NoPorts InErrors OutDatagrams RcvbufErrors SndbufErrors InCsumErrors IgnoredMulti MemErrors
+UdpLite: 0 0 0 0 0 0 0 0 0
+2: enp97s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
+    link/ether 38:05:25:31:93:ec brd ff:ff:ff:ff:ff:ff
+    RX:      bytes     packets errors dropped  missed   mcast           
+     6961741963087  5940339104      0 2620326     387  859594 
+    TX:      bytes     packets errors dropped carrier collsns           
+    15994992670981 11610377918      0       0       0       0 
+    altname enx3805253193ec
