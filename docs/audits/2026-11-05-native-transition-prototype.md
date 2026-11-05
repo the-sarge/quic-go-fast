@@ -14,7 +14,7 @@ The connection now carries explicit local progress through its loop instead of s
 
 Exchange may detach facts during construction, but recovery callbacks for those detached native facts execute only at the existing consumption checkpoints. Four bounded FIFO entries retain those facts; matching connection records remain occupied until consumption. The consumer freezes a bounded snapshot before callbacks. The later `c09a648` fix prevents endpoint results from overtaking another deferred result appended reentrantly during that snapshot. The measured `faac65e` source lacks that fix; it is useful timing evidence, not a correct final candidate.
 
-Recovery's local qualification projection changed from shifted packet-number slices to 64-packet bit blocks with Fenwick population counts. Its rank query preserves the exact `(b,a]` exclusion interval, while skipped numbers retain their existing `(b,a)` rule. Physical history, unresolved membership and capacity remain authoritative and unchanged. A retired whole-block prefix still requires bounded copying/rebuilding; this is not a universal constant-time claim.
+Recovery's local qualification projection changed from shifted packet-number slices to 64-PN bit blocks with Fenwick population counts. Its rank query preserves the exact `(b,a]` exclusion interval, while skipped numbers retain their existing `(b,a)` rule. Physical history, unresolved membership and capacity remain authoritative and unchanged. A retired whole-block prefix still requires bounded copying/rebuilding; this is not a universal constant-time claim.
 
 The local ECN logical record sequence changed to a circular deque. In-order coalescing moves the short prefix, prefix retirement advances the head, and arbitrary middle edits move the shorter side. The existing sorted logical sequence, 4,096-record ceiling, feedback constraints and event order remain unchanged. Local and rich-congestion ECN ledgers were not merged.
 
@@ -65,6 +65,8 @@ The following disjoint callable-owner partition assigns each whole-role CPU samp
 | Other ACK processing | 0.081818 | 0.061200 | −0.020618 |
 
 The CPU ceiling is 1.111690163 ns/byte, leaving **0.215746090 ns/byte** to remove. Even deleting the candidate's entire registration and completion subtrees, an impossible optimization, would remove only 0.177397 ns/byte. Their actual excess over baseline is 0.126711 ns/byte. A recovery-allocation patch alone therefore has no direct cost argument for meeting the requirement.
+
+The connection critical path remains costly: whole-role `Conn.run` samples scale to approximately 0.655656 ns/byte baseline and 0.878444 candidate. A simplified model retaining baseline owner availability would need at most `0.655656 / 0.95 = 0.690164` ns/byte to meet the throughput floor, about 0.188280 below the candidate. This is a model condition, not proof of core saturation or a precise prediction. Off-owner savings cannot automatically be counted as relief for this serial path.
 
 Compared descriptively with the prior source, local ECN attribution fell from 0.063215 to 0.037679 ns/byte and local history qualification/capacity from 0.016823 to 0.010531. Endpoint control was approximately unchanged, 0.061686 versus 0.062721. The mechanism improved some work while leaving substantial costs elsewhere. Reduced function-call or wake counts alone do not establish the required end-to-end result.
 
