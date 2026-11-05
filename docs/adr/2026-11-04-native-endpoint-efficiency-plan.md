@@ -1,6 +1,6 @@
 # Native endpoint efficiency and admission implementation plan
 
-**Date:** 2026-11-04. **Status:** owner-approved; independent technical slice audit passed; not yet implemented. **Identity:** `QGF-MP646-20261024-N`. **Parent:** [ordinary endpoint regression (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193). **Program:** [multipath #646](2026-10-24-multipath-program.md). **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [source, diagnosis and slice audit](../audits/2026-11-04-native-endpoint-efficiency-handoff.md).
+**Date:** 2026-11-04. **Status:** owner-approved; independent technical slice audit passed; 1/4 slices complete (N1). **Identity:** `QGF-MP646-20261024-N`. **Parent:** [ordinary endpoint regression (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193). **Program:** [multipath #646](2026-10-24-multipath-program.md). **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [source, diagnosis and slice audit](../audits/2026-11-04-native-endpoint-efficiency-handoff.md).
 
 ## Goal and accepted boundary
 
@@ -79,9 +79,11 @@ Repair observed driver failure boundaries before reuse: charge an attempted obse
 | Slice | Identity | Disposition / outcome | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
 | [N0](#n0) | `QGF-MP646-20261024-N0` | Rework and publish the R18 ordinary-cost driver | None | Unmerged driver dependency |
-| [N1](#n1) | `QGF-MP646-20261024-N1` | Sparse participant traversal under existing endpoint control | None | Per-operation unused-slot traversal; diagnostic rebuilt index is not imported |
+| [N1](#n1) | `QGF-MP646-20261024-N1` | Complete — sparse participant traversal under existing endpoint control | None | Per-operation unused-slot traversal; diagnostic rebuilt index is not imported |
 | [N2](#n2) | `QGF-MP646-20261024-N2` | Admit eligible public/stateless work while protecting persistent grants | None | One-shot readiness/grant dependence |
 | [N3](#n3) | `QGF-MP646-20261024-N3` | Inline synchronized control, independent progress and combined native requalification | N0, N1, N2 | Command/ack mutation path |
+
+**Current frontier:** N1 [#1200](https://github.com/the-sarge/quic-go-fast/issues/1200) is complete. N0 [#1199](https://github.com/the-sarge/quic-go-fast/issues/1199) and N2 [#1201](https://github.com/the-sarge/quic-go-fast/issues/1201) remain the frontier; N3 [#1202](https://github.com/the-sarge/quic-go-fast/issues/1202) still waits for N0 and N2. The graph retains all correctness edges, including completed predecessors.
 
 N0, N1 and N2 have no correctness blockers. N0 is parallel-safe with either runtime slice in isolated worktrees. N1 and N2 overlap endpoint admission code/tests: recommend serial implementation with current-main reconciliation, without inventing a dependency between independent behaviors. N3 consumes all three and qualifies the combined candidate. Shared root-package validation requires current-main reconciliation.
 
@@ -115,7 +117,7 @@ All slices preserve packet construction before recovery registration and registr
 <a id="n1"></a>
 ### N1 — Traverse occupied endpoint participants
 
-**Delivers / acceptance:** admission and retry-deadline work traverse occupied canonical participants rather than the configured table capacity, without changing admission/service choices for the same state and event order. Attachment, retirement and slot reuse maintain the bounded index through real endpoint operations; no per-operation rebuild or per-request index allocation remains. The original command-owned control context remains until N3. Child issue: pending.
+**Delivers / acceptance:** admission and retry-deadline work traverse occupied canonical participants rather than the configured table capacity, without changing admission/service choices for the same state and event order. Attachment, retirement and slot reuse maintain the bounded index through real endpoint operations; no per-operation rebuild or per-request index allocation remains. The original command-owned control context remains until N3. Child issue: [#1200](https://github.com/the-sarge/quic-go-fast/issues/1200). **State:** complete.
 
 **Owner / authority:** endpoint control owns canonical slot identity, sparse membership, grants, cursors and retirement. Every install/removal path is changed together; stale identity cannot enter a reused slot. Membership is a derived index, never a second eligibility or lifecycle state machine. Representation is the runtime domain above. The concrete work bound is proportional to occupied participants for the changed walks; it is not a new constant-latency promise under saturation.
 
