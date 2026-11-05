@@ -956,7 +956,7 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 ### R18 — Measure ordinary-peer costs on granted endpoints
 
-**Fixture disposition:** [N0](2026-11-04-native-endpoint-efficiency-plan.md#n0) separately publishes and reviews the preserved ordinary-cost driver. This slice consumes that merged deliverable; the earlier branch is source material, not an accepted dependency. Its counted campaign runs only after N3 merges. Parent #1193 remains open until the fixed-candidate ordinary tolerances pass, so this slice depends on N3 rather than that parent’s closure.
+**Fixture disposition:** [N0 #1199](2026-11-04-native-endpoint-efficiency-plan.md#n0) published and reviewed the ordinary-cost driver. This slice consumes that merged deliverable; the earlier branch is source material, not an accepted dependency. Its counted campaign runs only after N3 merges. Parent #1193 remains open until the fixed-candidate ordinary tolerances pass, so this slice depends on N3 rather than that parent’s closure.
 
 **Combined-candidate admission:** carry the approved issue #1141 contract through N2 and N3 before this campaign. Report offered stateless traffic, reset receive share and background useful bytes alongside ordinary costs; a throughput gain achieved by starving that traffic is not success. The existing numeric thresholds and 36-observation inventory remain fixed; the approved metric clarification above governs application send-call latency.
 
