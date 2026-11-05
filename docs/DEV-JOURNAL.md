@@ -9376,7 +9376,7 @@ N0 [#1199](https://github.com/the-sarge/quic-go-fast/issues/1199) and N2 [#1201]
 
 ---
 
-## Ordinary-peer cost driver landed (#1199) - 2026-11-04 23:49 EDT
+## Ordinary-peer cost driver landed (#1199) - 2026-11-04 23:49 EST
 
 **Main:** `837fd779a41a`
 **Actor:** Codex
