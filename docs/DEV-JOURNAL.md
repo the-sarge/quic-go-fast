@@ -9327,3 +9327,26 @@ R17 [#1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and R18 [#103
 ### Next
 
 R17 [#1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and R18 [#1038](https://github.com/the-sarge/quic-go-fast/issues/1038) are the frontier, per [the program index](adr/2026-10-24-multipath-program.md), the live view.
+
+---
+
+## Endpoint efficiency and admission handoff - 2026-11-04 22:22 EST
+
+**Main:** `6151aef54a54`
+**Actor:** Codex
+
+### Completed
+
+Published the owner-approved, independently audited four-slice endpoint efficiency/admission handoff for [issue #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) in [PR #1197](https://github.com/the-sarge/quic-go-fast/pull/1197), after merging the approved [issue #1141](https://github.com/the-sarge/quic-go-fast/issues/1141) admission contract through [PR #1194](https://github.com/the-sarge/quic-go-fast/pull/1194). The [implementation plan](adr/2026-11-04-native-endpoint-efficiency-plan.md) and [audit](audits/2026-11-04-native-endpoint-efficiency-handoff.md) record the accepted boundaries and preserved diagnostic evidence. No runtime implementation or new operational observation ran during packaging.
+
+### Decisions
+
+N0 publishes the measurement driver, N1 makes participant traversal sparse, N2 implements direct public/stateless admission with persistent-record protection, and N3 synchronizes endpoint control and qualifies the combined candidate. The approved application send-call latency metric retains the numerical tolerance; actual native completion, borrow release and deadlines remain separately qualified. R17 #1037 and R18 #1038 wait on N3, while acceptance trackers #1193 and #1141 remain open through their independent final-candidate criteria. The existing operational ceiling and explicit wider-program shortfall are retained. The normative plan owns the detailed contracts.
+
+### Validation
+
+PR #1197 passed independent source/contract/slice review, owner approval, clean exact-head documentation certification, whitespace and 104 relative-file/anchor checks, and all 17 applicable hosted checks. Its source head was `dd1740bf79588e4976fb5fda270d3e3c65e8d1ad`; the default-branch merge is `6151aef54a5466b26dd823b3f49dc5a43b4a735f`. All 14 audited files were verified byte-for-byte at the reachable merge commit. The seven copied frozen diagnostic artifacts match the original archive. PR #1194 separately passed its documentation certificate and all 17 hosted checks.
+
+### Next
+
+Publish the thin child issues and OmniFocus mapping, then let the operator dispatch verified frontier children through `$implement-architecture-slice`. N0 can run alongside either N1 or N2; sequential N1/N2 implementation is recommended because their files overlap. [Program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live view of child identities, readiness and blockers.
