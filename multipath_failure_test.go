@@ -556,3 +556,340 @@ func TestPathFailureOrdinaryUnchanged(t *testing.T) {
 		})
 	})
 }
+
+// requireFreedBeforeReport runs a failing step against a request whose result channel is
+// unbuffered, so the connection parks at the send. What the slot holds there is what a
+// caller finds on hearing the error, with no further pass.
+func requireFreedBeforeReport(t *testing.T, f *admissionFixture, request *pathOpenRequest, want error, step func() error) {
+	t.Helper()
+	stepErr := make(chan error, 1)
+	go func() { stepErr <- step() }()
+	synctest.Wait()
+	slot := f.c.pathOpen.Load()
+	reported := <-request.done
+	require.NoError(t, <-stepErr)
+	require.Nil(t, slot, "a caller's immediate retry must not meet its own request")
+	require.ErrorIs(t, reported, want)
+}
+
+// failingOpen admits an open whose probe has already left and resolved.
+func failingOpen(t *testing.T, f *admissionFixture, target *Transport) *pathOpenRequest {
+	t.Helper()
+	request := &pathOpenRequest{ctx: context.Background(), transport: target, addr: admissionTupleA, done: make(chan error)}
+	f.c.pathOpen.Store(request)
+	f.pass(t)
+	f.pass(t)
+	require.True(t, request.accepted)
+	return request
+}
+
+// failingMigration admits a migration whose probe has already left and resolved.
+func failingMigration(t *testing.T, f *admissionFixture, id protocol.PathID, target *Transport) *pathOpenRequest {
+	t.Helper()
+	request := &pathOpenRequest{ctx: context.Background(), transport: target, migrate: true, id: id, done: make(chan error)}
+	f.c.pathOpen.Store(request)
+	f.pass(t)
+	f.pass(t)
+	require.True(t, request.accepted)
+	return request
+}
+
+func failEndpoint(target *Transport) {
+	nativeTransportEndpoint(target).do(func(state *endpointState) { state.fail(endpointFaultCause(0), errEndpointFault) })
+	synctest.Wait()
+}
+
+func TestPathFailureFreesOperationBeforeReport(t *testing.T) {
+	t.Run("an open's validation timeout", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			request := failingOpen(t, f, nil)
+			p := f.c.pathCredit
+			time.Sleep(pathTimeout)
+			requireFreedBeforeReport(t, f, request, errPathValidationTimeout, func() error { return p.service(monotime.Now()) })
+			require.True(t, p.terminals[1].signaled, "no submission can follow the abandonment")
+			require.False(t, p.members[1].live)
+		})
+	})
+	t.Run("an open's target failing", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			target, _ := migrationTarget(t, f)
+			request := failingOpen(t, f, target)
+			p := f.c.pathCredit
+			failEndpoint(target)
+			requireFreedBeforeReport(t, f, request, net.ErrClosed, func() error { return p.service(monotime.Now()) })
+			require.True(t, p.terminals[1].signaled)
+			require.True(t, p.eligible(p.members[0]), "path zero carries on")
+		})
+	})
+	t.Run("an open's member retiring", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			request := failingOpen(t, f, nil)
+			p := f.c.pathCredit
+			requireFreedBeforeReport(t, f, request, ErrPathClosed, func() error { return p.abandon(1, monotime.Now()) })
+			require.True(t, p.terminals[1].signaled)
+			require.True(t, p.terminals[1].received, "the received abandonment still starts its retention")
+		})
+	})
+	t.Run("a migration's validation timeout", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			target, _ := migrationTarget(t, f)
+			request := failingMigration(t, f, 0, target)
+			p := f.c.pathCredit
+			time.Sleep(pathTimeout)
+			requireFreedBeforeReport(t, f, request, errPathValidationTimeout, func() error { return p.service(monotime.Now()) })
+			require.True(t, request.retained.released)
+			require.Zero(t, p.historyUnits)
+			require.Nil(t, p.members[0].transport, "the old tuple stays selected")
+		})
+	})
+	t.Run("a migration's target failing", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			target, _ := migrationTarget(t, f)
+			request := failingMigration(t, f, 0, target)
+			p := f.c.pathCredit
+			failEndpoint(target)
+			requireFreedBeforeReport(t, f, request, net.ErrClosed, func() error { return p.service(monotime.Now()) })
+			require.True(t, request.retained.released)
+			require.Zero(t, p.historyUnits)
+		})
+	})
+	t.Run("the peer retiring a migration candidate's CID", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newReliableFixture(t, protocol.PerspectiveClient)
+			target, socket := migrationTarget(t, f.admissionFixture)
+			request := failingMigration(t, f.admissionFixture, 0, target)
+			p := f.c.pathCredit
+			challenges := socketChallenges(t, f.admissionFixture, socket, 0)
+			require.NotEmpty(t, challenges)
+			f.socket.hold = nativeProbeHoldAll
+			f.write(t, 1000)
+			f.pass(t)
+			require.True(t, f.receive(t, 0, p.members[0].addr, 1200, &wire.PathResponseFrame{Data: challenges[0]}))
+			f.pass(t)
+			require.True(t, p.members[0].fencing())
+			revoked := p.members[0].established
+			cid := make([]byte, f.tc.destConnID.Len())
+			cid[0] = 0xe0
+			require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathNewConnectionIDFrame{PathID: 0, SequenceNumber: 9, RetirePriorTo: 9, ConnectionID: protocol.ParseConnectionID(cid), StatelessResetToken: protocol.StatelessResetToken{0xe0}}))
+			f.socket.hold = nil
+			f.socket.release()
+			synctest.Wait()
+			requireFreedBeforeReport(t, f.admissionFixture, request, errPathCandidateCIDRetired, func() error { return p.service(monotime.Now()) })
+			require.NotSame(t, revoked, p.members[0].established, "the old tuple has its fresh epoch before the caller hears")
+		})
+	})
+	t.Run("a migration's member retiring", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newReliableFixture(t, protocol.PerspectiveClient)
+			p := f.c.pathCredit
+			require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathNewConnectionIDFrame{PathID: 1, SequenceNumber: 1, ConnectionID: replacementPeerCID(1), StatelessResetToken: protocol.StatelessResetToken{0xab}}))
+			units := p.historyUnits
+			target, _ := migrationTarget(t, f.admissionFixture)
+			request := failingMigration(t, f.admissionFixture, 1, target)
+			require.Equal(t, units+1, p.historyUnits)
+			requireFreedBeforeReport(t, f.admissionFixture, request, ErrPathClosed, func() error { return p.abandon(1, monotime.Now()) })
+			require.Equal(t, units, p.historyUnits, "the attempt's unit is released, and the path's stays")
+		})
+	})
+}
+
+// TestPathFailureRetryFindsNoStaleSlot starts the next operation with no pass between: it
+// holds the slot itself, and only its own admission limits decide from there.
+func TestPathFailureRetryFindsNoStaleSlot(t *testing.T) {
+	t.Run("an open after a failed open", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			p := f.c.pathCredit
+			request := failingOpen(t, f, nil)
+			time.Sleep(pathTimeout)
+			requireFreedBeforeReport(t, f, request, errPathValidationTimeout, func() error { return p.service(monotime.Now()) })
+
+			ctx, cancel := context.WithCancel(context.Background())
+			errs := f.openAsync(ctx, nil, admissionTupleB)
+			retry := f.c.pathOpen.Load()
+			require.NotNil(t, retry)
+			require.NotSame(t, request, retry)
+			require.Empty(t, errs, "no backpressure from the finished request")
+
+			f.pass(t)
+			require.False(t, retry.accepted, "no peer grant yet, and that limit still applies")
+			require.Empty(t, errs)
+			require.NoError(t, creditIngress(t, f.tc, monotime.Now(),
+				&wire.MaxPathIDFrame{MaximumPathID: 2},
+				&wire.PathNewConnectionIDFrame{PathID: 2, ConnectionID: replacementPeerCID(2), StatelessResetToken: protocol.StatelessResetToken{0xa2}},
+			))
+			f.pass(t)
+			f.pass(t)
+			require.True(t, retry.accepted)
+			require.Equal(t, protocol.PathID(2), retry.id, "the failed attempt's ID is never reused")
+			cancel()
+			require.ErrorIs(t, <-errs, context.Canceled)
+		})
+	})
+	t.Run("a migration after a failed migration", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			spareZeroCID(t, f, 8)
+			p := f.c.pathCredit
+			failed, _ := migrationTarget(t, f)
+			request := failingMigration(t, f, 0, failed)
+			failEndpoint(failed)
+			requireFreedBeforeReport(t, f, request, net.ErrClosed, func() error { return p.service(monotime.Now()) })
+
+			next, socket := migrationTarget(t, f)
+			migrate(t, f, 0, next, socket)
+		})
+	})
+}
+
+// TestPathFailureHeldObligation holds a probe's native call across the failure. The caller
+// hears at once and the attempt's obligation keeps the slot and its charges, until the one
+// pass that sees the call return releases them. The endpoint's watchdog would fault a call
+// held for a whole validation lifetime, so these bring the attempt's deadline forward.
+func TestPathFailureHeldObligation(t *testing.T) {
+	t.Run("an open's unresolved fence", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			p := f.c.pathCredit
+			f.socket.hold = nativeProbeHoldAll
+			errs := f.openAsync(context.Background(), nil, admissionTupleA)
+			f.pass(t)
+			require.Len(t, f.socket.writes, 1, "the probe is claimed")
+			p.members[1].deadline = monotime.Now()
+			f.pass(t)
+			require.ErrorIs(t, <-errs, errPathValidationTimeout, "the failure doesn't wait for the native call")
+			terminal := p.terminals[1]
+			require.NotNil(t, terminal)
+			require.False(t, terminal.signaled, "the fence precedes the signal")
+			require.NotNil(t, f.c.pathOpen.Load(), "and the slot stays charged")
+			require.True(t, p.paths[1], "the ID stays consumed")
+			_, err := f.c.openPathPrivate(context.Background(), nil, admissionTupleB)
+			require.ErrorIs(t, err, ErrMultipathBackpressureV1)
+
+			f.socket.hold = nil
+			f.socket.release()
+			f.pass(t)
+			require.True(t, terminal.signaled)
+			require.Nil(t, f.c.pathOpen.Load(), "the pass that signals frees the slot")
+			f.pass(t)
+			require.Equal(t, 1, admissionAbandons(f.peerWrites(t, 0), 1), "exactly one abandonment")
+		})
+	})
+	t.Run("a migration's unreleased entry", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			p := f.c.pathCredit
+			target, socket := migrationTarget(t, f)
+			socket.hold = nativeProbeHoldAll
+			errs := migrateAsync(context.Background(), f, 0, target)
+			f.pass(t)
+			require.NotEmpty(t, socket.writes, "the probe is claimed")
+			p.members[0].candidate.probe.validationDeadline = monotime.Now()
+			f.pass(t)
+			require.ErrorIs(t, <-errs, errPathValidationTimeout, "the failure doesn't wait for the native call")
+			require.Equal(t, 1, p.historyUnits, "the claim holds the charge")
+			require.Contains(t, p.attachments, target)
+			request := f.c.pathOpen.Load()
+			require.NotNil(t, request, "and the slot")
+			require.ErrorIs(t, f.c.migratePathPrivate(context.Background(), 0, target), ErrMultipathBackpressureV1)
+
+			socket.hold = nil
+			socket.release()
+			f.pass(t)
+			require.True(t, request.retained.released)
+			require.Zero(t, p.historyUnits, "released once")
+			require.Nil(t, f.c.pathOpen.Load(), "the pass that releases the entry frees the slot")
+			f.pass(t)
+			require.Zero(t, p.historyUnits, "and only once")
+			require.NoError(t, f.c.waitTransportDetachedPrivate(context.Background(), target))
+		})
+	})
+	t.Run("a migration's old-tuple fence holds its path, not the slot", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f, _ := newTargetPathFixture(t)
+			spareZeroCID(t, f.admissionFixture, 8)
+			p := f.c.pathCredit
+			failed, socket := migrationTarget(t, f.admissionFixture)
+			errs := migrateAsync(context.Background(), f.admissionFixture, 0, failed)
+			f.pass(t)
+			challenges := socketChallenges(t, f.admissionFixture, socket, 0)
+			require.NotEmpty(t, challenges)
+			f.socket.hold = nativeProbeHoldAll
+			f.write(t, 1000)
+			f.pass(t)
+			require.True(t, f.receive(t, 0, p.members[0].addr, 1200, &wire.PathResponseFrame{Data: challenges[len(challenges)-1]}))
+			f.pass(t)
+			require.True(t, p.members[0].fencing())
+
+			failEndpoint(failed)
+			f.pass(t)
+			require.ErrorIs(t, <-errs, net.ErrClosed)
+			require.Nil(t, f.c.pathOpen.Load())
+
+			next, nextSocket := migrationTarget(t, f.admissionFixture)
+			retry := migrateAsync(context.Background(), f.admissionFixture, 0, next)
+			f.pass(t)
+			require.NotNil(t, f.c.pathOpen.Load(), "the retry holds the slot")
+			require.False(t, f.c.pathOpen.Load().accepted, "and waits there for its path's fence")
+			require.Empty(t, retry)
+
+			f.socket.hold = nil
+			f.socket.release()
+			synctest.Wait()
+			f.pass(t)
+			retried := socketChallenges(t, f.admissionFixture, nextSocket, 0)
+			require.NotEmpty(t, retried, "the fence resolved, so the retry's probe leaves")
+			require.True(t, f.receive(t, 0, p.members[0].addr, 1200, &wire.PathResponseFrame{Data: retried[len(retried)-1]}))
+			f.pass(t)
+			f.pass(t)
+			require.NoError(t, <-retry)
+			require.Equal(t, next, p.members[0].transport)
+		})
+	})
+}
+
+func TestPathFailureOutcomeOwnership(t *testing.T) {
+	t.Run("a later cancellation doesn't replace the connection's failure", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			errs := f.openAsync(ctx, nil, admissionTupleA)
+			f.pass(t)
+			f.pass(t)
+			time.Sleep(pathTimeout)
+			f.pass(t)
+			cancel()
+			require.ErrorIs(t, <-errs, errPathValidationTimeout)
+		})
+	})
+	t.Run("a finished request's cleanup never frees a newer one", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			p := f.c.pathCredit
+			finished := &pathOpenRequest{done: make(chan error, 1), migrate: true, retained: &pathRetained{released: true}}
+			require.True(t, finished.claim())
+			newer := &pathOpenRequest{ctx: context.Background(), addr: admissionTupleA, done: make(chan error, 1)}
+			f.c.pathOpen.Store(newer)
+			p.failOperation(finished, errPathValidationTimeout)
+			require.Same(t, newer, f.c.pathOpen.Load())
+			require.ErrorIs(t, <-finished.done, errPathValidationTimeout)
+		})
+	})
+}
