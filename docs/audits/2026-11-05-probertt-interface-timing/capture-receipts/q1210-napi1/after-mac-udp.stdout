@@ -1,0 +1,22 @@
+udp:
+	3320948189 datagram received
+		0 with incomplete header
+		0 with bad data length field
+		1 with bad checksum
+		2 with no checksum
+		1504040650 checksummed in software
+			1503020745 datagrams (3305205604 byte) over IPv4
+			1019905 datagrams (271617920 bytes) over IPv6
+		399858 dropped due to no socket
+		58686 broadcast/multicast datagrams undelivered
+		687 IPv6 multicast datagrams undelivered
+		0 time multicast source filter matched
+		444806 dropped due to full socket buffers
+		0 not for hashed pcb
+		3320044838 delivered
+	2813045691 datagram output
+		3718992770 checksummed in software
+			3712763955 datagram (2139984813 bytes) over IPv4
+			6228815 datagrams (1907883489 bytes) over IPv6
+	154356 duplicate IMCP packets for port unreachable suppressed
+	244817 ICMP packets for port unreachable not suppressed

@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "-oServerAliveInterval=2",
+    "-oServerAliveCountMax=2",
+    "minimax",
+    "for i in 1 2 3 4 5 6 7 8; do date +%s; tc -s qdisc show dev enp97s0; ss -uanm 'src 192.168.1.50'; sleep 1; done"
+  ],
+  "exit": 0,
+  "started_unix": 1793898918.9092212,
+  "finished_unix": 1793898927.12693
+}

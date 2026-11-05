@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "-oServerAliveInterval=2",
+    "-oServerAliveCountMax=2",
+    "minimax",
+    "python3 - /home/josh/wiremux-1460-diag-q1210-interface1 kernel-socket-witness.test ffe612e07e848636442d547531ff157052b05174694d0cd3fecc3d7ad45cfd32"
+  ],
+  "exit": 0,
+  "started_unix": 1793898803.625669,
+  "finished_unix": 1793898803.811161
+}

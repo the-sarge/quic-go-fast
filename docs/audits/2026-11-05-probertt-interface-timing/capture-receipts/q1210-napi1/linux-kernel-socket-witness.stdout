@@ -1,0 +1,19 @@
+Kernel Version: 7.0
+
+=== RUN   TestDiagnostic1210DenseIdentitySegments
+=== RUN   TestDiagnostic1210DenseIdentitySegments/empty
+=== RUN   TestDiagnostic1210DenseIdentitySegments/small_datagram
+=== RUN   TestDiagnostic1210DenseIdentitySegments/small_first_segment_of_large_aggregate
+=== RUN   TestDiagnostic1210DenseIdentitySegments/single_small_segment
+=== RUN   TestDiagnostic1210DenseIdentitySegments/large_datagram
+=== RUN   TestDiagnostic1210DenseIdentitySegments/short_trailing_segment_has_no_separate_TX_timestamp
+--- PASS: TestDiagnostic1210DenseIdentitySegments (0.00s)
+    --- PASS: TestDiagnostic1210DenseIdentitySegments/empty (0.00s)
+    --- PASS: TestDiagnostic1210DenseIdentitySegments/small_datagram (0.00s)
+    --- PASS: TestDiagnostic1210DenseIdentitySegments/small_first_segment_of_large_aggregate (0.00s)
+    --- PASS: TestDiagnostic1210DenseIdentitySegments/single_small_segment (0.00s)
+    --- PASS: TestDiagnostic1210DenseIdentitySegments/large_datagram (0.00s)
+    --- PASS: TestDiagnostic1210DenseIdentitySegments/short_trailing_segment_has_no_separate_TX_timestamp (0.00s)
+=== RUN   TestDiagnostic1210KernelSocketWitness
+--- PASS: TestDiagnostic1210KernelSocketWitness (0.01s)
+PASS

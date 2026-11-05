@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "netstat",
+    "-s",
+    "-p",
+    "udp"
+  ],
+  "exit": 0,
+  "started_unix": 1793899221.901564,
+  "finished_unix": 1793899221.90621
+}

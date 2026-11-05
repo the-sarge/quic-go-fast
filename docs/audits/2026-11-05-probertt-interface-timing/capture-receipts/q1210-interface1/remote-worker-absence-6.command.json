@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "-oServerAliveInterval=2",
+    "-oServerAliveCountMax=2",
+    "minimax",
+    "python3 - /home/josh/wiremux-1460-diag-q1210-interface1/wiremux-measure-diagnostic"
+  ],
+  "exit": 0,
+  "started_unix": 1793899055.817224,
+  "finished_unix": 1793899055.97606
+}

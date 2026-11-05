@@ -1,0 +1,26 @@
+pid=17636
+USER   PID   TT   %CPU STAT PRI     STIME     UTIME COMMAND
+josh 17636   ??    0.0 S    31T   0:00.00   0:00.00 /Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/run-q1210-napi1/local/wiremux-measure-diagnostic -worker
+     17636         6.7 S    31T   0:01.20   0:00.26 
+     17636         0.4 S    31T   0:00.96   0:00.97 
+     17636         7.3 S    31T   0:00.46   0:00.45 
+     17636         0.0 S    31T   0:00.00   0:00.00 
+     17636         7.8 S    31T   0:00.80   0:00.80 
+     17636        10.4 S    31T   0:00.95   0:00.96 
+     17636         0.0 S    31T   0:00.00   0:00.00 
+     17636         0.0 S    31T   0:00.00   0:00.00 
+     17636         9.7 S    31T   0:00.94   0:00.95 
+     17636         8.8 S    31T   0:00.64   0:00.66 
+COMMAND     PID USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+wiremux-m 17636 josh    7u  IPv4 0xf3bd3299690a059d      0t0  UDP 192.168.1.110:65241->192.168.1.50:42370
+wiremux-m 17636 josh    8u  IPv6  0x47828a38a1db714      0t0  UDP [fe80:10::18aa:69c9:fde7:6d22]:64324
+wiremux-m 17636 josh    9u  IPv6 0xa005e31f4832aa8d      0t0  UDP [fded:7eff:fa:1:1481:23ce:6fe4:52b1]:58534
+wiremux-m 17636 josh   10u  IPv6 0x53428e74331492af      0t0  UDP [2601:18b:8780:8a51:c76:2073:2049:9134]:53303
+wiremux-m 17636 josh   11u  IPv6 0x690c885ac485b90c      0t0  UDP [2601:18b:8780:8a51:f42f:132:e8cb:91db]:60669
+wiremux-m 17636 josh   12u  IPv6 0x39b3f07241959288      0t0  UDP [2601:18b:8780:8a51:28f5:d838:65b4:ea43]:53999
+wiremux-m 17636 josh   13u  IPv6  0x4600aada412edb4      0t0  UDP [2601:18b:8780:8a51:d152:38f4:5bb3:dc9c]:63181
+wiremux-m 17636 josh   14u  IPv6 0xd8ecf24b694521dc      0t0  UDP [2601:18b:8780:8a51:c976:4b9c:16d:5f8c]:50638
+wiremux-m 17636 josh   15u  IPv6  0xb004197641cacab      0t0  UDP [2601:18b:8780:8a51:683c:4e1f:ec3d:d812]:57147
+wiremux-m 17636 josh   16u  IPv6 0x63962886567a7616      0t0  UDP [2601:18b:8780:8a51:d9ca:2e10:e49f:d256]:59955
+wiremux-m 17636 josh   17u  IPv6 0xbe448d109aea24b7      0t0  UDP [2601:18b:8780:8a51:285c:b66b:3bf:f6f0]:57037
+wiremux-m 17636 josh   18u  IPv6 0x34696b7c9b094d1f      0t0  UDP [fddf:b2b7:8dc:48b7:1cbc:66e8:6c64:d451]:61533

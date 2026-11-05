@@ -1,0 +1,9 @@
+{
+  "argv": [
+    "ifconfig",
+    "en8"
+  ],
+  "exit": 0,
+  "started_unix": 1793899052.788053,
+  "finished_unix": 1793899052.791805
+}

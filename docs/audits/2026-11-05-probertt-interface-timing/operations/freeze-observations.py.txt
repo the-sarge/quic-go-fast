@@ -1,0 +1,25 @@
+import gzip,hashlib,importlib.util,json,shutil,sys,tarfile
+from pathlib import Path
+sys.dont_write_bytecode=True
+root=Path(sys.argv[1]); dest=Path(sys.argv[2])
+spec=importlib.util.spec_from_file_location('original',Path('docs/audits/2026-11-05-probertt-investigation/analyze.py'));m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+def compress(src, dst):
+ dst.parent.mkdir(parents=True,exist_ok=True)
+ with dst.open('xb') as raw,gzip.GzipFile(filename='',fileobj=raw,mode='wb',mtime=0) as zipped:
+  shutil.copyfileobj(src,zipped,1024*1024)
+with tarfile.open(root/'remote-worker-files.tar.gz') as archive:
+ for result in sorted(root.glob('controller/*/result.json')):
+  arm=result.parent.name;out=dest/arm;control=out/'controller'/arm;control.mkdir(parents=True)
+  for f in result.parent.iterdir():
+   if f.is_file():
+    if f.suffix=='.bin':
+     with f.open('rb') as src:compress(src,control/(f.name+'.gz'))
+    else:shutil.copyfile(f,control/f.name)
+  for role in ['send','receive']:
+   h=m.header(result.parent/(role+'-stderr.log'));name=Path(h['diag1210']).name
+   if role=='send':
+    members=[x for x in archive if x.isfile() and Path(x.name).name==name];assert len(members)==1
+    with archive.extractfile(members[0]) as src:compress(src,out/(name+'.gz'))
+   else:
+    with (root/'local'/name).open('rb') as src:compress(src,out/'local'/(name+'.gz'))
+  print(arm,'frozen',flush=True)

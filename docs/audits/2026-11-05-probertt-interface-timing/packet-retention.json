@@ -1,0 +1,47 @@
+[
+  {
+    "arm": "interface",
+    "original": {
+      "path": "runs/q1210-interface1/bpf/interface/mac-interface.pcap",
+      "bytes": 1195367235,
+      "sha256": "c5d6087f2d5b8d4580c74e3601e1c8ad0ea2c75b3c1fd0e62f974ec6b465d777"
+    },
+    "original_records": 8499258,
+    "retained_records": 1330465,
+    "retained_raw_bytes": 163061163,
+    "retained_raw_sha256": "bbfc0c1e0a1fe67a06207d706da4d3e19a44a9612de266f614da28badccdc74a",
+    "published": "observations/q1210-interface1/interface/interface-retained.pcap.gz",
+    "published_sha256": "90fe2945b30e39395c34dbe5bbf40cddfd66fa8ce352f44190693c9eea8ae3ec",
+    "selection": "All valid packets with any wanted direction/identity from the numeric traces, including every duplicate; unchanged global/record headers and captured bytes."
+  },
+  {
+    "arm": "napi",
+    "original": {
+      "path": "runs/q1210-napi1/bpf/napi/mac-interface.pcap",
+      "bytes": 1195091532,
+      "sha256": "fc6a059d20cb7acc0e9f79c31e9b213eff2ad05e78497c9af84084a88a971fd9"
+    },
+    "original_records": 8496937,
+    "retained_records": 1329782,
+    "retained_raw_bytes": 163021332,
+    "retained_raw_sha256": "8085702a9534f71e86efa5a61eff092283c19d3b537da9519d791394870ec816",
+    "published": "observations/q1210-napi1/napi/napi-retained.pcap.gz",
+    "published_sha256": "c8668e350d552582404aa07e0f514436a67bcd3da74e11ce3192f3eb7b9162be",
+    "selection": "All valid packets with any wanted direction/identity from the numeric traces, including every duplicate; unchanged global/record headers and captured bytes."
+  },
+  {
+    "arm": "restored-interface",
+    "original": {
+      "path": "runs/q1210-napi1/bpf/restored-interface/mac-interface.pcap",
+      "bytes": 1198588073,
+      "sha256": "9329f72a65feec4e12a7f9ae1c0e527b041a3e2a29438bf6fae26d12b48a04a3"
+    },
+    "original_records": 8522075,
+    "retained_records": 1333558,
+    "retained_raw_bytes": 163441805,
+    "retained_raw_sha256": "bab858a79be640afc8eed60c91ff7b471ba1eaf3bf916e800af3ffae407e571a",
+    "published": "observations/q1210-napi1/restored-interface/restored-interface-retained.pcap.gz",
+    "published_sha256": "05777d381a47a4348f3ffba79a41d3d5bd136e53cc43a21fa51457e1d6e5b2bc",
+    "selection": "All valid packets with any wanted direction/identity from the numeric traces, including every duplicate; unchanged global/record headers and captured bytes."
+  }
+]

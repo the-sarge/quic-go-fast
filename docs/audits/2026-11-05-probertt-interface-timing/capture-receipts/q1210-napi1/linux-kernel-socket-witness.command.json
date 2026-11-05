@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "-oServerAliveInterval=2",
+    "-oServerAliveCountMax=2",
+    "minimax",
+    "env Q1210_TRACE=1 Q1210_KERNEL_TRACE=1 Q1210_OUTPUT_DIR=/home/josh/wiremux-1460-diag-q1210-napi1/kernel-witness timeout 45 /home/josh/wiremux-1460-diag-q1210-napi1/kernel-socket-witness.test -test.v '-test.run=^(TestDiagnostic1210KernelSocketWitness|TestDiagnostic1210DenseIdentitySegments)$' -test.count=1"
+  ],
+  "exit": 0,
+  "started_unix": 1793899224.149409,
+  "finished_unix": 1793899224.4075189
+}

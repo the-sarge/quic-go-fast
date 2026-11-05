@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "minimax",
+    "python3 -"
+  ],
+  "started_unix": 1793899510.4199271,
+  "finished_unix": 1793899510.804179,
+  "exit": 0,
+  "stdout_bytes": 4802,
+  "stdout_sha256": "74561c85b1f02ebcd9cb1409cb9b6e6d4c1891d8799cc8520ed09e81e5f71d33",
+  "stderr": "",
+  "stdin_source": "import pathlib,json,subprocess,os\nr={'uname':subprocess.run(['uname','-r'],capture_output=True,text=True).stdout.strip(),'usr_src':[str(p) for p in pathlib.Path('/usr/src').iterdir()]}\npaths=[pathlib.Path('/lib/modules')/r['uname']/'build']\nr['build']=[str(p.resolve()) for p in paths]\nhits={}\nfor base in paths:\n for suffix in ['include/linux/netdevice.h','include/net/netdev_queues.h','include/net/netdev_lock.h','include/net/netdev_rx_queue.h','include/linux/netdevice-napi.h','net/core/dev.c','net/core/net-sysfs.c']:\n  p=base/suffix\n  if not p.is_file():continue\n  lines=p.read_text().splitlines();selected=[]\n  needles=['gro_flush_timeout','napi_get_defer_hard_irqs','netdev_set_defer_hard_irqs','napi_defer_hard_irqs']\n  for i,line in enumerate(lines):\n   if any(n in line for n in needles):\n    selected.append({'line':i+1,'context':'\\n'.join(lines[max(0,i-5):min(len(lines),i+12)])})\n  if selected:hits[str(p)] = selected\nr['hits']=hits\nprint(json.dumps(r,indent=2))\n"
+}

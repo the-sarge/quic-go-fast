@@ -1,0 +1,50 @@
+// Temporary packet-identity observation for issue #1210. Not a production API.
+package diag1210
+
+import "os"
+
+// KernelEnabled enables this observer independently from the retained original trace.
+var KernelEnabled = Enabled && os.Getenv("Q1210_KERNEL_TRACE") != ""
+
+// Identity fingerprints the UDP payload's length and first 32 protected bytes.
+// It must be called before receive decryption mutates those bytes, and once per
+// GSO/GRO segment, never on a multi-segment aggregate. FNV-1a provides a
+// deterministic fingerprint. Identity scheme v2 reserves the sign bit for
+// nonempty payloads below 256 bytes; larger payloads have a nonnegative identity.
+// The remaining 63 bits carry the hash, with zero reserved for empty payloads.
+// This is an offline correlation key, not authentication or collision proof.
+// Analysis must reject ambiguous joins. Empty payloads have no identity.
+func Identity(b []byte) int64 {
+	if len(b) == 0 {
+		return 0
+	}
+	const offset uint64 = 14695981039346656037
+	const prime uint64 = 1099511628211
+	h := offset
+	n := uint64(len(b))
+	for i := 0; i < 8; i++ {
+		h = (h ^ (n & 0xff)) * prime
+		n >>= 8
+	}
+	for _, v := range b[:min(32, len(b))] {
+		h = (h ^ uint64(v)) * prime
+	}
+	// Keep the low sampling bits while separating small-payload identities.
+	h &= (uint64(1) << 63) - 1
+	if h == 0 {
+		h = 1
+	}
+	if len(b) < 256 {
+		h |= uint64(1) << 63
+	}
+	return int64(h)
+}
+
+// SelectedIdentity retains every nonempty protected UDP payload below 256 bytes
+// (including small ACK carriers) and about one in 16 larger payloads. A selected
+// data packet paired with a small ACK no longer needs an independent ACK sample.
+// Kernel submission observations still cover only the first GSO/GRO segment;
+// the marker does not give a trailing segment its own kernel timestamp.
+func SelectedIdentity(id int64) bool {
+	return KernelEnabled && id != 0 && (id < 0 || uint64(id)&15 == 0)
+}

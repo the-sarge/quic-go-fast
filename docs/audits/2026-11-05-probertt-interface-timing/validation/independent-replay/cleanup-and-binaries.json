@@ -1,0 +1,93 @@
+{
+  "worktree": "/Volumes/worktrees/quic-go-fast/resolve1210-replay",
+  "branch": "codex/resolve1210-replay",
+  "head": "bc4915ea0de0c238ecfdc51d827f7da67639a789",
+  "git_status_porcelain": "",
+  "source_manifest_sha256": "9176c179cbd11fabff359fdcaa610c46f06cdf6088c8ad083f0db7c2a646b144",
+  "overlay_hashes_verified_before_cleanup": {
+    "connection.go": "47f081fc2d09db83a2ec9e98bfc485bce8354bcda9e6f2a878232f6ba8562eab",
+    "datagram_queue.go": "69bf59fe25a05c91766aadbd53905bd58ffaafd86cec7495e181426266051fa2",
+    "diag_kernel1210.go": "a6cfeb32eb166345c11d5378f7632048d297e93a418a73cef7cae596bd4e8cef",
+    "diag_kernel1210_darwin.go": "71ae560e362ed091fa2fe30987a9389a697dafcd5962a1c01df697330a5417d3",
+    "diag_kernel1210_freebsd.go": "e501e4119649b32702ce80a6f1cdc37fde1eadd0f8c1346a7d3d59abb19fe815",
+    "diag_kernel1210_linux.go": "799a2c55ff1c41f08e8166f57acfffc46c212b49ff229ffe12a6e90059e137d1",
+    "diag_kernel1210_test.go": "898eab5b99980f93c53a5c3977a4da3c9a4b7bcb8b74ea0833462009e02a2c79",
+    "emission_diag_1460.go": "8e1249f89c46957c212e2a18abb8651d2f656b6661ff6ca8a1b33c76c45e51e8",
+    "internal/ackhandler/received_packet_tracker.go": "1acc50236f820101eed733515f6c0cc4b946fbf41f40897876bb0802fabb8c96",
+    "internal/congestion/bbr_sender.go": "f0d1016fec3d7ef3d38e08a39f4c2b29898a95cd7853591f25581f4db526db37",
+    "internal/congestion/diag_1460.go": "a9a939b707cd94a8e44aa485e4f25c6ed73c34540f7283eb8e178eac6ce8e7d4",
+    "internal/congestion/probe_rtt_1460.go": "3517802df4a017741503cf4e9529f050e4c2c5f9e2cfd5d3f8a4875676b29c8a",
+    "internal/diag1210/identity.go": "5b4cc69e06c9c20006b5c9c764a73c9ef4e85a6e0c05a68d79f52eeb49200d5a",
+    "internal/diag1210/record.go": "715d1beee2a6946bb101b403d8d0eac91f57bf8a0109ea4a4e0985d40dbad1f4",
+    "packet_emission.go": "12df26ae8ce6cfb107fa617092b9fde7928be88d8e26d901e39926547df15c33",
+    "packet_emission_bbr.go": "dfe3e0cca94f18cfebb395b78d646571c7bf24433abd6df5e51ca01c415ae8b0",
+    "send_queue.go": "d4646f6846d8d7cf6cfa428c849848833aeeafcaf32c08782d66d13a87810867",
+    "sys_conn_oob.go": "4f04e0642fb92d6f2c4a5a43dc8b9bad806b1ee90ba27c9f4c125c6066ae8a42",
+    "internal/diag1210/identity_test.go": "dd5d5f29f030dc19071dbccef093ec6154147664755f4f69634bc27e2db79f3c",
+    "diag_kernel1210_sampling_test.go": "2f2c9cb86b887a1ffb2bc89c071c8d341aefdc72297fcaffbb1250168c9faa34"
+  },
+  "restored_tracked_files": [
+    {
+      "path": "connection.go",
+      "sha256": "6e9ff9606b00ead71d888ef10b181ddb6caddda46efac0ae105c039eea502911"
+    },
+    {
+      "path": "datagram_queue.go",
+      "sha256": "caa9ed6d41116140183c3a37d97308078736f88ee67047974d49afcdbe8e1092"
+    },
+    {
+      "path": "internal/ackhandler/received_packet_tracker.go",
+      "sha256": "71f8e270c6865c60bef14eeb5198b79ab413465d092500d3edcfd0660826231a"
+    },
+    {
+      "path": "internal/congestion/bbr_sender.go",
+      "sha256": "77b2b540c57947accbe21c815363b7ed8afdcbb4c99d00eeaff01d03d178ffd0"
+    },
+    {
+      "path": "packet_emission.go",
+      "sha256": "99ca02a4e8476f7963deafb19cf0d8fd7e853f6d6ba6b84d238fa1862c218bda"
+    },
+    {
+      "path": "packet_emission_bbr.go",
+      "sha256": "5f4f96ba17741366ef6b6da991fde11b035a8c4dbf2faa59e501ff1ce454f5bf"
+    },
+    {
+      "path": "send_queue.go",
+      "sha256": "0a509b95176adf0a8fd144fa6391c30b31e552d1489f197ee67f4ce3245a181d"
+    },
+    {
+      "path": "sys_conn_oob.go",
+      "sha256": "50b015a0d8b2d6b0f05e47f7d04c878145752798e8fa89d0ba814cf78551db2a"
+    }
+  ],
+  "removed_overlay_only_files": [
+    "diag_kernel1210.go",
+    "diag_kernel1210_darwin.go",
+    "diag_kernel1210_freebsd.go",
+    "diag_kernel1210_linux.go",
+    "diag_kernel1210_test.go",
+    "emission_diag_1460.go",
+    "internal/congestion/diag_1460.go",
+    "internal/congestion/probe_rtt_1460.go",
+    "internal/diag1210/identity.go",
+    "internal/diag1210/record.go",
+    "internal/diag1210/identity_test.go",
+    "diag_kernel1210_sampling_test.go"
+  ],
+  "retained_cache": "/private/tmp/q1210-independent-replay/cache",
+  "binaries": [
+    {
+      "platform": "linux-amd64",
+      "sha256": "e83901cd1cca9d4dfe91ec50e47e5ba157517127fad46bd673c8f061c3042edd",
+      "bytes": 18341894,
+      "retained_binary": "/private/tmp/q1210-independent-replay/cache/diagnostic-linux-amd64"
+    },
+    {
+      "platform": "darwin-arm64",
+      "sha256": "5c27edcbe89ea08bb91b20d795f67420b0c2c234a22ba935f3f6b08a97d14d19",
+      "bytes": 17510642,
+      "retained_binary": "/private/tmp/q1210-independent-replay/cache/diagnostic-darwin-arm64"
+    }
+  ],
+  "finished_unix_ns": 1793899131021464000
+}

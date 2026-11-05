@@ -1,0 +1,80 @@
+{
+  "SPEthernetDataType": [
+    {
+      "_name": "Mac",
+      "spethernet_avb_support": "No",
+      "spethernet_BSD_Device_Name": "anri0",
+      "spethernet_bus": "spethernet_usb_device",
+      "spethernet_driver": "com.apple.driver.usb.cdc.ncm",
+      "spethernet_mac_address": "82:91:60:40:a7:8b",
+      "spethernet_max_link_speed": "ethernet_speed_10000",
+      "spethernet_product_name": "Mac",
+      "spethernet_product-id": "0x1905",
+      "spethernet_usb_device_speed": "high_speed",
+      "spethernet_vendor_name": "Apple Inc.",
+      "spethernet_vendor-id": "0x05ac"
+    },
+    {
+      "_name": "Mac",
+      "spethernet_avb_support": "No",
+      "spethernet_BSD_Device_Name": "en14",
+      "spethernet_bus": "spethernet_usb_device",
+      "spethernet_driver": "com.apple.driver.usb.cdc.ncm",
+      "spethernet_mac_address": "82:91:60:40:a7:ab",
+      "spethernet_max_link_speed": "ethernet_speed_10000",
+      "spethernet_product_name": "Mac",
+      "spethernet_product-id": "0x1905",
+      "spethernet_usb_device_speed": "high_speed",
+      "spethernet_vendor_name": "Apple Inc.",
+      "spethernet_vendor-id": "0x05ac"
+    },
+    {
+      "_name": "Intel(R) I210 (Copper)",
+      "spethernet_avb_support": "No",
+      "spethernet_BSD_Device_Name": "en12",
+      "spethernet_bus": "spethernet_pci_device",
+      "spethernet_device-id": "0x1533",
+      "spethernet_driver": "com.apple.DriverKit-AppleEthernetE1000",
+      "spethernet_mac_address": "00:50:b6:a8:35:cb",
+      "spethernet_pcie_link-speed": "2.5 GT/s",
+      "spethernet_pcie_link-width": "x1",
+      "spethernet_pcie_slot": "Thunderbolt@3,0,0",
+      "spethernet_revision-id": "0x0003",
+      "spethernet_subsystem-id": "0x0019",
+      "spethernet_subsystem-vendor-id": "0x1c7a",
+      "spethernet_vendor-id": "0x8086"
+    },
+    {
+      "_name": "Aquantia AQC113",
+      "spethernet_avb_support": "Yes",
+      "spethernet_BSD_Device_Name": "en8",
+      "spethernet_bus": "spethernet_pci_device",
+      "spethernet_device-id": "0x04c0",
+      "spethernet_driver": "com.apple.driver.AppleEthernetAquantiaAqtion",
+      "spethernet_firmware_version": "1.5.39",
+      "spethernet_mac_address": "64:4b:f0:60:14:82",
+      "spethernet_max_link_speed": "ethernet_speed_10000",
+      "spethernet_pcie_link-speed": "8.0 GT/s",
+      "spethernet_pcie_link-width": "x2",
+      "spethernet_pcie_slot": "Thunderbolt@3,0,0",
+      "spethernet_revision-id": "0x0003",
+      "spethernet_subsystem-id": "0x0173",
+      "spethernet_subsystem-vendor-id": "0x1ab6",
+      "spethernet_vendor-id": "0x1d6a"
+    },
+    {
+      "_name": "USB 10/100/1G/2.5G LAN",
+      "spethernet_avb_support": "No",
+      "spethernet_BSD_Device_Name": "en11",
+      "spethernet_bus": "spethernet_usb_device",
+      "spethernet_driver": "com.apple.driver.usb.cdc.ncm",
+      "spethernet_mac_address": "c8:4b:d6:ec:46:ad",
+      "spethernet_max_link_speed": "ethernet_speed_10000",
+      "spethernet_product_name": "USB 10/100/1G/2.5G LAN",
+      "spethernet_product-id": "0x8156",
+      "spethernet_usb_device_speed": "super_speed",
+      "spethernet_vendor_name": "Realtek",
+      "spethernet_vendor-id": "0x0bda"
+    }
+  ]
+}

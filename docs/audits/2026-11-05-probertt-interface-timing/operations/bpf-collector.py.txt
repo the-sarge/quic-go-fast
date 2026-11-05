@@ -1,0 +1,64 @@
+#!/usr/bin/python3
+"""Bounded issue #1210 capture launcher; root is used only to open BPF."""
+import json
+import os
+from pathlib import Path
+import pwd
+import selectors
+import signal
+import subprocess
+import sys
+import time
+
+root = Path(sys.argv[1]).resolve(strict=True)
+assert root.is_dir() and root.is_relative_to('/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210')
+owner = pwd.getpwnam('josh')
+assert root.stat().st_uid == owner.pw_uid
+assert len(sys.argv) == 2
+assert os.geteuid() == 0, 'use the native administrator prompt'
+args = ['/usr/sbin/tcpdump', '-i', 'en8', '-y', 'EN10MB', '-p', '-n', '-j', 'host', '--time-stamp-precision=micro', '-B', '4096', '-s', '128', '-Z', 'josh', '-w', str(root/'mac-interface.pcap'), 'ip and udp and host 192.168.1.50 and host 192.168.1.110']
+assert not any((root/n).exists() for n in ['mac-interface.pcap', 'tcpdump.log', 'collector.json', 'collector-result.json', 'stop'])
+proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
+os.setgroups([])
+os.setgid(owner.pw_gid)
+os.setuid(owner.pw_uid)
+assert os.getuid() == os.geteuid() == owner.pw_uid
+start = time.monotonic()
+(root/'collector.json').write_text(json.dumps({'pid':os.getpid(),'tcpdump_pid':proc.pid,'uid':os.getuid(),'argv':args,'started_unix_ns':time.time_ns(),'timeout_seconds':180},indent=2)+'\n')
+stopping = False
+stop_time = None
+reason = None
+
+def stop(sig=None, frame=None):
+    global stopping, stop_time, reason
+    if not stopping:
+        stopping = True
+        stop_time = time.monotonic()
+        reason = reason or ('signal-'+str(sig))
+        if proc.poll() is None:
+            proc.send_signal(signal.SIGINT)
+
+signal.signal(signal.SIGTERM, stop)
+signal.signal(signal.SIGINT, stop)
+sel = selectors.DefaultSelector()
+sel.register(proc.stdout, selectors.EVENT_READ)
+with (root/'tcpdump.log').open('xb', buffering=0) as log:
+    while True:
+        if not stopping and ((root/'stop').exists() or time.monotonic()-start >= 180):
+            reason = 'requested' if (root/'stop').exists() else 'timeout'
+            stop()
+        if stopping and proc.poll() is None and time.monotonic()-stop_time > 10:
+            reason += '-forced-kill'
+            proc.kill()
+        for key, mask in sel.select(0.1):
+            data = os.read(key.fd, 65536)
+            if data:
+                log.write(data)
+            else:
+                sel.unregister(key.fileobj)
+        if proc.poll() is not None and not sel.get_map():
+            break
+result = {'exit':proc.wait(),'reason':reason or 'tcpdump-exit','elapsed_seconds':time.monotonic()-start,'uid':os.getuid()}
+(root/'collector-result.json').write_text(json.dumps(result,indent=2)+'\n')
+print(json.dumps(result))
+sys.exit(0 if result['exit']==0 and result['reason']=='requested' else 1)

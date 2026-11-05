@@ -1,0 +1,49 @@
+udp:
+	3289300267 datagram received
+		0 with incomplete header
+		0 with bad data length field
+		1 with bad checksum
+		2 with no checksum
+		1504039270 checksummed in software
+			1503020050 datagrams (3305045537 byte) over IPv4
+			1019220 datagrams (271460401 bytes) over IPv6
+		399098 dropped due to no socket
+		58639 broadcast/multicast datagrams undelivered
+		687 IPv6 multicast datagrams undelivered
+		0 time multicast source filter matched
+		444806 dropped due to full socket buffers
+		0 not for hashed pcb
+		3288397723 delivered
+	2810673566 datagram output
+		3718991502 checksummed in software
+			3712763638 datagram (2139899929 bytes) over IPv4
+			6227864 datagrams (1907629269 bytes) over IPv6
+	153982 duplicate IMCP packets for port unreachable suppressed
+	244431 ICMP packets for port unreachable not suppressed
+Name       Mtu   Network       Address            Ipkts Ierrs     Ibytes    Opkts Oerrs     Obytes  Coll
+en8        1500  <Link#16>   02:00:00:00:00:00 11167701242     0 14903435672959 3490582185     0 4351314028157     0
+en8        1500  fe80::18aa: fe80:10::18aa:69c 11167701242     - 14903435672959 3490582185     - 4351314028157     -
+en8        1500  fded:7eff:f fded:7eff:fa:1:14 11167701242     - 14903435672959 3490582185     - 4351314028157     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11167701242     - 14903435672959 3490582185     - 4351314028157     -
+en8        1500  192.168.1     192.168.1.110   11167701242     - 14903435672959 3490582185     - 4351314028157     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11167701242     - 14903435672959 3490582185     - 4351314028157     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11167701242     - 14903435672959 3490582185     - 4351314028157     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11167701242     - 14903435672959 3490582185     - 4351314028157     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11167701242     - 14903435672959 3490582185     - 4351314028157     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11167701242     - 14903435672959 3490582185     - 4351314028157     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11167701242     - 14903435672959 3490582185     - 4351314028157     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11167701242     - 14903435672959 3490582185     - 4351314028157     -
+en8        1500  fddf:b2b7:8 fddf:b2b7:8dc:48b 11167701242     - 14903435672959 3490582185     - 4351314028157     -
+TOPCPU
+ 35.7  0   684 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+  5.8  0  6806 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared
+  4.7  0 93652 /opt/homebrew/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex
+  4.0  0   853 /usr/sbin/coreaudiod
+  2.6  0 11994 /Applications/SoundSource.app/Contents/MacOS/SoundSource
+  2.6  0  1455 /System/Library/CoreServices/Finder.app/Contents/MacOS/Finder
+  2.2  0  4084 /opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/Resources/Python.app/Contents/MacOS/Python
+  2.2  0  1558 /usr/bin/ssh-agent
+  2.1  0  2838 /Applications/Resilio Sync.app/Contents/MacOS/Resilio Sync
+  1.9  0   952 /Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Core-Service.app/Contents/MacOS/Karabiner-Core-Service
+  1.7  0 51023 /Applications/Grok Bot.app/Contents/Frameworks/Grok Bot Helper.app/Contents/MacOS/Grok Bot Helper
+  1.1  0 67176 /Applications/OmniFocus.app/Contents/MacOS/OmniFocus

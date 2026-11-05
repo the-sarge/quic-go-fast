@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "scp",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/ops-q1210-napi1/napi-inputs-napi/helper.py",
+    "minimax:/home/josh/wiremux-1460-diag-q1210-napi1/napi-helper-napi.py"
+  ],
+  "exit": 0,
+  "started_unix": 1793899221.353342,
+  "finished_unix": 1793899221.520154
+}

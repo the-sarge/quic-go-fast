@@ -1,0 +1,464 @@
+{
+  "pid": 10006,
+  "interfaces": [
+    {
+      "name": "lo0",
+      "mtu": 16384,
+      "flags": "up|loopback|multicast|running",
+      "addresses": [
+        "127.0.0.1/8",
+        "::1/128",
+        "fe80::1/64"
+      ]
+    },
+    {
+      "name": "gif0",
+      "mtu": 1280,
+      "flags": "pointtopoint|multicast",
+      "addresses": null
+    },
+    {
+      "name": "stf0",
+      "mtu": 1280,
+      "flags": "0",
+      "addresses": null
+    },
+    {
+      "name": "anpi1",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": null
+    },
+    {
+      "name": "anpi2",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": null
+    },
+    {
+      "name": "anpi0",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": null
+    },
+    {
+      "name": "en4",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": null
+    },
+    {
+      "name": "en5",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": null
+    },
+    {
+      "name": "en6",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": null
+    },
+    {
+      "name": "en1",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": null
+    },
+    {
+      "name": "en2",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": null
+    },
+    {
+      "name": "en3",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": null
+    },
+    {
+      "name": "en14",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": [
+        "169.254.241.129/16",
+        "fe80::453:c228:8098:f398/64"
+      ]
+    },
+    {
+      "name": "anri0",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": [
+        "fe80::8091:60ff:fe40:a78b/64"
+      ]
+    },
+    {
+      "name": "bridge0",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": [
+        "fe80::1cdf:bb54:f1:ba8e/64",
+        "172.16.1.2/24"
+      ]
+    },
+    {
+      "name": "en12",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": null
+    },
+    {
+      "name": "ap1",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": null
+    },
+    {
+      "name": "en0",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": [
+        "fe80::1433:2586:b2ce:478b/64",
+        "fded:7eff:fa:1:c9b:6616:9d8d:81c7/64",
+        "2601:18b:8780:8a51:142d:8bed:30e5:6fc3/64",
+        "2601:18b:8780:8a51:8c52:9b8f:8584:8f8e/64",
+        "192.168.1.226/24",
+        "2601:18b:8780:8a51:8c80:7dcb:fc0e:6564/64",
+        "2601:18b:8780:8a51:91f0:c8d8:86e:fa06/64",
+        "2601:18b:8780:8a51:148d:e1af:3193:7c0f/64",
+        "2601:18b:8780:8a51:da3:2fd7:d968:16b/64",
+        "2601:18b:8780:8a51:1157:e954:769:7280/64",
+        "2601:18b:8780:8a51:491:3b1b:e1ef:7401/64",
+        "fddf:b2b7:8dc:48b7:1ce9:9f59:1cb9:df06/64"
+      ]
+    },
+    {
+      "name": "awdl0",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": [
+        "fe80::506a:fff:fed8:17b9/64"
+      ]
+    },
+    {
+      "name": "llw0",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": [
+        "fe80::506a:fff:fed8:17b9/64"
+      ]
+    },
+    {
+      "name": "utun0",
+      "mtu": 1500,
+      "flags": "up|pointtopoint|multicast|running",
+      "addresses": [
+        "fe80::7191:8fdf:c561:a72/64"
+      ]
+    },
+    {
+      "name": "utun1",
+      "mtu": 1380,
+      "flags": "up|pointtopoint|multicast|running",
+      "addresses": [
+        "fe80::b126:3177:dc26:99e2/64"
+      ]
+    },
+    {
+      "name": "utun2",
+      "mtu": 2000,
+      "flags": "up|pointtopoint|multicast|running",
+      "addresses": [
+        "fe80::9fba:ef38:1233:52ab/64"
+      ]
+    },
+    {
+      "name": "utun3",
+      "mtu": 1000,
+      "flags": "up|pointtopoint|multicast|running",
+      "addresses": [
+        "fe80::ce81:b1c:bd2c:69e/64"
+      ]
+    },
+    {
+      "name": "nan0",
+      "mtu": 1500,
+      "flags": "broadcast|multicast",
+      "addresses": [
+        "fe80::f0b6:5bff:feb8:6c1d/64"
+      ]
+    },
+    {
+      "name": "pktap0",
+      "mtu": 0,
+      "flags": "up",
+      "addresses": null
+    },
+    {
+      "name": "utun5",
+      "mtu": 1380,
+      "flags": "up|pointtopoint|multicast|running",
+      "addresses": [
+        "fe80::541d:4a93:ff1f:511d/64"
+      ]
+    },
+    {
+      "name": "utun6",
+      "mtu": 1380,
+      "flags": "up|pointtopoint|multicast|running",
+      "addresses": [
+        "fe80::37fa:367c:81f:7729/64"
+      ]
+    },
+    {
+      "name": "utun7",
+      "mtu": 1380,
+      "flags": "up|pointtopoint|multicast|running",
+      "addresses": [
+        "fe80::a853:7cb2:e1d2:ca32/64"
+      ]
+    },
+    {
+      "name": "utun8",
+      "mtu": 1380,
+      "flags": "up|pointtopoint|multicast|running",
+      "addresses": [
+        "fe80::6b16:9e0e:7578:c890/64"
+      ]
+    },
+    {
+      "name": "en8",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": [
+        "fe80::18aa:69c9:fde7:6d22/64",
+        "fded:7eff:fa:1:1481:23ce:6fe4:52b1/64",
+        "2601:18b:8780:8a51:c76:2073:2049:9134/64",
+        "192.168.1.110/24",
+        "2601:18b:8780:8a51:f42f:132:e8cb:91db/64",
+        "2601:18b:8780:8a51:28f5:d838:65b4:ea43/64",
+        "2601:18b:8780:8a51:d152:38f4:5bb3:dc9c/64",
+        "2601:18b:8780:8a51:c976:4b9c:16d:5f8c/64",
+        "2601:18b:8780:8a51:683c:4e1f:ec3d:d812/64",
+        "2601:18b:8780:8a51:d9ca:2e10:e49f:d256/64",
+        "2601:18b:8780:8a51:285c:b66b:3bf:f6f0/64",
+        "fddf:b2b7:8dc:48b7:1cbc:66e8:6c64:d451/64"
+      ]
+    },
+    {
+      "name": "utun4",
+      "mtu": 1280,
+      "flags": "up|pointtopoint|multicast|running",
+      "addresses": null
+    },
+    {
+      "name": "en11",
+      "mtu": 1500,
+      "flags": "up|broadcast|multicast|running",
+      "addresses": [
+        "fe80::1ce7:b8f8:dc1b:1617/64",
+        "fded:7eff:fa:1:d0:5c5f:a29b:733b/64",
+        "2601:18b:8780:8a51:4d9:7834:492b:b983/64",
+        "2601:18b:8780:8a51:1c44:2ff7:7a97:a30b/64",
+        "192.168.1.10/24",
+        "2601:18b:8780:8a51:304e:2922:e08:8a19/64",
+        "2601:18b:8780:8a51:d469:3be2:5df2:367f/64",
+        "2601:18b:8780:8a51:c88d:f867:e980:2e5b/64",
+        "2601:18b:8780:8a51:9d27:bd4d:7f05:623d/64",
+        "2601:18b:8780:8a51:c524:79b:760e:b44b/64",
+        "fddf:b2b7:8dc:48b7:10d2:3072:2867:980/64"
+      ]
+    },
+    {
+      "name": "utun13",
+      "mtu": 1280,
+      "flags": "pointtopoint|multicast|running",
+      "addresses": null
+    },
+    {
+      "name": "utun9",
+      "mtu": 1380,
+      "flags": "up|pointtopoint|multicast|running",
+      "addresses": [
+        "fe80::64ae:8695:6041:42a4/64"
+      ]
+    },
+    {
+      "name": "utun10",
+      "mtu": 1500,
+      "flags": "up|pointtopoint|multicast|running",
+      "addresses": [
+        "fe80::f2f2:898d:b80e:c4e0/64"
+      ]
+    },
+    {
+      "name": "utun11",
+      "mtu": 2000,
+      "flags": "up|pointtopoint|multicast|running",
+      "addresses": [
+        "fe80::6abd:ca3:cf15:d9fc/64"
+      ]
+    },
+    {
+      "name": "utun12",
+      "mtu": 1000,
+      "flags": "up|pointtopoint|multicast|running",
+      "addresses": [
+        "fe80::ce81:b1c:bd2c:69e/64"
+      ]
+    },
+    {
+      "name": "utun14",
+      "mtu": 1380,
+      "flags": "up|pointtopoint|multicast|running",
+      "addresses": [
+        "fe80::6d65:811e:8e32:2c63/64"
+      ]
+    },
+    {
+      "name": "utun15",
+      "mtu": 1380,
+      "flags": "up|pointtopoint|multicast|running",
+      "addresses": [
+        "fe80::6b23:6c16:404:6b43/64"
+      ]
+    }
+  ],
+  "version": 2,
+  "run_id": "7822d68c85e20340980cb51bf0f6f82b",
+  "role": "receive",
+  "workload": {
+    "native_policy": "bbrv3-conservative",
+    "version": 6,
+    "layer": "native-wire-v031",
+    "payload_bytes": 1099,
+    "rate_bps": 1000000000,
+    "warmup_ms": 10000,
+    "measurement_ms": 60000,
+    "drain_ms": 5000,
+    "gomaxprocs_per_endpoint": 4,
+    "profile": "none",
+    "connections": 1,
+    "direction": "forward"
+  },
+  "bind_ip": "192.168.1.110",
+  "environment": {
+    "native_build": {
+      "recipe": "contextual-v1",
+      "fork_revision": "bc4915ea0de0c238ecfdc51d827f7da67639a789",
+      "fork_version": "v0.62.1-fast.8.0.20261102233542-bc4915ea0de0",
+      "fork_sum": "h1:MFb8XOpOqlSIotaretnTH9avowadzPMVIpsEdKJFkRA=",
+      "product_revision": "8282a84652387d3e2f644dfac1310da479fbe6b4",
+      "harness_revision": "b88eee5b23df2476dbe98717308e287c35d6efa0",
+      "harness_delta_sha256": "a67028dd0091291a2441e4c2ec87b5f43173962c50e1b76d2d76a4ef9b17f464"
+    },
+    "modules": [
+      {
+        "Path": "github.com/fxamacker/cbor/v2",
+        "Version": "v2.9.4",
+        "Sum": "h1:xwjVlxEMR3S605oUlgBjKLTTeGFciYPGYCtF/35LKGo="
+      },
+      {
+        "Path": "github.com/pion/dtls/v3",
+        "Version": "v3.1.8",
+        "Sum": "h1:aLcgjZqzrYn5AbjSds4LvK2WI5VzJc1PencExyDjYis="
+      },
+      {
+        "Path": "github.com/pion/logging",
+        "Version": "v0.2.4",
+        "Sum": "h1:tTew+7cmQ+Mc1pTBLKH2puKsOvhm32dROumOZ655zB8="
+      },
+      {
+        "Path": "github.com/pion/stun/v3",
+        "Version": "v3.1.7",
+        "Sum": "h1:uRXMTlGLf89WgItGNyZ6aR5jMTX0NBbybXADpQCzn+E="
+      },
+      {
+        "Path": "github.com/pion/transport/v4",
+        "Version": "v4.1.1",
+        "Sum": "h1:kEBtbp1sRad0tnkREDNJ3fmop/CR8p/YxXnpFbn9tqo="
+      },
+      {
+        "Path": "github.com/quic-go/quic-go",
+        "Version": "v0.62.0",
+        "Replace": {
+          "Path": "../fork-r",
+          "Version": "(devel)"
+        }
+      },
+      {
+        "Path": "github.com/the-sarge/turn/v5",
+        "Version": "v5.3.1",
+        "Sum": "h1:qK5B0XB2No+XZnEdQzK1ZewphECxkIt9U9UBB6Oq0pc="
+      },
+      {
+        "Path": "github.com/wlynxg/anet",
+        "Version": "v0.0.5",
+        "Sum": "h1:J3VJGi1gvo0JwZ/P1/Yc/8p63SoW98B5dHkYDmpgvvU="
+      },
+      {
+        "Path": "github.com/x448/float16",
+        "Version": "v0.8.4",
+        "Sum": "h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM="
+      },
+      {
+        "Path": "golang.org/x/crypto",
+        "Version": "v0.58.0",
+        "Sum": "h1:COkYLr4k7nDI4r6QtMML2AfzeIswWHAJthLS6K/M/54="
+      },
+      {
+        "Path": "golang.org/x/net",
+        "Version": "v0.61.0",
+        "Sum": "h1:RR+6j/BTBCrggOLugxa+66R8FvoN6MHlzDlZIbN9YFw="
+      },
+      {
+        "Path": "golang.org/x/sys",
+        "Version": "v0.49.0",
+        "Sum": "h1:XbzkgYJHdqh/8m2Uu0W/dQv8nktxx4BFHp1M0gROTXA="
+      },
+      {
+        "Path": "golang.org/x/text",
+        "Version": "v0.43.0",
+        "Sum": "h1:1QivrlhwAsnMOcqgOdl9my7s9OyZl8O5/UGUTJVXoWc="
+      }
+    ],
+    "os_release": "Darwin 27.2.0 Darwin Kernel Version 27.2.0: Wed Oct 14 23:44:56 PDT 2026; root:xnu-13432.41.4~25/RELEASE_ARM64_T6041",
+    "host": "mbp128.local",
+    "os": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M4 Max",
+    "logical_cpus": 16,
+    "go_version": "go1.27.3",
+    "revision": "",
+    "dirty": "",
+    "quic_go_version": "v0.62.0",
+    "binary_sha256": "5c27edcbe89ea08bb91b20d795f67420b0c2c234a22ba935f3f6b08a97d14d19",
+    "invocation": [
+      "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/run-q1210-interface1/local/wiremux-measure-diagnostic",
+      "-worker"
+    ],
+    "build_settings": {
+      "-buildmode": "exe",
+      "-compiler": "gc",
+      "-trimpath": "true",
+      "CGO_ENABLED": "0",
+      "GOARCH": "arm64",
+      "GOARM64": "v8.0",
+      "GOOS": "darwin"
+    },
+    "runtime_environment": {
+      "GODEBUG": "",
+      "GOGC": "",
+      "GOMAXPROCS": "",
+      "GOMEMLIMIT": "",
+      "QUIC_GO_DISABLE_ECN": "",
+      "QUIC_GO_DISABLE_GSO": "",
+      "QUIC_GO_DISABLE_SEND_QOS": ""
+    },
+    "loopback_interfaces": [
+      "lo0 mtu=16384 flags=up|loopback|multicast|running"
+    ]
+  }
+}

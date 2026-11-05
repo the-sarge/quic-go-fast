@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "-oServerAliveInterval=2",
+    "-oServerAliveCountMax=2",
+    "minimax",
+    "cat /proc/net/snmp; ip -s link show enp97s0"
+  ],
+  "exit": 0,
+  "started_unix": 1793899052.1567008,
+  "finished_unix": 1793899052.285228
+}

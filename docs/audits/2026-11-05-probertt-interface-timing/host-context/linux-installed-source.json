@@ -1,0 +1,45 @@
+{
+  "uname": "7.0.0-30-generic",
+  "usr_src": [
+    "/usr/src/wasm2c",
+    "/usr/src/linux-headers-7.0.0-30",
+    "/usr/src/linux-headers-7.0.0-42-generic",
+    "/usr/src/linux-headers-7.0.0-30-generic",
+    "/usr/src/linux-headers-7.0.0-42"
+  ],
+  "build": [
+    "/usr/src/linux-headers-7.0.0-30-generic"
+  ],
+  "hits": {
+    "/lib/modules/7.0.0-30-generic/build/include/linux/netdevice.h": [
+      {
+        "line": 370,
+        "context": "\n/*\n * Structure for per-NAPI config\n */\nstruct napi_config {\n\tu64 gro_flush_timeout;\n\tu64 irq_suspend_timeout;\n\tu32 defer_hard_irqs;\n\tcpumask_t affinity_mask;\n\tu8 threaded;\n\tunsigned int napi_id;\n};\n\n/*\n * Structure for NAPI scheduling similar to tasklet but with weighting\n */\nstruct napi_struct {"
+      },
+      {
+        "line": 407,
+        "context": "\tstruct sk_buff\t\t*skb;\n\tstruct gro_node\t\tgro;\n\tstruct hrtimer\t\ttimer;\n\t/* all fields past this point are write-protected by netdev_lock */\n\tstruct task_struct\t*thread;\n\tunsigned long\t\tgro_flush_timeout;\n\tunsigned long\t\tirq_suspend_timeout;\n\tu32\t\t\tdefer_hard_irqs;\n\t/* control-path-only fields follow */\n\tu32\t\t\tnapi_id;\n\tstruct list_head\tdev_list;\n\tstruct hlist_node\tnapi_hash_node;\n\tint\t\t\tirq;\n\tstruct irq_affinity_notify notify;\n\tint\t\t\tnapi_rmap_idx;\n\tint\t\t\tindex;\n\tstruct napi_config\t*config;"
+      },
+      {
+        "line": 2097,
+        "context": " *\t@max_pacing_offload_horizon: max EDT offload horizon in nsec.\n *\t@napi_config: An array of napi_config structures containing per-NAPI\n *\t\t      settings.\n *\t@num_napi_configs:\tnumber of allocated NAPI config structs,\n *\t\talways >= max(num_rx_queues, num_tx_queues).\n *\t@gro_flush_timeout:\ttimeout for GRO layer in NAPI\n *\t@napi_defer_hard_irqs:\tIf not zero, provides a counter that would\n *\t\t\t\tallow to avoid NIC hard IRQ, on busy queues.\n *\n *\t@neighbours:\tList heads pointing to this device's neighbours'\n *\t\t\tdev_list, one per address-family.\n *\t@hwprov: Tracks which PTP performs hardware packet time stamping.\n *\n *\tFIXME: cleanup struct net_device such that network protocol info\n *\tmoves out.\n */\n"
+      },
+      {
+        "line": 2098,
+        "context": " *\t@napi_config: An array of napi_config structures containing per-NAPI\n *\t\t      settings.\n *\t@num_napi_configs:\tnumber of allocated NAPI config structs,\n *\t\talways >= max(num_rx_queues, num_tx_queues).\n *\t@gro_flush_timeout:\ttimeout for GRO layer in NAPI\n *\t@napi_defer_hard_irqs:\tIf not zero, provides a counter that would\n *\t\t\t\tallow to avoid NIC hard IRQ, on busy queues.\n *\n *\t@neighbours:\tList heads pointing to this device's neighbours'\n *\t\t\tdev_list, one per address-family.\n *\t@hwprov: Tracks which PTP performs hardware packet time stamping.\n *\n *\tFIXME: cleanup struct net_device such that network protocol info\n *\tmoves out.\n */\n\nstruct net_device {"
+      },
+      {
+        "line": 2512,
+        "context": "\tstruct dim_irq_moder\t*irq_moder;\n\n\tu64\t\t\tmax_pacing_offload_horizon;\n\tstruct napi_config\t*napi_config;\n\tu32\t\t\tnum_napi_configs;\n\tu32\t\t\tnapi_defer_hard_irqs;\n\tunsigned long\t\tgro_flush_timeout;\n\n\t/**\n\t * @up: copy of @state's IFF_UP, but safe to read with just @lock.\n\t *\tMay report false negatives while the device is being opened\n\t *\tor closed (@lock does not protect .ndo_open, or .ndo_close).\n\t */\n\tbool\t\t\tup;\n\n\t/**\n\t * @request_ops_lock: request the core to run all @netdev_ops and"
+      },
+      {
+        "line": 2513,
+        "context": "\n\tu64\t\t\tmax_pacing_offload_horizon;\n\tstruct napi_config\t*napi_config;\n\tu32\t\t\tnum_napi_configs;\n\tu32\t\t\tnapi_defer_hard_irqs;\n\tunsigned long\t\tgro_flush_timeout;\n\n\t/**\n\t * @up: copy of @state's IFF_UP, but safe to read with just @lock.\n\t *\tMay report false negatives while the device is being opened\n\t *\tor closed (@lock does not protect .ndo_open, or .ndo_close).\n\t */\n\tbool\t\t\tup;\n\n\t/**\n\t * @request_ops_lock: request the core to run all @netdev_ops and\n\t * @ethtool_ops under the @lock."
+      },
+      {
+        "line": 2554,
+        "context": "\t * - double ops protected - always protected by rtnl_lock but for\n\t *   devices for which netdev_need_ops_lock() returns true - also\n\t *   the instance lock.\n\t *\n\t * Simply protects:\n\t *\t@gro_flush_timeout, @napi_defer_hard_irqs, @napi_list,\n\t *\t@net_shaper_hierarchy, @reg_state, @threaded\n\t *\n\t * Double protects:\n\t *\t@up, @moving_ns, @nd_net, @xdp_features\n\t *\n\t * Double ops protects:\n\t *\t@real_num_rx_queues, @real_num_tx_queues\n\t *\n\t * Also protects some fields in:\n\t *\tstruct napi_struct, struct netdev_queue, struct netdev_rx_queue\n\t *"
+      }
+    ]
+  }
+}

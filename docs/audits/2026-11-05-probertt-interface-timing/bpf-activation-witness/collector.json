@@ -1,0 +1,28 @@
+{
+  "pid": 1686,
+  "tcpdump_pid": 1692,
+  "uid": 501,
+  "argv": [
+    "/usr/sbin/tcpdump",
+    "-i",
+    "en8",
+    "-y",
+    "EN10MB",
+    "-p",
+    "-n",
+    "-j",
+    "host",
+    "--time-stamp-precision=micro",
+    "-B",
+    "4096",
+    "-s",
+    "128",
+    "-Z",
+    "josh",
+    "-w",
+    "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/bpf-activation-witness/mac-interface.pcap",
+    "ip and udp and host 192.168.1.50 and host 192.168.1.110"
+  ],
+  "started_unix_ns": 1793898733860774000,
+  "timeout_seconds": 180
+}

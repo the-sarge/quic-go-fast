@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "scp",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/ops-q1210-interface1/endpoint-after-interface.sh",
+    "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/ops-q1210-interface1/endpoint-before-interface.sh",
+    "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/ops-q1210-interface1/endpoint-interface.sh",
+    "minimax:/home/josh/wiremux-1460-diag-q1210-interface1/"
+  ],
+  "exit": 0,
+  "started_unix": 1793898802.886431,
+  "finished_unix": 1793898803.0456588
+}

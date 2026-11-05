@@ -1,0 +1,85 @@
+// Inert issue #1210 candidate. Compile-checked only; never attached by its author.
+// Arguments: local UDP port (0 = any), peer UDP port (0 = any), finite seconds.
+// Fixed endpoint: 192.168.1.110 -> 192.168.1.50 on enp97s0 / IRQ 66.
+// Identity scheme v2 matches internal/diag1210/identity.go.
+// BEGIN output is NOT readiness. Use the post-attach notification documented below.
+BEGIN {
+  @start = nsecs(monotonic);
+  printf("CONFIG local=%d peer=%d duration=%d identity=fnv1a63-small-v2 clock=monotonic\n", $1, $2, $3);
+}
+fentry:r8169:rtl8169_interrupt /args.irq == 66/ {
+  @last_irq[66] = nsecs(monotonic);
+  @irq_calls = count();
+}
+fentry:r8169:rtl8169_poll /str(args.napi->dev->name) == "enp97s0"/ {
+  $now = nsecs(monotonic);
+  $napi = (uint64)args.napi;
+  @active_napi[cpu] = $napi;
+  @poll_start[$napi] = $now;
+  @poll_irq[$napi] = @last_irq[66];
+  @poll_calls = count();
+  if (@poll_irq[$napi] != 0 && @poll_irq[$napi] <= $now) {
+    @preceding_irq_to_poll_ns = hist($now - @poll_irq[$napi]);
+  }
+}
+fexit:r8169:rtl8169_poll /str(args.napi->dev->name) == "enp97s0"/ {
+  $napi = (uint64)args.napi;
+  $now = nsecs(monotonic);
+  if (@poll_start[$napi] != 0 && @poll_start[$napi] <= $now) {
+    @poll_duration_ns = hist($now - @poll_start[$napi]);
+  }
+  @poll_work = hist(retval);
+  $ignored = delete(@active_napi[cpu]);
+}
+tracepoint:net:napi_gro_receive_entry /str(args.name) == "enp97s0"/ {
+  $now = nsecs(monotonic);
+  $skb = (struct sk_buff *)args.skbaddr;
+  $data = (uint8 *)$skb->data;
+  $linear = $skb->len - $skb->data_len;
+  if ($linear >= 28 && ($data[0] >> 4) == 4 && $data[9] == 17 &&
+      $data[12] == 192 && $data[13] == 168 && $data[14] == 1 && $data[15] == 110 &&
+      $data[16] == 192 && $data[17] == 168 && $data[18] == 1 && $data[19] == 50 &&
+      ($data[6] & 0x3f) == 0 && $data[7] == 0) {
+    $ihl = ($data[0] & 15) * 4;
+    if ($ihl >= 20 && $linear >= $ihl + 8) {
+      $udp = $data + $ihl;
+      $sport = ((uint16)$udp[0] << 8) | $udp[1];
+      $dport = ((uint16)$udp[2] << 8) | $udp[3];
+      $ulen = ((uint16)$udp[4] << 8) | $udp[5];
+      $iplen = ((uint16)$data[2] << 8) | $data[3];
+      if (($2 == 0 || $sport == $2) && ($1 == 0 || $dport == $1) && $ulen > 8 && $iplen >= $ihl + $ulen && $skb->len >= $iplen) {
+        $length = (uint64)$ulen - 8;
+        $prefix = $length < 32 ? $length : 32;
+        if ($linear >= $ihl + 8 + $prefix) {
+          @matched_udp = count();
+          $p = $udp + 8;
+          $h = (uint64)14695981039346656037;
+          $n = $length;
+          unroll(8) { $h = ($h ^ ($n & 255)) * 1099511628211; $n >>= 8; }
+          $i = 0;
+          unroll(32) { if ($i < $prefix) { $h = ($h ^ (uint64)$p[$i]) * 1099511628211; } $i++; }
+          $h &= 0x7fffffffffffffff;
+          if ($h == 0) { $h = 1; }
+          if ($length < 256) { $h |= 0x8000000000000000; }
+          if ($length < 256 || ($h & 15) == 0) {
+            @selected_udp = count();
+            $napi = @active_napi[cpu];
+            if ($napi == 0) { @missing_poll_context = count(); }
+            printf("RX %llu %d %lld %llu %llu %llu %llu %u %u\n", $now, cpu, (int64)$h, $length, $napi, @poll_start[$napi], @poll_irq[$napi], $sport, $dport);
+          }
+        } else { @short_linear_prefix = count(); }
+      }
+    }
+  }
+}
+interval:s:1 {
+  if (nsecs(monotonic) - @start >= $3 * 1000000000) { exit(); }
+}
+END {
+  printf("END monotonic_ns=%llu\n", nsecs(monotonic));
+  clear(@last_irq);
+  clear(@active_napi);
+  clear(@poll_start);
+  clear(@poll_irq);
+  clear(@start);
+}

@@ -1,0 +1,16 @@
+{
+  "arm": "before-interface",
+  "status": "returned",
+  "started_unix": 1793898808.503485,
+  "argv": [
+    "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/run-q1210-interface1/local/endpoint-before-interface.sh",
+    "-remote-config",
+    "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/ops-q1210-interface1/config-before-interface.json",
+    "-output",
+    "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/run-q1210-interface1/controller/before-interface"
+  ],
+  "pid": 4385,
+  "start_identity": "4385 Thu Nov  5 12:13:28 2026",
+  "exit": 0,
+  "elapsed_seconds": 78.85145600000396
+}

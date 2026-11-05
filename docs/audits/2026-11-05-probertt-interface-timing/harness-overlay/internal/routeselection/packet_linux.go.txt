@@ -1,0 +1,173 @@
+package routeselection
+
+import (
+	"bytes"
+	"context"
+	"encoding/binary"
+	"net"
+	"sort"
+	"syscall"
+
+	"golang.org/x/sys/unix"
+)
+
+// checkMetadata owns a closed native subset. unix parses each complete header;
+// this boundary additionally requires aligned complete records and exact known
+// lengths, so the parser's acceptance of trailing bytes grants no authority.
+func (b *PacketBinding) checkMetadata(oob []byte) error {
+	reject := func() error { return failure("metadata", b.handle.Facts().Name, ErrUnsupported, nil) }
+	seen := make(map[[2]int32][]byte)
+	for len(oob) != 0 {
+		if len(oob) < unix.CmsgLen(0) {
+			return reject()
+		}
+		h, data, _, err := unix.ParseOneSocketControlMessage(oob)
+		if err != nil {
+			return reject()
+		}
+		space := unix.CmsgSpace(len(data))
+		if int(h.Len) != unix.CmsgLen(len(data)) || space > len(oob) { //nolint:gosec // ParseOneSocketControlMessage already bounds the native header length by len(oob).
+			return reject()
+		}
+		key := [2]int32{h.Level, h.Type}
+		if previous, ok := seen[key]; ok && !bytes.Equal(previous, data) {
+			return reject()
+		}
+		seen[key] = data
+		switch {
+		case h.Level == unix.IPPROTO_IP && h.Type == unix.IP_PKTINFO:
+			if b.network != "udp4" || len(data) != unix.SizeofInet4Pktinfo {
+				return reject()
+			}
+			index := binary.NativeEndian.Uint32(data[:4])
+			if index != 0 && int64(index) != int64(b.index) {
+				return reject()
+			}
+			for _, ip := range []net.IP{net.IP(data[4:8]), net.IP(data[8:12])} {
+				if !ip.IsUnspecified() && !ip.Equal(b.source) {
+					return reject()
+				}
+			}
+		case h.Level == unix.IPPROTO_IPV6 && h.Type == unix.IPV6_PKTINFO:
+			if b.network != "udp6" || len(data) != unix.SizeofInet6Pktinfo {
+				return reject()
+			}
+			ip := net.IP(data[:16])
+			index := binary.NativeEndian.Uint32(data[16:20])
+			if (index != 0 && int64(index) != int64(b.index)) || (!ip.IsUnspecified() && !ip.Equal(b.source)) {
+				return reject()
+			}
+		case h.Level == unix.IPPROTO_IP && h.Type == unix.IP_TOS:
+			if b.network != "udp4" || len(data) != 1 {
+				return reject()
+			}
+		case h.Level == unix.IPPROTO_IPV6 && h.Type == unix.IPV6_TCLASS:
+			if b.network != "udp6" || len(data) != 4 {
+				return reject()
+			}
+		case h.Level == unix.IPPROTO_UDP && h.Type == unix.UDP_SEGMENT:
+			if len(data) != 2 {
+				return reject()
+			}
+		case allowDiagnostic1210Timestamp(h.Level, h.Type, data):
+			// Temporary observer metadata only; routing checks above remain active.
+		default:
+			return reject()
+		}
+		oob = oob[space:]
+	}
+	return nil
+}
+
+func listenUDP(ctx context.Context, h Handle) (*net.UDPConn, *PacketBinding, error) {
+	iface, err := snapshot(h)
+	if err != nil {
+		return nil, nil, err
+	}
+	if iface.Flags&net.FlagUp == 0 {
+		return nil, nil, failure("listen", iface.Name, ErrUnavailable, nil)
+	}
+	addrs, err := h.state.native.addresses(iface)
+	if err != nil {
+		return nil, nil, observationFailure("listen", iface.Name, err)
+	}
+	return listenUDPFromAddresses(ctx, h, iface, addrs)
+}
+
+func listenUDPFromAddresses(ctx context.Context, h Handle, iface *net.Interface, addrs []net.Addr) (*net.UDPConn, *PacketBinding, error) {
+	return listenUDPFromAddressesPort(ctx, h, iface, addrs, 0)
+}
+
+// listenUDPFromAddressesPort binds the first usable address at port, where
+// zero requests an ephemeral port.
+func listenUDPFromAddressesPort(ctx context.Context, h Handle, iface *net.Interface, addrs []net.Addr, port int) (*net.UDPConn, *PacketBinding, error) {
+	// Address enumeration has no scope-order contract. Prefer sources usable
+	// off-link; a link-local source must not hide an available routable one.
+	sort.SliceStable(addrs, func(i, j int) bool {
+		left, _, _ := net.ParseCIDR(addrs[i].String())
+		right, _, _ := net.ParseCIDR(addrs[j].String())
+		return !left.IsLinkLocalUnicast() && right.IsLinkLocalUnicast()
+	})
+	// Keep the existing IPv4 preference. Each socket is single-family, bound
+	// to both the device and one concrete source before discovery can send.
+	for _, family := range []string{"udp4", "udp6"} {
+		for _, addr := range addrs {
+			ip, _, err := net.ParseCIDR(addr.String())
+			if err != nil || ip.IsUnspecified() {
+				continue
+			}
+			if family == "udp4" && ip.To4() == nil {
+				continue
+			}
+			if family == "udp6" && ip.To4() != nil {
+				continue
+			}
+			local := &net.UDPAddr{IP: ip, Port: port}
+			// Native binding owns local scope; Zone text would consult Go's
+			// name cache before the constructor callback can validate identity.
+			config := net.ListenConfig{Control: func(network, _ string, raw syscall.RawConn) error {
+				current, err := snapshotSource(h, ip)
+				if err != nil {
+					return err
+				}
+				iface = current
+				if network != family {
+					return failure("bind", iface.Name, ErrUnsupported, nil)
+				}
+				var bindErr error
+				if err := raw.Control(func(fd uintptr) {
+					bindErr = unix.SetsockoptString(int(fd), unix.SOL_SOCKET, unix.SO_BINDTODEVICE, iface.Name)
+				}); err != nil {
+					return observationFailure("bind", iface.Name, err)
+				}
+				if bindErr != nil {
+					return observationFailure("bind", iface.Name, bindErr)
+				}
+				return nil
+			}}
+			conn, err := config.ListenPacket(ctx, family, local.String())
+			if err != nil {
+				return nil, nil, listenFailure(iface.Name, err)
+			}
+			udp, ok := conn.(*net.UDPConn)
+			if !ok {
+				_ = conn.Close()
+				return nil, nil, failure("listen", iface.Name, ErrUnsupported, nil)
+			}
+			if iface.Index <= 0 || int64(iface.Index) > 1<<32-1 {
+				_ = udp.Close()
+				return nil, nil, failure("bind", iface.Name, ErrUnsupported, nil)
+			}
+			index := uint32(iface.Index)
+			binding := &PacketBinding{conn: udp, handle: h, source: append(net.IP(nil), ip...), network: family, index: index, name: iface.Name}
+			if family == "udp6" {
+				if err := enableReceiveScope(udp); err != nil {
+					_ = udp.Close()
+					return nil, nil, observationFailure("receive scope", iface.Name, err)
+				}
+			}
+			return udp, binding, nil
+		}
+	}
+	return nil, nil, failure("listen", iface.Name, ErrUnavailable, nil)
+}

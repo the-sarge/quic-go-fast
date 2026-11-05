@@ -1,0 +1,29 @@
+{
+  "compiler": "Apple clang version 21.0.0 (clang-2100.4.1.1)\nTarget: arm64-apple-darwin27.2.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+  "argv": [
+    "xcrun",
+    "clang",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    ".cache/1210/bpf-collector.c",
+    "-lpcap",
+    "-o",
+    ".cache/1210/bpf-collector"
+  ],
+  "files": {
+    "bpf-collector.c": {
+      "bytes": 4601,
+      "sha256": "0c497b0946e97edd2b2d0e702bbe958334f3ea30d819190fbb3100134399587b"
+    },
+    "bpf-collector": {
+      "bytes": 35936,
+      "sha256": "53fd3d2b99ca5c2a403d39368d9041bac64879be818461c458a8d07f7b7b675f"
+    },
+    "capture-control.py": {
+      "bytes": 3166,
+      "sha256": "e798d85f594f18de7c3e5c281f782a8e1c153b6589ea29007e85c6601444104f"
+    }
+  }
+}

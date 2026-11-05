@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "system_profiler",
+    "SPEthernetDataType",
+    "-json"
+  ],
+  "started_unix": 1793899485.309238,
+  "finished_unix": 1793899485.434339,
+  "exit": 0,
+  "stdout_bytes": 3227,
+  "stdout_sha256": "072378c1a4a05240fa8f50d4dcad73818d9f195a38a7cc6c731f36bd69b05198",
+  "stderr": ""
+}

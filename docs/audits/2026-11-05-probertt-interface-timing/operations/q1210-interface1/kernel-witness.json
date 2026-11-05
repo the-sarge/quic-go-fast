@@ -1,0 +1,7 @@
+{
+  "path": ".cache/1210/interface-socket-witness-linux.test",
+  "sha256": "ffe612e07e848636442d547531ff157052b05174694d0cd3fecc3d7ad45cfd32",
+  "test": "(TestDiagnostic1210KernelSocketWitness|TestDiagnostic1210DenseIdentitySegments)",
+  "metadata_path": "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/harness-metadata-witness-linux.test",
+  "metadata_sha256": "6a86294acab64b9494eadad20add8cae0a51ebf63eb75c3a58f0fdf2d9c39ac7"
+}

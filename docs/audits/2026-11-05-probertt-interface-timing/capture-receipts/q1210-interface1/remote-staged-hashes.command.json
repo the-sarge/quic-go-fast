@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "-oServerAliveInterval=2",
+    "-oServerAliveCountMax=2",
+    "minimax",
+    "python3 - /home/josh/wiremux-1460-diag-q1210-interface1 '{\"nativerig\": \"a80fa1a04edbf32967c1f857c5bc1738cfb8264de77c809633fba7c7c92e89aa\", \"wiremux-measure-diagnostic\": \"e83901cd1cca9d4dfe91ec50e47e5ba157517127fad46bd673c8f061c3042edd\", \"endpoint-after-interface.sh\": \"5102c6dcd381ffcde3fb581824e8ae4a8931fc12ee84ed7b6bb3cb7ab49fc7f2\", \"endpoint-before-interface.sh\": \"e7969f01b81e63d8161400a9c42d7fc6a7f34b2ec435abef379f0b35f501a518\", \"endpoint-interface.sh\": \"5395c56f2a4116c04037f263f24119d7f16b0367f6d615dc07d03e52ae2fc6c1\"}'"
+  ],
+  "exit": 0,
+  "started_unix": 1793898803.243606,
+  "finished_unix": 1793898803.428627
+}

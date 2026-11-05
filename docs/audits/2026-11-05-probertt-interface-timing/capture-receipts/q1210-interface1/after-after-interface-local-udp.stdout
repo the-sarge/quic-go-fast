@@ -1,0 +1,49 @@
+udp:
+	3305105839 datagram received
+		0 with incomplete header
+		0 with bad data length field
+		1 with bad checksum
+		2 with no checksum
+		1504039974 checksummed in software
+			1503020397 datagrams (3305128275 byte) over IPv4
+			1019577 datagrams (271545411 bytes) over IPv6
+		399199 dropped due to no socket
+		58654 broadcast/multicast datagrams undelivered
+		687 IPv6 multicast datagrams undelivered
+		0 time multicast source filter matched
+		444806 dropped due to full socket buffers
+		0 not for hashed pcb
+		3304203179 delivered
+	2811861935 datagram output
+		3718992161 checksummed in software
+			3712763803 datagram (2139945597 bytes) over IPv4
+			6228358 datagrams (1907765829 bytes) over IPv6
+	154032 duplicate IMCP packets for port unreachable suppressed
+	244482 ICMP packets for port unreachable not suppressed
+Name       Mtu   Network       Address            Ipkts Ierrs     Ibytes    Opkts Oerrs     Obytes  Coll
+en8        1500  <Link#16>   02:00:00:00:00:00 11183562498     0 14921888654213 3491847553     0 4351610217745     0
+en8        1500  fe80::18aa: fe80:10::18aa:69c 11183562498     - 14921888654213 3491847553     - 4351610217745     -
+en8        1500  fded:7eff:f fded:7eff:fa:1:14 11183562498     - 14921888654213 3491847553     - 4351610217745     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11183562498     - 14921888654213 3491847553     - 4351610217745     -
+en8        1500  192.168.1     192.168.1.110   11183562498     - 14921888654213 3491847553     - 4351610217745     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11183562498     - 14921888654213 3491847553     - 4351610217745     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11183562498     - 14921888654213 3491847553     - 4351610217745     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11183562498     - 14921888654213 3491847553     - 4351610217745     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11183562498     - 14921888654213 3491847553     - 4351610217745     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11183562498     - 14921888654213 3491847553     - 4351610217745     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11183562498     - 14921888654213 3491847553     - 4351610217745     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11183562498     - 14921888654213 3491847553     - 4351610217745     -
+en8        1500  fddf:b2b7:8 fddf:b2b7:8dc:48b 11183562498     - 14921888654213 3491847553     - 4351610217745     -
+TOPCPU
+ 45.2  0   684 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+ 10.8  0   853 /usr/sbin/coreaudiod
+  6.2  0 38044 /Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex
+  6.0  0  3867 /Applications/Docker.app/Contents/MacOS/com.docker.backend
+  3.4  0  1266 /usr/libexec/trustd
+  3.3  0   839 /System/Library/PrivateFrameworks/BackgroundTaskManagement.framework/Resources/backgroundtaskmanagementd
+  2.9  0   759 /usr/libexec/lsd
+  2.8  0  2838 /Applications/Resilio Sync.app/Contents/MacOS/Resilio Sync
+  2.6  0 12279 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/157.0.8103.38/Helpers/Google Chrome Helper (Aperitif Renderer).app/Contents/MacOS/Google Chrome Helper (Aperitif Renderer)
+  2.5  0   612 /usr/libexec/smd
+  1.3  0   652 /usr/libexec/opendirectoryd
+  1.1  0 23277 bash

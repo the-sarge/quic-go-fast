@@ -1,0 +1,134 @@
+//go:build linux
+
+package quic
+
+import (
+	"encoding/binary"
+	"errors"
+	"github.com/quic-go/quic-go/internal/diag1210"
+	"golang.org/x/sys/unix"
+)
+
+func (k *kernel1210Socket) platform() int64 { return 1 }
+func (k *kernel1210Socket) configure() (int64, error) {
+	// Only receive generation is socket-wide. Transmit requests are selected
+	// per sendmsg. Explicit IDs identify submissions, not individual GSO segments.
+	const flags = unix.SOF_TIMESTAMPING_RX_SOFTWARE | unix.SOF_TIMESTAMPING_SOFTWARE | unix.SOF_TIMESTAMPING_OPT_ID | unix.SOF_TIMESTAMPING_OPT_TSONLY | (1 << 17)
+	k.clock = 1
+	var setupErr error
+	err := k.raw.Control(func(fd uintptr) {
+		setupErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_TIMESTAMPING_NEW, flags)
+	})
+	if err != nil {
+		return flags, err
+	}
+	return flags, setupErr
+}
+func (k *kernel1210Socket) receiveStamp(oob []byte) (int64, error) {
+	for len(oob) > 0 {
+		h, b, rest, err := unix.ParseOneSocketControlMessage(oob)
+		if err != nil {
+			return 0, err
+		}
+		if h.Level == unix.SOL_SOCKET && (h.Type == unix.SO_TIMESTAMPING_NEW || h.Type == unix.SCM_TIMESTAMPING) {
+			if len(b) != 48 {
+				return 0, unix.EINVAL
+			}
+			sec := int64(binary.NativeEndian.Uint64(b[:8]))
+			ns := int64(binary.NativeEndian.Uint64(b[8:16]))
+			if ns < 0 || ns >= 1000000000 {
+				return 0, unix.EINVAL
+			}
+			return sec*1000000000 + ns, nil
+		}
+		oob = rest
+	}
+	return 0, nil
+}
+func (k *kernel1210Socket) prepareTX(b, oob []byte, gso uint16) ([]byte, *kernel1210TX) {
+	if k == nil || !k.active || len(b) == 0 {
+		return oob, nil
+	}
+	first := b
+	if gso > 0 && int(gso) < len(first) {
+		first = first[:int(gso)]
+	}
+	identity := diag1210.Identity(first)
+	if !diag1210.SelectedIdentity(identity) {
+		return oob, nil
+	}
+	id := k.nextID.Add(1)
+	k.txRequests.Add(1)
+	// Copy avoids modifying any shared packet-info backing storage.
+	result := append([]byte(nil), oob...)
+	result = kernel1210AppendUint32(result, unix.SO_TIMESTAMPING_NEW, unix.SOF_TIMESTAMPING_TX_SCHED|unix.SOF_TIMESTAMPING_TX_SOFTWARE)
+	result = kernel1210AppendUint32(result, unix.SCM_TS_OPT_ID, id)
+	return result, &kernel1210TX{id: id, identity: identity, size: len(b), gso: int(gso)}
+}
+func (k *kernel1210Socket) drain() {
+	if k == nil || !k.active {
+		return
+	}
+	k.drainMu.Lock()
+	defer k.drainMu.Unlock()
+	// There is no extra read goroutine or descriptor/close owner. Control holds
+	// the descriptor valid while a bounded nonblocking error-queue drain runs.
+	var oob [512]byte
+	err := k.raw.Control(func(fd uintptr) {
+		for i := 0; i < 128; i++ {
+			n, nn, flags, _, err := unix.Recvmsg(int(fd), nil, oob[:], unix.MSG_ERRQUEUE|unix.MSG_DONTWAIT)
+			if errors.Is(err, unix.EAGAIN) || errors.Is(err, unix.EWOULDBLOCK) {
+				return
+			}
+			if err != nil {
+				k.errorEvent(5, err)
+				return
+			}
+			m, w := kernel1210Anchor()
+			stamp, stampErr := k.receiveStamp(oob[:nn])
+			var id, info, errno, origin uint32
+			valid := false
+			data := oob[:nn]
+			for len(data) > 0 {
+				h, b, rest, e := unix.ParseOneSocketControlMessage(data)
+				if e != nil {
+					k.errorEvent(6, e)
+					break
+				}
+				if ((h.Level == unix.SOL_IP && h.Type == unix.IP_RECVERR) || (h.Level == unix.SOL_IPV6 && h.Type == unix.IPV6_RECVERR)) && len(b) >= 16 {
+					errno = binary.NativeEndian.Uint32(b[:4])
+					origin = uint32(b[4])
+					info = binary.NativeEndian.Uint32(b[8:12])
+					id = binary.NativeEndian.Uint32(b[12:16])
+					valid = true
+				}
+				data = rest
+			}
+			k.txResults.Add(1)
+			if valid && origin == unix.SO_EE_ORIGIN_TIMESTAMPING && errno == uint32(unix.ENOMSG) && stamp > 0 && stampErr == nil {
+				if info == 1 {
+					k.txSchedule.Add(1)
+				}
+				if info == 0 {
+					k.txSoftware.Add(1)
+				}
+			}
+			diag1210.Add(33, m, int64(id), int64(info), stamp, m, w, int64(errno), int64(origin), int64(flags), int64(n), int64(nn), k.socketID, boolInt1210(valid), kernel1210Errno(stampErr))
+			if stampErr != nil {
+				k.errorEvent(7, stampErr)
+			}
+			if flags&unix.MSG_CTRUNC != 0 {
+				k.errorEvent(8, unix.EOVERFLOW)
+			}
+			if !valid || origin != unix.SO_EE_ORIGIN_TIMESTAMPING || errno != uint32(unix.ENOMSG) {
+				k.errorEvent(9, unix.EPROTO)
+			}
+		}
+		k.errorEvent(10, unix.EOVERFLOW)
+	})
+	if err != nil {
+		k.errorEvent(11, err)
+	}
+}
+
+func (k *kernel1210Socket) clockWitness(now int64) {}

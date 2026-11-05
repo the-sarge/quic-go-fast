@@ -1,0 +1,25 @@
+{
+  "arm": "restored-interface",
+  "matched_fields": [
+    "arm",
+    "status",
+    "summary",
+    "sample_counts",
+    "aggregate",
+    "probes",
+    "exclusions",
+    "excluded_cycles",
+    "correlated_cycles",
+    "correlated_partial_cycles",
+    "correlated_turnaround_cycles",
+    "endpoint_quality",
+    "baseline_analysis"
+  ],
+  "correlations_identical": true,
+  "packet_inventory_expected_to_differ": true,
+  "sample_counts": {
+    "turnaround_cycles": 432,
+    "partial_cycles": 430,
+    "complete_cycles": 146
+  }
+}

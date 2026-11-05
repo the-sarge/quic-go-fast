@@ -1,0 +1,33 @@
+import hashlib,json,tarfile,time
+from pathlib import Path
+base=Path(__file__).resolve().parent
+output=Path('/Users/josh/quic-go-fast-1210-interface-timing');output.mkdir(mode=0o700,exist_ok=False)
+archive=output/'native-captures.tar.gz'
+report=base.parents[1]/'docs/audits/2026-11-05-probertt-interface-timing'
+def digest(stream):
+ h=hashlib.sha256()
+ while data:=stream.read(1024*1024):h.update(data)
+ return h.hexdigest()
+inputs=[]
+for run in ['q1210-interface1','q1210-napi1']:
+ for prefix,directory in [('runs',base/('run-'+run)),('operations',base/('ops-'+run))]:
+  for f in sorted(directory.rglob('*')):
+   if f.is_file() and '__pycache__' not in f.parts:
+    assert not f.is_symlink()
+    with f.open('rb') as src:sha=digest(src)
+    inputs.append((f,str(Path(prefix)/run/f.relative_to(directory)),f.stat().st_size,sha))
+with tarfile.open(archive,'w:gz',compresslevel=6) as out:
+ for f,name,size,sha in inputs:out.add(f,arcname=name,recursive=False)
+print('archive written; verifying every member',flush=True)
+expected={name:(size,sha)for f,name,size,sha in inputs};seen=set()
+with tarfile.open(archive,'r:gz') as packed:
+ for member in packed:
+  assert member.isfile() and member.name in expected and member.name not in seen
+  size,sha=expected[member.name];assert size==member.size
+  with packed.extractfile(member) as src:assert digest(src)==sha,member.name
+  seen.add(member.name)
+assert seen==set(expected)
+with archive.open('rb') as src:sha=digest(src)
+receipt={'path':str(archive),'bytes':archive.stat().st_size,'sha256':sha,'files_verified':len(seen),'independent_disaster_recovery':False,'members':[{'path':n,'bytes':s,'sha256':h}for _,n,s,h in inputs]}
+(report/'full-capture-custody.json').write_text(json.dumps(receipt,indent=2)+'\n')
+print(json.dumps({k:v for k,v in receipt.items() if k!='members'}),flush=True)

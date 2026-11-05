@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "-oServerAliveInterval=2",
+    "-oServerAliveCountMax=2",
+    "minimax",
+    "sudo -n python3 - absence /home/josh/wiremux-1460-diag-q1210-napi1 napi '{\"helper.py\": \"b0b679977cdc02706bdd33d6ecf1e87e9f056d4a74c809a355260425180dba36\", \"observe.bt\": \"75c9fc3fa9d0931af72f2e29ee68ec64a3b9463cf6c20efc6cd8d4edde75e7a2\"}' '[{\"pid\": 1439398, \"start_ticks\": \"617181409\", \"ppid\": 1439395, \"state\": \"S\", \"uid\": 0, \"argv\": [\"python3\", \"/home/josh/wiremux-1460-diag-q1210-napi1/napi-helper-napi.py\", \"/home/josh/wiremux-1460-diag-q1210-napi1/napi-napi\", \"/home/josh/wiremux-1460-diag-q1210-napi1/napi-observe-napi.bt\"]}, {\"pid\": 1439400, \"start_ticks\": \"617181411\", \"ppid\": 1439398, \"state\": \"S\", \"uid\": 0, \"argv\": [\"/usr/bin/bpftrace\", \"-B\", \"line\", \"-k\", \"-\", \"0\", \"0\", \"180\"]}]'"
+  ],
+  "exit": 0,
+  "started_unix": 1793899399.4602828,
+  "finished_unix": 1793899399.638345
+}

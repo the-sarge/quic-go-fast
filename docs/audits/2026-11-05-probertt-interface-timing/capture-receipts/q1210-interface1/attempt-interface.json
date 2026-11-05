@@ -1,0 +1,16 @@
+{
+  "arm": "interface",
+  "status": "returned",
+  "started_unix": 1793898893.627502,
+  "argv": [
+    "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/run-q1210-interface1/local/endpoint-interface.sh",
+    "-remote-config",
+    "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/ops-q1210-interface1/config-interface.json",
+    "-output",
+    "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/run-q1210-interface1/controller/interface"
+  ],
+  "pid": 7001,
+  "start_identity": "7001 Thu Nov  5 12:14:53 2026",
+  "exit": 0,
+  "elapsed_seconds": 78.86503066599835
+}

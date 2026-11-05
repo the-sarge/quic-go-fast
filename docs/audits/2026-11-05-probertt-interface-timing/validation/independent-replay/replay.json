@@ -1,0 +1,34 @@
+{
+  "worktree": "/Volumes/worktrees/quic-go-fast/resolve1210-replay",
+  "branch": "codex/resolve1210-replay",
+  "head": "bc4915ea0de0c238ecfdc51d827f7da67639a789",
+  "evidence": "/Volumes/worktrees/quic-go-fast/resolve-1210/docs/audits/2026-11-05-probertt-interface-timing",
+  "scripts": {
+    "prepare.py": "6d54ec50e08efd4492f1e393ca54f71cdd8ee80f229306c50af86b1a947505f5",
+    "build.py": "fcd0481e336bbf6132e56cc2c30d88d8874adcec281c9570b92575873f02548e"
+  },
+  "commands": [
+    {
+      "argv": [
+        "python3",
+        "/Volumes/worktrees/quic-go-fast/resolve-1210/docs/audits/2026-11-05-probertt-interface-timing/prepare.py",
+        "/Volumes/worktrees/quic-go-fast/resolve1210-replay"
+      ],
+      "cwd": "/Volumes/worktrees/quic-go-fast/resolve1210-replay",
+      "start_unix_ns": 1793899112610024000,
+      "end_unix_ns": 1793899112793428000,
+      "exit": 0
+    },
+    {
+      "argv": [
+        "python3",
+        "/Volumes/worktrees/quic-go-fast/resolve-1210/docs/audits/2026-11-05-probertt-interface-timing/build.py",
+        "/Volumes/worktrees/quic-go-fast/resolve1210-replay"
+      ],
+      "cwd": "/Volumes/worktrees/quic-go-fast/resolve1210-replay",
+      "start_unix_ns": 1793899112793891000,
+      "end_unix_ns": 1793899114478180000,
+      "exit": 0
+    }
+  ]
+}

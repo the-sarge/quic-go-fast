@@ -1,0 +1,108 @@
+package diag1210
+
+import (
+	"bytes"
+	"encoding/binary"
+	"hash/fnv"
+	"testing"
+)
+
+func TestIdentityDenseSmallDatagrams(t *testing.T) {
+	previous := KernelEnabled
+	KernelEnabled = true
+	t.Cleanup(func() { KernelEnabled = previous })
+	for size := 1; size < 256; size++ {
+		payload := bytes.Repeat([]byte{0xa7}, size)
+		for value := 0; value < 256; value++ {
+			payload[0] = byte(value)
+			id := Identity(payload)
+			if id >= 0 || !SelectedIdentity(id) {
+				t.Fatalf("size=%d value=%d identity=%d: small datagram not densely selected", size, value, id)
+			}
+		}
+	}
+	for _, size := range []int{256, 1126, 9000} {
+		payload := make([]byte, size)
+		selected := 0
+		for value := 0; value < 256; value++ {
+			payload[0] = byte(value)
+			id := Identity(payload)
+			if id <= 0 {
+				t.Fatalf("size=%d value=%d identity=%d: large datagram used reserved marker", size, value, id)
+			}
+			if SelectedIdentity(id) {
+				selected++
+			}
+		}
+		if selected != 16 {
+			t.Fatalf("size=%d: selected %d of 256 data identities, want 16", size, selected)
+		}
+	}
+}
+
+func TestIdentityEncodingAndProtectedPrefix(t *testing.T) {
+	for _, size := range []int{0, 1, 31, 32, 33, 255, 256, 1126} {
+		payload := make([]byte, size)
+		for i := range payload {
+			payload[i] = byte(i * 37)
+		}
+		var want int64
+		if size != 0 {
+			h := fnv.New64a()
+			var length [8]byte
+			binary.LittleEndian.PutUint64(length[:], uint64(size))
+			h.Write(length[:])
+			h.Write(payload[:min(32, size)])
+			value := h.Sum64() & ((uint64(1) << 63) - 1)
+			if value == 0 {
+				value = 1
+			}
+			if size < 256 {
+				value |= uint64(1) << 63
+			}
+			want = int64(value)
+		}
+		if got := Identity(payload); got != want {
+			t.Fatalf("size=%d: identity=%d, independent FNV encoding=%d", size, got, want)
+		}
+		var wire [8]byte
+		binary.LittleEndian.PutUint64(wire[:], uint64(want))
+		if decoded := int64(binary.LittleEndian.Uint64(wire[:])); decoded != want {
+			t.Fatalf("signed identity did not survive existing int64 record encoding: %d", want)
+		}
+	}
+	payload := bytes.Repeat([]byte{0x93}, 1126)
+	before := Identity(payload)
+	payload[32] ^= 0xff
+	if Identity(payload) != before {
+		t.Fatal("bytes outside protected prefix changed identity")
+	}
+	payload[31] ^= 0xff
+	if Identity(payload) == before {
+		t.Fatal("protected prefix change did not change identity")
+	}
+	if Identity(payload) == Identity(payload[:1125]) {
+		t.Fatal("payload length did not change identity")
+	}
+	if Identity(nil) != 0 {
+		t.Fatal("nil payload has an identity")
+	}
+}
+
+func TestIdentitySelectionGateAndZero(t *testing.T) {
+	previous := KernelEnabled
+	t.Cleanup(func() { KernelEnabled = previous })
+	for _, enabled := range []bool{false, true} {
+		KernelEnabled = enabled
+		for _, test := range []struct {
+			id       int64
+			selected bool
+		}{
+			{0, false}, {1, false}, {16, true}, {17, false}, {-1, true}, {-16, true}, {-1 << 63, true},
+		} {
+			if got, want := SelectedIdentity(test.id), enabled && test.selected; got != want {
+				t.Fatalf("enabled=%t identity=%d: selected=%t want=%t", enabled, test.id, got, want)
+			}
+		}
+	}
+}

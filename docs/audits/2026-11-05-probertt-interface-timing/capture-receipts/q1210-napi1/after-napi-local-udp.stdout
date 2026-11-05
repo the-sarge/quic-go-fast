@@ -1,0 +1,49 @@
+udp:
+	3313016857 datagram received
+		0 with incomplete header
+		0 with bad data length field
+		1 with bad checksum
+		2 with no checksum
+		1504040518 checksummed in software
+			1503020677 datagrams (3305191263 byte) over IPv4
+			1019841 datagrams (271605113 bytes) over IPv6
+		399732 dropped due to no socket
+		58678 broadcast/multicast datagrams undelivered
+		687 IPv6 multicast datagrams undelivered
+		0 time multicast source filter matched
+		444806 dropped due to full socket buffers
+		0 not for hashed pcb
+		3312113640 delivered
+	2812453157 datagram output
+		3718992673 checksummed in software
+			3712763931 datagram (2139978961 bytes) over IPv4
+			6228742 datagrams (1907865921 bytes) over IPv6
+	154294 duplicate IMCP packets for port unreachable suppressed
+	244753 ICMP packets for port unreachable not suppressed
+Name       Mtu   Network       Address            Ipkts Ierrs     Ibytes    Opkts Oerrs     Obytes  Coll
+en8        1500  <Link#16>   02:00:00:00:00:00 11191773046     0 14931447759250 3492590582     0 4352021473205     0
+en8        1500  fe80::18aa: fe80:10::18aa:69c 11191773046     - 14931447759250 3492590582     - 4352021473205     -
+en8        1500  fded:7eff:f fded:7eff:fa:1:14 11191773046     - 14931447759250 3492590582     - 4352021473205     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11191773046     - 14931447759250 3492590582     - 4352021473205     -
+en8        1500  192.168.1     192.168.1.110   11191773046     - 14931447759250 3492590582     - 4352021473205     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11191773046     - 14931447759250 3492590582     - 4352021473205     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11191773046     - 14931447759250 3492590582     - 4352021473205     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11191773046     - 14931447759250 3492590582     - 4352021473205     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11191773046     - 14931447759250 3492590582     - 4352021473205     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11191773046     - 14931447759250 3492590582     - 4352021473205     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11191773046     - 14931447759250 3492590582     - 4352021473205     -
+en8        1500  2601:18b:87 2601:18b:8780:8a5 11191773046     - 14931447759250 3492590582     - 4352021473205     -
+en8        1500  fddf:b2b7:8 fddf:b2b7:8dc:48b 11191773046     - 14931447759250 3492590582     - 4352021473205     -
+TOPCPU
+ 38.2  0   684 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+ 17.0  0   853 /usr/sbin/coreaudiod
+ 13.3  0 38041 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/156.0.8078.79/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)
+  9.0  0 38380 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent
+  8.1  0 38370 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent
+  8.1  0  1419 /System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app/Contents/MacOS/Safari
+  4.5  0 38369 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent
+  3.7  0  1701 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking
+  3.0  0  2838 /Applications/Resilio Sync.app/Contents/MacOS/Resilio Sync
+  2.8  0 19797 /System/Applications/News.app/Contents/MacOS/News
+  2.5  0 72182 /Users/josh/Library/Application Support/Claude/claude-code/2.1.309/5af865b9901c/claude.app/Contents/MacOS/claude
+  2.3  0  1558 /usr/bin/ssh-agent

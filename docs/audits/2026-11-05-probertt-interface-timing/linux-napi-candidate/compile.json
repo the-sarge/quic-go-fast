@@ -1,0 +1,8 @@
+{
+  "mode": "codegen-only; no attach",
+  "script_sha256": "75c9fc3fa9d0931af72f2e29ee68ec64a3b9463cf6c20efc6cd8d4edde75e7a2",
+  "argv_last": "sudo -n bpftrace --mode codegen --verify-llvm-ir - 0 0 180",
+  "exit": 0,
+  "stdout": "",
+  "stderr": ""
+}

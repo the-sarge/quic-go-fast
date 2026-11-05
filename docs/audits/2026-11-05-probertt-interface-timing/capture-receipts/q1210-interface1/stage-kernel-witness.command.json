@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "scp",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    ".cache/1210/interface-socket-witness-linux.test",
+    "minimax:/home/josh/wiremux-1460-diag-q1210-interface1/kernel-socket-witness.test"
+  ],
+  "exit": 0,
+  "started_unix": 1793898803.430004,
+  "finished_unix": 1793898803.6254761
+}

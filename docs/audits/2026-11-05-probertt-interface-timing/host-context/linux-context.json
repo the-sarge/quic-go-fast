@@ -1,0 +1,65 @@
+{
+  "/sys/class/net/enp97s0/gro_flush_timeout": {
+    "value": "20000"
+  },
+  "/sys/class/net/enp97s0/napi_defer_hard_irqs": {
+    "value": "1"
+  },
+  "/proc/sys/net/core/busy_poll": {
+    "value": "0"
+  },
+  "/proc/sys/net/core/busy_read": {
+    "value": "0"
+  },
+  "device_realpath": "/sys/devices/pci0000:00/0000:00:02.1/0000:61:00.0",
+  "driver_realpath": "/sys/bus/pci/drivers/r8169",
+  "/sys/class/net/enp97s0/device/vendor": {
+    "value": "0x10ec"
+  },
+  "/sys/class/net/enp97s0/device/device": {
+    "value": "0x8127"
+  },
+  "/sys/class/net/enp97s0/device/subsystem_vendor": {
+    "value": "0x10ec"
+  },
+  "/sys/class/net/enp97s0/device/subsystem_device": {
+    "value": "0x0123"
+  },
+  "/sys/class/net/enp97s0/device/class": {
+    "value": "0x020000"
+  },
+  "/sys/class/net/enp97s0/device/irq": {
+    "value": "26"
+  },
+  "/sys/class/net/enp97s0/device/numa_node": {
+    "value": "-1"
+  },
+  "/sys/class/net/enp97s0/device/current_link_speed": {
+    "value": "16.0 GT/s PCIe"
+  },
+  "/sys/class/net/enp97s0/device/current_link_width": {
+    "value": "1"
+  },
+  "/sys/class/net/enp97s0/device/max_link_speed": {
+    "value": "16.0 GT/s PCIe"
+  },
+  "/sys/class/net/enp97s0/device/max_link_width": {
+    "value": "1"
+  },
+  "/sys/class/net/enp97s0/device/local_cpulist": {
+    "value": "0-31"
+  },
+  "msi_irqs": {
+    "66": "msix"
+  },
+  "lspci_nnk": {
+    "exit": 0,
+    "stdout": "61:00.0 Ethernet controller [0200]: Realtek Semiconductor Co., Ltd. RTL8127 10GbE Controller [10ec:8127] (rev 05)\n\tSubsystem: Realtek Semiconductor Co., Ltd. Device [10ec:0123]\n\tKernel driver in use: r8169\n\tKernel modules: r8169\n",
+    "stderr": ""
+  },
+  "lspci_vv": {
+    "exit": 0,
+    "stdout": "61:00.0 Ethernet controller: Realtek Semiconductor Co., Ltd. RTL8127 10GbE Controller (rev 05)\n\tSubsystem: Realtek Semiconductor Co., Ltd. Device 0123\n\tControl: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B- DisINTx+\n\tStatus: Cap+ 66MHz- UDF- FastB2B- ParErr- DEVSEL=fast >TAbort- <TAbort- <MAbort- >SERR- <PERR- INTx-\n\tLatency: 0, Cache Line Size: 64 bytes\n\tInterrupt: pin A routed to IRQ 26\n\tIOMMU group: 17\n\tRegion 0: I/O ports at f000 [size=256]\n\tRegion 2: Memory at d0f00000 (64-bit, non-prefetchable) [size=256K]\n\tRegion 4: Memory at d0f40000 (64-bit, non-prefetchable) [size=16K]\n\tCapabilities: [40] Power Management version 3\n\t\tFlags: PMEClk- DSI- D1+ D2+ AuxCurrent=375mA PME(D0+,D1+,D2+,D3hot+,D3cold+)\n\t\tStatus: D0 NoSoftRst+ PME-Enable- DSel=0 DScale=0 PME-\n\tCapabilities: [50] MSI: Enable- Count=1/1 Maskable- 64bit+\n\t\tAddress: 0000000000000000  Data: 0000\n\tCapabilities: [70] Express (v2) Endpoint, IntMsgNum 1\n\t\tDevCap:\tMaxPayload 512 bytes, PhantFunc 0, Latency L0s <512ns, L1 <64us\n\t\t\tExtTag- AttnBtn- AttnInd- PwrInd- RBE+ FLReset- SlotPowerLimit 75W TEE-IO-\n\t\tDevCtl:\tCorrErr- NonFatalErr- FatalErr- UnsupReq-\n\t\t\tRlxdOrd+ ExtTag- PhantFunc- AuxPwr- NoSnoop-\n\t\t\tMaxPayload 256 bytes, MaxReadReq 4096 bytes\n\t\tDevSta:\tCorrErr- NonFatalErr- FatalErr- UnsupReq- AuxPwr+ TransPend-\n\t\tLnkCap:\tPort #0, Speed 16GT/s, Width x1, ASPM L0s L1, Exit Latency L0s unlimited, L1 <64us\n\t\t\tClockPM+ Surprise- LLActRep- BwNot- ASPMOptComp+\n\t\tLnkCtl:\tASPM Disabled; RCB 64 bytes, LnkDisable- CommClk+\n\t\t\tExtSynch- ClockPM+ AutWidDis- BWInt- AutBWInt- FltModeDis-\n\t\tLnkSta:\tSpeed 16GT/s, Width x1\n\t\t\tTrErr- Train- SlotClk+ DLActive- BWMgmt- ABWMgmt-\n\t\tDevCap2: Completion Timeout: Range ABCD, TimeoutDis+ NROPrPrP- LTR+\n\t\t\t 10BitTagComp+ 10BitTagReq- OBFF Via message/WAKE#, ExtFmt- EETLPPrefix-\n\t\t\t EmergencyPowerReduction Not Supported, EmergencyPowerReductionInit-\n\t\t\t FRS- TPHComp+ ExtTPHComp-\n\t\t\t AtomicOpsCap: 32bit- 64bit- 128bitCAS-\n\t\tDevCtl2: Completion Timeout: 50us to 50ms, TimeoutDis-\n\t\t\t AtomicOpsCtl: ReqEn-\n\t\t\t IDOReq- IDOCompl- LTR+ EmergencyPowerReductionReq-\n\t\t\t 10BitTagReq- OBFF Disabled, EETLPPrefixBlk-\n\t\tLnkCap2: Supported Link Speeds: 2.5-16GT/s, Crosslink- Retimer+ 2Retimers+ DRS-\n\t\tLnkCtl2: Target Link Speed: 16GT/s, EnterCompliance- SpeedDis-\n\t\t\t Transmit Margin: Normal Operating Range, EnterModifiedCompliance- ComplianceSOS-\n\t\t\t Compliance Preset/De-emphasis: -6dB de-emphasis, 0dB preshoot\n\t\tLnkSta2: Current De-emphasis Level: -3.5dB, EqualizationComplete+ EqualizationPhase1+\n\t\t\t EqualizationPhase2+ EqualizationPhase3+ LinkEqualizationRequest-\n\t\t\t Retimer- 2Retimers- CrosslinkRes: Upstream Port, FltMode-\n\tCapabilities: [b0] MSI-X: Enable+ Count=64 Masked-\n\t\tVector table: BAR=4 offset=00000000\n\t\tPBA: BAR=4 offset=00000800\n\tCapabilities: [d0] Vital Product Data\n\t\tNot readable\n\tCapabilities: [100 v2] Advanced Error Reporting\n\t\tUESta:\tDLP- SDES- TLP- FCP- CmpltTO- CmpltAbrt- UnxCmplt- RxOF- MalfTLP-\n\t\t\tECRC- UnsupReq- ACSViol- UncorrIntErr- BlockedTLP- AtomicOpBlocked- TLPBlockedErr-\n\t\t\tPoisonTLPBlocked- DMWrReqBlocked- IDECheck- MisIDETLP- PCRC_CHECK- TLPXlatBlocked-\n\t\tUEMsk:\tDLP- SDES- TLP- FCP- CmpltTO- CmpltAbrt- UnxCmplt- RxOF- MalfTLP-\n\t\t\tECRC- UnsupReq- ACSViol- UncorrIntErr+ BlockedTLP- AtomicOpBlocked- TLPBlockedErr-\n\t\t\tPoisonTLPBlocked- DMWrReqBlocked- IDECheck- MisIDETLP- PCRC_CHECK- TLPXlatBlocked-\n\t\tUESvrt:\tDLP+ SDES+ TLP- FCP+ CmpltTO- CmpltAbrt- UnxCmplt- RxOF+ MalfTLP+\n\t\t\tECRC- UnsupReq- ACSViol- UncorrIntErr+ BlockedTLP- AtomicOpBlocked- TLPBlockedErr-\n\t\t\tPoisonTLPBlocked- DMWrReqBlocked- IDECheck- MisIDETLP- PCRC_CHECK- TLPXlatBlocked-\n\t\tCESta:\tRxErr- BadTLP- BadDLLP- Rollover- Timeout- AdvNonFatalErr- CorrIntErr- HeaderOF-\n\t\tCEMsk:\tRxErr- BadTLP- BadDLLP- Rollover- Timeout- AdvNonFatalErr+ CorrIntErr+ HeaderOF+\n\t\tAERCap:\tFirst Error Pointer: 00, ECRCGenCap+ ECRCGenEn- ECRCChkCap+ ECRCChkEn-\n\t\t\tMultHdrRecCap- MultHdrRecEn- TLPPfxPres- HdrLogCap-\n\t\tHeaderLog: 00000000 00000000 00000000 00000000\n\tCapabilities: [148 v1] Virtual Channel\n\t\tCaps:\tLPEVC=0 RefClk=100ns PATEntryBits=1\n\t\tArb:\tFixed- WRR32- WRR64- WRR128-\n\t\tCtrl:\tArbSelect=Fixed\n\t\tStatus:\tInProgress-\n\t\tVC0:\tCaps:\tPATOffset=00 MaxTimeSlots=1 RejSnoopTrans-\n\t\t\tArb:\tFixed- WRR32- WRR64- WRR128- TWRR128- WRR256-\n\t\t\tCtrl:\tEnable+ ID=0 ArbSelect=Fixed TC/VC=ff\n\t\t\tStatus:\tNegoPending- InProgress-\n\tCapabilities: [164 v1] Device Serial Number 01-00-00-00-68-4c-e0-00\n\tCapabilities: [174 v1] Secondary PCI Express\n\t\tLnkCtl3: LnkEquIntrruptEn- PerformEqu-\n\t\tLaneErrStat: 0\n\tCapabilities: [184 v1] Physical Layer 16.0 GT/s\n\t\tPhy16Sta: EquComplete+ EquPhase1+ EquPhase2+ EquPhase3+ LinkEquRequest-\n\tCapabilities: [1a8 v1] Lane Margining at the Receiver\n\t\tPortCap: Uses Driver-\n\t\tPortSta: MargReady- MargSoftReady-\n\tCapabilities: [244 v1] Latency Tolerance Reporting\n\t\tMax snoop latency: 1048576ns\n\t\tMax no snoop latency: 1048576ns\n\tCapabilities: [24c v1] L1 PM Substates\n\t\tL1SubCap: PCI-PM_L1.2+ PCI-PM_L1.1+ ASPM_L1.2+ ASPM_L1.1+ L1_PM_Substates+\n\t\t\t  PortCommonModeRestoreTime=150us PortTPowerOnTime=150us\n\t\tL1SubCtl1: PCI-PM_L1.2- PCI-PM_L1.1- ASPM_L1.2- ASPM_L1.1-\n\t\t\t   T_CommonMode=0us LTR1.2_Threshold=32768ns\n\t\tL1SubCtl2: T_PwrOn=150us\n\tCapabilities: [25c v1] Data Link Feature <?>\n\tCapabilities: [268 v1] Precision Time Measurement\n\t\tPTMCap: Requester+ Responder- Root-\n\t\tPTMClockGranularity: Unimplemented\n\t\tPTMControl: Enabled- RootSelected-\n\t\tPTMEffectiveGranularity: Unknown\n\tCapabilities: [274 v1] Vendor Specific Information: ID=0003 Rev=1 Len=054 <?>\n\tKernel driver in use: r8169\n\tKernel modules: r8169\n\n",
+    "stderr": "pcilib: sysfs_read_vpd: read failed: No such device\n"
+  }
+}

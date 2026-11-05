@@ -1,0 +1,5 @@
+{
+  "initial_check": "All three replays matched correlation/timing fields, then comparison failed at baseline_analysis because in-memory integer map keys differ from keys deserialized from JSON.",
+  "correction": "Normalize dictionary keys to strings before comparison, matching JSON object semantics. No observation, analyzer computation, or expected timing value changed.",
+  "rerun": "Recorded separately in *-published-replay.json."
+}

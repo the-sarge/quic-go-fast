@@ -1,0 +1,23 @@
+{
+  "selection": "SPEthernetDataType items with BSD device name en8",
+  "items": [
+    {
+      "_name": "Aquantia AQC113",
+      "spethernet_avb_support": "Yes",
+      "spethernet_BSD_Device_Name": "en8",
+      "spethernet_bus": "spethernet_pci_device",
+      "spethernet_device-id": "0x04c0",
+      "spethernet_driver": "com.apple.driver.AppleEthernetAquantiaAqtion",
+      "spethernet_firmware_version": "1.5.39",
+      "spethernet_mac_address": "64:4b:f0:60:14:82",
+      "spethernet_max_link_speed": "ethernet_speed_10000",
+      "spethernet_pcie_link-speed": "8.0 GT/s",
+      "spethernet_pcie_link-width": "x2",
+      "spethernet_pcie_slot": "Thunderbolt@3,0,0",
+      "spethernet_revision-id": "0x0003",
+      "spethernet_subsystem-id": "0x0173",
+      "spethernet_subsystem-vendor-id": "0x1ab6",
+      "spethernet_vendor-id": "0x1d6a"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "minimax",
+    "sudo -n python3 -"
+  ],
+  "started_unix": 1793899467.593305,
+  "finished_unix": 1793899467.776695,
+  "exit": 0,
+  "stdout_bytes": 7683,
+  "stdout_sha256": "336b7724b16402b72afea95d4d6411ab5c9f4abb27d47a2c24859dfebc262333",
+  "stderr": "",
+  "stdin_source": "import json,pathlib,subprocess\nr={}\nfor name in ['gro_flush_timeout','napi_defer_hard_irqs']:\n p=pathlib.Path('/sys/class/net/enp97s0')/name\n try:r[str(p)]={'value':p.read_text().strip()}\n except OSError as e:r[str(p)]={'error':str(e)}\nfor name in ['busy_poll','busy_read']:\n p=pathlib.Path('/proc/sys/net/core')/name\n try:r[str(p)]={'value':p.read_text().strip()}\n except OSError as e:r[str(p)]={'error':str(e)}\ndevice=pathlib.Path('/sys/class/net/enp97s0/device');r['device_realpath']=str(device.resolve());r['driver_realpath']=str((device/'driver').resolve())\nfor name in ['vendor','device','subsystem_vendor','subsystem_device','class','irq','numa_node','current_link_speed','current_link_width','max_link_speed','max_link_width','local_cpulist']:\n p=device/name\n try:r[str(p)]={'value':p.read_text().strip()}\n except OSError as e:r[str(p)]={'error':str(e)}\np=device/'msi_irqs'\ntry:r['msi_irqs']={x.name:x.read_text().strip() for x in p.iterdir()}\nexcept OSError as e:r['msi_irqs']={'error':str(e)}\np=subprocess.run(['lspci','-nnk','-s','61:00.0'],text=True,capture_output=True);r['lspci_nnk']={'exit':p.returncode,'stdout':p.stdout,'stderr':p.stderr}\np=subprocess.run(['lspci','-vv','-s','61:00.0'],text=True,capture_output=True);r['lspci_vv']={'exit':p.returncode,'stdout':p.stdout,'stderr':p.stderr}\nprint(json.dumps(r,indent=2))\n"
+}

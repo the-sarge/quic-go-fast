@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "-oServerAliveInterval=2",
+    "-oServerAliveCountMax=2",
+    "minimax",
+    "timeout 45 /home/josh/wiremux-1460-diag-q1210-interface1/harness-metadata-witness.test -test.v '-test.run=^TestDiagnostic1210TimestampMetadata$' -test.count=1"
+  ],
+  "exit": 0,
+  "started_unix": 1793898807.275307,
+  "finished_unix": 1793898807.518257
+}

@@ -1,0 +1,13 @@
+{
+  "path": "/System/Library/Extensions/IONetworkingFamily.kext/Contents/PlugIns/AppleEthernetAquantiaAqtion.kext/Contents/Info.plist",
+  "read_unix": 1793899499.855583,
+  "file_sha256": "09894fa7584970e8e75c24a58b7698fcff352cc4c847346119e8093acdce678d",
+  "file_bytes": 6298,
+  "selected": {
+    "CFBundleIdentifier": "com.apple.driver.AppleEthernetAquantiaAqtion",
+    "CFBundleVersion": "1.0.64",
+    "CFBundleShortVersionString": "1.0.64",
+    "CFBundleName": "AppleEthernetAquantiaAqtion",
+    "OSBundleCompatibleVersion": "1.0.33"
+  }
+}

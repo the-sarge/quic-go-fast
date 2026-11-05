@@ -1,0 +1,34 @@
+[
+  {
+    "arm": "napi",
+    "status": "returned",
+    "started_unix": 1793899231.515305,
+    "argv": [
+      "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/run-q1210-napi1/local/endpoint-napi.sh",
+      "-remote-config",
+      "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/ops-q1210-napi1/config-napi.json",
+      "-output",
+      "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/run-q1210-napi1/controller/napi"
+    ],
+    "pid": 17612,
+    "start_identity": "17612 Thu Nov  5 12:20:31 2026",
+    "exit": 0,
+    "elapsed_seconds": 79.41125674999785
+  },
+  {
+    "arm": "restored-interface",
+    "status": "returned",
+    "started_unix": 1793899316.686961,
+    "argv": [
+      "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/run-q1210-napi1/local/endpoint-restored-interface.sh",
+      "-remote-config",
+      "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/ops-q1210-napi1/config-restored-interface.json",
+      "-output",
+      "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/run-q1210-napi1/controller/restored-interface"
+    ],
+    "pid": 20148,
+    "start_identity": "20148 Thu Nov  5 12:21:56 2026",
+    "exit": 0,
+    "elapsed_seconds": 78.56570379098412
+  }
+]

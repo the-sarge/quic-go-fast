@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "scp",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/rig-linux",
+    "minimax:/home/josh/wiremux-1460-diag-q1210-interface1/nativerig"
+  ],
+  "exit": 0,
+  "started_unix": 1793898803.045917,
+  "finished_unix": 1793898803.2352362
+}

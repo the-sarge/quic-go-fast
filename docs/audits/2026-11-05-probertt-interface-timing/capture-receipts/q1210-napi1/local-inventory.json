@@ -1,0 +1,70 @@
+{
+  "root": "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/run-q1210-napi1",
+  "files": [
+    {
+      "path": "local/.owner.json",
+      "bytes": 233,
+      "sha256": "20be22fd6288161586666b1cd139422a0d7ebdea19525dc5af192bbb051e5a8a"
+    },
+    {
+      "path": "local/diag1210-17636.bin",
+      "bytes": 574453376,
+      "sha256": "1cc2d29c15ed6e2c155a75a96a3b1ae97c8c5a0695cf090f8c484848889f702b"
+    },
+    {
+      "path": "local/diag1210-20175.bin",
+      "bytes": 576432640,
+      "sha256": "f2571bf0e1aa02c45e5bcfaa619788ab813adf747a1938ad79a9c510fef1e39c"
+    },
+    {
+      "path": "local/endpoint-napi.sh",
+      "bytes": 294,
+      "sha256": "e37d0969f42c1c273ad7ea0814969dbb657746faaa81f17d37150aea855e6139"
+    },
+    {
+      "path": "local/endpoint-restored-interface.sh",
+      "bytes": 308,
+      "sha256": "1392513822cf555f66a91c9c748d85f911681b9d1005e408d9f0718d942b9cd6"
+    },
+    {
+      "path": "local/nativerig",
+      "bytes": 13468066,
+      "sha256": "9f595bcd7898359a8d6fb1d09e7bf9ad6d9da65b7dc282e6148a7a8baed977a3"
+    },
+    {
+      "path": "local/wiremux-measure-diagnostic",
+      "bytes": 17510642,
+      "sha256": "5c27edcbe89ea08bb91b20d795f67420b0c2c234a22ba935f3f6b08a97d14d19"
+    },
+    {
+      "path": "local/workers/napi/8287c995c5c4cc8b769fa9294c956569-receive/identity.json",
+      "bytes": 12003,
+      "sha256": "00a3d390fdcb93285eb741e01d611e05754be33a63e385a4c4ee140334cf6653"
+    },
+    {
+      "path": "local/workers/napi/8287c995c5c4cc8b769fa9294c956569-receive/receive-datagram-ledger.bin",
+      "bytes": 2559177,
+      "sha256": "0b02efd229f451e61d60fac8173d264942a18e533b0808d8eb3dba21a355a469"
+    },
+    {
+      "path": "local/workers/napi/8287c995c5c4cc8b769fa9294c956569-receive/result.json",
+      "bytes": 345485,
+      "sha256": "2a9e27a79bb561c7fb829f28ed8a9550a2e2e0fbe28d047286d53a156ed59376"
+    },
+    {
+      "path": "local/workers/restored-interface/a21f229e776f6573bf3345c1c8521468-receive/identity.json",
+      "bytes": 12003,
+      "sha256": "69ba7e12ae80d15292a021cebf952db3a404fe33c83bdb00a56fa65172ae7a7d"
+    },
+    {
+      "path": "local/workers/restored-interface/a21f229e776f6573bf3345c1c8521468-receive/receive-datagram-ledger.bin",
+      "bytes": 2559177,
+      "sha256": "8fbf66fb89d95b03c0e97a47b819a1ff705e9998cf538412f7a6f2cb64103c0b"
+    },
+    {
+      "path": "local/workers/restored-interface/a21f229e776f6573bf3345c1c8521468-receive/result.json",
+      "bytes": 345358,
+      "sha256": "aaeb2ee3e9c85929d976bc8cd3f17c6c5a434c3c92d52919b056a31bfaf34c56"
+    }
+  ]
+}

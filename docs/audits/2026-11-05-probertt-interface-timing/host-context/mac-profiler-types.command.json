@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "system_profiler",
+    "-listDataTypes"
+  ],
+  "started_unix": 1793899467.593452,
+  "finished_unix": 1793899467.650074,
+  "exit": 0,
+  "stdout_bytes": 1083,
+  "stdout_sha256": "4b07af9ef4be8c0898321880e2786e2ca829a2ccbe25cadc4e611e4568530d59",
+  "stderr": ""
+}

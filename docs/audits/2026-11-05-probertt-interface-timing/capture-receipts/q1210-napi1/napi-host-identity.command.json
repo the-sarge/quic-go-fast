@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "-oServerAliveInterval=2",
+    "-oServerAliveCountMax=2",
+    "minimax",
+    "cat /sys/class/net/enp97s0/device/irq; cat /proc/irq/66/effective_affinity_list; uname -r; sha256sum /lib/modules/7.0.0-30-generic/kernel/drivers/net/ethernet/realtek/r8169.ko.zst"
+  ],
+  "exit": 0,
+  "started_unix": 1793899221.02017,
+  "finished_unix": 1793899221.1725209
+}

@@ -1,0 +1,16 @@
+{
+  "arm": "after-interface",
+  "status": "returned",
+  "started_unix": 1793898973.4954538,
+  "argv": [
+    "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/run-q1210-interface1/local/endpoint-after-interface.sh",
+    "-remote-config",
+    "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/ops-q1210-interface1/config-after-interface.json",
+    "-output",
+    "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/run-q1210-interface1/controller/after-interface"
+  ],
+  "pid": 9994,
+  "start_identity": "9994 Thu Nov  5 12:16:13 2026",
+  "exit": 0,
+  "elapsed_seconds": 78.58765770797618
+}

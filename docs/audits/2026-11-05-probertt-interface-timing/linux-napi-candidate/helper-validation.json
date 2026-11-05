@@ -1,0 +1,20 @@
+{
+  "passed": [
+    "valid-owned-path-and-source-hash",
+    "reject-existing-output",
+    "reject-symlink-output",
+    "reject-changed-source",
+    "owned-child-stop-file",
+    "owned-child-parent-signal",
+    "owned-child-outer-deadline",
+    "no-readiness-on-early-failure"
+  ],
+  "count": 8,
+  "bpf_attached": false,
+  "traffic_sent": false,
+  "source_sha256": {
+    "observe.bt": "75c9fc3fa9d0931af72f2e29ee68ec64a3b9463cf6c20efc6cd8d4edde75e7a2",
+    "helper.py": "b0b679977cdc02706bdd33d6ecf1e87e9f056d4a74c809a355260425180dba36",
+    "validate-helper.py": "32a0265f5328a89541541bbaf2e41c50648fd382dfb797a16f93c02c1dcfd08e"
+  }
+}

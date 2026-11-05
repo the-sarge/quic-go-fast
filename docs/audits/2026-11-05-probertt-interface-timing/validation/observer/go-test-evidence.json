@@ -1,0 +1,31 @@
+{
+  "source": "prior successful tool invocations in this session; not rerun during cleanup",
+  "checks": [
+    {
+      "command": "go test ./internal/diag1210 -run TestIdentity -count=1",
+      "exit": 0,
+      "stdout": "ok  github.com/quic-go/quic-go/internal/diag1210  0.112s"
+    },
+    {
+      "command": "go test . -run '^TestDiagnostic1210DenseIdentitySegments$' -count=1",
+      "exit": 0,
+      "stdout": "ok  github.com/quic-go/quic-go  0.179s"
+    },
+    {
+      "command": "go test -race ./internal/diag1210 . -run '^(TestIdentity|TestDiagnostic1210DenseIdentitySegments)' -count=1",
+      "exit": 0,
+      "stdout": "ok  github.com/quic-go/quic-go/internal/diag1210  1.124s\nok  github.com/quic-go/quic-go  1.220s"
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0,
+      "stdout": ""
+    }
+  ],
+  "preserved_machine_receipts": [
+    "/private/tmp/q1210-observer-validation/linux-napi-candidate/compile.json",
+    "/private/tmp/q1210-observer-validation/linux-napi-candidate/helper-validation.json",
+    "/private/tmp/q1210-observer-validation/linux-napi-candidate/adapter-validation.json"
+  ],
+  "source_manifest": "/private/tmp/q1210-observer-validation/frozen-source-manifest.json"
+}

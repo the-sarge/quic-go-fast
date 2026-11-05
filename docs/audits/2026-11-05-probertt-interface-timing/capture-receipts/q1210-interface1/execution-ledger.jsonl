@@ -1,0 +1,17 @@
+{"kind": "admitted", "utc": "2026-11-05T17:13:21.617836+00:00", "host": "mbp128"}
+{"kind": "admitted", "utc": "2026-11-05T17:13:22.263271+00:00", "host": "minimax"}
+{"kind": "staged", "utc": "2026-11-05T17:13:23.429453+00:00", "local": "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/run-q1210-interface1/local", "remote": "/home/josh/wiremux-1460-diag-q1210-interface1"}
+{"kind": "kernel-socket-witness-start", "utc": "2026-11-05T17:13:26.492859+00:00", "scope": "loopback validation; not a native physical-path workload attempt"}
+{"kind": "kernel-socket-witness-passed", "utc": "2026-11-05T17:13:27.275164+00:00"}
+{"kind": "kernel-metadata-witness-passed", "utc": "2026-11-05T17:13:28.069855+00:00"}
+{"kind": "attempt-consumed", "utc": "2026-11-05T17:13:28.503357+00:00", "arm": "before-interface"}
+{"kind": "attempt-ended", "utc": "2026-11-05T17:14:47.355499+00:00", "arm": "before-interface", "status": "returned", "exit": 0, "elapsed": 78.85145600000396}
+{"kind": "bpf-opening", "utc": "2026-11-05T17:14:48.350332+00:00", "arm": "interface"}
+{"kind": "bpf-ready", "utc": "2026-11-05T17:14:53.627204+00:00", "arm": "interface"}
+{"kind": "attempt-consumed", "utc": "2026-11-05T17:14:53.627423+00:00", "arm": "interface"}
+{"kind": "bpf-stopped", "utc": "2026-11-05T17:16:12.492364+00:00", "result": {"exit": 0, "reason": "requested", "elapsed_seconds": 78.867724, "uid": 501, "captured": 8499258, "received": 8546487, "kernel_dropped": 0, "interface_dropped": 0}}
+{"kind": "attempt-ended", "utc": "2026-11-05T17:16:12.492822+00:00", "arm": "interface", "status": "returned", "exit": 0, "elapsed": 78.86503066599835}
+{"kind": "attempt-consumed", "utc": "2026-11-05T17:16:13.495387+00:00", "arm": "after-interface"}
+{"kind": "attempt-ended", "utc": "2026-11-05T17:17:32.083521+00:00", "arm": "after-interface", "status": "returned", "exit": 0, "elapsed": 78.58765770797618}
+{"kind": "custody-verified-and-remote-removed", "utc": "2026-11-05T17:17:59.631744+00:00", "files": 20}
+{"kind": "cleanup-terminal", "utc": "2026-11-05T17:18:00.585940+00:00", "status": "released"}

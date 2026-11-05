@@ -1,0 +1,130 @@
+{
+  "proposal_id": "wm1460-q1210-napi1",
+  "issue_number": 1210,
+  "local_artifact_root": "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/run-q1210-napi1",
+  "remote_staging": "/home/josh/wiremux-1460-diag-q1210-napi1",
+  "endpoints": [
+    {
+      "host": "minimax",
+      "role": "send",
+      "source_platform": "linux-amd64",
+      "source_binary": "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/interface-linux-amd64",
+      "binary_sha256": "e83901cd1cca9d4dfe91ec50e47e5ba157517127fad46bd673c8f061c3042edd",
+      "staged_binary": "/home/josh/wiremux-1460-diag-q1210-napi1/wiremux-measure-diagnostic"
+    },
+    {
+      "host": "mbp128",
+      "role": "receive",
+      "source_platform": "darwin-arm64",
+      "source_binary": "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/interface-darwin-arm64",
+      "binary_sha256": "5c27edcbe89ea08bb91b20d795f67420b0c2c234a22ba935f3f6b08a97d14d19",
+      "staged_binary": "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/run-q1210-napi1/local/wiremux-measure-diagnostic"
+    }
+  ],
+  "build_id": "5c27edcbe89ea08bb91b20d795f67420e83901cd1cca9d4dfe91ec50e47e5ba1",
+  "venue": {
+    "operator": "operate-ethernet.py.txt",
+    "hosts": [
+      "mbp128",
+      "minimax"
+    ],
+    "remote_host": "minimax",
+    "remote_home": "/home/josh",
+    "remote_platform": "linux-amd64",
+    "local_platform": "darwin-arm64",
+    "send": {
+      "host": "minimax",
+      "source_platform": "linux-amd64",
+      "bind": "192.168.1.50",
+      "gomaxprocs": 4,
+      "remote": true,
+      "iface": "enp97s0"
+    },
+    "receive": {
+      "host": "mbp128",
+      "source_platform": "darwin-arm64",
+      "bind": "192.168.1.110",
+      "gomaxprocs": 4,
+      "remote": false,
+      "iface": "en8"
+    },
+    "relay": "192.168.1.110"
+  },
+  "admission": {
+    "provider_host": "m4mini.local",
+    "provider_config": "/Users/josh/code/github.com/the-sarge/infra/.local/garm/local-mac-provider.conf",
+    "provider_script": "/Users/josh/code/github.com/the-sarge/infra/scripts/garm/local-mac-provider.sh",
+    "consumer_kind": "wiremux-stream-qualification",
+    "acquire_action": "--acquire-host-admission-exclusive-consumer",
+    "release_action": "--release-host-admission-consumer",
+    "uncertain_cleanup_action": "--fail-host-admission-consumer",
+    "owner": "wm1460-q1210-napi1",
+    "consumer_id": "wm1460-q1210-napi1",
+    "hosts_in_acquisition_order": [
+      "mbp128",
+      "minimax"
+    ]
+  },
+  "proposed_limits": {
+    "attempts": 2,
+    "replacements": 0,
+    "outer_watchdog_seconds": 170
+  },
+  "arms": [
+    {
+      "name": "napi",
+      "connections": 1,
+      "workload": {
+        "connections": 1,
+        "direction": "forward",
+        "drain_ms": 5000,
+        "gomaxprocs_per_endpoint": 4,
+        "layer": "native-wire-v031",
+        "measurement_ms": 60000,
+        "native_policy": "bbrv3-conservative",
+        "payload_bytes": 1099,
+        "profile": "none",
+        "rate_bps": 1000000000,
+        "version": 6,
+        "warmup_ms": 10000
+      },
+      "env": {
+        "W1460_DIAG": "1",
+        "Q1210_TRACE": "1",
+        "Q1210_KERNEL_TRACE": "1",
+        "Q1210_MACH_NUMER": "125",
+        "Q1210_MACH_DENOM": "3"
+      },
+      "capture_bpf": true,
+      "capture_napi": true
+    },
+    {
+      "name": "restored-interface",
+      "connections": 1,
+      "workload": {
+        "connections": 1,
+        "direction": "forward",
+        "drain_ms": 5000,
+        "gomaxprocs_per_endpoint": 4,
+        "layer": "native-wire-v031",
+        "measurement_ms": 60000,
+        "native_policy": "bbrv3-conservative",
+        "payload_bytes": 1099,
+        "profile": "none",
+        "rate_bps": 1000000000,
+        "version": 6,
+        "warmup_ms": 10000
+      },
+      "env": {
+        "W1460_DIAG": "1",
+        "Q1210_TRACE": "1",
+        "Q1210_KERNEL_TRACE": "1",
+        "Q1210_MACH_NUMER": "125",
+        "Q1210_MACH_DENOM": "3"
+      },
+      "capture_bpf": true,
+      "capture_napi": false
+    }
+  ],
+  "inputs": {}
+}

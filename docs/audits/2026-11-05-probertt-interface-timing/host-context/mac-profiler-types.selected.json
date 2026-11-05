@@ -1,0 +1,10 @@
+{
+  "matching_types": [
+    "SPEthernetDataType",
+    "SPNetworkLocationDataType",
+    "SPNetworkDataType",
+    "SPPCIDataType",
+    "SPThunderboltDataType",
+    "SPNetworkVolumeDataType"
+  ]
+}

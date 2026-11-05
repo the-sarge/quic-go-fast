@@ -1,0 +1,3 @@
+tcpdump: data link type EN10MB
+dropped privs to josh
+tcpdump: listening on en8, link-type EN10MB (Ethernet), snapshot length 128 bytes

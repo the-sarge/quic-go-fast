@@ -1,0 +1,13 @@
+{
+  "native_race_fixture": {
+    "command": "GOTOOLCHAIN=local GOPROXY=off GOMAXPROCS=4 Q1210_TRACE=1 Q1210_KERNEL_TRACE=1 Q1210_MACH_NUMER=125 Q1210_MACH_DENOM=3 Q1210_OUTPUT_DIR=/private/tmp go test -race -count=1 -run ^TestBBRCampaignPromotedDatagramsAndCustody$ ./internal/measurement",
+    "observed_stdout": "ok github.com/GridSwarm/wiremux/internal/measurement 17.933s",
+    "exit": 0
+  },
+  "analyzer_tests": {
+    "interface": 14,
+    "napi": 11,
+    "exit": 0
+  },
+  "note": "Native fixture stdout is transcribed from the successful tool result; detailed independent observer tests and Linux witness outputs are retained separately."
+}

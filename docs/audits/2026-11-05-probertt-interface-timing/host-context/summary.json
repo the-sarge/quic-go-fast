@@ -1,0 +1,41 @@
+{
+  "issue": 1210,
+  "purpose": "Read-only host context after capture/lease release; no diagnostic traffic or setting changes",
+  "linux": {
+    "interface": "enp97s0",
+    "gro_flush_timeout_ns": 20000,
+    "napi_defer_hard_irqs": 1,
+    "net_core_busy_poll": 0,
+    "net_core_busy_read": 0,
+    "pci": "0000:61:00.0",
+    "model": "Realtek RTL8127",
+    "driver": "r8169",
+    "pci_id": "10ec:8127",
+    "subsystem_id": "10ec:0123",
+    "active_msi_irqs": {
+      "66": "msix"
+    },
+    "legacy_irq": 26,
+    "pcie_current_speed": "16.0 GT/s",
+    "pcie_current_width": 1,
+    "aspm": "Disabled",
+    "vpd_read_warning": "pcilib: sysfs_read_vpd: read failed: No such device"
+  },
+  "mac": {
+    "interface": "en8",
+    "model": "Aquantia AQC113",
+    "driver": "com.apple.driver.AppleEthernetAquantiaAqtion",
+    "installed_bundle_version": "1.0.64",
+    "firmware": "1.5.39",
+    "mac_firmware": "1.2.122",
+    "phy_firmware": "6.1.2",
+    "pci_id": "1d6a:04c0",
+    "subsystem_id": "1ab6:0173",
+    "pcie_slot": "Thunderbolt@3,0,0",
+    "pcie_link_speed": "8.0 GT/s",
+    "pcie_link_width": 2,
+    "link_bps": 10000000000
+  },
+  "interpretation": "Context only: neither NAPI settings nor IRQ/zero-work counts establish the unmeasured residual cause. No intervention performed.",
+  "source_scope": "Pinned upstream Linux v7.0 implementation and current kernel NAPI documentation; installed 7.0.0-30-generic headers checked, full matching Ubuntu implementation source not installed."
+}

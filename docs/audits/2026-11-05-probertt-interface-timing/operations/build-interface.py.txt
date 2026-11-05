@@ -1,0 +1,32 @@
+import hashlib,json,os,subprocess,tarfile
+from pathlib import Path
+base=Path(__file__).resolve().parent
+root=Path('/Volumes/worktrees/quic-go-fast/resolve1210-observer')
+evidence=base.parents[1]/'docs/audits/2026-11-05-probertt-kernel-timestamps'
+out=base.parents[1]/'docs/audits/2026-11-05-probertt-interface-timing'
+source=out/'source';source.mkdir(parents=True,exist_ok=False)
+assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()=='bc4915ea0de0c238ecfdc51d827f7da67639a789'
+assert subprocess.check_output(['git','branch','--show-current'],cwd=root,text=True).strip()=='codex/resolve1210-observer'
+names=list(json.loads((evidence/'source/manifest.json').read_text()))+['internal/diag1210/identity_test.go','diag_kernel1210_sampling_test.go']
+manifest={}
+for name in names:
+ data=(root/name).read_bytes(); target=source/(name+'.txt');target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data);manifest[name]=hashlib.sha256(data).hexdigest()
+(source/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+env=dict(os.environ,GOTOOLCHAIN='local',GOPROXY='off',GOFLAGS='',CGO_ENABLED='0',GOMAXPROCS='4')
+version=subprocess.check_output(['go','version'],env=env,text=True).strip(); assert version.startswith('go version go1.27.3 ')
+scratch=base/'build';scratch.mkdir()
+historical=evidence.parent/'2026-11-05-probertt-investigation'
+archive=historical/'harness-source.tar.gz'
+assert hashlib.sha256(archive.read_bytes()).hexdigest()==json.loads((historical/'harness-source.json').read_text())['sha256']
+with tarfile.open(archive) as packed:packed.extractall(scratch,filter='data')
+for name,digest in json.loads((evidence/'harness-overlay/manifest.json').read_text()).items():
+ data=(evidence/'harness-overlay'/(name+'.txt')).read_bytes(); assert hashlib.sha256(data).hexdigest()==digest;(scratch/'src'/name).write_bytes(data)
+(scratch/'fork-r').symlink_to(root,target_is_directory=True)
+for platform in ['linux-amd64','darwin-arm64']:
+ receipt=json.loads((evidence/('build-'+platform+'.json')).read_text())
+ flags=[x for x in receipt['argv'] if x.startswith('-') and x!='-o']
+ output=base/('interface-'+platform)
+ argv=['go','build',*flags,'-o',str(output),'./cmd/wiremux-measure']
+ subprocess.run(argv,cwd=scratch/'src',env=dict(env,GOOS=platform.split('-')[0],GOARCH=platform.split('-')[1]),check=True)
+ receipt.update(argv=argv,cwd=str(scratch/'src'),output=str(output),bytes=output.stat().st_size,sha256=hashlib.sha256(output.read_bytes()).hexdigest())
+ (out/('build-'+platform+'.json')).write_text(json.dumps(receipt,indent=2)+'\n');print(platform,receipt['sha256'],flush=True)

@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "scp",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "/Volumes/worktrees/quic-go-fast/resolve-1210/.cache/1210/harness-metadata-witness-linux.test",
+    "minimax:/home/josh/wiremux-1460-diag-q1210-napi1/harness-metadata-witness.test"
+  ],
+  "exit": 0,
+  "started_unix": 1793899220.657619,
+  "finished_unix": 1793899220.8484411
+}

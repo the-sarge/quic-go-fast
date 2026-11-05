@@ -1,0 +1,271 @@
+package quic
+
+import (
+	"github.com/quic-go/quic-go/internal/ackhandler"
+	"github.com/quic-go/quic-go/internal/congestion"
+	"github.com/quic-go/quic-go/internal/diag1210"
+	"github.com/quic-go/quic-go/internal/monotime"
+	"github.com/quic-go/quic-go/internal/protocol"
+)
+
+// boundedRecovery is internal module plumbing, not a controller plugin API.
+// The real recovery owner supplies every gate; emission owns byte quantization.
+type boundedRecovery interface {
+	PrepareBBRSend(monotime.Time)
+	SendAllowance(monotime.Time) (ackhandler.SendMode, protocol.ByteCount)
+}
+
+func (e *packetEmission) handoff(buf *packetBuffer, gso uint16, ecn protocol.ECN, metadata sendMetadata) {
+	if diag1210.Enabled {
+		metadata.diagPNs, metadata.diagN = e.diagPNs, e.diagN
+		e.diagN = 0
+		for _, pn := range metadata.diagPNs[:metadata.diagN] {
+			diag1210.Add(7, int64(monotime.Now()), pn, int64(buf.Len()), int64(gso))
+		}
+	}
+	if e.bbr != nil {
+		if e.reservation == nil {
+			panic("BBR handoff without reservation")
+		}
+		e.reservation.resize(buf.Len())
+		if e.reservation.isolated {
+			e.bbr.sentProbe(buf.Len(), e.reservationTime)
+		} else if e.paceReservation {
+			e.bbr.sent(e.pacingBytes, e.reservationTime)
+		}
+		metadata.credit = e.reservation
+		metadata.pathGeneration = e.reservation.generation
+		e.reservation = nil
+	}
+	metadata.terminalReceipts = e.terminalReceipts
+	e.terminalReceipts = [2]*pathAbandonReceipt{}
+	e.queue.Send(buf, gso, ecn, metadata)
+}
+
+func (e *packetEmission) localBlocked() emissionResult {
+	return emissionResult{stop: emissionQueueFull, blocked: blockModeHardBlocked, available: e.bbr.credit.available}
+}
+
+func (e *packetEmission) reserveLocal(n protocol.ByteCount, ordinary, isolated bool, now monotime.Time) bool {
+	e.reservation = e.bbr.credit.reserve(n, 2*e.bbr.quantum, ordinary, isolated)
+	e.paceReservation, e.reservationTime, e.pacingBytes = ordinary, now, 0
+	return e.reservation != nil
+}
+
+func (e *packetEmission) resetLocalPath(generation uint64, now monotime.Time) {
+	if e.bbr == nil {
+		return
+	}
+	e.bbr.credit.resetGeneration(generation)
+	e.bbr.tokens = int64(e.bbr.quantum) * 1e9
+	e.bbr.updated, e.bbr.refilledAt = now, now
+	// An open supply gap belongs to the old path's samples.
+	e.bbr.supplyGap = congestion.SendUnknown
+}
+
+// sendBounded performs at most one owned handoff per opportunity. Continuation
+// goes through the connection loop, which services receive, timer and close
+// events on every pass.
+// ACK/PTO exemptions bypass only ordinary pacing, never local byte ownership.
+func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result emissionResult) {
+	if diag1210.Enabled && e.bbr.controller != nil && e.bbr.controller.InProbeRTT() {
+		diag1210.Add(5, int64(monotime.Now()), int64(now))
+		defer func() {
+			e.bbr.credit.mu.Lock()
+			pending := e.bbr.credit.pending
+			e.bbr.credit.mu.Unlock()
+			diag1210.Add(6, int64(monotime.Now()), int64(now), int64(result.stop), int64(e.bbr.tokens), int64(e.bbr.quantum), int64(pending), int64(e.bbr.controller.GetCongestionWindow()), int64(e.bbr.supplyGap))
+		}()
+	}
+	if diag1460On {
+		diag1460Enter(e)
+		defer func() { diag1460Exit(&result) }()
+	}
+	e.inOpportunity = true
+	defer func() { e.inOpportunity, e.capsTaken = false, false }()
+	defer func() {
+		e.reservation.completeLocal() // unused construction allowance / packing failure
+		e.reservation = nil
+		if result.err == nil {
+			if available := e.capacity(); available != nil {
+				result.stop, result.available, result.deadline = emissionQueueFull, available, 0
+				result.blocked, result.retry = blockModeHardBlocked, false
+			}
+			e.observeDeliveryResult(result, now)
+		}
+	}()
+	if e.queue.WouldBlock() {
+		return emissionResult{stop: emissionQueueFull, available: e.queue.Available(), blocked: blockModeHardBlocked}
+	}
+	if !confirmed {
+		e.policy.applyHandshakeMTUFallback()
+	}
+	size := e.policy.maxPacketSize()
+	if b := e.bbr.controller; b != nil {
+		if b.GetCongestionWindow() == 0 {
+			return emissionResult{stop: emissionHardBlocked, blocked: blockModeHardBlocked}
+		}
+		(*e.recovery).(boundedRecovery).PrepareBBRSend(now)
+		b.SetMaxDatagramSize(size)
+		e.bbr.update(b.PacingRate(), size, now)
+	}
+	// An MTU change changes future quantization, never historical pending bytes.
+	e.bbr.budget(now)
+	e.bbr.quantum = max(2*size, protocol.ByteCount(min(uint64(65536), e.bbr.rate/1000)))
+	e.bbr.tokens = min(e.bbr.tokens, int64(e.bbr.quantum)*1e9)
+	mode, allowance := (*e.recovery).(boundedRecovery).SendAllowance(now)
+	if diag1460On {
+		d1460.allowance = int64(allowance)
+	}
+	if diag1210.Enabled && e.bbr.controller != nil && e.bbr.controller.InProbeRTT() {
+		diag1210.Add(13, int64(monotime.Now()), int64(now), int64(mode), int64(allowance), int64(size), int64(e.bbr.tokens))
+	}
+	switch mode {
+	case ackhandler.SendNone:
+		return emissionResult{stop: emissionHardBlocked, blocked: blockModeHardBlocked}
+	case ackhandler.SendAck:
+		if !e.reserveLocal(size, false, false, now) {
+			return e.localBlocked()
+		}
+		progress, err := e.maybeSendAckOnlyPacket(now, confirmed)
+		return emissionResult{progress: progress, err: err, stop: emissionCongestionLimited, blocked: blockModeCongestionLimited}
+	case ackhandler.SendPTOInitial, ackhandler.SendPTOHandshake, ackhandler.SendPTOAppData:
+		if !e.reserveLocal(size, false, false, now) {
+			return e.localBlocked()
+		}
+		err := e.sendProbePacket(mode, now)
+		return emissionResult{progress: err == nil, retry: err == nil, err: err}
+	case ackhandler.SendAny:
+		// Continue below, preserving recovery's flight and anti-amplification gates.
+	case ackhandler.SendPacingLimited:
+		panic("invalid unpaced recovery mode")
+	}
+	intent := e.policy.prepareEmission(now)
+	if intent.transport != nil {
+		err := e.clientProbe(intent.connID, intent.frame, intent.transport, intent.addr, now)
+		return emissionResult{err: err, retry: err == nil}
+	}
+	if intent.mtu != nil {
+		if deadline := e.bbr.deadline(min(intent.mtu.probeSize(), e.bbr.quantum), now); deadline != 0 {
+			if !e.reserveLocal(size, false, false, now) {
+				return e.localBlocked()
+			}
+			progress, err := e.maybeSendAckOnlyPacket(now, confirmed)
+			return emissionResult{progress: progress, err: err, stop: emissionPaced, deadline: deadline}
+		}
+		if !e.reserveLocal(intent.mtu.probeSize(), false, true, now) {
+			return e.waitForReservation(now, confirmed, size, intent.mtu.probeSize(), false, true)
+		}
+		result := e.mtuProbe(intent.mtu, now)
+		result.retry = result.progress
+		return result
+	}
+	if allowance < size {
+		// ACKs retain their exemption when the remaining window cannot fit M.
+		if !e.reserveLocal(size, false, false, now) {
+			return e.localBlocked()
+		}
+		progress, err := e.maybeSendAckOnlyPacket(now, confirmed)
+		return emissionResult{progress: progress, err: err, stop: emissionCongestionLimited, blocked: blockModeCongestionLimited}
+	}
+	if deadline := e.bbr.deadline(size, now); deadline != 0 {
+		if !e.reserveLocal(size, false, false, now) {
+			return e.localBlocked()
+		}
+		progress, err := e.maybeSendAckOnlyPacket(now, confirmed)
+		return emissionResult{progress: progress, err: err, stop: emissionPaced, deadline: deadline}
+	}
+	e.confirmSupplyGap(now)
+	limit := size
+	if confirmed && e.opportunityCapabilities().GSO {
+		limit = min(e.bbr.budget(now), allowance, protocol.MaxLargePacketBufferSize)
+		limit -= limit % size
+	}
+	if !e.reserveLocal(limit, true, false, now) {
+		return e.waitForReservation(now, confirmed, size, limit, true, false)
+	}
+	if !confirmed {
+		result := e.coalesced(now)
+		result.deadline = 0 // legacy recovery pacing does not govern this policy
+		result.retry = result.progress
+		return result
+	}
+	return e.boundedDatagrams(now, size, limit)
+}
+
+func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protocol.ByteCount) emissionResult {
+	exhausted := false
+	gso := e.opportunityCapabilities().GSO
+	buf := getPacketBuffer()
+	if gso {
+		buf.Release()
+		buf = getLargePacketBuffer()
+	}
+	ecn := (*e.recovery).ECNMode(true)
+	// The reservation covers whole maximum-size packets; handoff resizes it to
+	// the physical bytes, so shorter segments release the remainder.
+	batch := newGSOBatch(size, e.shortSegments)
+	for {
+		next, datagramOnly := batch.next()
+		p, n, err := e.appendPacket(buf, next, datagramOnly, ecn, now)
+		if err != nil {
+			if err != errNothingToPack || buf.Len() == 0 {
+				buf.Release()
+				if err == errNothingToPack {
+					err = nil
+					exhausted = true
+				}
+				return emissionResult{err: err, supplyExhausted: exhausted}
+			}
+			// A DATAGRAM-only continuation that finds no DATAGRAM of the
+			// segment size only ends the batch, like a short packet does.
+			exhausted = !datagramOnly
+			break
+		}
+		more := batch.add(n, p.Frames)
+		mode, allowance := (*e.recovery).(boundedRecovery).SendAllowance(now)
+		if !gso || !more || !batch.fits(buf.Len(), limit) || mode != ackhandler.SendAny || allowance < size || (*e.recovery).ECNMode(true) != ecn {
+			break
+		}
+	}
+	e.handoff(buf, batch.gsoSize(), ecn, sendMetadata{})
+	// Continue as Reno's receive-yield stop does: the connection makes its next
+	// full pass (close, receive, timers, capacity) without a scheduling token,
+	// timer re-arm or select between consecutive datagrams.
+	return emissionResult{progress: true, deadline: deadlineSendImmediately, supplyExhausted: exhausted}
+}
+
+// opportunityCapabilities queries the connection once per BBR opportunity and
+// reuses that snapshot within it; a concurrent change (a GSO error, managed ECN
+// or receive state, lease DF) is seen by the next opportunity. Outside an
+// opportunity it queries live.
+func (e *packetEmission) opportunityCapabilities() connCapabilities {
+	if !e.inOpportunity {
+		return (*e.conn).capabilities()
+	}
+	if !e.capsTaken {
+		e.caps, e.capsTaken = (*e.conn).capabilities(), true
+	}
+	return e.caps
+}
+
+// A refused ordinary or isolated-probe request must not suppress control
+// traffic or its timers. If no ACK is due, rearm under the completion lock after
+// releasing the unused ACK reservation; otherwise that release would spin the
+// connection on its own stale wakeup. A concurrent completion cannot be lost.
+func (e *packetEmission) waitForReservation(now monotime.Time, confirmed bool, size, requested protocol.ByteCount, ordinary, isolated bool) emissionResult {
+	if !e.reserveLocal(size, false, false, now) {
+		return e.localBlocked()
+	}
+	progress, err := e.maybeSendAckOnlyPacket(now, confirmed)
+	if err != nil || progress {
+		return emissionResult{progress: progress, retry: progress, err: err}
+	}
+	e.reservation.completeLocal()
+	e.reservation = nil
+	result := e.localBlocked()
+	if e.bbr.credit.waitForReservation(requested, 2*e.bbr.quantum, size, ordinary, isolated) {
+		result.blocked = blockModeCongestionLimited
+	}
+	return result
+}

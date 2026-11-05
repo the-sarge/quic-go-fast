@@ -1,0 +1,5 @@
+{
+  "command": "ssh -oBatchMode=yes -oStrictHostKeyChecking=yes -oConnectTimeout=10 minimax \"ls /sys/class/net/enp97s0/device/msi_irqs; awk '/enp97s0|r8169|^ *66:|^ *26:/' /proc/interrupts\"",
+  "exit": 0,
+  "note": "PCI irq attribute reports legacy26; actual MSI-X interface interrupt confirmed66 on CPU2"
+}

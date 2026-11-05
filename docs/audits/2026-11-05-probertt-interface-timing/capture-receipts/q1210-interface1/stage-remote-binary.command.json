@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "scp",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    ".cache/1210/interface-linux-amd64",
+    "minimax:/home/josh/wiremux-1460-diag-q1210-interface1/wiremux-measure-diagnostic"
+  ],
+  "exit": 0,
+  "started_unix": 1793898802.702938,
+  "finished_unix": 1793898802.886195
+}

@@ -1,0 +1,7 @@
+package congestion
+
+import "os"
+
+// noProbeRTT1460 is diagnostic-only for issue #1460: W1460_NOPROBERTT prevents
+// entry at the two existing ProbeRTT checks while keeping RTT filter updates.
+var noProbeRTT1460 = os.Getenv("W1460_NOPROBERTT") != ""

@@ -1,0 +1,61 @@
+{
+  "created_unix": 1793899532.779349,
+  "files": {
+    "README.md": {
+      "sha256": "b4b7a935978154583096e319fee48fc58701f703c8d36db9438df12f390ac148",
+      "bytes": 4023
+    },
+    "linux-context.json": {
+      "sha256": "336b7724b16402b72afea95d4d6411ab5c9f4abb27d47a2c24859dfebc262333",
+      "bytes": 7683
+    },
+    "linux-installed-source.command.json": {
+      "sha256": "5bf563f04b512435a5a1a83155127b5c79c203b15d0dcf4919b85612492bf163",
+      "bytes": 1389
+    },
+    "linux-installed-source.json": {
+      "sha256": "74561c85b1f02ebcd9cb1409cb9b6e6d4c1891d8799cc8520ed09e81e5f71d33",
+      "bytes": 4802
+    },
+    "linux.command.json": {
+      "sha256": "41c9819f596f719ca0a47dc32bd960367bfb95359c16966227fedc521adcc09b",
+      "bytes": 1760
+    },
+    "mac-driver-plist.selected.json": {
+      "sha256": "359bb426a5e9389ff0b9ea356314a815aa0af32c4b1dd39d37b190ee222ae98c",
+      "bytes": 543
+    },
+    "mac-ethernet-controllers.command.json": {
+      "sha256": "ac72555696c483416390388fba728273443c1ba8b04b1bca58f6b17502d972c4",
+      "bytes": 318
+    },
+    "mac-ethernet-controllers.selected.json": {
+      "sha256": "4ceacacd0431985ee3ff75c89bc200e5c0587befdc1a7999a9541e470e59255d",
+      "bytes": 4548
+    },
+    "mac-ethernet-profiler.command.json": {
+      "sha256": "3e905cf4c97aa807d2ad59a2d8a4b95092972821f428c70d605406c4bcce1485",
+      "bytes": 296
+    },
+    "mac-ethernet-profiler.json": {
+      "sha256": "5b6dccef4e04e0032fe6e4e735292dbcc9f74e805ee25ba65e66eb98a90ebd46",
+      "bytes": 3161
+    },
+    "mac-ethernet-profiler.selected.json": {
+      "sha256": "bdff0759b95f355ef87427a85083d438c0ca787e4ed8a8f5698881e94af886cc",
+      "bytes": 855
+    },
+    "mac-profiler-types.command.json": {
+      "sha256": "288f43c4402e10790ca68a2f23c0429116c0705cff66e8d305e6945983e90a54",
+      "bytes": 279
+    },
+    "mac-profiler-types.selected.json": {
+      "sha256": "13816e3304c32099eb4c96480e8051fd771a9383f9ab095c6da18289af243f56",
+      "bytes": 194
+    },
+    "summary.json": {
+      "sha256": "7dcd40de417891b1799a4d0827e0d180ba69a0b7ade996d54e472050abf794f6",
+      "bytes": 1489
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "-oServerAliveInterval=2",
+    "-oServerAliveCountMax=2",
+    "minimax",
+    "python3 - /home/josh/wiremux-1460-diag-q1210-napi1 '{\"nativerig\": \"a80fa1a04edbf32967c1f857c5bc1738cfb8264de77c809633fba7c7c92e89aa\", \"wiremux-measure-diagnostic\": \"e83901cd1cca9d4dfe91ec50e47e5ba157517127fad46bd673c8f061c3042edd\", \"endpoint-napi.sh\": \"e37d0969f42c1c273ad7ea0814969dbb657746faaa81f17d37150aea855e6139\", \"endpoint-restored-interface.sh\": \"1392513822cf555f66a91c9c748d85f911681b9d1005e408d9f0718d942b9cd6\"}'"
+  ],
+  "exit": 0,
+  "started_unix": 1793899220.099714,
+  "finished_unix": 1793899220.283582
+}

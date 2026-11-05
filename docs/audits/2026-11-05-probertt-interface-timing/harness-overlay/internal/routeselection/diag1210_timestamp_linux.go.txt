@@ -1,0 +1,24 @@
+// Temporary native-harness compatibility for issue #1210 kernel observations.
+package routeselection
+
+import (
+	"encoding/binary"
+	"golang.org/x/sys/unix"
+	"os"
+)
+
+var diagnostic1210Timestamps = os.Getenv("Q1210_TRACE") != "" && os.Getenv("Q1210_KERNEL_TRACE") != ""
+
+func allowDiagnostic1210Timestamp(level, typ int32, data []byte) bool {
+	if !diagnostic1210Timestamps || level != unix.SOL_SOCKET || len(data) != 4 {
+		return false
+	}
+	switch typ {
+	case unix.SO_TIMESTAMPING_NEW:
+		return binary.NativeEndian.Uint32(data) == unix.SOF_TIMESTAMPING_TX_SCHED|unix.SOF_TIMESTAMPING_TX_SOFTWARE
+	case unix.SCM_TS_OPT_ID:
+		return true
+	default:
+		return false
+	}
+}

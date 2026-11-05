@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ssh",
+    "-T",
+    "-oBatchMode=yes",
+    "-oStrictHostKeyChecking=yes",
+    "-oConnectTimeout=10",
+    "-oServerAliveInterval=2",
+    "-oServerAliveCountMax=2",
+    "m4mini.local",
+    "python3 - /Users/josh/code/github.com/the-sarge/infra/scripts/garm/local-mac-provider.sh /Users/josh/code/github.com/the-sarge/infra/.local/garm/local-mac-provider.conf"
+  ],
+  "exit": 0,
+  "started_unix": 1793898800.897354,
+  "finished_unix": 1793898801.122692
+}

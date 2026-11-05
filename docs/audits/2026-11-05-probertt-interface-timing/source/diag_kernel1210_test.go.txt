@@ -1,0 +1,115 @@
+//go:build darwin || linux
+
+package quic
+
+import (
+	"bytes"
+	"encoding/binary"
+	"github.com/quic-go/quic-go/internal/diag1210"
+	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/stretchr/testify/require"
+	"net"
+	"runtime"
+	"testing"
+	"time"
+)
+
+// Disposable real-socket witness, not a production behavior regression test.
+func TestDiagnostic1210KernelSocketWitness(t *testing.T) {
+	if !diag1210.KernelEnabled {
+		t.Skip("requires diagnostic process environment")
+	}
+	open := func() *oobConn {
+		u, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+		require.NoError(t, err)
+		t.Cleanup(func() { u.Close() })
+		c, err := newConn(u, false, false)
+		require.NoError(t, err)
+		require.NotNil(t, c.kernel1210)
+		require.True(t, c.kernel1210.active, "kernel setup failed")
+		require.Len(t, c.messages[0].OOB, 512)
+		return c
+	}
+	receiver, sender := open(), open()
+	payload := bytes.Repeat([]byte{0x93}, 80)
+	for i := uint64(0); ; i++ {
+		binary.LittleEndian.PutUint64(payload[:8], i)
+		if diag1210.SelectedIdentity(diag1210.Identity(payload)) {
+			break
+		}
+	}
+	require.NoError(t, receiver.SetReadDeadline(time.Now().Add(3*time.Second)))
+	sentMono, _ := kernel1210Anchor()
+	n, err := sender.WritePacket(payload, receiver.LocalAddr(), nil, 0, protocol.ECNUnsupported)
+	require.NoError(t, err)
+	require.Equal(t, len(payload), n)
+	// Delay userspace consumption to distinguish kernel enqueue from recv-time.
+	time.Sleep(8 * time.Millisecond)
+	p, err := receiver.ReadPacket()
+	require.NoError(t, err)
+	defer p.buffer.Release()
+	require.Equal(t, payload, p.data)
+	require.EqualValues(t, 1, receiver.kernel1210.rxCount.Load())
+	require.EqualValues(t, 1, receiver.kernel1210.rxSelected.Load())
+	require.Zero(t, receiver.kernel1210.rxMissing.Load())
+	require.Zero(t, receiver.kernel1210.rxTruncated.Load())
+	require.NotZero(t, receiver.kernelBatch1210.mono)
+	require.True(t, int64(p.rcvTime) >= receiver.kernelBatch1210.mono)
+
+	msg := receiver.messages[0]
+	raw, stampErr := receiver.kernel1210.receiveStamp(msg.OOB[:msg.NN])
+	require.NoError(t, stampErr)
+	require.NotZero(t, raw)
+	var kernelMono int64
+	if receiver.kernel1210.clock == 1 {
+		kernelMono = raw + receiver.kernelBatch1210.mono - receiver.kernelBatch1210.wall
+	} else {
+		kernelMono = receiver.kernel1210.convertMach(uint64(raw))
+	}
+	require.GreaterOrEqual(t, kernelMono, sentMono-int64(time.Millisecond))
+	require.LessOrEqual(t, kernelMono, receiver.kernelBatch1210.mono+receiver.kernel1210.uncertainty)
+	require.Greater(t, receiver.kernelBatch1210.mono-kernelMono, int64(4*time.Millisecond))
+	require.Zero(t, receiver.kernel1210.errors.Load())
+	if runtime.GOOS == "linux" {
+		require.EqualValues(t, 1, sender.kernel1210.txRequests.Load())
+		sender.kernel1210.drain()
+		require.EqualValues(t, 2, sender.kernel1210.txResults.Load(), "expect SCHED and SOFTWARE")
+		require.Zero(t, sender.kernel1210.errors.Load())
+		require.EqualValues(t, 1, sender.kernel1210.txSchedule.Load())
+		require.EqualValues(t, 1, sender.kernel1210.txSoftware.Load())
+		if sender.cap.GSO {
+			segmented := bytes.Repeat(payload, 4)
+			for i := 1; i < 4; i++ {
+				segmented[i*len(payload)+16] = byte(i)
+			}
+			n, err = sender.WritePacket(segmented, receiver.LocalAddr(), nil, uint16(len(payload)), protocol.ECNUnsupported)
+			require.NoError(t, err)
+			require.Equal(t, len(segmented), n)
+			for i := 0; i < 4; i++ {
+				p, err := receiver.ReadPacket()
+				require.NoError(t, err)
+				require.Equal(t, segmented[i*len(payload):(i+1)*len(payload)], p.data)
+				p.buffer.Release()
+			}
+			sender.kernel1210.drain()
+			require.EqualValues(t, 2, sender.kernel1210.txRequests.Load())
+			require.EqualValues(t, 2, sender.kernel1210.txSchedule.Load())
+			require.EqualValues(t, 2, sender.kernel1210.txSoftware.Load())
+			require.Zero(t, sender.kernel1210.errors.Load())
+		}
+
+	}
+}
+
+func TestDiagnostic1210KernelDisabled(t *testing.T) {
+	if diag1210.KernelEnabled {
+		t.Skip("requires observer disabled")
+	}
+	u, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	require.NoError(t, err)
+	defer u.Close()
+	c, err := newConn(u, false, false)
+	require.NoError(t, err)
+	require.Nil(t, c.kernel1210)
+	require.Len(t, c.messages[0].OOB, oobBufferSize)
+}

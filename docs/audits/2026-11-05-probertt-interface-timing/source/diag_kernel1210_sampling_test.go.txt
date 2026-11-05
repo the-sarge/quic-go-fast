@@ -1,0 +1,66 @@
+//go:build darwin || linux
+
+package quic
+
+import (
+	"bytes"
+	"testing"
+
+	"github.com/quic-go/quic-go/internal/diag1210"
+)
+
+// Exercise the actual submission boundary without opening a socket or sending traffic.
+func TestDiagnostic1210DenseIdentitySegments(t *testing.T) {
+	previous := diag1210.KernelEnabled
+	diag1210.KernelEnabled = true
+	t.Cleanup(func() { diag1210.KernelEnabled = previous })
+	small := bytes.Repeat([]byte{0x93}, 80)
+	large := bytes.Repeat([]byte{0xa7}, 300)
+	for value := 0; value < 256; value++ {
+		large[0] = byte(value)
+		if !diag1210.SelectedIdentity(diag1210.Identity(large)) {
+			break
+		}
+	}
+	if diag1210.SelectedIdentity(diag1210.Identity(large)) {
+		t.Fatal("failed to construct unselected data segment")
+	}
+	for _, test := range []struct {
+		name     string
+		payload  []byte
+		gso      uint16
+		selected bool
+	}{
+		{"empty", nil, 0, false},
+		{"small datagram", small, 0, true},
+		{"small first segment of large aggregate", bytes.Repeat(small, 4), 80, true},
+		{"single small segment", small, 80, true},
+		{"large datagram", large, 0, false},
+		{"short trailing segment has no separate TX timestamp", append(bytes.Clone(large), small...), 300, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			original := bytes.Clone(test.payload)
+			k := &kernel1210Socket{active: true}
+			_, tx := k.prepareTX(test.payload, nil, test.gso)
+			if (tx != nil) != test.selected {
+				t.Fatalf("submission selected=%t want=%t", tx != nil, test.selected)
+			}
+			if !bytes.Equal(original, test.payload) {
+				t.Fatal("observation mutated protected payload")
+			}
+			if tx != nil {
+				first := test.payload
+				if test.gso > 0 && int(test.gso) < len(first) {
+					first = first[:test.gso]
+				}
+				if tx.identity != diag1210.Identity(first) || tx.size != len(test.payload) || tx.gso != int(test.gso) {
+					t.Fatalf("submission identity or segmentation metadata changed: %+v", tx)
+				}
+			}
+		})
+	}
+	diag1210.KernelEnabled = false
+	if _, tx := (&kernel1210Socket{active: true}).prepareTX(small, nil, 0); tx != nil {
+		t.Fatal("disabled observer selected small datagram")
+	}
+}

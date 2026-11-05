@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ioreg",
+    "-r",
+    "-c",
+    "IOEthernetController",
+    "-a",
+    "-l"
+  ],
+  "started_unix": 1793899467.593359,
+  "finished_unix": 1793899467.6165068,
+  "exit": 0,
+  "stdout_bytes": 120513,
+  "stdout_sha256": "12050ed0a76e13fa736ca8e62831f364f3b726a858962833bd9709ff69c05917",
+  "stderr": ""
+}
