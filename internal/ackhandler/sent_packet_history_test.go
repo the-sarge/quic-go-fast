@@ -14,6 +14,48 @@ func ackElicitingPacket() *packet {
 	return &packet{StreamFrames: []StreamFrame{{Frame: &wire.StreamFrame{StreamID: 1}}}}
 }
 
+func TestSentPacketHistoryLocalMembership(t *testing.T) {
+	h := newSentPacketHistory(true)
+	h.SkippedPacket(0)
+	h.SentPacket(1, &packet{})
+	h.SentPathProbePacket(2, &packet{})
+	require.Nil(t, h.unresolvedLocal)
+	h.SentPacket(3, &packet{local: &localRegistration{}})
+	require.Equal(t, []bool{false, false, true}, h.unresolvedLocal)
+	require.Equal(t, 1, h.numUnresolvedLocal)
+	h.SkippedPacket(4)
+	h.SentPacket(5, &packet{local: &localRegistration{}})
+	require.NoError(t, h.Remove(3))
+	require.Equal(t, 2, h.numUnresolvedLocal, "an interior hole retains membership")
+	h.DeclareLost(1)
+	h.RemovePathProbe(2)
+	require.Equal(t, []bool{true}, h.unresolvedLocal)
+	require.Equal(t, 1, h.numUnresolvedLocal, "prefix cleanup removes the hole's membership")
+	h.completeLocal(5)
+	h.completeLocal(5)
+	h.completeLocal(3)
+	require.Zero(t, h.numUnresolvedLocal)
+	// Growth and prefix reuse keep logical length and allocated capacity aligned.
+	for pn := protocol.PacketNumber(6); pn < protocol.MaxTrackedSentPackets; pn++ {
+		h.SentPacket(pn, &packet{local: &localRegistration{}})
+		require.Len(t, h.unresolvedLocal, h.Len())
+		require.Equal(t, cap(h.packets), cap(h.unresolvedLocal))
+	}
+	t.Logf("membership: length=%d capacity=%d bytes (history capacity=%d slots)", len(h.unresolvedLocal), cap(h.unresolvedLocal), cap(h.packets))
+	h.releaseRetained()
+	require.Empty(t, h.unresolvedLocal)
+	require.Zero(t, h.numUnresolvedLocal)
+	h.SentPacket(protocol.MaxTrackedSentPackets, &packet{})
+	require.Equal(t, []bool{false}, h.unresolvedLocal)
+	h.DeclareLost(protocol.MaxTrackedSentPackets)
+	h.SentPacket(protocol.MaxTrackedSentPackets+1, &packet{local: &localRegistration{}})
+	require.Equal(t, []bool{true}, h.unresolvedLocal)
+	require.Equal(t, 1, h.numUnresolvedLocal)
+	h.DeclareLost(protocol.MaxTrackedSentPackets + 1)
+	require.Empty(t, h.unresolvedLocal)
+	require.Zero(t, h.numUnresolvedLocal)
+}
+
 func (h *sentPacketHistory) getPacketNumbers() []protocol.PacketNumber {
 	pns := make([]protocol.PacketNumber, 0, len(h.packets))
 	for pn := range h.Packets() {

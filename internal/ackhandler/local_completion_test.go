@@ -282,7 +282,7 @@ func TestLocalCompletionEarlyACK(t *testing.T) {
 func TestLocalCompletionTerminalLifetime(t *testing.T) {
 	for _, action := range []string{"retry", "initial", "handshake", "0rtt", "close"} {
 		t.Run(action, func(t *testing.T) {
-			h := newLocalTestHandler(t)
+			h := newLocalTestHandler(t).(*sentPacketHandler)
 			now := monotime.Now()
 			level := protocol.EncryptionInitial
 			if action == "handshake" {
@@ -301,6 +301,7 @@ func TestLocalCompletionTerminalLifetime(t *testing.T) {
 			default:
 				h.DropPackets(level, now.Add(time.Second))
 			}
+			requireTrackedPackets(t, h, 1)
 			lost := len(tracker.Lost)
 			var replacementPN protocol.PacketNumber
 			var replacement LocalCompletionToken
@@ -311,13 +312,19 @@ func TestLocalCompletionTerminalLifetime(t *testing.T) {
 				require.Error(t, err)
 				require.False(t, h.QueueProbePacket(protocol.EncryptionInitial))
 			}
+			want := 1
+			if action != "close" {
+				want++
+			}
+			requireTrackedPackets(t, h, want)
 			fresh := newLocalTestHandler(t)
 			require.Error(t, fresh.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(2*time.Second)))
 			require.NoError(t, h.CompleteLocalPacket(token, LocalPacketUnsubmitted, now.Add(2*time.Second)))
 			require.Error(t, h.CompleteLocalPacket(token, LocalPacketUnsubmitted, now.Add(3*time.Second)))
+			requireTrackedPackets(t, h, want-1)
 			require.Len(t, tracker.Lost, lost)
 			require.Empty(t, tracker.Acked)
-			require.False(t, h.(*sentPacketHandler).rttStats.HasMeasurement())
+			require.False(t, h.rttStats.HasMeasurement())
 			if action != "close" {
 				require.NoError(t, h.CompleteLocalPacket(replacement, LocalPacketAccepted, now.Add(3*time.Second)))
 				_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: replacementPN, Largest: replacementPN}}}, protocol.Encryption1RTT, now.Add(4*time.Second))
