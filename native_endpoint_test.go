@@ -322,6 +322,11 @@ func TestNativeEndpointFairLargeAdmission(t *testing.T) {
 		}
 		r := endpointTestLargeRequest(4)
 		require.ErrorIs(t, e.offer(large, 0, r), errEndpointCapacity, "data class must respect its byte cap")
+		// A selected large request accumulates its own class capacity without
+		// preventing one-shot traffic from using the other class allowances.
+		for _, participant := range []*endpointParticipant{e.public, e.stateless} {
+			require.NoError(t, e.offer(participant, 0, endpointTestRequest(0, "surplus")))
+		}
 		small, err := e.attach(5)
 		require.NoError(t, err)
 		smallRequest := endpointTestRequest(5, "small")
@@ -627,7 +632,15 @@ func TestNativeEndpointServiceTurns(t *testing.T) {
 		for _, data := range []string{"c1", "c2", "c3", "c4"} {
 			require.NoError(t, e.offer(control, 2, endpointTestRequest(3, data)))
 		}
-		for _, expected := range []string{"c1", "c2", "peer", "c3", "c4", "path1", "path0"} {
+		for _, data := range []string{"s1", "s2", "s3", "s4"} {
+			require.NoError(t, e.offer(e.stateless, 0, endpointTestRequest(0, data)))
+		}
+		for _, data := range []string{"u1", "u2", "u3", "u4"} {
+			require.NoError(t, e.offer(e.public, 0, endpointTestRequest(0, data)))
+		}
+		// All classes stay offered through the three data turns. Auxiliary
+		// admission changes neither class rotation nor participant/path service.
+		for _, expected := range []string{"c1", "s1", "peer", "u1", "c2", "path1", "s2", "u2", "path0", "c3", "s3", "u3", "c4", "s4", "u4"} {
 			permits <- struct{}{}
 			require.Equal(t, expected, <-started)
 		}

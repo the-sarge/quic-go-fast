@@ -1,6 +1,6 @@
 # Native endpoint efficiency and admission implementation plan
 
-**Date:** 2026-11-04. **Status:** owner-approved; independent technical slice audit passed; 1/4 slices complete (N1). **Identity:** `QGF-MP646-20261024-N`. **Parent:** [ordinary endpoint regression (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193). **Program:** [multipath #646](2026-10-24-multipath-program.md). **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [source, diagnosis and slice audit](../audits/2026-11-04-native-endpoint-efficiency-handoff.md).
+**Date:** 2026-11-04. **Status:** owner-approved; independent technical slice audit passed; 2/4 slices complete (N1, N2). **Identity:** `QGF-MP646-20261024-N`. **Parent:** [ordinary endpoint regression (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193). **Program:** [multipath #646](2026-10-24-multipath-program.md). **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [source, diagnosis and slice audit](../audits/2026-11-04-native-endpoint-efficiency-handoff.md).
 
 ## Goal and accepted boundary
 
@@ -80,10 +80,10 @@ Repair observed driver failure boundaries before reuse: charge an attempted obse
 | --- | --- | --- | --- | --- |
 | [N0](#n0) | `QGF-MP646-20261024-N0` | Rework and publish the R18 ordinary-cost driver | None | Unmerged driver dependency |
 | [N1](#n1) | `QGF-MP646-20261024-N1` | Complete — sparse participant traversal under existing endpoint control | None | Per-operation unused-slot traversal; diagnostic rebuilt index is not imported |
-| [N2](#n2) | `QGF-MP646-20261024-N2` | Admit eligible public/stateless work while protecting persistent grants | None | One-shot readiness/grant dependence |
+| [N2](#n2) | `QGF-MP646-20261024-N2` | Complete — admit eligible public/stateless work while protecting persistent grants | None | One-shot readiness/grant dependence |
 | [N3](#n3) | `QGF-MP646-20261024-N3` | Inline synchronized control, independent progress and combined native requalification | N0, N1, N2 | Command/ack mutation path |
 
-**Current frontier:** N1 [#1200](https://github.com/the-sarge/quic-go-fast/issues/1200) is complete. N0 [#1199](https://github.com/the-sarge/quic-go-fast/issues/1199) and N2 [#1201](https://github.com/the-sarge/quic-go-fast/issues/1201) remain the frontier; N3 [#1202](https://github.com/the-sarge/quic-go-fast/issues/1202) still waits for N0 and N2. The graph retains all correctness edges, including completed predecessors.
+**Current frontier:** N1 [#1200](https://github.com/the-sarge/quic-go-fast/issues/1200) and N2 [#1201](https://github.com/the-sarge/quic-go-fast/issues/1201) are complete. N0 [#1199](https://github.com/the-sarge/quic-go-fast/issues/1199) remains the frontier; N3 [#1202](https://github.com/the-sarge/quic-go-fast/issues/1202) still waits for N0. The graph retains all correctness edges, including completed predecessors.
 
 N0, N1 and N2 have no correctness blockers. N0 is parallel-safe with either runtime slice in isolated worktrees. N1 and N2 overlap endpoint admission code/tests: recommend serial implementation with current-main reconciliation, without inventing a dependency between independent behaviors. N3 consumes all three and qualifies the combined candidate. Shared root-package validation requires current-main reconciliation.
 
@@ -134,7 +134,7 @@ All slices preserve packet construction before recovery registration and registr
 <a id="n2"></a>
 ### N2 — Admit eligible public and stateless work
 
-**Delivers / acceptance:** real public and stateless adapters admit authorized valid requests into available class capacity while a persistent data/control grant exists, preserving that grant's record, lifetime and notification. The exact [approved admission contract for issue #1141](../agents/native-endpoint-admission-1141.md#exact-admission-contract) governs eligibility and overload; its independent criteria remain required through downstream qualification. No hidden retry, extra queue, new allowance or service priority is introduced. Child issue: pending; issue #1141 remains the linked acceptance tracker.
+**Delivers / acceptance:** real public and stateless adapters admit authorized valid requests into available class capacity while a persistent data/control grant exists, preserving that grant's record, lifetime and notification. The exact [approved admission contract for issue #1141](../agents/native-endpoint-admission-1141.md#exact-admission-contract) governs eligibility and overload; its independent criteria remain required through downstream qualification. No hidden retry, extra queue, new allowance or service priority is introduced. Child issue: [#1201](https://github.com/the-sarge/quic-go-fast/issues/1201). **State:** complete; issue #1141 remains the linked acceptance tracker through N3 and R18 qualification.
 
 **Blocked by / existing work:** none. The current endpoint already owns all required resources and response routes. Retain the existing command owner until N3. The issue #1141 scratch diagnostic is evidence only; rework its discriminating held-grant setup into maintained focused tests, without importing temporary instrumentation or claiming native qualification from a simulated writer.
 

@@ -430,18 +430,37 @@ func (s *endpointState) admit(p *endpointParticipant, lane, size int) (endpointA
 	now := time.Now()
 	s.reclaimGrant(now)
 	wait := &p.wait[lane]
-	if !wait.pending || wait.bytes != size {
-		if s.grant != nil && s.grant.participant == p && s.grant.lane == lane {
-			s.releaseGrant()
+	direct := class >= endpointStateless
+	recordsNeeded := 1
+	if direct {
+		// Consider registered persistent demand before spending a shared record.
+		// A selected grant protects one record even while accumulating capacity;
+		// materialized reservations are already charged in records below.
+		s.chooseGrant(now)
+		if now.Before(wait.notBefore) || p.retained >= 8 || !s.hasCapacity(class, size) {
+			return endpointAdmission{}, errEndpointCapacity
 		}
-		wait.pending, wait.bytes = true, size
-	}
-	s.arbitrate(now, p, lane)
-	if s.grant == nil || s.grant.participant != p || s.grant.lane != lane || s.grant.expires.IsZero() {
-		return endpointAdmission{}, errEndpointCapacity
+		if s.grant != nil {
+			recordsNeeded++
+		}
+	} else {
+		if !wait.pending || wait.bytes != size {
+			if s.grant != nil && s.grant.participant == p && s.grant.lane == lane {
+				s.releaseGrant()
+			}
+			wait.pending, wait.bytes = true, size
+		}
+		s.arbitrate(now, p, lane)
+		if s.grant == nil || s.grant.participant != p || s.grant.lane != lane || s.grant.expires.IsZero() {
+			return endpointAdmission{}, errEndpointCapacity
+		}
 	}
 	for index := range s.records {
 		if s.records[index].used {
+			continue
+		}
+		recordsNeeded--
+		if recordsNeeded != 0 {
 			continue
 		}
 		s.nextAdmission++
@@ -452,15 +471,21 @@ func (s *endpointState) admit(p *endpointParticipant, lane, size int) (endpointA
 		s.classCount[class]++
 		s.classBytes[class] += size
 		p.retained++
-		wait.pending = false
-		s.grant = nil
-		select {
-		case <-p.ready:
-		default:
+		if !direct {
+			wait.pending = false
+			s.grant = nil
+			select {
+			case <-p.ready:
+			default:
+			}
 		}
 		return admission, nil
 	}
 	return endpointAdmission{}, errEndpointCapacity
+}
+
+func (s *endpointState) hasCapacity(class endpointClass, size int) bool {
+	return s.count < endpointRequests && size <= endpointBytes-s.bytes && s.classCount[class] < endpointClassCounts[class] && size <= endpointClassBytes[class]-s.classBytes[class]
 }
 
 func (s *endpointState) commit(admission endpointAdmission, request endpointRequest) {
@@ -957,24 +982,18 @@ func (s *endpointState) arbitrate(now time.Time, admitting *endpointParticipant,
 		}
 		var candidates [4]*endpointGrant
 		var available [4]bool
-		for class := endpointData; class <= endpointPublic; class++ {
+		for class := endpointData; class <= endpointControl; class++ {
 			for p := range s.occupiedParticipants(s.admissionCursor[class]) {
-				if !p.active || (p.class != endpointData && p.class != class) || (p.class == endpointData && class > endpointControl) {
+				if !p.active || p.class != endpointData {
 					continue
 				}
-				limit := 4
-				if p.class != endpointData {
-					limit = 8
-				}
-				if p.retained >= limit {
+				if p.retained >= 4 {
 					continue
 				}
 				lanes := [2]int{p.admissionPath, 1 - p.admissionPath}
 				count := 2
 				if class == endpointControl {
 					lanes[0], count = 2, 1
-				} else if class > endpointControl {
-					lanes[0], count = 0, 1
 				}
 				for _, lane := range lanes[:count] {
 					w := p.wait[lane]
@@ -1007,7 +1026,7 @@ func (s *endpointState) arbitrate(now time.Time, admitting *endpointParticipant,
 		class = endpointControl
 	}
 	n := p.wait[g.lane].bytes
-	if g.expires.IsZero() && s.count < endpointRequests && n <= endpointBytes-s.bytes && s.classCount[class] < endpointClassCounts[class] && n <= endpointClassBytes[class]-s.classBytes[class] {
+	if g.expires.IsZero() && s.hasCapacity(class, n) {
 		g.expires = now.Add(endpointLease)
 		if p == admitting && g.lane == admittingLane {
 			return
