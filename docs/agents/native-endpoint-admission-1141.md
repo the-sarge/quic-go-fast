@@ -1,8 +1,8 @@
 # Native endpoint admission contract (#1141)
 
-**Status:** owner-approved contract, 2026-11-04; implementation pending. **Issue:** [Native endpoint refuses stateless and public writes under saturated data traffic (#1141)](https://github.com/the-sarge/quic-go-fast/issues/1141). **Related:** [Ordinary goodput on granted endpoints (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193). **Inspected base:** `689517410ca2f7cfc4306e9c21eb95c69574d61c`.
+**Status:** owner-approved contract, 2026-11-04; N2 implementation complete, combined native and ordinary-cost qualification pending. **Issue:** [Native endpoint refuses stateless and public writes under saturated data traffic (#1141)](https://github.com/the-sarge/quic-go-fast/issues/1141). **Related:** [Ordinary goodput on granted endpoints (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193). **Inspected base:** `689517410ca2f7cfc4306e9c21eb95c69574d61c`.
 
-The owner approved the admission guarantee, protection of ordinary traffic, existing overload bounds, coordinated endpoint design and separate evidence for the two findings. This contract amends the maintained endpoint plan; it does not describe implemented behavior. Issue #1141 remains `enhancement` / `needs-triage` while the combined endpoint implementation with issue #1193 is packaged.
+The owner approved the admission guarantee, protection of ordinary traffic, existing overload bounds, coordinated endpoint design and separate evidence for the two findings. This contract amends the maintained endpoint plan. [N2 (#1201)](https://github.com/the-sarge/quic-go-fast/issues/1201) implements its admission policy; issue #1141 remains open until the independent N3 and R18 evidence satisfies the remaining qualification criteria.
 
 ## Executive decision
 

@@ -29,11 +29,7 @@ func (endpoint *nativeEndpoint) writeResponse(data []byte, address net.Addr, inf
 		destination: destination.AddrPort(),
 		datagram:    &endpointDatagram{data: slices.Clone(data), oob: info.OOB(), epoch: epoch},
 	}
-	err := endpoint.offer(endpoint.stateless, 0, request)
-	if err != nil {
-		endpoint.cancelReadiness(endpoint.stateless, 0)
-	}
-	return err
+	return endpoint.offer(endpoint.stateless, 0, request)
 }
 
 func newEndpointResponses(endpoint *nativeEndpoint) *endpointResponses {
@@ -63,7 +59,6 @@ func (endpoint *nativeEndpoint) writePublic(data []byte, address net.Addr, epoch
 		datagram:    &endpointDatagram{data: data, result: completion, epoch: epoch},
 	}
 	if err := endpoint.offer(endpoint.public, 0, request); err != nil {
-		endpoint.cancelReadiness(endpoint.public, 0)
 		if errors.Is(err, errEndpointCapacity) {
 			err = errors.Join(ErrMultipathBackpressureV1, err)
 		}
