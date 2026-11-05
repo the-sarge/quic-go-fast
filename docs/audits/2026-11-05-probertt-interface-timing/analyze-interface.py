@@ -188,9 +188,11 @@ def analyze_rows(data, base, measurement_s, capture):
     sender, receiver = KERNEL.Endpoint("send", data["send"]), KERNEL.Endpoint("receive", data["receive"])
     probes, phase = KERNEL.probe_selector(base, measurement_s)
     turnaround, partial, complete, excluded = [], [], [], []
-    # The timestamp pair in row31 is taken from the same time.Now() value.
-    # Keep neighboring observations as evidence of drift; their observed range
-    # is not a certified upper bound on unobserved clock adjustment or jitter.
+    # The row31 fields come from one time.Now() value, but Darwin's Go runtime
+    # reads walltime() and then nanotime(): these clocks are not sampled atomically.
+    # Scheduling between reads biases mono-wall and can make the optional split
+    # negative. Neighboring observations show sensitivity, not an error bound.
+    # BPF turnaround and the combined pre-socket/post-write term cancel this offset.
     anchor_rows = sorted((r for r in receiver.rows[31] if r[5] and r[6]), key=lambda r: r[6])
     anchor_walls = [r[6] for r in anchor_rows]
     def anchor_observations(packet, socket_id):
@@ -285,7 +287,7 @@ def analyze_rows(data, base, measurement_s, capture):
                 neighboring_anchors=observations,
                 observed_neighbor_offset_span_ns=max(offsets)-min(offsets),
                 maximum_observed_neighbor_offset_delta_ns=max(abs(v-offset) for v in offsets),
-                note="Both BPF endpoints use the matched data batch anchor. Neighbor offset changes show sensitivity, not an error bound. Capture timestamp quantum is reported on each packet; clock steps between observations remain possible.")
+                note="Both BPF endpoints use the matched data batch anchor. On Darwin, Go time.Now reads walltime then nanotime nonatomically; scheduling between reads can bias this split, including negative pre-socket time. Neighbor offset changes show sensitivity, not an error bound. Capture timestamp quantum is reported on each packet. Prefer the calibration-independent turnaround and combined pre-socket/post-write term; clock steps between BPF timestamps remain possible.")
         complete.append(row)
     cohorts = dict(turnaround_cycles=turnaround, partial_cycles=partial, complete_cycles=complete)
     per_probe = []
