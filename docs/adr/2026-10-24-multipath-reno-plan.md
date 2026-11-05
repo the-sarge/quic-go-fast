@@ -335,6 +335,8 @@ Balanced disjoint-path thresholds compare E with max(A,B) and C. Shared-bottlene
 
 ### Candidate and run ledger
 
+**Scoped operational override:** the [owner waiver for the recovery repair and requalification](2026-11-04-native-endpoint-efficiency-plan.md#owner-waiver-and-finite-operational-scope) governs N4, resumed N3 #1202 and dependent R17 #1037/R18 #1038. For those slices it supersedes the cumulative instance/host-hour ceilings and remaining-ceiling stop rules throughout this plan. The linked contract owns finite execution reservations and complete attempt accounting; inventories, acceptance criteria and other tracks remain unchanged.
+
 | Delivery | Candidate / scope | Planned charge |
 | --- | --- | ---: |
 | E6 | Endpoint candidate, native request-class boundary; applicability checked against the later Reno candidate | 12 native instances |
