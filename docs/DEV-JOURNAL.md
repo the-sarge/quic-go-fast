@@ -9449,3 +9449,31 @@ One baseline and one candidate Go 1.27.3 darwin/arm64 benchmark invocation measu
 RAS `20261105T065153-2e61e834e9f24cf746e9d68a` reported one duplicated documentation finding and no runtime defect. Three configured reviewers completed; claude-fable failed execution, with the configured quorum still met. The frontier correction was accepted as `fix-now`, its duplicate rejected as a separate task, and the shared docs-only policy skipped another RAS cycle after consistency checks and fresh certification. [Review disposition and certification receipts on PR #1227](https://github.com/the-sarge/quic-go-fast/pull/1227#issuecomment-6651838437) retain the details. No deferred follow-up remains.
 
 Next: resume [N3 — Synchronize endpoint control and qualify the combined candidate (#1202)](https://github.com/the-sarge/quic-go-fast/issues/1202) from its retained source on current main, with its required fresh native and ordinary-cost evidence. [Parent #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) are the live frontier views; the independent admission and downstream qualification criteria remain open.
+
+---
+
+## Jumbo packets plan published - 2026-11-05 02:18 EST
+
+**Main:** `40362a60e690`
+**Actor:** Claude Code (Opus 5.5)
+
+### Summary
+
+Published the plan for an opt-in, per-Transport packet ceiling up to 8,972 bytes, from a downstream consumer's owner-approved program. Nothing is implemented or dispatched.
+
+### Completed
+
+- [PR #1211](https://github.com/the-sarge/quic-go-fast/pull/1211) merged [the plan](adr/2026-11-05-jumbo-packets-plan.md) as `0bf2a248`.
+- Parent #1215 with slices #1208 and #1216–#1226. #1208 was reworked in place as F1's child.
+
+### Decisions
+
+Unconfigured Transports stay unchanged, recovery has to exist before the method does, and the method ships disclosed as experimental. The plan holds the reasoning.
+
+### Validation
+
+Two independent agent audits of the slice graph, and RAS review `20261105T060153-0a60edd734de631cbe54b50b`. Its six accepted findings are applied, and review policy skipped another RAS pass for those docs-only corrections. Links, anchors and slice identities were checked locally, and hosted checks passed on the merged head.
+
+### Next
+
+F1, #1208, is the frontier and isn't dispatched. #1215 is the live view.
