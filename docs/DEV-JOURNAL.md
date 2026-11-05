@@ -9373,3 +9373,18 @@ RAS initial run `20261105T034850-b93b22113470a3b672fbc762` and replacement run `
 ### Next
 
 N0 [#1199](https://github.com/the-sarge/quic-go-fast/issues/1199) and N2 [#1201](https://github.com/the-sarge/quic-go-fast/issues/1201) remain the frontier; N3 [#1202](https://github.com/the-sarge/quic-go-fast/issues/1202) still waits on both. Parent [#1193](https://github.com/the-sarge/quic-go-fast/issues/1193) remains open through its independent final-candidate acceptance. [Program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live view of readiness and blockers. Recommend N2 next for the runtime track.
+
+---
+
+## Ordinary-peer cost driver landed (#1199) - 2026-11-04 23:49 EST
+
+**Main:** `837fd779a41a`
+**Actor:** Codex
+
+**Summary:** [PR #1203](https://github.com/the-sarge/quic-go-fast/pull/1203) published the Linux amd64 ordinary-peer cost fixture and driver and closed [N0 (#1199)](https://github.com/the-sarge/quic-go-fast/issues/1199). The driver preserves the six-cell, 36-observation inventory, records charges before launching roles, retains failure time and cleanup, and reports diagnostic pairs separately. Failed evidence and tolerance failures return nonzero. The product PR also records the completion/frontier transition: 28/39 program slices and 2/4 endpoint-efficiency slices complete.
+
+**Decisions:** The [accepted N0 contract](adr/2026-11-04-native-endpoint-efficiency-plan.md#n0) measures application send-call latency separately from control echo and receiver-counted useful goodput. Offered stateless traffic, returned resets and background useful bytes remain visible. No production hook or operational campaign was added.
+
+**Validation:** [PR #1203's final validation receipt](https://github.com/the-sarge/quic-go-fast/pull/1203#issuecomment-6649828035) records the bounded reviews, exact-head verification and current-main reconciliation. On `aaeaf3e87ee7eadd445e936d3add94bab28a0242`, 62 Python tests, root Go tests, Linux fixture compilation and focused histogram/accounting tests, vet, module tidiness and documentation checks passed. All 17 applicable [hosted checks for PR #1203](https://github.com/the-sarge/quic-go-fast/pull/1203/checks) passed, including the [unit workflow](https://github.com/the-sarge/quic-go-fast/actions/runs/41968828990). No throughput observations were charged.
+
+**Next:** [N2 (#1201)](https://github.com/the-sarge/quic-go-fast/issues/1201) is the remaining frontier. [N3 (#1202)](https://github.com/the-sarge/quic-go-fast/issues/1202) waits on N2; [R18 (#1038)](https://github.com/the-sarge/quic-go-fast/issues/1038) waits on N3 for counted qualification. See [the program tracker (#646)](https://github.com/the-sarge/quic-go-fast/issues/646) for live state.
