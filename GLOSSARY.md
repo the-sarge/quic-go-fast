@@ -48,6 +48,10 @@ Language for QUIC transport behavior and the fork's transmission work.
 
 **Path MTU settled signal**: The connection's one-time report, through `PathMTUSettledV1`, that path MTU discovery is over on its first path: the search concluded, discovery will not run there, the connection left that path, or the connection ended. It means the search is over, not that the path will keep that size. A later path change resets the DATAGRAM limit to the initial packet size and discovery runs again, without a new signal.
 
+**Packet ceiling**: The largest UDP payload a Transport will advertise, search for and read. It's a property of the endpoint, not a promise about the path, and the default is the standard size.
+
+**Effective ceiling**: The smaller of a connection's packet ceiling and its peer's advertised maximum UDP payload size. A connection whose effective ceiling is above the standard size is **jumbo-active**, which describes what was negotiated, not whether a jumbo packet was ever delivered.
+
 **Path generation**: An identity for the connection's current path epoch that distinguishes current feedback from feedback belonging to an earlier path. It does not create a new packet-number space.
 
 **Candidate path**: A local and remote address pair being considered for use before it becomes the connection's active path.
