@@ -1,4 +1,4 @@
-//go:build unix
+//go:build darwin || linux || freebsd
 
 package quic
 
@@ -107,7 +107,7 @@ func TestNativeEndpointSparseRetryDeadlines(t *testing.T) {
 			<-e.detach(participants[i])
 		}
 		first, later := participants[4], participants[1]
-		require.NoError(t, e.offer(first, 0, endpointTestRequest(first.id, "first")))
+		require.NoError(t, e.offer(first, 1, endpointTestRequest(first.id, "first")))
 		synctest.Wait()
 		_, ok := e.take(first)
 		require.True(t, ok)
@@ -116,7 +116,7 @@ func TestNativeEndpointSparseRetryDeadlines(t *testing.T) {
 		synctest.Wait()
 		_, ok = e.take(later)
 		require.True(t, ok)
-		_, err := e.prepare(first, 0, 1)
+		_, err := e.prepare(first, 1, 1)
 		require.ErrorIs(t, err, errEndpointCapacity)
 		_, err = e.prepare(later, 0, 1)
 		require.ErrorIs(t, err, errEndpointCapacity)
@@ -132,7 +132,7 @@ func TestNativeEndpointSparseRetryDeadlines(t *testing.T) {
 			t.Fatal("later retry woke before its floor")
 		default:
 		}
-		a, err := e.prepare(first, 0, 1)
+		a, err := e.prepare(first, 1, 1)
 		require.NoError(t, err)
 		e.do(func(s *endpointState) { s.cancelAdmission(a) })
 		time.Sleep(endpointRetry / 2)
