@@ -1,5 +1,7 @@
 # Local recovery summary handoff audit
 
+**Superseded draft — not an accepted handoff.** The [whole-pipeline diagnosis](2026-11-05-native-pipeline-diagnosis.md) withdrew this N5 proposal before publication or dispatch. The design and its earlier audits below are retained as historical material; their positive local design review did not establish causal priority. No N5 issue or OmniFocus task was created. Statements below about future publication, counts, frontier or dependencies are superseded.
+
 Date: 2026-11-05. Scope: N track under [parent #1193](https://github.com/the-sarge/quic-go-fast/issues/1193), stopped [N3 #1202](https://github.com/the-sarge/quic-go-fast/issues/1202) and [program #646](https://github.com/the-sarge/quic-go-fast/issues/646). The [efficiency plan](../adr/2026-11-04-native-endpoint-efficiency-plan.md) owns current contracts. This artifact owns source identities, causal limits, existing-work disposition and audit receipts. This handoff launches no implementation or experiment.
 
 ## Authority, source and existing work
