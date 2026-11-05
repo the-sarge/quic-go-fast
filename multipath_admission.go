@@ -131,14 +131,12 @@ const (
 	pathOpenFinished
 )
 
-// finish publishes the connection's result unless cancellation already won. A
-// false return means the caller was told it canceled, so nothing may activate.
-func (r *pathOpenRequest) finish(err error) bool {
-	if !r.claim() {
-		return false
+// finish publishes the connection's failure unless cancellation already won. A success
+// claims first, so nothing activates for a caller told it canceled, and sends last.
+func (r *pathOpenRequest) finish(err error) {
+	if r.claim() {
+		r.done <- err
 	}
-	r.done <- err
-	return true
 }
 
 // claim decides the outcome without telling the caller, who learns only once the work
