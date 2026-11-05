@@ -9252,3 +9252,35 @@ R20 [#1182](https://github.com/the-sarge/quic-go-fast/issues/1182) merged in [PR
 ### Next
 
 R17 [#1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and R18 [#1038](https://github.com/the-sarge/quic-go-fast/issues/1038) are the frontier, per [the program index](adr/2026-10-24-multipath-program.md), the live view. An open's success path still tells the caller before freeing the slot, in `pathResponse` and the validated-tuple branch of `serviceRequest`, so an immediate next operation could still meet the same spurious backpressure.
+
+---
+
+## Open operation slot order fixed - 2026-11-04 19:34 EST
+
+**Main:** `832d0fbce938`
+**Actor:** Claude Code
+
+### Summary
+
+[PR #1188](https://github.com/the-sarge/quic-go-fast/pull/1188) merged as `832d0fbce`, closing the risk the R20 entry left open. An open now frees the connection's one path operation before it reports success, so a next operation started right after `OpenPathV1` can't be refused with a spurious `ErrMultipathBackpressureV1`.
+
+### Completed
+
+- `pathResponse` and the validated-tuple branch of `serviceRequest` now claim, activate, free the operation, then send, the order `serviceCutover` already used. The path is therefore live before the caller hears.
+- `endOperation` frees the operation first too.
+- `finish` no longer returns a result, since nothing used it.
+
+### Decisions
+
+- Attempts that end while a fence or a retained entry still holds the operation keep it on purpose, so those paths didn't change.
+
+### Validation
+
+- `TestPathOpenFreesOperationBeforeSuccess` covers the three paths on an unbuffered result channel. Each subtest failed on the old order.
+- At `4c3576c7` on macOS: root-package and `http3` tests, a focused race run, `go vet`, `go mod tidy -diff`, and lint for Linux, Darwin, Windows and OpenBSD. All 17 hosted checks passed on that head, with main unmoved at `fb87f0723`.
+- This follow-up had no RAS review: it was a small ordering fix to a defect the R20 run had already diagnosed.
+- An earlier head on the PR didn't build, because `set -e` didn't stop the gate script before its push. It never merged.
+
+### Next
+
+R17 [#1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and R18 [#1038](https://github.com/the-sarge/quic-go-fast/issues/1038) remain the frontier, per [the program index](adr/2026-10-24-multipath-program.md), the live view.
