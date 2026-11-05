@@ -4,6 +4,11 @@ import tempfile
 import contextlib
 import io
 import subprocess
+import os
+import select
+import signal
+import sys
+import textwrap
 import json
 from pathlib import Path
 from unittest import mock
@@ -395,6 +400,82 @@ class ExecutionTests(unittest.TestCase):
                                 "--timeout-seconds", "135", *extra])
         return code, json.loads((output / "summary.json").read_text()), processes
 
+    def exercise_sigterm_during_roles(self):
+        """Real process ownership, fake workload: interrupt only after main starts waiting."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "fixture").write_bytes(b"fake-role fixture")
+            bootstrap = textwrap.dedent("""
+                import json, os, subprocess, sys
+                from pathlib import Path
+                from types import SimpleNamespace
+                sys.path.insert(0, sys.argv[3])
+                import ordinary_cost as driver
+                root, ready = Path(sys.argv[1]), int(sys.argv[2])
+                pids = []
+                class FakeRole(subprocess.Popen):
+                    def __init__(self, command, **kwargs):
+                        super().__init__([sys.executable, "-c", "import signal; signal.pause()"], **kwargs)
+                        pids.append(self.pid)
+                        (root / "pids.json").write_text(json.dumps(pids))
+                    def wait(self, timeout=None):
+                        if timeout is not None:
+                            os.write(ready, b"waiting")
+                        code = super().wait(timeout=timeout)
+                        with (root / "reaped.txt").open("a") as file:
+                            file.write(str(self.pid) + "\\n")
+                        return code
+                driver.subprocess.Popen = FakeRole
+                driver.subprocess.run = lambda *a, **kw: SimpleNamespace(stdout="fixture: " + driver.GO_VERSION + "\\n")
+                driver.platform.system = lambda: "Linux"
+                driver.platform.machine = lambda: "x86_64"
+                driver.platform.platform = lambda: "Linux-test"
+                driver.shutil.which = lambda _: "taskset"
+                driver.wait_quiet = lambda _: {}
+                driver.schedstat_running_ns = lambda: dict.fromkeys(driver.FIXTURE_CPUS, 0)
+                driver.softirqd_ns = lambda: 0
+                sys.exit(driver.main([
+                    "--candidate", "a" * 40, "--binary", str(root / "fixture"), "--output", str(root / "output"),
+                    "--remaining-instances", "36", "--remaining-host-seconds", "5000", "--timeout-seconds", "135",
+                ]))
+            """)
+            read_fd, write_fd = os.pipe()
+            process = subprocess.Popen([sys.executable, "-c", bootstrap, str(root), str(write_fd),
+                                        str(Path(driver.__file__).parent)], pass_fds=(write_fd,),
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            os.close(write_fd)
+            pids = []
+            try:
+                ready, _, _ = select.select([read_fd], [], [], 10)
+                self.assertTrue(ready, "driver did not reach the role wait")
+                self.assertEqual(os.read(read_fd, 7), b"waiting")
+                pids = json.loads((root / "pids.json").read_text())
+                self.assertEqual(len(pids), 2)
+                process.send_signal(signal.SIGTERM)
+                stdout, stderr = process.communicate(timeout=10)
+                self.assertEqual(process.returncode, 1, stderr.decode())
+                summary = json.loads((root / "output" / "summary.json").read_text())
+                self.assertFalse(summary["passed"])
+                self.assertEqual(summary["instances_charged"], 1)
+                self.assertEqual(summary["attempts"][0]["status"], "failed")
+                self.assertIn("SIGTERM", summary["attempts"][0]["error"])
+                self.assertGreater(summary["host_seconds_charged"], 0)
+                self.assertCountEqual([int(pid) for pid in (root / "reaped.txt").read_text().splitlines()], pids)
+                for pid in pids:
+                    with self.assertRaises(ProcessLookupError):
+                        os.kill(pid, 0)
+            finally:
+                os.close(read_fd)
+                if process.poll() is None:
+                    process.kill()
+                process.communicate()
+                # Also clean up a deliberately failing pre-fix driver reproduction.
+                for pid in pids:
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+
     def test_failed_child_or_check_retains_charge_and_reaps_peers(self):
         for failure in ("launch", "exit", "timeout", "missing", "invalid", "baseline-write", "baseline-close", "baseline-timeout"):
             with self.subTest(failure=failure), tempfile.TemporaryDirectory() as temporary:
@@ -414,6 +495,7 @@ class ExecutionTests(unittest.TestCase):
                 self.assertTrue(summary["attempts"][0]["error"])
                 self.assertTrue(all(process.returncode is not None for process in processes))
                 self.assertFalse(summary["campaign_complete"])
+        self.exercise_sigterm_during_roles()
 
     def test_insufficient_allowance_launches_nothing(self):
         for extra in (("--remaining-instances", "35"), ("--remaining-host-seconds", "100")):

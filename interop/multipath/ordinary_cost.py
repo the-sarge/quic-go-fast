@@ -6,6 +6,7 @@ import json
 import hashlib
 import math
 import resource
+import signal
 import sys
 import os
 from pathlib import Path
@@ -538,6 +539,11 @@ def main(argv=None):
         with (args.output / "campaign.log").open("a") as file:
             file.write(line + "\n")
 
+    def interrupt_on_sigterm(signum, frame):
+        # Use the same unwind path as an operator interrupt: reap roles, then persist charges.
+        raise KeyboardInterrupt("SIGTERM")
+
+    previous_sigterm = signal.signal(signal.SIGTERM, interrupt_on_sigterm)
     ledger = None
     summary = {"passed": False, "mode": mode, "campaign_complete": False, "metric_boundaries": METRIC_BOUNDARIES}
     try:
@@ -565,6 +571,7 @@ def main(argv=None):
     except (Exception, KeyboardInterrupt) as error:
         summary.update(passed=False, error=f"{type(error).__name__}: {error}")
     finally:
+        signal.signal(signal.SIGTERM, previous_sigterm)
         if ledger:
             ledger.save()
             summary.update(ledger.snapshot())
