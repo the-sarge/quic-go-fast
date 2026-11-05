@@ -9409,3 +9409,26 @@ The real-adapter held-grant regression failed with backpressure before the chang
 ### Next
 
 N0 (#1199), N1 (#1200) and N2 (#1201) are complete: 3/4 N-track slices and 29/39 program slices. [N3 — Synchronize endpoint control and qualify the combined candidate (#1202)](https://github.com/the-sarge/quic-go-fast/issues/1202) is now unblocked. [Admission acceptance tracker #1141](https://github.com/the-sarge/quic-go-fast/issues/1141) remains open through N3 (#1202) and R18 (#1038) qualification; the live frontier is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646). No deferred review follow-ups or newly untraced effects remain in N2's accepted boundary.
+
+---
+
+## Recovery-accounting handoff published (#1193) - 2026-11-05 01:34 EST
+
+**Main:** `30e47b84215b`
+**Actor:** Codex
+
+### Completed
+
+Published the scoped recovery-accounting handoff for [parent #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) through [PR #1212](https://github.com/the-sarge/quic-go-fast/pull/1212), merged at `30e47b84215bc629c3a9286070b28dc0e3c2169e`. The audited plan adds [N4 — Account for unresolved local identities without scanning (#1213)](https://github.com/the-sarge/quic-go-fast/issues/1213) before [N3 — Synchronize endpoint control and qualify the combined candidate (#1202)](https://github.com/the-sarge/quic-go-fast/issues/1202). N4 changes history-owned capacity representation while preserving token lifetime and the shared ceiling; N3 retains its unmerged implementation as source material for reconciliation after N4. Neither the earlier failed STREAM diagnostic nor contaminated profile pair is replacement qualification.
+
+### Decisions
+
+The owner's operational instance/host-time budget waiver is recorded in the [current efficiency plan](adr/2026-11-04-native-endpoint-efficiency-plan.md#owner-waiver-and-finite-operational-scope), with a scoped override in the Reno ledger. Finite execution reservations and complete attempt accounting remain; correctness, ordinary-cost thresholds, contamination rules, supported venues and review obligations are unchanged. The [handoff audit](audits/2026-11-05-native-recovery-accounting-handoff.md) preserves source disposition, diagnostic limitations and rejected alternatives.
+
+### Validation
+
+Two independent read-only source/contract audits passed, including a narrow recheck of driver-reservation and ledger-override corrections. Exact pushed-head documentation certification verified the clean tree, four-file Markdown scope, relative links, slice identities/graph and whitespace. All 17 hosted checks passed on PR #1212 head `3972fe4249c0bbb9e71332663528d4c1bb20bdeb`; its base was unchanged before the head-matched squash merge. The resulting plan commit was verified reachable from remote main with matching audited contents. This handoff ran no implementation or operational observations.
+
+### Next
+
+[N4 (#1213)](https://github.com/the-sarge/quic-go-fast/issues/1213) is the sole ready child in this scoped handoff. N3 #1202 is blocked by it; [R17 (#1037)](https://github.com/the-sarge/quic-go-fast/issues/1037) and [R18 (#1038)](https://github.com/the-sarge/quic-go-fast/issues/1038) remain blocked by N3 #1202. The N track has 3/5 complete and the program 29/40. GitHub/OmniFocus pointers are synchronized; [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live frontier. Implementation dispatch remains the operator's next action.
