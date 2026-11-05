@@ -131,14 +131,12 @@ const (
 	pathOpenFinished
 )
 
-// finish publishes the connection's result unless cancellation already won. A
-// false return means the caller was told it canceled, so nothing may activate.
-func (r *pathOpenRequest) finish(err error) bool {
-	if !r.claim() {
-		return false
+// finish publishes the connection's failure unless cancellation already won. A success
+// claims first, so nothing activates for a caller told it canceled, and sends last.
+func (r *pathOpenRequest) finish(err error) {
+	if r.claim() {
+		r.done <- err
 	}
-	r.done <- err
-	return true
 }
 
 // claim decides the outcome without telling the caller, who learns only once the work
@@ -666,7 +664,7 @@ func (p *pathCreditRegistry) pathResponse(f *wire.PathResponseFrame, ingress pro
 		return
 	}
 	request := candidate.request
-	if request != nil && !request.finish(nil) {
+	if request != nil && !request.claim() {
 		return // cancellation won; the next service closes this initiation
 	}
 	if m.live {
@@ -680,6 +678,7 @@ func (p *pathCreditRegistry) pathResponse(f *wire.PathResponseFrame, ingress pro
 	p.retireCandidate(m)
 	if request != nil {
 		p.conn.pathOpen.CompareAndSwap(request, nil)
+		request.done <- nil // success means the path is usable, and the next operation can start
 	}
 	if moving {
 		p.beginIncomingCutover(m, addr, info, movePN, now)
@@ -858,10 +857,11 @@ func (p *pathCreditRegistry) serviceRequest(now monotime.Time) error {
 	}
 	request.accepted, request.id = true, id
 	if target == nil && p.tupleValidated(request.addr) {
-		if request.finish(nil) {
+		if request.claim() {
 			p.activate(m, request.addr, packetInfo{}, nil, now)
 			m.announce = true
 			p.conn.pathOpen.CompareAndSwap(request, nil)
+			request.done <- nil // success means the path is usable, and the next operation can start
 		}
 		return nil
 	}
@@ -1117,8 +1117,8 @@ func (p *pathCreditRegistry) memberProbe(m *pathMember, now monotime.Time) *path
 // its streams and context report.
 func (p *pathCreditRegistry) endOperation(cause error) {
 	if request := p.conn.pathOpen.Load(); request != nil {
-		request.finish(cause)
 		p.conn.pathOpen.CompareAndSwap(request, nil)
+		request.finish(cause)
 	}
 }
 

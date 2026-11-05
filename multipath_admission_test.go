@@ -769,8 +769,8 @@ func TestPathAdmissionCancellation(t *testing.T) {
 			f.c.pathOpen.Store(request)
 			require.NoError(t, f.c.pathCredit.serviceRequest(monotime.Now()))
 			require.Nil(t, f.c.pathOpen.Load())
-			require.False(t, request.finish(nil), "a canceled caller is never told otherwise")
-			require.Empty(t, request.done)
+			request.finish(nil)
+			require.Empty(t, request.done, "a canceled caller is never told otherwise")
 			errs := f.openAsync(ctx, nil, admissionTupleA)
 			f.pass(t)
 			require.True(t, f.receive(t, 1, admissionTupleA, 100, &wire.PathResponseFrame{Data: admissionChallenges(f.peerWrites(t, 1))[0]}))
@@ -854,5 +854,53 @@ func TestPathAdmissionCloseAndStatus(t *testing.T) {
 		require.False(t, candidate.probe.probeEpoch.valid(), "close revokes queued probes")
 		require.Nil(t, f.c.pathCredit.nextProbe(monotime.Now()))
 		require.Nil(t, f.c.pathOpen.Load(), "close ends the local operation")
+	})
+}
+
+// TestPathOpenFreesOperationBeforeSuccess holds an open's result on an unbuffered
+// channel, where the old order would leave the caller's next operation refused.
+func TestPathOpenFreesOperationBeforeSuccess(t *testing.T) {
+	t.Run("a validated tuple", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			f.c.pathCredit.recordValidated(admissionTupleA)
+			request := &pathOpenRequest{ctx: context.Background(), addr: admissionTupleA, done: make(chan error)}
+			f.c.pathOpen.Store(request)
+			go func() { _ = f.c.pathCredit.service(monotime.Now()) }()
+			synctest.Wait()
+			require.Nil(t, f.c.pathOpen.Load())
+			require.True(t, f.c.pathCredit.members[request.id].live, "the path is live before the caller hears")
+			require.NoError(t, <-request.done)
+		})
+	})
+	t.Run("a response", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			request := &pathOpenRequest{ctx: context.Background(), addr: admissionTupleA, done: make(chan error)}
+			f.c.pathOpen.Store(request)
+			f.pass(t)
+			challenges := admissionChallenges(f.peerWrites(t, 1))
+			require.NotEmpty(t, challenges)
+			p := f.c.pathCredit
+			go p.pathResponse(&wire.PathResponseFrame{Data: challenges[0]}, request.id, monotime.Now())
+			synctest.Wait()
+			require.True(t, p.members[request.id].live, "the path is live before the caller hears")
+			require.Nil(t, f.c.pathOpen.Load())
+			require.NoError(t, <-request.done)
+		})
+	})
+	t.Run("the connection's end", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			request := &pathOpenRequest{ctx: context.Background(), addr: admissionTupleA, done: make(chan error)}
+			f.c.pathOpen.Store(request)
+			go f.c.pathCredit.endOperation(net.ErrClosed)
+			synctest.Wait()
+			require.Nil(t, f.c.pathOpen.Load())
+			require.ErrorIs(t, <-request.done, net.ErrClosed)
+		})
 	})
 }
