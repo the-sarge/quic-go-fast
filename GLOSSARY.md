@@ -16,6 +16,8 @@ Language for QUIC transport behavior and the fork's transmission work.
 
 **Local send capacity**: Room for additional outgoing work waiting for the socket writer. This is distinct from peer flow-control credit, congestion allowance, and application credit.
 
+**Local send admission**: Acceptance of outgoing datagrams into the endpoint's bounded send ownership, reserving the resources needed to resolve them. It is distinct from native transmission, transport delivery and the endpoint write grant over a socket.
+
 **Packet registration**: Recording a constructed outgoing QUIC packet in the transport's recovery accounting. Registration, socket-write completion, and acknowledgment by the peer are distinct events.
 
 **Registration prefix**: The set of packet registrations up to one point in a connection's send order, spanning its packet-number spaces.
