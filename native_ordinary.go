@@ -177,6 +177,7 @@ func (e *nativeEndpoint) depositCloseUpTo(p *endpointParticipant, request endpoi
 			s.closers = append(s.closers, p)
 		}
 		p.closings = append(p.closings, endpointClosing{request: request, size: cap(request.buffers[0].Data), deadline: time.Now().Add(s.budget)})
+		p.closeDeposited = true
 		err = nil
 	})
 	return err

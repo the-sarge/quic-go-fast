@@ -442,6 +442,225 @@ func TestNativeTransportCloseKeepsCause(t *testing.T) {
 	})
 }
 
+// nativeShutdownConn lets a Transport's own reader run in a synctest bubble, where a real
+// socket's read isn't durably blocked. A read deadline ends the reader, as on a socket.
+type nativeShutdownConn struct{ mockPacketConn }
+
+func (c *nativeShutdownConn) SetReadDeadline(deadline time.Time) error {
+	if !deadline.IsZero() {
+		select {
+		case c.readErrs <- deadlineError{}:
+		default:
+		}
+	}
+	return nil
+}
+
+func nativeShutdownTransport(e *nativeEndpoint) *Transport {
+	conn := &nativeShutdownConn{mockPacketConn{readErrs: make(chan error, 1), localAddr: nativeShutdownAddress}}
+	return &Transport{Conn: conn, responses: newEndpointResponses(e)}
+}
+
+// requireCloseBlocked runs Close and returns its result channel, after showing it's
+// still waiting once everything else in the bubble has blocked.
+func requireCloseBlocked(t *testing.T, tr *Transport) <-chan error {
+	t.Helper()
+	closed := make(chan error, 1)
+	go func() { closed <- tr.Close() }()
+	synctest.Wait()
+	select {
+	case <-closed:
+		t.Fatal("Close sealed the endpoint over a deposited close")
+	default:
+	}
+	return closed
+}
+
+func TestNativeTransportCloseWaitsForDepositedClose(t *testing.T) {
+	t.Setenv("QUIC_GO_DISABLE_RECEIVE_BUFFER_WARNING", "true")
+	const budget = 100 * time.Millisecond
+
+	t.Run("held behind earlier requests", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			tc := newEmissionTestConnection(t, false)
+			c := tc.conn
+			release := make(chan struct{})
+			var output [][]byte
+			e := startNativeEndpoint(endpointTestNative{send: func(data []byte) (int, error) {
+				if len(output) == 0 {
+					<-release
+				}
+				output = append(output, bytes.Clone(data))
+				return len(data), nil
+			}}, budget, nil)
+			tr := nativeShutdownTransport(e)
+			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("current datagram")}))
+			retained, stopped := nativeCloseConnection(t, tc, e)
+			c.scheduleSending()
+			synctest.Wait()
+			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("queued datagram")}))
+			c.scheduleSending()
+			synctest.Wait()
+
+			require.NoError(t, c.CloseWithError(42, "held close"))
+			<-stopped
+			closed := requireCloseBlocked(t, tr)
+			close(release)
+			require.NoError(t, <-closed)
+			require.Len(t, output, 3)
+			require.Contains(t, string(output[0]), "current datagram")
+			require.Contains(t, string(output[1]), "queued datagram")
+			require.Equal(t, retained(), output[2])
+		})
+	})
+
+	// The writer holds its token before the submission check, so a seal here would cancel
+	// the write.
+	t.Run("claimed by the writer", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			tc := newEmissionTestConnection(t, false)
+			release := make(chan struct{})
+			var output [][]byte
+			e := startNativeEndpoint(endpointTestNative{
+				deadline: func(deadline time.Time) error {
+					if !deadline.IsZero() {
+						<-release
+					}
+					return nil
+				},
+				send: func(data []byte) (int, error) {
+					output = append(output, bytes.Clone(data))
+					return len(data), nil
+				},
+			}, budget, nil)
+			tr := nativeShutdownTransport(e)
+			retained, stopped := nativeCloseConnection(t, tc, e)
+			synctest.Wait()
+
+			require.NoError(t, tc.conn.CloseWithError(42, "claimed close"))
+			<-stopped
+			synctest.Wait()
+			closed := requireCloseBlocked(t, tr)
+			close(release)
+			require.NoError(t, <-closed)
+			require.Equal(t, [][]byte{retained()}, output)
+		})
+	})
+
+	t.Run("wedged write", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			tc := newEmissionTestConnection(t, false)
+			release := make(chan struct{})
+			e := startNativeEndpoint(endpointTestNative{send: func(data []byte) (int, error) {
+				<-release
+				return len(data), nil
+			}}, budget, nil)
+			tr := nativeShutdownTransport(e)
+			_, stopped := nativeCloseConnection(t, tc, e)
+			synctest.Wait()
+			require.NoError(t, tc.conn.CloseWithError(42, "wedged close"))
+			<-stopped
+
+			start := time.Now()
+			require.NoError(t, tr.Close())
+			elapsed := time.Since(start)
+			require.Positive(t, elapsed)
+			require.LessOrEqual(t, elapsed, budget+endpointTolerance)
+			select {
+			case <-e.done:
+				t.Fatal("Close must not join a blocked native call")
+			default:
+			}
+
+			// The endpoint is sealed now, so a repeated Close has nothing to wait for.
+			start = time.Now()
+			require.NoError(t, tr.Close())
+			require.Zero(t, time.Since(start))
+			close(release)
+			<-e.done
+		})
+	})
+
+	// Nothing more can reach the socket, so waiting out the bound would serve nothing.
+	t.Run("endpoint already faulted", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			tc := newEmissionTestConnection(t, false)
+			release := make(chan struct{})
+			e := startNativeEndpoint(endpointTestNative{send: func(data []byte) (int, error) {
+				<-release
+				return len(data), nil
+			}}, budget, nil)
+			tr := nativeShutdownTransport(e)
+			_, stopped := nativeCloseConnection(t, tc, e)
+			synctest.Wait()
+			require.NoError(t, tc.conn.CloseWithError(42, "faulted close"))
+			<-stopped
+			<-e.fault
+
+			start := time.Now()
+			require.NoError(t, tr.Close())
+			require.Zero(t, time.Since(start))
+			close(release)
+			<-e.done
+		})
+	})
+
+	// Only the bound ends this wait: the close resolved, but nothing detached its participant.
+	t.Run("bound without a detach", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			var output []string
+			e := startNativeEndpoint(endpointTestNative{send: func(data []byte) (int, error) {
+				output = append(output, string(data))
+				return len(data), nil
+			}}, budget, nil)
+			tr := nativeShutdownTransport(e)
+			p, err := e.attach(1)
+			require.NoError(t, err)
+			e.drain(p)
+			request := endpointRequest{identity: endpointIdentity{connection: 1}, destination: netip.MustParseAddrPort("127.0.0.1:1234"), buffers: []*packetBuffer{endpointTestBuffer("close")}}
+			require.NoError(t, e.depositClose(p, request))
+
+			start := time.Now()
+			require.NoError(t, tr.Close())
+			require.Equal(t, budget+endpointTolerance, time.Since(start))
+			require.Equal(t, []string{"close"}, output)
+			<-e.done
+		})
+	})
+
+	// Close stays abrupt: it neither waits for a current write nor sends a close.
+	t.Run("live connection", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			tc := newEmissionTestConnection(t, false)
+			c := tc.conn
+			release := make(chan struct{})
+			var output [][]byte
+			e := startNativeEndpoint(endpointTestNative{send: func(data []byte) (int, error) {
+				<-release
+				output = append(output, bytes.Clone(data))
+				return len(data), nil
+			}}, budget, nil)
+			tr := nativeShutdownTransport(e)
+			require.NoError(t, tr.init(false))
+			(*packetHandlerMap)(tr).Add(protocol.ParseConnectionID([]byte{1, 2, 3, 4}), c)
+			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("current datagram")}))
+			retained, stopped := nativeCloseConnection(t, tc, e)
+			c.scheduleSending()
+			synctest.Wait()
+
+			start := time.Now()
+			require.NoError(t, tr.Close())
+			require.Zero(t, time.Since(start))
+			require.ErrorIs(t, <-stopped, ErrTransportClosed)
+			close(release)
+			<-e.done
+			require.Empty(t, retained())
+			require.Len(t, output, 1)
+			require.Contains(t, string(output[0]), "current datagram")
+		})
+	})
+}
+
 func TestNativeAbortReleasesParticipant(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		tc := newEmissionTestConnection(t, false)

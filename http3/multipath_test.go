@@ -85,6 +85,15 @@ func TestMultipathHTTP3DefaultClientOwnsItsEndpoint(t *testing.T) {
 	require.NoError(t, tr.Close())
 	_, err = socket.WriteToUDP([]byte("x"), &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 9})
 	require.ErrorIs(t, err, net.ErrClosed, "the owner joined and released its socket")
+	// Well inside the 30 s default idle timeout, and the close itself rather than a timeout.
+	select {
+	case <-server.Context().Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("the client's close didn't arrive")
+	}
+	var closeErr *quic.ApplicationError
+	require.ErrorAs(t, context.Cause(server.Context()), &closeErr)
+	require.True(t, closeErr.Remote)
 }
 
 func TestMultipathHTTP3CallerSockets(t *testing.T) {

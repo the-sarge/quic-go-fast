@@ -618,6 +618,12 @@ func (t *Transport) runSendQueue() {
 // to the peers. It is the application's responsibility to cleanly terminate existing
 // connections prior to calling Close.
 //
+// With a [Transport.ConfigureMultipathIOV1] grant, a CONNECTION_CLOSE that a connection
+// has already handed to the endpoint still gets its write budget. Close waits for it to
+// be written, to expire or to end with an endpoint fault, for at most maxWriteDuration
+// and a small tolerance, and never for a blocked write. Past that, the close is lost.
+// With no such close there is no wait.
+//
 // If a server was started, it will be closed as well.
 // It is not possible to start any new server or dial new connections after that.
 //
@@ -629,6 +635,7 @@ func (t *Transport) Close() error {
 	// avoid race condition if the transport is currently being initialized
 	initErr := t.init(false)
 
+	t.responses.awaitDepositedCloses()
 	t.close(nil)
 	var connErr error
 	if t.createdConn {

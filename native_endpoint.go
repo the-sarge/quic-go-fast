@@ -170,6 +170,9 @@ type endpointParticipant struct {
 	// takes effect once its close obligation and retained requests are gone.
 	draining, detaching bool
 	closings            []endpointClosing
+	// closeDeposited stays set once a close is deposited. Retirement then resolves it,
+	// whichever way that close ended.
+	closeDeposited bool
 }
 
 // endpointClosing is one of a connection's close obligations, at most one per path, held in a field that
@@ -502,6 +505,38 @@ func (e *nativeEndpoint) stop() <-chan struct{} {
 // native I/O.
 func (e *nativeEndpoint) seal() {
 	e.do(func(s *endpointState) { s.sealed = true })
+}
+
+// awaitDepositedCloses gives each close already deposited here its write budget before
+// the owner seals. Retirement covers a written, expired or dropped close, and a fault
+// ends the rest. A participant that deposited none adds no wait. It never joins a native
+// call: past budget+endpointTolerance the seal goes ahead, and a close still unresolved
+// is lost.
+func (e *nativeEndpoint) awaitDepositedCloses() {
+	var retired []<-chan struct{}
+	var budget time.Duration
+	e.do(func(s *endpointState) {
+		budget = s.budget
+		for _, p := range s.participants {
+			if p != nil && p.active && p.closeDeposited {
+				retired = append(retired, p.retired)
+			}
+		}
+	})
+	if len(retired) == 0 {
+		return
+	}
+	timer := time.NewTimer(budget + endpointTolerance)
+	defer timer.Stop()
+	for _, r := range retired {
+		select {
+		case <-r:
+		case <-e.fault:
+			return
+		case <-timer.C:
+			return
+		}
+	}
 }
 
 // cancelReadiness withdraws work that was refused and remains producer-owned.

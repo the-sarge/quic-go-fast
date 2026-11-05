@@ -248,11 +248,32 @@ func TestMultipathAddrOwnedLifecycle(t *testing.T) {
 		_, err := sockets[1].WriteToUDP([]byte("x"), &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 9})
 		return errors.Is(err, net.ErrClosed)
 	}, 5*time.Second, time.Millisecond, "grant released and socket closed")
-	// Sealing the client's endpoint can drop its held close, so the server may not have
-	// heard. The listener's endpoint lives as long as its last connection.
+	requireHeardPeerClose(t, server)
+	// The listener's endpoint lives as long as its last connection.
 	require.NoError(t, server.CloseWithError(0, ""))
 	require.NoError(t, ln.Close())
 	require.Eventually(t, func() bool { return !granted(sockets[0]) }, 5*time.Second, time.Millisecond)
+}
+
+// requireHeardPeerClose requires the peer's close itself, well inside the 30 s default
+// idle timeout, so a connection that merely timed out can't pass.
+func requireHeardPeerClose(t *testing.T, c *Conn) {
+	t.Helper()
+	select {
+	case <-c.Context().Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("the peer's close didn't arrive")
+	}
+	var closeErr *ApplicationError
+	require.ErrorAs(t, context.Cause(c.Context()), &closeErr)
+	require.True(t, closeErr.Remote)
+}
+
+func TestMultipathCallerOwnedCloseReachesPeer(t *testing.T) {
+	p := newMultipathPair(t)
+	require.NoError(t, p.client.CloseWithError(0, ""))
+	require.NoError(t, p.clientTr.Close())
+	requireHeardPeerClose(t, p.server)
 }
 
 // socketTouchCounter reports whether a refused constructor read from a caller's socket or
