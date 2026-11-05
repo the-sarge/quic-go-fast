@@ -299,6 +299,7 @@ func TestNativeEndpointFairLargeAdmission(t *testing.T) {
 		e := startNativeEndpoint(endpointTestNative{send: func(b []byte) (int, error) { <-permits; return len(b), nil }}, time.Second, nil)
 		defer func() { close(permits); <-e.stop() }()
 		var large *endpointParticipant
+		var gaps []*endpointParticipant
 		for _, id := range []uint64{1, 2, 4} {
 			p, err := e.attach(id)
 			require.NoError(t, err)
@@ -312,6 +313,12 @@ func TestNativeEndpointFairLargeAdmission(t *testing.T) {
 				}
 				require.NoError(t, e.offer(p, 0, r))
 			}
+			gap, err := e.attach(id + 100)
+			require.NoError(t, err)
+			gaps = append(gaps, gap)
+		}
+		for _, gap := range gaps {
+			<-e.detach(gap)
 		}
 		r := endpointTestLargeRequest(4)
 		require.ErrorIs(t, e.offer(large, 0, r), errEndpointCapacity, "data class must respect its byte cap")

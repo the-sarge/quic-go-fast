@@ -1,6 +1,6 @@
 # Native endpoint efficiency and admission implementation plan
 
-**Date:** 2026-11-04. **Status:** N0 complete; N1 and N2 are the implementation frontier; N3 remains blocked by N1 and N2. Owner-approved; independent technical slice audit passed. **Identity:** `QGF-MP646-20261024-N`. **Parent:** [ordinary endpoint regression (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193). **Program:** [multipath #646](2026-10-24-multipath-program.md). **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [source, diagnosis and slice audit](../audits/2026-11-04-native-endpoint-efficiency-handoff.md).
+**Date:** 2026-11-04. **Status:** owner-approved; independent technical slice audit passed; 2/4 slices complete (N0 and N1); N2 #1201 is the frontier and N3 #1202 remains blocked by N2. **Identity:** `QGF-MP646-20261024-N`. **Parent:** [ordinary endpoint regression (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193). **Program:** [multipath #646](2026-10-24-multipath-program.md). **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [source, diagnosis and slice audit](../audits/2026-11-04-native-endpoint-efficiency-handoff.md).
 
 ## Goal and accepted boundary
 
@@ -79,11 +79,13 @@ Repair observed driver failure boundaries before reuse: charge an attempted obse
 | Slice | Identity | Disposition / outcome | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
 | [N0](#n0) | `QGF-MP646-20261024-N0` | Complete: ordinary-cost driver published ([#1199](https://github.com/the-sarge/quic-go-fast/issues/1199)) | None | Unmerged driver dependency |
-| [N1](#n1) | `QGF-MP646-20261024-N1` | Sparse participant traversal under existing endpoint control | None | Per-operation unused-slot traversal; diagnostic rebuilt index is not imported |
+| [N1](#n1) | `QGF-MP646-20261024-N1` | Complete — sparse participant traversal under existing endpoint control | None | Per-operation unused-slot traversal; diagnostic rebuilt index is not imported |
 | [N2](#n2) | `QGF-MP646-20261024-N2` | Admit eligible public/stateless work while protecting persistent grants | None | One-shot readiness/grant dependence |
 | [N3](#n3) | `QGF-MP646-20261024-N3` | Inline synchronized control, independent progress and combined native requalification | N0, N1, N2 | Command/ack mutation path |
 
-N0 is complete. N1 #1200 and N2 #1201 are the current frontier with no correctness blockers; N3 #1202 remains blocked by both. N0 introduced no runtime authority change. N1 and N2 overlap endpoint admission code/tests: recommend serial implementation with current-main reconciliation, without inventing a dependency between independent behaviors. N3 consumes all three and qualifies the combined candidate. Shared root-package validation requires current-main reconciliation.
+**Current frontier:** N0 [#1199](https://github.com/the-sarge/quic-go-fast/issues/1199) and N1 [#1200](https://github.com/the-sarge/quic-go-fast/issues/1200) are complete. N2 [#1201](https://github.com/the-sarge/quic-go-fast/issues/1201) is the remaining frontier; N3 [#1202](https://github.com/the-sarge/quic-go-fast/issues/1202) still waits for N2. The graph retains all correctness edges, including completed predecessors.
+
+N2 #1201 has no correctness blockers and must reconcile its endpoint admission code/tests with the completed N1 #1200 traversal change. N0 #1199 introduced no runtime authority change. N3 consumes all three and qualifies the combined candidate. Shared root-package validation requires current-main reconciliation.
 
 R17 #1037 and R18 #1038 remain on hold until N3's runtime fix and native evidence merge. Replace their administrative blocker on parent #1193 with the actual N3 child after this plan is published. This implements the owner's “fix first, then qualify the fixed candidate” order and removes a parent/qualification cycle. R18 resumes as the existing 36-observation qualification slice, consuming the merged N0 driver; it does not grow a performance-specific runtime path. Parent #1193 remains open after its four children merge until R18 reports all accepted ordinary tolerances passing on that fixed candidate. Issue #1141 stays a linked admission acceptance tracker, not a separately dispatchable child; it remains open until N2, N3's combined native contention evidence and R18's affected workload satisfy its independent criteria. Neither tracker blocks a runtime child, avoiding a second qualification cycle. R17 and R18 may run independently after N3 but must serialize use of a shared measurement host. R19's existing qualification dependencies and public disablement remain unchanged.
 
@@ -115,7 +117,7 @@ All slices preserve packet construction before recovery registration and registr
 <a id="n1"></a>
 ### N1 — Traverse occupied endpoint participants
 
-**Delivers / acceptance:** admission and retry-deadline work traverse occupied canonical participants rather than the configured table capacity, without changing admission/service choices for the same state and event order. Attachment, retirement and slot reuse maintain the bounded index through real endpoint operations; no per-operation rebuild or per-request index allocation remains. The original command-owned control context remains until N3. Child issue: pending.
+**Delivers / acceptance:** admission and retry-deadline work traverse occupied canonical participants rather than the configured table capacity, without changing admission/service choices for the same state and event order. Attachment, retirement and slot reuse maintain the bounded index through real endpoint operations; no per-operation rebuild or per-request index allocation remains. The original command-owned control context remains until N3. Child issue: [#1200](https://github.com/the-sarge/quic-go-fast/issues/1200). **State:** complete.
 
 **Owner / authority:** endpoint control owns canonical slot identity, sparse membership, grants, cursors and retirement. Every install/removal path is changed together; stale identity cannot enter a reused slot. Membership is a derived index, never a second eligibility or lifecycle state machine. Representation is the runtime domain above. The concrete work bound is proportional to occupied participants for the changed walks; it is not a new constant-latency promise under saturation.
 

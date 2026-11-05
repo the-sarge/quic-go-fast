@@ -5,6 +5,7 @@ package quic
 import (
 	"errors"
 	"io"
+	"iter"
 	"net"
 	"net/netip"
 	"os"
@@ -229,6 +230,7 @@ type endpointState struct {
 	endpoint                           *nativeEndpoint
 	budget                             time.Duration
 	participants                       [endpointParticipants + 2]*endpointParticipant
+	occupied                           []*endpointParticipant // slot-ordered references to canonical participants
 	records                            [endpointRecords]endpointRecord
 	queue                              []int
 	current                            *endpointToken
@@ -265,10 +267,13 @@ func startNativeEndpoint(native endpointNativeIO, budget time.Duration, sink fun
 			}
 		}
 	}()
-	s := &endpointState{endpoint: e, budget: budget, queue: make([]int, 0, endpointRequests)}
+	s := &endpointState{
+		endpoint: e, budget: budget, queue: make([]int, 0, endpointRequests),
+		occupied: make([]*endpointParticipant, 0, endpointParticipants+2),
+	}
 	for i, class := range []endpointClass{endpointStateless, endpointPublic} {
 		p := newEndpointParticipant(e, 0, endpointParticipants+i, class)
-		s.participants[p.slot] = p
+		s.install(p)
 		if class == endpointStateless {
 			e.stateless = p
 		} else {
@@ -323,7 +328,8 @@ func (e *nativeEndpoint) attachShared(id uint64, wake chan struct{}) (*endpointP
 				if wake != nil {
 					p.completed = wake
 				}
-				s.participants[i], err = p, nil
+				s.install(p)
+				err = nil
 				return
 			}
 		}
@@ -333,6 +339,35 @@ func (e *nativeEndpoint) attachShared(id uint64, wake chan struct{}) (*endpointP
 
 func (s *endpointState) valid(p *endpointParticipant) bool {
 	return p != nil && p.endpoint == s.endpoint && p.slot >= 0 && p.slot < len(s.participants) && s.participants[p.slot] == p && p.active
+}
+
+func (s *endpointState) participantPosition(slot int) int {
+	i, _ := slices.BinarySearchFunc(s.occupied, slot, func(p *endpointParticipant, slot int) int { return p.slot - slot })
+	return i
+}
+
+func (s *endpointState) install(p *endpointParticipant) {
+	s.participants[p.slot] = p
+	s.occupied = slices.Insert(s.occupied, s.participantPosition(p.slot), p)
+}
+
+// occupiedParticipants preserves the table's circular slot order without walking
+// unused capacity. Membership changes only at installation and final retirement;
+// callers must not change membership during this walk.
+func (s *endpointState) occupiedParticipants(cursor int) iter.Seq[*endpointParticipant] {
+	return func(yield func(*endpointParticipant) bool) {
+		start := s.participantPosition(cursor)
+		for _, p := range s.occupied[start:] {
+			if !yield(p) {
+				return
+			}
+		}
+		for _, p := range s.occupied[:start] {
+			if !yield(p) {
+				return
+			}
+		}
+	}
 }
 
 // offer transfers buffers only on success. On refusal the caller still owns
@@ -621,6 +656,8 @@ func (s *endpointState) finishDrain(p *endpointParticipant) {
 func (s *endpointState) retire(p *endpointParticipant) {
 	if !p.active && p.retained == 0 && s.participants[p.slot] == p {
 		s.participants[p.slot] = nil
+		i := s.participantPosition(p.slot)
+		s.occupied = slices.Delete(s.occupied, i, i+1)
 		close(p.retired)
 		// A connection spared by a read failure settles what this participant left.
 		select {
@@ -782,12 +819,10 @@ func (s *endpointState) run() {
 			next = earlierEndpointTime(next, s.grant.expires)
 		}
 		if s.grant == nil && !s.sealed && !s.faulted {
-			for _, p := range s.participants {
-				if p != nil {
-					for _, w := range p.wait {
-						if w.pending && w.notBefore.After(now) {
-							next = earlierEndpointTime(next, w.notBefore)
-						}
+			for p := range s.occupiedParticipants(0) {
+				for _, w := range p.wait {
+					if w.pending && w.notBefore.After(now) {
+						next = earlierEndpointTime(next, w.notBefore)
 					}
 				}
 			}
@@ -923,9 +958,8 @@ func (s *endpointState) arbitrate(now time.Time, admitting *endpointParticipant,
 		var candidates [4]*endpointGrant
 		var available [4]bool
 		for class := endpointData; class <= endpointPublic; class++ {
-			for offset := range len(s.participants) {
-				p := s.participants[(s.admissionCursor[class]+offset)%len(s.participants)]
-				if p == nil || !p.active || (p.class != endpointData && p.class != class) || (p.class == endpointData && class > endpointControl) {
+			for p := range s.occupiedParticipants(s.admissionCursor[class]) {
+				if !p.active || (p.class != endpointData && p.class != class) || (p.class == endpointData && class > endpointControl) {
 					continue
 				}
 				limit := 4
