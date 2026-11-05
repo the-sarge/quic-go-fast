@@ -1,0 +1,24 @@
+# Interface timing analyzer for issue #1210
+
+This is inert, experiment-specific offline analysis. It imports the frozen kernel-boundary analyzer and its original trace loader from the adjacent audit directories without changing those sources. It does not run traffic, open capture devices, change network settings, or qualify a production remedy.
+
+Run from any working directory, using the native capture root and its macOS Ethernet pcap:
+
+```sh
+python3 analyze-interface.py CAPTURE_ROOT OUTPUT.json --pcap MAC_INTERFACE.pcap --arm ARM_NAME
+python3 analyze-interface-test.py
+```
+
+`--arm` is optional when the capture root contains exactly one controller result. Repeat `--pcap` for nonoverlapping capture files; `.gz` input is accepted. Use `--base-analysis ORIGINAL_ANALYSIS.json` to reuse a saved original analysis. The default identity mode is `size-class-v2`; use `--identity-mode legacy` for the preceding observer. Both modes are explicit and must match the diagnostic binary. Classic pcap version 2.4, either byte order, microsecond or nanosecond precision, and Ethernet linktype 1 are supported. Pcapng is rejected explicitly.
+
+The parser validates Ethernet with up to two VLAN tags, IPv4 header and total lengths, UDP length, and the required protected payload prefix. IPv4 fragments, truncated identity prefixes, malformed records and other address pairs are rejected. An intentionally shortened captured packet body is valid when the complete length and fingerprint prefix remain available. Defaults are sender 192.168.1.50 and receiver 192.168.1.110; command-line address options allow an explicitly different experiment. Packet checksum validation is intentionally absent because offload captures can contain unfinished checksums.
+
+The v2 identity hashes the complete UDP payload length as eight little-endian bytes followed by the first `min(32, length)` protected bytes using 64-bit FNV-1a. It clears the sign bit, normalizes a zero lower-63-bit value to one, then sets the sign bit for payloads shorter than 256 bytes. Empty payload identity is zero. The observer selects every small payload and approximately one in 16 larger payloads. An ACK cycle still requires the actual parsed ACK-frame link; a small payload alone does not imply an ACK. Legacy mode preserves the original 64-bit FNV result, normalizing zero to one. Duplicate identities have no chosen winner, including byte-identical duplicate capture records and duplicates across input files.
+
+The primary measurement is macOS BPF TX of the correlated ACK minus BPF RX of the corresponding largest-acked data packet. Both timestamps use the macOS host clock. The complete cycle then subtracts this turnaround, the corresponding sender logical-send-to-Linux-software-TX interval, and the corresponding Linux-software-RX-to-protocol interval from the original raw RTT. The residual contains both directions outside the macOS interface taps, including unavailable NIC, driver, and network work. It is neither one-way latency nor physical propagation time.
+
+The output contains exact integer nanosecond terms and microsecond equivalents for every cycle, per-probe and aggregate distributions, explicit per-cycle exclusions, capture validity counters, endpoint diagnostic quality and join ambiguity. Complete cycles are a subset of partial cycles, which are a subset of turnaround-only cycles. A partial cycle retains all missing Linux sender pre-TX residence rather than estimating it from another packet or a cohort median. Timestamp reversals and negative residuals remain visible; no clipping is applied. Capture loss counters are not present in pcap and must be read from collector stderr separately.
+
+When the matched macOS socket-delivery record and ACK write exist, optional terms split the Mac turnaround further. The matched data record's paired wall/monotime sample maps both BPF times to the receiver clock. Nearby clock-offset observations and capture timestamp quantum accompany the result. Their observed offset span describes sensitivity, not a guaranteed uncertainty bound. Clock steps between observations remain possible. The primary BPF turnaround and outer residual do not depend on this wall-to-monotime mapping. Constant independent Linux and macOS clock shifts are covered by the synthetic tests.
+
+The synthetic packet-to-cycle witness partitions 255 microseconds as 20 microseconds of Linux pre-TX residence, 130 microseconds of macOS interface turnaround, 35 microseconds of Linux receive residence, and a 70-microsecond outer residual. Additional cases cover maximum IPv4/VLAN headers at snaplen 128, pcap byte order and timestamp precision, missing TX stamps, duplicate identities, incorrect reverse flow, malformed/truncated capture data, fragments, invalid kernel timestamps and retained negative values.
