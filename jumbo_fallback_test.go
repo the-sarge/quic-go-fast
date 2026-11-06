@@ -778,9 +778,10 @@ func TestJumboFallbackPreservesPendingPTOCredits(t *testing.T) {
 				return sizes
 			}
 			t.Cleanup(func() { drain() })
-			if kind == "control" {
+			switch kind {
+			case "control":
 				c.mtuFallback.active, c.mtuFallback.confirmed = false, true
-			} else if kind == "follow-up" {
+			case "follow-up":
 				require.NoError(t, c.triggerSending(now).err)
 				require.Equal(t, []int{1438}, drain())
 			}
@@ -802,10 +803,11 @@ func TestJumboFallbackPreservesPendingPTOCredits(t *testing.T) {
 				require.NoError(t, c.triggerSending(deadline).err)
 			}
 			emitted[kind] = drain()
-			if kind == "padded" {
+			switch kind {
+			case "padded":
 				require.NotNil(t, c.mtuFallback.probe)
 				require.True(t, c.mtuFallback.probe.deadline.After(deadline))
-			} else if kind == "follow-up" {
+			case "follow-up":
 				require.True(t, c.mtuFallback.probe.followupSent)
 				require.NotZero(t, c.sentPacketHandler.GetLossDetectionTimeout(), "the follow-up PING retains ordinary loss-alarm eligibility")
 			}
