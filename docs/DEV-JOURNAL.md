@@ -9679,3 +9679,34 @@ Certified head `e1add4e254c986415fbee8f65fe809028fffacce` passed affected-packag
 ### Next
 
 At this entry, F10 #1224 code is merged and its journal/task reconciliation is finishing. PR #1255 owns the committed completion and frontier transition. F7 #1221 retains its independent coding work and is the remaining implementation frontier; F11 #1225 remains conditional on the consumer comparison selecting its design. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) is the live coordination view, and the [F10 normative plan](adr/2026-11-05-jumbo-packets-plan.md#f10) owns the accepted contract.
+
+---
+
+## Jumbo fallback confirmation landed - 2026-11-06 08:45 EST
+
+**Main:** `f89e69e481c9`
+**Actor:** Codex
+
+### Summary
+
+[PR #1257 — Confirm jumbo fallback with transport-owned probes (#1221)](https://github.com/the-sarge/quic-go-fast/pull/1257) merged as `f89e69e481c9f141979e0d728da69a96f9f7fd17`, implementing F7 #1221 under [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). A jumbo-active connection now confirms its fallback using transport-generated padded probes and a small follow-up PING, including DATAGRAM-only and congestion-limited cases. A lost verdict requires both the probe's deadline and acknowledgment of a later-sent small packet. Three losses reach the initial size; confirmation there restarts standard discovery without stage two, and three further losses stop recovery probing. Path-generation changes cancel the attempt.
+
+The run loop retains size/deadline/verdict ownership, recovery retains ordered registration and accounting, and emission uses the concrete padded packer before handoff. Valid probe ACK evidence survives ordinary threshold loss and owned retirement, with bounded metadata and terminal cleanup. BBR recovery uses unpaced local ownership without spending pacing credit, and non-loss disposal releases delivery records. Recovery admission preserves real capacity and amplification gates without borrowing the unrelated path-validation category cap. Ordinary PTO credits remain available beside both recovery emissions, while the follow-up retains ordinary loss classification. The public observations now describe the initial-size drop and possible standard-size re-raise without changing the first-drop-only fallback channel.
+
+### Decisions
+
+[Contract PR #1258 — Clarify F7 recovery ownership of ordinary PTO credits (#1221)](https://github.com/the-sarge/quic-go-fast/pull/1258) published the current owner and finite control/padded/follow-up preservation row. Registration uses an explicit private recovery class; the MTU loss flag independently controls owned deadlines, so the ordinary-loss follow-up is covered without changing discovery semantics.
+
+The existing intermediate unknown stage-one report during tested-size reset remains unchanged at merged source, as previously dispositioned for [F6 #1220 on parent #1215](https://github.com/the-sarge/quic-go-fast/issues/1215#issuecomment-6682346055). The newly documented same-path standard-search restart is separate from that conservative transient report. No new follow-up ticket or successor blocker was added for the prior marginal observation.
+
+### Validation
+
+The first DATAGRAM-only regression failed with no transport confirmation probe before implementation. The six accepted recovery scenarios now pass, including the actual congestion-window witness, refusal above 1,300 reaching initial size 1,232 with stage-one ceiling 1,452/first probe 1,342, six lost attempts with ordinary keepalives continuing, and public path migration cancellation. The single admitted deadline-removal mutation stalled the DATAGRAM-only case; the guard was restored byte for byte. Focused regressions additionally preserve valid ACK evidence before the owned deadline and after an owned loss while a newer probe is outstanding, clear BBR delivery accounting after confirmation/exhaustion, emit under depleted BBR credit, and retain ordinary ACK/loss-alarm progress with path-validation capacity full. These are real construction/recovery seams and simulated transport connections, not real-link shrink qualification or a timing guarantee.
+
+Two complete configured review runs, `20261106T114450-d273b05d280cd6570daba27a` and `20261106T122611-1c8d62fad405ff8225955873`, identified the repaired lifecycle, pacing, admission, documentation and ordinary-PTO preservation cases. The pending-PTO regression was red at a missing ordinary dispatch and now retains both ordinary dispatches beside either recovery emission. Final source verification resolved both replacement clusters with no new concern. A test-only tagged-switch conversion completed the existing Staticcheck requirement without changing the runtime correction or assertions.
+
+Certified head `f7684b6c2af2e6e6b2132332f5a72fd0b9befc72` passed root/recovery suites, affected vet, tidy-diff, all six existing selected-build lint profiles, and clean-tree/diff checks. All 17 hosted checks succeeded. The [PR #1257 exact-head validation and merge receipt](https://github.com/the-sarge/quic-go-fast/pull/1257#issuecomment-6686233724) records the unchanged-base matching-head squash merge, whose tree exactly equals the certified tree `dab791cee4df7a22d72711f4c81881e06833873a`. No RAS runs for this journal.
+
+### Next
+
+At this entry, F7 #1221 code is merged and its required journal/task/readiness reconciliation is finishing. PR #1257 already owns the committed completion/header/graph/frontier transition. F8 #1222 follows after that closure; F11 #1225 remains conditional on the consumer comparison selecting its design. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) is the live coordination view, and the [F7 normative plan](adr/2026-11-05-jumbo-packets-plan.md#f7) owns the accepted contract.
