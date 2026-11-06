@@ -10,7 +10,7 @@ import (
 // restarting congestion control at the smaller size. Recovery retains ownership
 // of registration order and lifetimes. The synchronous observer reports ACK facts
 // only; the connection run loop owns the confirmation verdict.
-func ResetForMTUReduction(handler SentPacketHandler, now monotime.Time, size protocol.ByteCount, acked func(PacketContext, protocol.ByteCount, monotime.Time)) {
+func ResetForMTUReduction(handler SentPacketHandler, now monotime.Time, size protocol.ByteCount, acked func(PacketContext, protocol.ByteCount, protocol.PacketNumber)) {
 	h := handler.(*sentPacketHandler)
 	h.mtuAcked = acked
 	h.resetCongestionCapture(true)
@@ -67,13 +67,12 @@ type mtuRecoveryAck struct {
 	number  protocol.PacketNumber
 	context PacketContext
 	size    protocol.ByteCount
-	sent    monotime.Time
 }
 
 func (h *sentPacketHandler) retainMTURecoveryAck(pn protocol.PacketNumber, p *packet) {
 	for i := range h.mtuRecoveryAcks {
 		if !h.mtuRecoveryAcks[i].valid {
-			h.mtuRecoveryAcks[i] = mtuRecoveryAck{valid: true, number: pn, context: p.Context, size: p.Length, sent: p.SendTime}
+			h.mtuRecoveryAcks[i] = mtuRecoveryAck{valid: true, number: pn, context: p.Context, size: p.Length}
 			return
 		}
 	}
@@ -89,7 +88,7 @@ func (h *sentPacketHandler) acknowledgeMTURecoveryProbes(ack *wire.AckFrame) {
 		}
 		h.mtuRecoveryAcks[i] = mtuRecoveryAck{}
 		if h.mtuAcked != nil {
-			h.mtuAcked(p.context, p.size, p.sent)
+			h.mtuAcked(p.context, p.size, p.number)
 		}
 	}
 }
@@ -103,7 +102,7 @@ func CanSendMTURecoveryProbe(handler SentPacketHandler) bool {
 
 // ObservePacketSize reports synchronous transport facts to the connection owner.
 // It adds no policy or cross-context handoff to recovery.
-func ObservePacketSize(handler SentPacketHandler, acked func(PacketContext, protocol.ByteCount, monotime.Time), lost func(PacketContext, protocol.ByteCount, monotime.Time)) {
+func ObservePacketSize(handler SentPacketHandler, acked func(PacketContext, protocol.ByteCount, protocol.PacketNumber), lost func(PacketContext, protocol.ByteCount, monotime.Time)) {
 	h := handler.(*sentPacketHandler)
 	h.mtuAcked, h.mtuLost = acked, lost
 }

@@ -13,6 +13,7 @@ import (
 // decide its verdict, including callbacks caused by a path change.
 type packetSizeRecoveryProbe struct {
 	size                                 protocol.ByteCount
+	number                               protocol.PacketNumber
 	timeout                              time.Duration
 	sent, deadline                       monotime.Time
 	expired, followupSent, laterSmallAck bool
@@ -134,10 +135,11 @@ func (e *packetEmission) packetSizeRecovery(intent packetSizeRecoveryIntent, now
 	if intent.followup {
 		intent.probe.followupSent = true
 		if intent.probe.sent == 0 {
-			intent.probe.sent = now
+			intent.probe.sent, intent.probe.number = now, p.PacketNumber
 		}
 	} else {
 		intent.probe.sent, intent.probe.deadline = now, now.Add(intent.probe.timeout)
+		intent.probe.number = p.PacketNumber
 	}
 	e.handoff(buf, 0, ecn, sendMetadata{mtuProbe: !intent.followup})
 	return emissionResult{progress: true, retry: true}

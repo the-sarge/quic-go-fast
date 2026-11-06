@@ -92,7 +92,7 @@ type sentPacketHandler struct {
 	largestPath protocol.PathID
 	paths       map[protocol.PathID]*sentPacketHandler
 
-	mtuAcked                func(PacketContext, protocol.ByteCount, monotime.Time)
+	mtuAcked                func(PacketContext, protocol.ByteCount, protocol.PacketNumber)
 	mtuLost                 func(PacketContext, protocol.ByteCount, monotime.Time)
 	mtuRecoveryAcks         [MaxMTURecoveryProbes]mtuRecoveryAck
 	local                   *localCompletions
@@ -653,7 +653,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 		}
 		if p.EncryptionLevel == protocol.Encryption1RTT {
 			if h.mtuAcked != nil && !p.isPathProbePacket {
-				h.mtuAcked(p.Context, p.Length, p.SendTime)
+				h.mtuAcked(p.Context, p.Length, p.PacketNumber)
 			}
 			if !acked1RTTPacket.Valid || p.Context.KeyGeneration >= acked1RTTPacket.KeyGeneration {
 				acked1RTTPacket = protocol.ApplicationKeyReceipt{Valid: true, PathID: p.Context.PathID, PacketNumber: p.PacketNumber, KeyGeneration: p.Context.KeyGeneration}

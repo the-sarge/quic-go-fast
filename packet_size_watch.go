@@ -11,7 +11,8 @@ import (
 // detector declared the losses. A successful jumbo ACK starts a fresh window.
 type packetSizeWatch struct {
 	generation                uint64
-	deadline, since           monotime.Time
+	deadline                  monotime.Time
+	firstPacketNumber         protocol.PacketNumber
 	losses, lostProbes        int
 	checking, recheck, retire bool
 	probe                     *packetSizeRecoveryProbe
@@ -60,7 +61,7 @@ func (c *Conn) notePacketSizeLivenessRetry(generation uint64, p *packetSizeRecov
 	c.scheduleSending()
 }
 
-func (c *Conn) notePacketSizeAck(context ackhandler.PacketContext, size protocol.ByteCount, sent monotime.Time) {
+func (c *Conn) notePacketSizeAck(context ackhandler.PacketContext, size protocol.ByteCount, number protocol.PacketNumber) {
 	if !c.watchingPacketSize() || context.PathID != 0 || context.TupleGeneration != c.pathGeneration {
 		return
 	}
@@ -74,13 +75,13 @@ func (c *Conn) notePacketSizeAck(context ackhandler.PacketContext, size protocol
 		c.scheduleSending()
 		return
 	}
-	if !w.checking || sent.Before(w.since) {
+	if !w.checking || number < w.firstPacketNumber {
 		return
 	}
 	if !w.recheck {
 		w.recheck, w.probe, w.retire = true, nil, true
 		c.scheduleSending()
-	} else if p := w.probe; p != nil && p.sent != 0 && sent.After(p.sent) {
+	} else if p := w.probe; p != nil && p.sent != 0 && number > p.number {
 		p.laterSmallAck = true
 	}
 }
@@ -102,6 +103,14 @@ func (c *Conn) packetSizeWatchTime() monotime.Time {
 	return 0
 }
 
+// The connection owns the phase boundary; recovery owns its send order. Capturing
+// the next number excludes earlier small packets even when their clocks tie.
+func (c *Conn) startPacketSizeLiveness() {
+	w := &c.mtuWatch
+	w.checking, w.recheck, w.probe, w.lostProbes = true, false, nil, 0
+	w.firstPacketNumber, _ = c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+}
+
 func (c *Conn) advancePacketSizeWatch(now monotime.Time) {
 	w := &c.mtuWatch
 	if w.retire {
@@ -115,7 +124,7 @@ func (c *Conn) advancePacketSizeWatch(now monotime.Time) {
 		if w.losses < 3 || now.Before(w.deadline) {
 			return
 		}
-		w.checking, w.since = true, now
+		c.startPacketSizeLiveness()
 	}
 	p := w.probe
 	if !w.recheck {
@@ -133,7 +142,7 @@ func (c *Conn) advancePacketSizeWatch(now monotime.Time) {
 		// Without later small delivery the probe has no loss verdict. Retry liveness,
 		// including after a second outage immediately following the first small ACK.
 		ackhandler.RetireMTURecoveryProbes(c.sentPacketHandler, now, false)
-		w.recheck, w.probe, w.lostProbes, w.since = false, nil, 0, now
+		c.startPacketSizeLiveness()
 		return
 	}
 	ackhandler.RetireMTURecoveryProbes(c.sentPacketHandler, now, true)

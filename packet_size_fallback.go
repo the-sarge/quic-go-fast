@@ -49,15 +49,15 @@ func (f *packetSizeFeedback) take() (uint64, protocol.ByteCount, bool) {
 // mtuFallback is owned by the connection run loop. The channel alone is public.
 // started stays set across path changes: a new connection is needed for jumbo.
 type mtuFallback struct {
-	started    monotime.Time
-	generation uint64
-	size       protocol.ByteCount
-	confirmed  bool
-	active     bool
-	since      monotime.Time
-	lost       int
-	probe      *packetSizeRecoveryProbe
-	dropped    chan struct{}
+	started           monotime.Time
+	generation        uint64
+	size              protocol.ByteCount
+	confirmed         bool
+	active            bool
+	firstPacketNumber protocol.PacketNumber
+	lost              int
+	probe             *packetSizeRecoveryProbe
+	dropped           chan struct{}
 }
 
 // PathMTUFallbackV1 returns a channel that closes when a local size refusal or
@@ -103,7 +103,9 @@ func (c *Conn) startPacketSizeFallback(now monotime.Time) {
 }
 
 func (c *Conn) reducePacketSizeForRecovery(now monotime.Time, fallback protocol.ByteCount) {
-	c.mtuFallback.size, c.mtuFallback.since = fallback, now
+	c.mtuFallback.size = fallback
+	// Recovery numbers, unlike clock stamps, distinguish sends in one clock tick.
+	c.mtuFallback.firstPacketNumber, _ = c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
 	c.mtuFallback.probe = nil
 	// Reset the finder first, so loss callbacks from retired probes are stale.
 	// A settled finder at the tested size prevents any further search on this path.
@@ -120,11 +122,11 @@ func (c *Conn) reducePacketSizeForRecovery(now monotime.Time, fallback protocol.
 	c.scheduleSending()
 }
 
-func (c *Conn) confirmPacketSizeFallback(context ackhandler.PacketContext, size protocol.ByteCount, sent monotime.Time) {
-	c.notePacketSizeAck(context, size, sent)
+func (c *Conn) confirmPacketSizeFallback(context ackhandler.PacketContext, size protocol.ByteCount, number protocol.PacketNumber) {
+	c.notePacketSizeAck(context, size, number)
 	f := &c.mtuFallback
 	if !f.active || context.PathID != 0 || context.TupleGeneration != f.generation ||
-		c.pathGeneration != f.generation || sent.Before(f.since) {
+		c.pathGeneration != f.generation || number < f.firstPacketNumber {
 		return
 	}
 	if size == f.size {
@@ -136,7 +138,7 @@ func (c *Conn) confirmPacketSizeFallback(context ackhandler.PacketContext, size 
 		}
 		return
 	}
-	if p := f.probe; p != nil && p.sent != 0 && size <= protocol.MaxPacketBufferSize && sent.After(p.sent) {
+	if p := f.probe; p != nil && p.sent != 0 && size <= protocol.MaxPacketBufferSize && number > p.number {
 		p.laterSmallAck = true
 	}
 }
