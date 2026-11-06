@@ -92,6 +92,7 @@ type sentPacketHandler struct {
 	largestPath protocol.PathID
 	paths       map[protocol.PathID]*sentPacketHandler
 
+	mtuAcked                func(PacketContext, protocol.ByteCount, monotime.Time)
 	local                   *localCompletions
 	initialPackets          *packetNumberSpace
 	handshakePackets        *packetNumberSpace
@@ -647,6 +648,9 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 			h.congestion.OnPacketAcked(congestion.NewPacketKey(p.EncryptionLevel, p.PacketNumber), p.Length, priorInFlight, rcvTime)
 		}
 		if p.EncryptionLevel == protocol.Encryption1RTT {
+			if h.mtuAcked != nil && !p.isPathProbePacket {
+				h.mtuAcked(p.Context, p.Length, p.SendTime)
+			}
 			if !acked1RTTPacket.Valid || p.Context.KeyGeneration >= acked1RTTPacket.KeyGeneration {
 				acked1RTTPacket = protocol.ApplicationKeyReceipt{Valid: true, PathID: p.Context.PathID, PacketNumber: p.PacketNumber, KeyGeneration: p.Context.KeyGeneration}
 			}
@@ -1534,6 +1538,12 @@ func (h *sentPacketHandler) ResetForRetry(now monotime.Time) {
 func (h *sentPacketHandler) MigratedPath(now monotime.Time, initialMaxDatagramSize protocol.ByteCount) {
 	h.resetCongestionCapture(true)
 	h.rttStats.ResetForPathMigration()
+	h.resetForPacketSize(now, initialMaxDatagramSize)
+}
+
+// resetForPacketSize retires registrations in recovery order before replacing
+// congestion state. STREAM callbacks requeue data for the smaller packet budget.
+func (h *sentPacketHandler) resetForPacketSize(now monotime.Time, initialMaxDatagramSize protocol.ByteCount) {
 	h.packetThresholdDisabled = false
 	h.timeThresholdEighths = defaultTimeThresholdEighths
 	h.minPNToRelaxReordering = protocol.InvalidPacketNumber

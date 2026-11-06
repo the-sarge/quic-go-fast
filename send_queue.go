@@ -24,6 +24,7 @@ type sendMetadata struct {
 	terminalReceipts []*pathAbandonReceipt // nil unless the packet carries PATH_ABANDON
 	credit           *sendReservation
 	handshake        bool
+	mtuProbe         bool
 	pathGeneration   uint64
 }
 
@@ -97,6 +98,7 @@ type sendQueue struct {
 	// authorized is conn when it authorizes each of several submissions.
 	authorized authorizedWriter
 	feedback   *handshakeSendFeedback
+	refusals   *packetSizeFeedback
 	// authority is checked again before each socket submission of queued
 	// work; nil is ungrouped.
 	authority *connAuthority
@@ -254,6 +256,13 @@ func (h *sendQueue) writeEntry(e queueEntry) error {
 		}
 		if !isSendMsgSizeErr(err) {
 			return err
+		}
+		size := e.buf.Len()
+		if e.gsoSize != 0 {
+			size = protocol.ByteCount(e.gsoSize)
+		}
+		if h.refusals != nil && !e.metadata.mtuProbe && size > protocol.MaxPacketBufferSize {
+			h.refusals.publish(e.metadata.pathGeneration, size)
 		}
 		if h.feedback != nil && e.metadata.handshake && e.gsoSize == 0 && e.buf.Len() > protocol.MinInitialPacketSize {
 			h.feedback.publish(e.metadata.pathGeneration)

@@ -94,9 +94,16 @@ func (c *sconn) writeAuthorized(p []byte, gsoSize uint16, ecn protocol.ECN, perm
 	err := c.writePacket(p, ai.addr, ai.oob, gsoSize, ecn, permit)
 	// Only a write with a segment size can fail for GSO. Without one, the
 	// fallback below would resend p as empty pieces and never shorten it.
-	if err != nil && gsoSize > 0 && isGSOError(err) {
-		// disable GSO for future calls
-		c.gotGSOError.Store(true)
+	// Older Linux kernels use EINVAL for an oversized UDP_SEGMENT. It is
+	// ambiguous, so retry only jumbo segments through the scalar path: its
+	// result supplies definitive size feedback or retains normal fatal errors.
+	if err != nil && gsoSize > 0 && (isGSOError(err) ||
+		(gsoSize > uint16(protocol.MaxPacketBufferSize) && isGSOInvalidArgument(err))) {
+		// Preserve the existing EIO fallback latch. Jumbo EINVAL is still
+		// ambiguous until the scalar attempts establish their outcome.
+		if isGSOError(err) {
+			c.gotGSOError.Store(true)
+		}
 		if c.logger.Debug() {
 			c.logger.Debugf("GSO failed when sending to %s", ai.addr)
 		}
@@ -108,6 +115,8 @@ func (c *sconn) writeAuthorized(p []byte, gsoSize uint16, ecn protocol.ECN, perm
 			}
 			p = p[l:]
 		}
+		// Every scalar submission succeeded, so segmentation itself failed.
+		c.gotGSOError.Store(true)
 		return nil
 	}
 	return err

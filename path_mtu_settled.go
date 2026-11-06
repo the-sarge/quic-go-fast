@@ -34,7 +34,9 @@ func (s *pathMTUSettled) settle() {
 //   - the connection ends, for any reason and at any stage.
 //
 // After the channel closes because the search concluded, the DATAGRAM limit
-// stays the same while the connection remains on its first path. Settled means
+// stays the same while the connection remains on its first path, except that a
+// local size refusal on a jumbo-active connection lowers it to the tested
+// stage-one size and closes PathMTUFallbackV1. Settled means
 // that the search is over, not that the path will keep that size.
 //
 // A path change resets the DATAGRAM limit to the initial packet size, and

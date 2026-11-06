@@ -161,6 +161,8 @@ type Conn struct {
 	// emission.activeConn; other direct reads are connection-goroutine owned.
 	conn                  sendConn
 	handshakeSendFeedback handshakeSendFeedback
+	packetSizeFeedback    packetSizeFeedback
+	mtuFallback           mtuFallback
 	pathGeneration        uint64
 
 	// lazily initialzed: most connections never migrate
@@ -576,6 +578,10 @@ var newClientConnection = func(
 func (c *Conn) preSetup() {
 	c.effectiveInitialPacketSize = c.config.initialPacketSize()
 	c.handshakeSendFeedback.wakeup = make(chan struct{}, 1)
+	if c.packetCeiling.size() > protocol.MaxPacketBufferSize {
+		c.packetSizeFeedback.wakeup = make(chan struct{}, 1)
+		c.mtuFallback.dropped = make(chan struct{})
+	}
 	c.largestRcvdAppData = protocol.InvalidPacketNumber
 	c.initialStream = newInitialCryptoStream(c.perspective == protocol.PerspectiveClient)
 	c.handshakeStream = newCryptoStream()
@@ -766,6 +772,7 @@ runLoop:
 			case <-c.timer.C:
 			case <-c.sendingScheduled:
 			case <-c.handshakeSendFeedback.wakeup:
+			case <-c.packetSizeFeedback.wakeup:
 			case <-c.emission.localWakeup():
 			case <-c.emission.localFault():
 			case <-sendQueueAvailable:
@@ -791,6 +798,7 @@ runLoop:
 			c.destroyImpl(err)
 			break runLoop
 		}
+		c.applyPacketSizeFallback(now)
 		if h, ok := c.sentPacketHandler.(deliveryLifecycle); ok {
 			h.ExpireDelivery(now)
 		}
@@ -1123,7 +1131,7 @@ func (c *Conn) switchToNewPath(tr *Transport, now monotime.Time) {
 func (c *Conn) resetPathPacketSize(now monotime.Time) {
 	size := c.effectiveInitialPacketSize
 	c.sentPacketHandler.MigratedPath(now, size)
-	c.mtuDiscoverer.Reset(size, c.effectivePacketCeiling())
+	c.mtuDiscoverer.Reset(size, c.discoveryPacketCeiling())
 	c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(size)))
 	// The first path's search is over. Settle after the reset, so the limit read
 	// afterwards is the initial size. MigratedPath can declare an in-flight probe
@@ -1135,6 +1143,16 @@ func (c *Conn) resetPathPacketSize(now monotime.Time) {
 // Non-zero multipath paths retain the standard packet ceiling.
 func (c *Conn) peerMaxPacketSize() protocol.ByteCount {
 	return min(c.effectivePacketCeiling(), protocol.MaxPacketBufferSize)
+}
+
+// discoveryPacketCeiling preserves the negotiated observation while a fallback
+// permanently disables jumbo discovery, including on later paths.
+func (c *Conn) discoveryPacketCeiling() protocol.ByteCount {
+	ceiling := c.effectivePacketCeiling()
+	if c.mtuFallback.started != 0 {
+		return min(ceiling, protocol.MaxPacketBufferSize)
+	}
+	return ceiling
 }
 
 func (c *Conn) effectivePacketCeiling() protocol.ByteCount {
@@ -3011,6 +3029,11 @@ func (c *Conn) initPacketEmission(packer *packetPacker) {
 	packer.pathZeroGeneration = &c.pathGeneration
 	bbr := c.config.CongestionControlV1() == "bbrv3"
 	queue := newSendQueue(c.conn, &c.handshakeSendFeedback)
+	var refusals *packetSizeFeedback
+	if c.packetSizeFeedback.wakeup != nil {
+		refusals = &c.packetSizeFeedback
+	}
+	queue.(*sendQueue).refusals = refusals
 	c.emission = packetEmission{
 		packer:        packer,
 		recovery:      &c.sentPacketHandler,
@@ -3019,6 +3042,7 @@ func (c *Conn) initPacketEmission(packer *packetPacker) {
 		policy:        c,
 		conn:          &c.conn,
 		shortSegments: shortGSOSegmentsEnabled(),
+		refusals:      refusals,
 	}
 	if bbr {
 		c.emission.enableBBR(monotime.Now(), c.packetCeiling.size())
@@ -3040,6 +3064,8 @@ func (c *Conn) noteCoalescedRegistration(level protocol.EncryptionLevel, now mon
 		c.dropEncryptionLevel(protocol.EncryptionInitial, now)
 	}
 }
+
+func (c *Conn) sendPathGeneration() uint64 { return c.pathGeneration }
 
 func (c *Conn) coalescedSendMetadata(hasHandshakePacket bool) sendMetadata {
 	handshake := !c.handshakeConfirmed && hasHandshakePacket && c.config.initialPacketSizeUnset()
