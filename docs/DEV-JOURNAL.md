@@ -9760,3 +9760,30 @@ The once-only Standards/Spec preparation was clear. The initial and sole replace
 ### Next
 
 At this entry, F8 #1222 product code is merged and its required journal/task reconciliation is finishing. PR #1260 already owns the committed completion/header/graph/F9 #1223 frontier transition. F9 #1223 follows full closure; F11 #1225 remains conditional on the consumer comparison, and F12 #1226 still requires external qualification, the independent release #1111 and owner approval. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) is the live coordination view, and the [F8 normative plan](adr/2026-11-05-jumbo-packets-plan.md#f8) owns the accepted contract.
+
+---
+
+## Experimental public packet ceiling landed - 2026-11-06 14:12 EST
+
+**Main:** `675ea8052dab`
+**Actor:** Codex
+
+### Summary
+
+Completed [jumbo packets F9 (#1223)](https://github.com/the-sarge/quic-go-fast/issues/1223) through [product PR #1266](https://github.com/the-sarge/quic-go-fast/pull/1266), squash-merged as `675ea8052dabffa6f188550414b33e492dd02ff6`. `Transport.ConfigurePacketCeilingV1(n)` now opts one Transport into a UDP payload ceiling of 1452–8972 bytes before initialization. It validates under the existing Transport configuration mutex, refuses configuration after sealing, and excludes native multipath I/O in either order, including an explicitly configured 1452 ceiling. The temporary test setter is removed; supported jumbo fixtures use the public API while lower-ceiling internal characterization fixtures retain their original observations.
+
+### Decisions
+
+The API remains experimental under the [accepted F9 contract](adr/2026-11-05-jumbo-packets-plan.md#f9), with disclosure in its doc comment and the changelog. Unconfigured Transports retain the standard advertisement, discovery sequence, buffer tiers and parser limits; a standard peer still caps the sender. Existing run-loop recovery, packet-number ordering, ordinary PTO credits and GSO storage boundaries are unchanged. Loopback support does not qualify a real MTU 9000 link, promise recovery timing or authorize a release claim.
+
+### Validation
+
+The refusal table first failed because the exported method was missing; both native-I/O configuration orders then failed before their exclusion was added. Range, initialization and order regressions now pass. The external-package public-only test uses ordinary UDP Transports for discovery, intact jumbo STREAM delivery and recovery after a far-side shrink.
+
+Fresh parallel preparation found one minor missing test-helper annotation, which was fixed and validated; Spec found no gap. The full configured initial RAS review completed all four reviewers and adjudicators with no accepted fix or follow-up; the sole suggestion to duplicate Windows certification in normative status was independently rejected as unsupported. The [review disposition (PR #1266)](https://github.com/the-sarge/quic-go-fast/pull/1266#issuecomment-6692931032) and [final certification (PR #1266)](https://github.com/the-sarge/quic-go-fast/pull/1266#issuecomment-6693199310) retain the evidence. No replacement review or fix verification was needed, and no RAS runs for this journal.
+
+Reviewed head `d630daa2b252469416245081e9c58dcffe080926` passed affected packages, focused race tests, vet, module tidiness, all six selected lint profiles, whitespace and exact-source unit preparation with `integrationtests` removed. All 17 existing hosted checks succeeded. Both [Windows Go 1.26.10](https://github.com/the-sarge/quic-go-fast/actions/runs/42274701820/job/128087918705) and [Windows Go 1.27.3](https://github.com/the-sarge/quic-go-fast/actions/runs/42274701820/job/128087918805) actually ran and passed `TestPacketCeilingPublicLoopback` without skips: raw UDP payload 8972, ordinary STREAM UDP payload 8957 and an intact stream after shrink to 1500. Those public-surface results satisfy the accepted Windows gate. The unchanged-base matching-head merge preserved the exact reviewed tree `5d5741eb4836bc2deab20f331fa9bfe4457e918d`.
+
+### Next
+
+At this entry, F9 #1223 product code is merged and its required journal/task reconciliation is finishing. Product PR #1266 already owns the committed completion, graph, accepted-criteria and frontier transitions. There is no unconditional implementation successor: F11 #1225 awaits the consumer comparison selecting its design, and F12 #1226 retains exact-commit consumer qualification, independent release #1111 and owner approval. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) is the live coordination view. No new follow-up or material untraced effect was identified.
