@@ -9575,3 +9575,32 @@ Certified head `349cfaf267ffff21870b16b1ac4cb936e6db5b59` passed affected-packag
 ### Next
 
 At this entry, F3 #1217 code is merged and its required journal/task closure is finishing. PR #1247 already owns its committed completion/frontier transition: F4 #1218 remains the implementation frontier and F5 #1219 remains blocked on F4 #1218. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) is the live coordination view; the [normative plan](adr/2026-11-05-jumbo-packets-plan.md#f3) owns the contract.
+
+---
+
+## Jumbo STREAM frame tiers landed - 2026-11-06 01:56 EST
+
+**Main:** `cf2fa4c816e5`
+**Actor:** Codex
+
+### Summary
+
+[PR #1249 — Carry jumbo STREAM payloads through send, split and parse](https://github.com/the-sarge/quic-go-fast/pull/1249) merged as `cf2fa4c816e5ee88f9fee2ad7ba094adf6fdcf1c`, closing [F4 #1218](https://github.com/the-sarge/quic-go-fast/issues/1218) under [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). It implements [F4's accepted frame contract](adr/2026-11-05-jumbo-packets-plan.md#f4): payload-selected standard and 8,972-byte frame pools, both send-stream allocation branches, split/resend storage, and a parser limit from the connection's local ceiling. A small frame retains standard storage. `Write` keeps its 1,452-byte copy/return threshold, and unconfigured parsing still rejects oversized STREAM frames. Actual jumbo packet emission and public opt-in remain with later slices.
+
+Reliable cancellation can shorten a previously emitted jumbo frame. The accepted review fix adds one wire truncation operation used by both queued-loss and cancellation-before-loss paths; it preserves frame identity and protocol metadata, swaps backing storage with its pool ownership, and returns replaced jumbo storage once. Both ordering regressions first failed with capacity 8,972 for a retained 100-byte prefix and now pass with standard capacity 1,452 and normal acknowledgment/release.
+
+### Decisions
+
+The scoped [F4 #1218 evidence correction in PR #1246](https://github.com/the-sarge/quic-go-fast/pull/1246) replaces an uncontrolled transfer-count equality criterion with the existing controlled STREAM allocation pin and inspection of default pool/split paths, retaining the raw transfer comparison as inconclusive context. The admitted initial-candidate comparison used one before and one after capture at identical `-benchtime=1x -count=1`: 8,676 → 9,016 and 525,827 → 531,185 allocs/op. The increases remain unexplained; they establish neither causal regression nor allocation preservation and support no timing or performance-pass claim. No additional capture or repetition was used, and no demonstrated default-allocation regression was waived.
+
+### Validation
+
+Focused examples cover 8,900-byte payloads through both send branches, configured parsing, split/resend, offsets/FIN, the 100-byte standard-tier pin, default oversized-frame rejection and both reliable-cancellation/loss orderings. The existing non-race `TestFrameParserAllocs/STREAM` remains zero on its unchanged 200–209-byte inputs and 100 iterations. Default selection still returns the original standard pool, and standard-buffer splitting retains one pool get and its buffer swap.
+
+The [PR #1249 preparation receipt](https://github.com/the-sarge/quic-go-fast/pull/1249#issuecomment-6678612664) records separate fresh Standards/Spec reviews with no findings. Initial full-panel RAS `20261106T062355-d094a1b759e7311ad3017077` produced the one accepted reliable-truncation tier family; its central fix was [verified at the exact pushed head for PR #1249](https://github.com/the-sarge/quic-go-fast/pull/1249#issuecomment-6678925782). The single permitted replacement, `20261106T064314-8cd376a590c08480e0bf7a44`, completed all four reviewers with no findings. Optional worker-goroutine assertion hygiene remains documented and was revalidated at merged source; it does not establish an accepted F4 evidence failure, and no marginal follow-up ticket was created.
+
+Certified head `677f509b789df0700666ef640f2e6584e92c1ced` passed full affected-package tests, accepted focused STREAM race checks, vet, tidy-diff, clean-tree/whitespace checks and all six existing lint OS profiles. All 17 hosted checks succeeded: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/42175791788), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/42175791708), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/42175791786), [cross compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/42175791762) and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/42175791714). The [PR #1249 exact-head certificate](https://github.com/the-sarge/quic-go-fast/pull/1249#issuecomment-6679074537) retains the local receipt. The unchanged-base squash merge's tree was verified identical to the reviewed/certified tree and reachable from main.
+
+### Next
+
+At this entry, F4 #1218 code is merged and its required journal/task/readiness reconciliation is finishing. PR #1249 already owns the committed F4 completion/header/graph/frontier transition: F5 #1219 is the only newly ready implementation slice after full closure; later and conditional children are unchanged. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) remains the live coordination view, and the [normative plan](adr/2026-11-05-jumbo-packets-plan.md) owns the accepted contract.
