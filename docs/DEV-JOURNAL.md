@@ -9729,3 +9729,34 @@ The captured [failed unit job for contract PR #1261](https://github.com/the-sarg
 ### Next
 
 Finish this journal and reconcile [bug #1262](https://github.com/the-sarge/quic-go-fast/issues/1262), then return to [program #1215's live coordination](https://github.com/the-sarge/quic-go-fast/issues/1215) so the retained owner can resume [contract PR #1261](https://github.com/the-sarge/quic-go-fast/pull/1261) and [F8 #1222](https://github.com/the-sarge/quic-go-fast/issues/1222).
+
+---
+
+## Far-side jumbo shrink recovery landed - 2026-11-06 13:24 EST
+
+**Main:** `92256476e3c5`
+**Actor:** Codex
+
+### Summary
+
+[PR #1260 — Detect a far-side jumbo shrink (#1222)](https://github.com/the-sarge/quic-go-fast/pull/1260) merged as `92256476e3c5b8969d253f794a4b6a10462ac1d0`, implementing F8 #1222 under [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). Ordinary jumbo loss from both detectors starts a run-loop window, then fresh small delivery and owned current-size rechecks distinguish a shrink from an outage before invoking the existing confirmed fallback. The transport supplies its own liveness and follow-up PINGs, including for jumbo DATAGRAM-only traffic. Default and peer-capped behavior, path-generation cancellation, stay-down, ordinary PTO credits and the separate GSO aggregate budget remain intact.
+
+### Decisions
+
+[Contract PR #1261 — Clarify F8 liveness retry ownership (#1222)](https://github.com/the-sarge/quic-go-fast/pull/1261) records ordinary path-zero application PTO outcomes as guarded liveness retry opportunities independently of packet-history retirement. The existing synchronous timeout outcome and ordinary-loss callback use the same current-generation/probe/phase owner, without a repeating liveness clock or recovery-credit mutation. Proxy implementation and existing private tests moved together to retained internal test support; compatibility aliases preserve integration imports and the unit workflow stays unchanged.
+
+The [PR #1260 ordering decision](https://github.com/the-sarge/quic-go-fast/pull/1260#issuecomment-6691796251) uses recovery-owned 1-RTT packet numbers for actual send order. Live and retained ACK facts share that authority; attempt floors reject earlier facts, primary probe identity survives follow-up emission, and later small ACKs remain eligible when clock stamps tie. Elapsed deadlines and valid jumbo/current-size ACK resets retain their existing semantics.
+
+The prior marginal transient stage-one unknown report remains unchanged at merged source: tested-size reset still clears and republishes the report through the existing finder, as dispositioned for [F6 #1220 on parent #1215](https://github.com/the-sarge/quic-go-fast/issues/1215#issuecomment-6682346055). No new follow-up ticket or successor blocker was added.
+
+### Validation
+
+Armed proxy examples first deliver 8,200 bytes, then recover intact STREAM traffic with no return traffic or steady small return traffic after a 1,500-byte cap. The DATAGRAM-only connection recovers using transport-generated confirmation, rejects a new oversized DATAGRAM and delivers a new admissible small DATAGRAM. The first-two-liveness-loss STREAM case was red before the synchronous PTO-opportunity repair and is green. Initial-cap discovery settles at 1,499 bytes under the fixture's 1,500-byte UDP-payload cap, within the finder's existing termination interval. Seeded 5% loss, reordering, outage/restore and a second outage after the first small ACK preserve jumbo; the single recorded timeout-only mutation discriminates the steady-return row.
+
+Windows unit failures led to diagnosis of tied clock stamps rejecting genuinely later small ACKs. A bounded transport witness reproduced the stall; the maintained same-clock-tick regression is now green, and existing earlier-fact/path/deadline controls preserve their intent with actual registered packet numbers. Both existing Windows toolchains pass the no-return, two-loss, DATAGRAM-only, clock-tie, outage and pending-PTO-credit rows at the final head. Their two-loss examples recovered in about 2.75–2.83 seconds. Recovery times are informational against the 0.3-second target, with no bound claimed or real-link qualification implied.
+
+The once-only Standards/Spec preparation was clear. The initial and sole replacement full-panel reviews plus triggering verification led to the recorded clock-progress, retry-eligibility, source-preparation and ordering repairs; final source verification resolved both replacement clusters with no new concern. Certified head `ecf19d2c9662911c565f171bd6ec8b74bd544621` passed affected packages, focused race coverage, vet, module tidiness, all six selected lint profiles and exact-source unit preparation with `integrationtests` removed. All 17 hosted checks succeeded, including [Windows Go 1.26.10](https://github.com/the-sarge/quic-go-fast/actions/runs/42268585033/job/128066914601) and [Windows Go 1.27.3](https://github.com/the-sarge/quic-go-fast/actions/runs/42268585033/job/128066914364). The unchanged-base matching-head squash merge has the exact certified tree `be22a1af89bd8032da2736714f3e4788c1f9915b`. No RAS runs for this journal.
+
+### Next
+
+At this entry, F8 #1222 product code is merged and its required journal/task reconciliation is finishing. PR #1260 already owns the committed completion/header/graph/F9 #1223 frontier transition. F9 #1223 follows full closure; F11 #1225 remains conditional on the consumer comparison, and F12 #1226 still requires external qualification, the independent release #1111 and owner approval. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) is the live coordination view, and the [F8 normative plan](adr/2026-11-05-jumbo-packets-plan.md#f8) owns the accepted contract.
