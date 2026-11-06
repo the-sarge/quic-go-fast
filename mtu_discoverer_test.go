@@ -404,3 +404,49 @@ func TestMTUFinderLocalOutcomes(t *testing.T) {
 		require.Equal(t, newer, f.inFlight)
 	})
 }
+
+// These are the worked path examples in the jumbo plan. Acknowledgements and
+// losses model UDP payload limits, without putting a jumbo packet on a socket.
+func TestMTUDiscovererTwoStages(t *testing.T) {
+	for _, tc := range []struct {
+		name                   string
+		pathLimit, ceiling     protocol.ByteCount
+		wantSize, wantStageOne protocol.ByteCount
+		wantProbes, wantLost   int
+		firstProbes            []protocol.ByteCount
+	}{
+		{name: "IPv4 MTU 1500", pathLimit: 1472, ceiling: 8972, wantSize: 1470, wantStageOne: 1438, wantProbes: 17, wantLost: 11, firstProbes: []protocol.ByteCount{1342, 1397, 1424, 1438}},
+		{name: "IPv4 MTU 9000", pathLimit: 8972, ceiling: 8972, wantSize: 8957, wantStageOne: 1438, wantProbes: 13, firstProbes: []protocol.ByteCount{1342, 1397, 1424, 1438}},
+		{name: "WireGuard 1420", pathLimit: 1392, ceiling: 8972, wantSize: 1390, wantStageOne: 1390, wantProbes: 8, wantLost: 4, firstProbes: []protocol.ByteCount{1342, 1397, 1369, 1410, 1383, 1417, 1390, 1403}},
+		{name: "peer advertises 1452", pathLimit: 8972, ceiling: 1452, wantSize: 1438, wantStageOne: 1438, wantProbes: 4, firstProbes: []protocol.ByteCount{1342, 1397, 1424, 1438}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rtt := utils.NewRTTStats()
+			rtt.SetInitialRTT(100 * time.Millisecond)
+			f := newTwoStageMTUDiscoverer(rtt, 1232, tc.ceiling, nil)
+			now := monotime.Now()
+			f.Start(now)
+			var probes []protocol.ByteCount
+			var lost int
+			for !f.done() {
+				require.Less(t, len(probes), 30, "search terminates")
+				now = now.Add(time.Second)
+				require.True(t, f.ShouldSendProbe(now))
+				ping, size := f.GetPing(now)
+				probes = append(probes, size)
+				if size > tc.pathLimit {
+					lost++
+					ping.Handler.OnLost(ping.Frame)
+				} else {
+					ping.Handler.OnAcked(ping.Frame)
+				}
+			}
+			require.Equal(t, tc.wantSize, f.CurrentSize())
+			require.Equal(t, tc.wantStageOne, f.StageOneSize())
+			require.Len(t, probes, tc.wantProbes)
+			require.Equal(t, tc.wantLost, lost)
+			require.Equal(t, tc.firstProbes, probes[:len(tc.firstProbes)])
+			require.False(t, f.ShouldSendProbe(now.Add(time.Hour)))
+		})
+	}
+}

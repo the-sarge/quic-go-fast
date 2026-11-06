@@ -198,8 +198,10 @@ type Conn struct {
 	// and stays zero without path admission. Emission stores it.
 	pathPayloadLimit atomic.Uint32
 	// failureOwner is published at activation, for a transport's close to read.
-	failureOwner   atomic.Pointer[pathCreditRegistry]
-	pathMTUSettled pathMTUSettled // see PathMTUSettledV1
+	failureOwner            atomic.Pointer[pathCreditRegistry]
+	pathMTUSettled          pathMTUSettled // see PathMTUSettledV1
+	pathMTUEffectiveCeiling atomic.Uint32
+	pathMTUStageOneSize     atomic.Uint32
 
 	initialStream       *initialCryptoStream
 	handshakeStream     *cryptoStream
@@ -1129,8 +1131,13 @@ func (c *Conn) resetPathPacketSize(now monotime.Time) {
 	c.pathMTUSettled.settle()
 }
 
-// peerMaxPacketSize is the largest packet any discovery may probe toward this peer.
+// peerMaxPacketSize keeps actual probe emission at the standard size until the
+// jumbo packet construction and send path are enabled by F5.
 func (c *Conn) peerMaxPacketSize() protocol.ByteCount {
+	return min(c.effectivePacketCeiling(), protocol.MaxPacketBufferSize)
+}
+
+func (c *Conn) effectivePacketCeiling() protocol.ByteCount {
 	maxPacketSize := c.packetCeiling.size()
 	if c.peerParams.MaxUDPPayloadSize > 0 && c.peerParams.MaxUDPPayloadSize < maxPacketSize {
 		maxPacketSize = c.peerParams.MaxUDPPayloadSize
@@ -2832,6 +2839,7 @@ func (c *Conn) handleTransportParameters(params *wire.TransportParameters) error
 	}
 
 	c.peerParams = params
+	c.pathMTUEffectiveCeiling.Store(uint32(c.effectivePacketCeiling()))
 	// On the client side we have to wait for handshake completion.
 	// During a 0-RTT connection, we are only allowed to use the new transport parameters for 1-RTT packets.
 	if c.perspective == protocol.PerspectiveServer {
@@ -2912,8 +2920,10 @@ func (c *Conn) applyTransportParameters() {
 // newPathMTUFinder attaches the connection's settled signal to every finder, so a
 // finder replaced by the handshake fallback reports to the same signal.
 func (c *Conn) newPathMTUFinder(start, max protocol.ByteCount) *mtuFinder {
-	f := newMTUDiscoverer(c.rttStats, start, max, c.qlogger)
+	f := newTwoStageMTUDiscoverer(c.rttStats, start, max, c.qlogger)
 	f.settled = &c.pathMTUSettled
+	f.stageOneReport = &c.pathMTUStageOneSize
+	c.pathMTUStageOneSize.Store(uint32(f.StageOneSize()))
 	return f
 }
 
@@ -2956,7 +2966,7 @@ func (c *Conn) lowerUnsetInitialPacketSize() {
 	c.effectiveInitialPacketSize = protocol.MinInitialPacketSize
 	if c.mtuDiscoverer != nil {
 		// No probes exist before confirmation, so a fresh finder suffices; confirmation starts it.
-		c.mtuDiscoverer = c.newPathMTUFinder(protocol.MinInitialPacketSize, c.mtuDiscoverer.max())
+		c.mtuDiscoverer = c.newPathMTUFinder(protocol.MinInitialPacketSize, c.mtuDiscoverer.ceiling)
 	}
 	c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(protocol.MinInitialPacketSize)))
 }

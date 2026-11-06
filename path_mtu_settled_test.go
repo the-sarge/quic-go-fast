@@ -38,22 +38,27 @@ func reportedDatagramLimit(t *testing.T, c *Conn) int64 {
 // newPathMTUSettledTestConnection returns a client connection that has applied the
 // peer's transport parameters, but has not confirmed the handshake. Its socket
 // reports df.
-func newPathMTUSettledTestConnection(t *testing.T, conf *Config, maxUDPPayloadSize protocol.ByteCount, df bool) (*Conn, *mocks.MockCryptoSetup) {
+func newPathMTUSettledTestConnection(t *testing.T, conf *Config, maxUDPPayloadSize protocol.ByteCount, df bool, ceiling ...packetCeiling) (*Conn, *mocks.MockCryptoSetup) {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	cs := mocks.NewMockCryptoSetup(ctrl)
 	tc := newClientTestConnection(t, ctrl, conf, false, connectionOptCryptoSetup(cs))
 	c := tc.conn
+	if len(ceiling) != 0 {
+		c.packetCeiling = ceiling[0]
+	}
 	sc := NewMockSendConn(ctrl)
 	sc.EXPECT().capabilities().Return(connCapabilities{DF: df}).AnyTimes()
 	sc.EXPECT().RemoteAddr().Return(tc.remoteAddr).AnyTimes()
 	sc.EXPECT().LocalAddr().Return(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1234}).AnyTimes()
 	c.conn = sc
-	c.peerParams = &wire.TransportParameters{
-		MaxUDPPayloadSize:       maxUDPPayloadSize,
-		MaxDatagramFrameSize:    wire.MaxDatagramSize,
-		ActiveConnectionIDLimit: 2,
-	}
+	require.NoError(t, c.handleTransportParameters(&wire.TransportParameters{
+		InitialSourceConnectionID:       c.handshakeDestConnID,
+		OriginalDestinationConnectionID: c.origDestConnID,
+		MaxUDPPayloadSize:               maxUDPPayloadSize,
+		MaxDatagramFrameSize:            wire.MaxDatagramSize,
+		ActiveConnectionIDLimit:         2,
+	}))
 	c.applyTransportParameters()
 	return c, cs
 }
@@ -262,4 +267,119 @@ func TestPathMTUSettledConnectionEndBeforeHandshake(t *testing.T) {
 		require.ErrorIs(t, <-errChan, &IdleTimeoutError{})
 		requirePathMTUSettled(t, tc.conn, true)
 	})
+}
+
+func TestPathMTUInfoCeiling(t *testing.T) {
+	var early Conn
+	ceiling, stageOne := early.PathMTUInfoV1()
+	require.Zero(t, ceiling, "transport parameters are not known")
+	require.Zero(t, stageOne, "stage one has not finished")
+	for _, tc := range []struct {
+		name       string
+		local      packetCeiling
+		peer, want protocol.ByteCount
+	}{
+		{name: "default", peer: 8972, want: 1452},
+		{name: "local ceiling", local: 8972, peer: 9000, want: 8972},
+		{name: "peer ceiling", local: 8972, peer: 1452, want: 1452},
+		{name: "smaller peer", local: 8972, peer: 1400, want: 1400},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, _ := newPathMTUSettledTestConnection(t, &Config{InitialPacketSize: 1232}, tc.peer, true, tc.local)
+			ceiling, stageOne := c.PathMTUInfoV1()
+			require.EqualValues(t, tc.want, ceiling)
+			require.Zero(t, stageOne)
+			require.LessOrEqual(t, c.peerMaxPacketSize(), protocol.ByteCount(1452), "F5 owns actual jumbo emission")
+		})
+	}
+}
+
+func TestPathMTUInfoStageOneLoss(t *testing.T) {
+	c, _ := newPathMTUSettledTestConnection(t, &Config{InitialPacketSize: 1232}, 8972, true, 8972)
+	now := monotime.Now()
+	for i := 0; !c.mtuDiscoverer.done(); i++ {
+		require.Less(t, i, 30)
+		ping, size := c.mtuDiscoverer.GetPing(now)
+		if size > 1392 {
+			ping.Handler.OnLost(ping.Frame)
+		} else {
+			ping.Handler.OnAcked(ping.Frame)
+		}
+	}
+	ceiling, stageOne := c.PathMTUInfoV1()
+	require.EqualValues(t, 8972, ceiling)
+	require.EqualValues(t, 1390, stageOne, "report the tested size, rather than the narrowed bound")
+	c.resetPathPacketSize(now)
+	ceiling, stageOne = c.PathMTUInfoV1()
+	require.EqualValues(t, 8972, ceiling)
+	require.Zero(t, stageOne, "a new path has not finished stage one")
+}
+
+func TestPathMTUSettledAfterTwoStages(t *testing.T) {
+	c, cs := newPathMTUSettledTestConnection(t, &Config{InitialPacketSize: 1232, EnableDatagrams: true}, 8972, true, 8972)
+	// Simulate jumbo receipts without emitting a jumbo packet. F5 will lift the
+	// connection's emission cap once jumbo packet construction is available.
+	c.mtuDiscoverer = c.newPathMTUFinder(1232, 8972)
+	cs.EXPECT().Set1RTTAcked(gomock.Any(), gomock.Any()).AnyTimes()
+	now := monotime.Now()
+	confirmPathMTUSettledTestConnection(t, c, cs, now)
+	for i := 0; !c.mtuDiscoverer.done(); i++ {
+		require.Less(t, i, 20)
+		requirePathMTUSettled(t, c, false)
+		ping, size := c.mtuDiscoverer.GetPing(now)
+		pn := c.sentPacketHandler.PopPacketNumber(protocol.Encryption1RTT)
+		c.sentPacketHandler.SentPacket(now, pn, protocol.InvalidPacketNumber, nil, []ackhandler.Frame{ping}, protocol.Encryption1RTT, protocol.ECNNon, size, true, false)
+		now = now.Add(10 * time.Millisecond)
+		c.lastPacketReceivedTime = now
+		require.NoError(t, c.handleAckFrame(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: pn, Largest: pn}}}, protocol.Encryption1RTT, now))
+		if i == 3 {
+			ceiling, stageOne := c.PathMTUInfoV1()
+			require.EqualValues(t, 8972, ceiling)
+			require.EqualValues(t, 1438, stageOne)
+			requirePathMTUSettled(t, c, false)
+		}
+	}
+	requirePathMTUSettled(t, c, true)
+	require.EqualValues(t, estimateMaxPayloadSize(8957), c.maxPayloadSizeEstimate.Load(), "final limit is published before settled")
+}
+
+func TestPathMTUInfoHandshakeFallback(t *testing.T) {
+	c, _ := newPathMTUSettledTestConnection(t, &Config{}, 8972, true, 8972)
+	// Exercise the two-stage finder that F5 enables, without socket emission.
+	c.mtuDiscoverer = c.newPathMTUFinder(c.effectiveInitialPacketSize, 8972)
+	c.lowerUnsetInitialPacketSize()
+	require.EqualValues(t, protocol.MinInitialPacketSize, c.mtuDiscoverer.CurrentSize())
+	for i := 0; !c.mtuDiscoverer.done(); i++ {
+		require.Less(t, i, 20)
+		ping, _ := c.mtuDiscoverer.GetPing(monotime.Now())
+		ping.Handler.OnAcked(ping.Frame)
+	}
+	require.Greater(t, c.mtuDiscoverer.CurrentSize(), protocol.ByteCount(8000), "handshake fallback retains the overall search ceiling")
+	ceiling, stageOne := c.PathMTUInfoV1()
+	require.EqualValues(t, 8972, ceiling)
+	require.EqualValues(t, 1436, stageOne)
+}
+
+func TestPathMTUInfoAtPeerParameters(t *testing.T) {
+	tc := newClientTestConnection(t, nil, &Config{InitialPacketSize: 1232}, false)
+	c := tc.conn
+	c.packetCeiling = 8972
+	params := &wire.TransportParameters{
+		InitialSourceConnectionID:       c.handshakeDestConnID,
+		OriginalDestinationConnectionID: c.origDestConnID,
+		MaxUDPPayloadSize:               8000,
+		ActiveConnectionIDLimit:         2,
+	}
+	invalid := *params
+	invalid.InitialSourceConnectionID = protocol.ParseConnectionID([]byte{1, 2, 3, 4})
+	require.Error(t, c.handleTransportParameters(&invalid))
+	ceiling, stageOne := c.PathMTUInfoV1()
+	require.Zero(t, ceiling, "rejected parameters do not publish a ceiling")
+	require.Zero(t, stageOne)
+	require.NoError(t, c.handleTransportParameters(params))
+	ceiling, stageOne = c.PathMTUInfoV1()
+	require.EqualValues(t, 8000, ceiling, "accepted parameters are observable before handshake completion")
+	require.Zero(t, stageOne)
+	require.Nil(t, c.mtuDiscoverer, "sending parameters still wait for handshake completion")
+	require.EqualValues(t, 1232, c.maxPacketSize())
 }

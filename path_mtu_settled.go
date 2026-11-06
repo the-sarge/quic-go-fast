@@ -49,3 +49,22 @@ func (s *pathMTUSettled) settle() {
 func (c *Conn) PathMTUSettledV1() <-chan struct{} {
 	return c.pathMTUSettled.ch
 }
+
+// PathMTUInfoV1 reports the effective packet ceiling and the tested stage-one
+// packet size, in bytes of UDP payload. The ceiling is the smaller of the local
+// Transport's ceiling and the peer's advertised max_udp_payload_size. It is zero
+// until the peer's transport parameters have been received and accepted; it does not promise
+// that the path supports that size.
+//
+// The stage-one size is zero until the current path's standard-size search has
+// finished. It is the largest size validated by that search, or the initial size
+// if no larger probe succeeded. It remains available during stage two and resets
+// to zero when a new path starts searching. If discovery cannot run, it can stay
+// zero even after PathMTUSettledV1 closes.
+//
+// This observation does not enable jumbo packets or change the sending limit.
+// It is safe to call concurrently and never blocks.
+func (c *Conn) PathMTUInfoV1() (effectiveCeiling, stageOneSize int64) {
+	stageOne := c.pathMTUStageOneSize.Load()
+	return int64(c.pathMTUEffectiveCeiling.Load()), int64(stageOne)
+}
