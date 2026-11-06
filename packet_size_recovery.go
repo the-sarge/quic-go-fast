@@ -95,7 +95,7 @@ func (e *packetEmission) packetSizeRecovery(intent packetSizeRecoveryIntent, now
 	if e.queue.WouldBlock() {
 		return emissionResult{stop: emissionQueueFull, available: e.queue.Available(), blocked: blockModeHardBlocked}
 	}
-	if !e.selected().CanSendPathProbe() {
+	if !ackhandler.CanSendMTURecoveryProbe(e.selected()) {
 		return emissionResult{stop: emissionHardBlocked, blocked: blockModeHardBlocked}
 	}
 	size := intent.probe.size
@@ -104,7 +104,7 @@ func (e *packetEmission) packetSizeRecovery(intent packetSizeRecoveryIntent, now
 		// 64 bytes covers a short header with the maximum connection ID and AEAD tag.
 		size = 64
 	}
-	if e.bbr != nil && !e.reserveLocal(size, false, true, now) {
+	if e.bbr != nil && !e.reserveLocal(size, false, false, now) {
 		return e.localBlocked()
 	}
 	ping := ackhandler.Frame{Frame: &wire.PingFrame{}, Handler: &packetSizeRecoveryHandler{}}

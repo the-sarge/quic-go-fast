@@ -34,10 +34,12 @@ func (s *pathMTUSettled) settle() {
 //   - the connection ends, for any reason and at any stage.
 //
 // After the channel closes because the search concluded, the DATAGRAM limit
-// stays the same while the connection remains on its first path, except that a
-// local size refusal on a jumbo-active connection lowers it to the tested
-// stage-one size and closes PathMTUFallbackV1. Settled means
-// that the search is over, not that the path will keep that size.
+// stays the same while the connection remains on its first path, except for
+// recovery on a jumbo-active connection. A local size refusal lowers it to the
+// tested stage-one size and closes PathMTUFallbackV1. Failed confirmation can
+// lower it again to the initial packet size. Confirming that size restarts
+// standard discovery, which can raise the limit again up to 1452 bytes. Settled
+// means that the search is over, not that the path will keep that size.
 //
 // A path change resets the DATAGRAM limit to the initial packet size, and
 // discovery then runs again on the new path. This includes a path change the

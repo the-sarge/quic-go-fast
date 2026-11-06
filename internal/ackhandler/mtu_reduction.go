@@ -48,6 +48,7 @@ func RetireMTURecoveryProbes(handler SentPacketHandler, now monotime.Time, keepF
 			h.retainMTURecoveryAck(pn, p)
 		}
 		h.retainAckCarrier(pn, p, now)
+		h.discardCongestionPacket(protocol.Encryption1RTT, pn)
 		h.retireLocal(p, false)
 		h.appDataPackets.history.DeclareLost(pn)
 	}
@@ -87,4 +88,11 @@ func (h *sentPacketHandler) acknowledgeMTURecoveryProbes(ack *wire.AckFrame) {
 			h.mtuAcked(p.context, p.size, p.sent)
 		}
 	}
+}
+
+// CanSendMTURecoveryProbe preserves actual capacity, lifecycle and amplification
+// limits while exempting recovery from congestion and path-validation counts.
+func CanSendMTURecoveryProbe(handler SentPacketHandler) bool {
+	h := handler.(*sentPacketHandler)
+	return h.canTrackPacket() && !h.isAmplificationLimited()
 }

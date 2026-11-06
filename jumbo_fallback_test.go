@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
+	"github.com/quic-go/quic-go/internal/congestion"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
@@ -229,11 +230,18 @@ func TestJumboRefusalStream(t *testing.T) {
 	}
 }
 
-func newJumboRefusalEmission(t *testing.T) *testConnection {
+func newJumboRefusalEmission(t *testing.T, controller ...string) *testConnection {
 	t.Helper()
-	tc := newConfiguredEmissionTestConnection(t, false, &Config{InitialPacketSize: 1232, EnableDatagrams: true})
+	config := &Config{InitialPacketSize: 1232, EnableDatagrams: true}
+	tc := newConfiguredEmissionTestConnection(t, false, config)
 	c := tc.conn
 	c.packetCeiling = 8972
+	if len(controller) > 0 {
+		require.Equal(t, "bbrv3", controller[0])
+		require.NoError(t, c.config.SetCongestionControlV1(controller[0]))
+		c.emission.enableBBR(monotime.Now(), 8972)
+		c.emission.enableBBRECN()
+	}
 	c.packetSizeFeedback.wakeup = make(chan struct{}, 1)
 	c.mtuFallback.dropped = make(chan struct{})
 	c.emission.refusals = &c.packetSizeFeedback
@@ -607,4 +615,143 @@ func TestJumboFallbackProbeAckAfterOrdinaryLossThreshold(t *testing.T) {
 			require.Zero(t, c.sentPacketHandler.GetLossDetectionTimeout(), "terminal confirmation retires the remaining recovery flight")
 		})
 	}
+}
+
+func TestJumboFallbackBBRDepletedPacingCredit(t *testing.T) {
+	for _, followup := range []bool{false, true} {
+		name := "padded probe"
+		if followup {
+			name = "follow-up PING"
+		}
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				tc := newJumboRefusalEmission(t, "bbrv3")
+				c := tc.conn
+				q := c.emission.queue.(*sendQueue)
+				tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				done := make(chan error, 1)
+				go func() { done <- q.Run() }()
+				defer func() { q.Close(); require.NoError(t, <-done) }()
+				now := monotime.Now()
+				c.packetSizeFeedback.publish(c.pathGeneration, 8957)
+				c.applyPacketSizeFallback(now)
+				require.NoError(t, c.triggerSending(now).err)
+				synctest.Wait()
+				probe := c.mtuFallback.probe
+				// A paced ordinary opportunity updates/refills the real quantum. A real
+				// small PING ACK can then qualify a padded probe's owned loss verdict.
+				pn, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+				smallAt := probe.deadline.Add(-probe.timeout / 2)
+				c.framer.QueueControlFrame(&wire.PingFrame{})
+				small := c.triggerSending(smallAt)
+				require.NoError(t, small.err)
+				require.True(t, small.progress)
+				synctest.Wait()
+				if !followup {
+					_, err := c.sentPacketHandler.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: pn, Largest: pn}}}, protocol.Encryption1RTT, smallAt.Add(time.Millisecond))
+					require.NoError(t, err)
+				}
+				room, ok := c.emission.packer.datagramRoom(nil, c.maxPacketSize())
+				require.True(t, ok)
+				at := probe.deadline.Add(-time.Nanosecond)
+				for range 2 {
+					require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: bytes.Repeat([]byte{'d'}, int(room)-3)}))
+					result := c.triggerSending(at)
+					require.NoError(t, result.err)
+					require.True(t, result.progress)
+					synctest.Wait()
+				}
+				require.Less(t, c.emission.bbr.budget(probe.deadline), protocol.ByteCount(64), "ordinary traffic consumes the real pacing credit")
+				require.NotPanics(t, func() { require.NoError(t, c.triggerSending(probe.deadline).err) })
+				synctest.Wait()
+				if followup {
+					require.True(t, probe.followupSent)
+				} else {
+					require.NotSame(t, probe, c.mtuFallback.probe)
+				}
+			})
+		})
+	}
+}
+
+func TestJumboFallbackBBRRetirement(t *testing.T) {
+	for _, exhausted := range []bool{false, true} {
+		name := "confirmed"
+		if exhausted {
+			name = "exhausted"
+		}
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				c, _, socket, _ := newJumboRefusalPair(t, "bbrv3", "ordinary")
+				synctest.Wait()
+				socket.limit.Store(1500)
+				if exhausted {
+					socket.dropAtOrAbove.Store(1232)
+				} else {
+					socket.dropSize.Store(1438)
+				}
+				require.NoError(t, c.SendDatagram(bytes.Repeat([]byte{'d'}, 7000)))
+				<-c.PathMTUFallbackV1()
+				time.Sleep(time.Second)
+				synctest.Wait()
+				require.Equal(t, !exhausted, c.mtuFallback.confirmed)
+				stats := c.sentPacketHandler.(interface {
+					DeliveryStats() congestion.DeliveryStats
+				}).DeliveryStats()
+				require.Zero(t, stats.Live)
+				require.Zero(t, stats.Outstanding)
+				require.True(t, stats.Idle)
+				require.NoError(t, c.CloseWithError(0, "done"))
+			})
+		})
+	}
+}
+
+func TestJumboFallbackIgnoresPathProbeCategoryCap(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		tc := newJumboRefusalEmission(t)
+		c := tc.conn
+		now := monotime.Now()
+		c.packetSizeFeedback.publish(c.pathGeneration, 8957)
+		c.applyPacketSizeFallback(now)
+		// These are real recovery registrations in the independent path-validation
+		// category. The recovery packet under test still uses the concrete packer.
+		for range 32 {
+			pn := c.sentPacketHandler.PopPacketNumber(protocol.Encryption1RTT)
+			c.sentPacketHandler.SentPacketWithContext(ackhandler.PacketContext{TupleGeneration: c.pathGeneration}, now, pn, protocol.InvalidPacketNumber, nil,
+				[]ackhandler.Frame{{Frame: &wire.PingFrame{}, Handler: &packetSizeRecoveryHandler{}}}, protocol.Encryption1RTT, protocol.ECNNon, 1200, false, true)
+		}
+		require.False(t, c.sentPacketHandler.CanSendPathProbe(), "the independent category is full")
+		require.NoError(t, c.receivedPacketHandler.ReceivedPacket(0, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+		c.lastPacketReceivedTime = now
+		c.idleTimeout = time.Minute
+		q := c.emission.queue.(*sendQueue)
+		t.Cleanup(func() {
+			for len(q.queue) > 0 {
+				(<-q.queue).buf.Release()
+			}
+		})
+		result := c.triggerSending(now)
+		require.NoError(t, result.err)
+		require.True(t, result.progress, "path validation capacity cannot block MTU recovery")
+		ackTime := c.receivedPacketHandler.GetAlarmTimeout()
+		require.NotZero(t, ackTime)
+		result = c.triggerSending(ackTime)
+		require.NoError(t, result.err)
+		require.True(t, result.progress, "ordinary ACK emission still has its turn")
+		require.NotEqual(t, blockModeHardBlocked, c.blocked)
+		c.advancePacketSizeRecovery(c.mtuFallback.probe.deadline)
+		c.pacingDeadline = 0
+		loss := c.sentPacketHandler.GetLossDetectionTimeout()
+		require.NotZero(t, loss)
+		c.timer = time.NewTimer(time.Hour)
+		defer c.timer.Stop()
+		c.maybeResetTimer()
+		select {
+		case <-c.timer.C:
+			require.Equal(t, loss, monotime.Now(), "the normal loss alarm remains eligible")
+		case <-time.After(loss.Sub(now) + time.Millisecond):
+			t.Fatal("ordinary loss alarm was suppressed by unrelated path-probe capacity")
+		}
+	})
 }

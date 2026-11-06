@@ -62,7 +62,10 @@ type mtuFallback struct {
 
 // PathMTUFallbackV1 returns a channel that closes when a local size refusal
 // causes this connection to fall back from jumbo to its tested stage-one size.
-// It reports the size drop, not confirmation or application delivery. The
+// It reports that first size drop, not confirmation or application delivery.
+// Failed confirmation can lower the limit again to the initial packet size;
+// confirming that size restarts standard discovery and can raise the limit up to
+// 1452 bytes. These later transitions do not signal another channel closure. The
 // negotiated ceiling reported by PathMTUInfoV1 stays unchanged. The connection
 // will never search above 1452 again, including after a path change.
 // The channel is nil when the Transport was not configured for jumbo packets.

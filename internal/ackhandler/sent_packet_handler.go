@@ -1331,7 +1331,7 @@ func (h *sentPacketHandler) localTrackedPackets() int {
 }
 
 func (h *sentPacketHandler) CanSendPathProbe() bool {
-	if h.local != nil && h.local.closed {
+	if !h.canTrackPacket() {
 		return false
 	}
 	root := h
@@ -1342,7 +1342,11 @@ func (h *sentPacketHandler) CanSendPathProbe() bool {
 	for _, path := range root.paths {
 		probes += path.appDataPackets.history.pathProbePackets.Len()
 	}
-	if probes >= maxOutstandingPathProbes {
+	return probes < maxOutstandingPathProbes
+}
+
+func (h *sentPacketHandler) canTrackPacket() bool {
+	if h.local != nil && h.local.closed {
 		return false
 	}
 	// Popping the next packet number can also insert a skipped-number marker.
