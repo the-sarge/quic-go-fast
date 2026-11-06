@@ -15,6 +15,9 @@ type boundedRecovery interface {
 }
 
 func (e *packetEmission) handoff(buf *packetBuffer, gso uint16, ecn protocol.ECN, metadata sendMetadata) {
+	// The run loop stamps every handoff, including Reno and discovery probes.
+	metadata.pathGeneration = e.policy.sendPathGeneration()
+
 	if e.bbr != nil {
 		if e.reservation == nil {
 			panic("BBR handoff without reservation")

@@ -1,6 +1,6 @@
 # Jumbo packets implementation plan
 
-**Date:** 2026-11-05. **Status:** In progress; F1, F2, F3, F4 and F5 complete. **Identity:** `JP-20261105-F`. **Parent:** [Jumbo packets (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). **Depends on:** nothing for F1. **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions. **Audit history:** this plan's merging PR.
+**Date:** 2026-11-05. **Status:** In progress; F1, F2, F3, F4, F5 and F6 complete. **Identity:** `JP-20261105-F`. **Parent:** [Jumbo packets (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). **Depends on:** nothing for F1. **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions. **Audit history:** this plan's merging PR.
 
 This plan comes from a downstream consumer's owner-approved program. It stands on its own: an implementer needs nothing outside this repository. "The consumer" below means that downstream program, whose qualification results reach this repository through F11's and F12's issues.
 
@@ -78,7 +78,7 @@ Throwaway builds that raised the constant and pinned the size carried over 8 Gbp
 | [F3](#f3) | complete #1217 | Two-stage search, effective ceiling and stage-one size reporting | F1 | n/a |
 | [F4](#f4) | complete #1218 | Stream frames larger than 1,452 bytes, through writer and a parser limit set by configuration | F1 | n/a |
 | [F5](#f5) | complete #1219 | Two configured Transports carry a stream at about 8,957-byte packets over loopback | F2, F3, F4 | n/a |
-| [F6](#f6) | new | A refused send falls back to the tested size and stays down | F5 | n/a |
+| [F6](#f6) | complete #1220 | A refused send falls back to the tested size and stays down | F5 | n/a |
 | [F7](#f7) | new | Transport-generated confirmation probes and the drop to the initial size | F6 | F6's unconfirmed fallback |
 | [F8](#f8) | new | Far-side detection: watching, liveness, re-check | F7 | n/a |
 | [F9](#f9) | new | The exported opt-in, disclosed as experimental | F8 | F1's test setter |
@@ -86,7 +86,7 @@ Throwaway builds that raised the constant and pinned the size carried over 8 Gbp
 | [F11](#f11) | conditional | Several short DATAGRAMs in one jumbo packet, with weighted admission | F5; the consumer's comparison selecting this design | n/a |
 | [F12](#f12) | new | The release that claims jumbo, at the qualified commit | The consumer's qualification; the first independent release | n/a |
 
-F1 #1208, F2 #1216, F3 #1217, F4 #1218 and F5 #1219 are complete. F6 #1220 and F10 #1224 have their slice dependencies satisfied and form the implementation frontier. F6 #1220 retains the published-N3/current-source/active-owner comparison recorded in its issue before dispatch; no additional dependency is introduced. F11 #1225 remains conditional on the consumer comparison selecting its design. F10 #1224 is parallel with F6 #1220 through F9 #1223. Nothing here waits for the quicquic-go identity transition before F12, and that transition doesn't wait for this.
+F1 #1208, F2 #1216, F3 #1217, F4 #1218, F5 #1219 and F6 #1220 are complete. F7 #1221 and the still-open F10 #1224 have their slice dependencies satisfied and form the implementation frontier. F11 #1225 remains conditional on the consumer comparison selecting its design. F10 #1224 is parallel with F7 #1221 through F9 #1223. Nothing here waits for the quicquic-go identity transition before F12, and that transition doesn't wait for this.
 
 ## Implementation slices
 
@@ -218,6 +218,8 @@ Scoped review evidence and technical disposition are linked from [PR #1233](http
 
 <a id="f6"></a>
 ### F6 — Fall back when a send is refused
+
+**Status:** complete; implemented for #1220 in [PR #1253](https://github.com/the-sarge/quic-go-fast/pull/1253).
 
 **Delivers:** step 4's size change through its simplest trigger. On a jumbo-active connection, a kernel refusal of a non-probe packet above 1452 makes the send worker report a fact with its path generation and segment size. The run loop falls back to stage one's size, resends in-flight data split to fit, drops queued DATAGRAMs that no longer fit as permitted loss, replaces congestion state, stays down including after a later path change, and signals the drop read-only. Every send handoff stamps its path generation, Reno as well as BBR. Confirmation here is an ACK of any packet at the new size; F7 adds the transport's own probes.
 
