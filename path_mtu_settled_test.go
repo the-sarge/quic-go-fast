@@ -340,3 +340,20 @@ func TestPathMTUSettledAfterTwoStages(t *testing.T) {
 	requirePathMTUSettled(t, c, true)
 	require.EqualValues(t, estimateMaxPayloadSize(8957), c.maxPayloadSizeEstimate.Load(), "final limit is published before settled")
 }
+
+func TestPathMTUInfoHandshakeFallback(t *testing.T) {
+	c, _ := newPathMTUSettledTestConnection(t, &Config{}, 8972, true, 8972)
+	// Exercise the two-stage finder that F5 enables, without socket emission.
+	c.mtuDiscoverer = c.newPathMTUFinder(c.effectiveInitialPacketSize, 8972)
+	c.lowerUnsetInitialPacketSize()
+	require.EqualValues(t, protocol.MinInitialPacketSize, c.mtuDiscoverer.CurrentSize())
+	for i := 0; !c.mtuDiscoverer.done(); i++ {
+		require.Less(t, i, 20)
+		ping, _ := c.mtuDiscoverer.GetPing(monotime.Now())
+		ping.Handler.OnAcked(ping.Frame)
+	}
+	require.Greater(t, c.mtuDiscoverer.CurrentSize(), protocol.ByteCount(8000), "handshake fallback retains the overall search ceiling")
+	ceiling, stageOne := c.PathMTUInfoV1()
+	require.EqualValues(t, 8972, ceiling)
+	require.EqualValues(t, 1436, stageOne)
+}

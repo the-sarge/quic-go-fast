@@ -2966,7 +2966,7 @@ func (c *Conn) lowerUnsetInitialPacketSize() {
 	c.effectiveInitialPacketSize = protocol.MinInitialPacketSize
 	if c.mtuDiscoverer != nil {
 		// No probes exist before confirmation, so a fresh finder suffices; confirmation starts it.
-		c.mtuDiscoverer = c.newPathMTUFinder(protocol.MinInitialPacketSize, c.mtuDiscoverer.max())
+		c.mtuDiscoverer = c.newPathMTUFinder(protocol.MinInitialPacketSize, c.mtuDiscoverer.ceiling)
 	}
 	c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(protocol.MinInitialPacketSize)))
 }
