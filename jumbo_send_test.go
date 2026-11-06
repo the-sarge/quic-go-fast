@@ -76,8 +76,8 @@ func TestJumboStreamLoopback(t *testing.T) {
 			client := &Transport{Conn: clientSocket}
 			defer server.Close()
 			defer client.Close()
-			require.NoError(t, server.setPacketCeilingForTesting(8972))
-			require.NoError(t, client.setPacketCeilingForTesting(8972))
+			require.NoError(t, server.ConfigurePacketCeilingV1(8972))
+			require.NoError(t, client.ConfigurePacketCeilingV1(8972))
 			conf := &Config{InitialPacketSize: 1232, EnableDatagrams: true}
 			require.NoError(t, conf.SetCongestionControlV1(controller))
 			serverTLS := testdata.GetTLSConfig()

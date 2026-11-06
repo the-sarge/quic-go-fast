@@ -191,7 +191,7 @@ func (t *Transport) beginPacketIOLocked() error {
 // Configuration can happen on either side of the grant, so initialization checks
 // again. Requires packetIO.mutex.
 func (t *Transport) nativeIOConflict() error {
-	if t.packetIO.external != nil || t.policyConn.policy != nil || t.policyConn.network != nil || t.candidates != nil || t.sendThreadQoS {
+	if t.packetIO.external != nil || t.policyConn.policy != nil || t.policyConn.network != nil || t.candidates != nil || t.sendThreadQoS || t.packetCeiling != 0 {
 		return fmt.Errorf("%w: excluded transport configuration", ErrMultipathUnsupportedV1)
 	}
 	return nil

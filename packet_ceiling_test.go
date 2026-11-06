@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"errors"
 	"net"
 	"testing"
 	"testing/synctest"
@@ -18,18 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// setPacketCeilingForTesting is the temporary configuration seam for the jumbo
-// slices. F9 replaces it with the exported, validated opt-in.
-func (t *Transport) setPacketCeilingForTesting(n protocol.ByteCount) error {
-	t.packetIO.mutex.Lock()
-	defer t.packetIO.mutex.Unlock()
-	if t.packetIO.started || n < 1200 || n > 8972 {
-		return errors.New("invalid test packet ceiling")
-	}
-	t.packetCeiling = packetCeiling(n)
-	return nil
-}
-
 func TestPacketCeilingAdvertisementAndDiscovery(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
@@ -38,6 +25,7 @@ func TestPacketCeilingAdvertisementAndDiscovery(t *testing.T) {
 		want          protocol.ByteCount
 		probes        []protocol.ByteCount
 	}{
+		{name: "explicit standard", configured: 1452, want: 1452, probes: []protocol.ByteCount{1342, 1397, 1424, 1438}},
 		{name: "default", want: 1452, probes: []protocol.ByteCount{1342, 1397, 1424, 1438}},
 		{name: "threaded", configured: 1400, want: 1400, probes: []protocol.ByteCount{1316, 1358, 1379}},
 		{name: "local ceiling below peer", configured: 1400, serverDefault: true, want: 1400, probes: []protocol.ByteCount{1316, 1358, 1379}},
@@ -53,9 +41,17 @@ func TestPacketCeilingAdvertisementAndDiscovery(t *testing.T) {
 				defer client.Close()
 				if tc.configured != 0 {
 					if !tc.serverDefault {
-						require.NoError(t, server.setPacketCeilingForTesting(tc.configured))
+						if tc.configured < 1452 {
+							server.packetCeiling = packetCeiling(tc.configured) // retained internal threading characterization
+						} else {
+							require.NoError(t, server.ConfigurePacketCeilingV1(int(tc.configured)))
+						}
 					}
-					require.NoError(t, client.setPacketCeilingForTesting(tc.configured))
+					if tc.configured < 1452 {
+						client.packetCeiling = packetCeiling(tc.configured)
+					} else {
+						require.NoError(t, client.ConfigurePacketCeilingV1(int(tc.configured)))
+					}
 				}
 				conf := &Config{InitialPacketSize: 1232, DisablePathMTUDiscovery: true}
 				serverTLS := testdata.GetTLSConfig()
@@ -141,7 +137,7 @@ func TestPacketCeilingBasicReader(t *testing.T) {
 			tr := &Transport{Conn: socket}
 			defer tr.Close()
 			if tc.configured != 0 {
-				require.NoError(t, tr.setPacketCeilingForTesting(tc.configured))
+				tr.packetCeiling = packetCeiling(tc.configured) // retained internal reader characterization
 			}
 			require.NoError(t, tr.init(false))
 			select {
@@ -150,7 +146,7 @@ func TestPacketCeilingBasicReader(t *testing.T) {
 			case <-time.After(time.Second):
 				t.Fatal("reader did not start")
 			}
-			require.Error(t, tr.setPacketCeilingForTesting(1300), "a reader's ceiling is fixed at construction")
+			require.Error(t, tr.ConfigurePacketCeilingV1(8972), "a reader's ceiling is fixed at construction")
 		})
 	}
 }
@@ -163,8 +159,8 @@ func TestJumboPacketCeilingAdvertisement(t *testing.T) {
 		client := &Transport{Conn: clientSocket}
 		defer server.Close()
 		defer client.Close()
-		require.NoError(t, server.setPacketCeilingForTesting(8972))
-		require.NoError(t, client.setPacketCeilingForTesting(8972))
+		require.NoError(t, server.ConfigurePacketCeilingV1(8972))
+		require.NoError(t, client.ConfigurePacketCeilingV1(8972))
 		conf := &Config{DisablePathMTUDiscovery: true}
 		serverTLS := testdata.GetTLSConfig()
 		serverTLS.NextProtos = []string{"jumbo-ceiling"}

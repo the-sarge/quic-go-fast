@@ -63,8 +63,8 @@ func TestJumboGSOStreamLoopback(t *testing.T) {
 			server, client := &Transport{Conn: serverSocket}, &Transport{Conn: recording}
 			defer server.Close()
 			defer client.Close()
-			require.NoError(t, server.setPacketCeilingForTesting(8972))
-			require.NoError(t, client.setPacketCeilingForTesting(8972))
+			require.NoError(t, server.ConfigurePacketCeilingV1(8972))
+			require.NoError(t, client.ConfigurePacketCeilingV1(8972))
 			conf := &Config{InitialPacketSize: 1232}
 			require.NoError(t, conf.SetCongestionControlV1(controller))
 			serverTLS := testdata.GetTLSConfig()

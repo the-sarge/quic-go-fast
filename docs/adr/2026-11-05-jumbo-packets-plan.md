@@ -1,6 +1,6 @@
 # Jumbo packets implementation plan
 
-**Date:** 2026-11-05. **Status:** In progress; F1, F2, F3, F4, F5, F6, F7, F8 and F10 complete. **Identity:** `JP-20261105-F`. **Parent:** [Jumbo packets (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). **Depends on:** nothing for F1. **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions. **Audit history:** this plan's merging PR.
+**Date:** 2026-11-05. **Status:** In progress; F1, F2, F3, F4, F5, F6, F7, F8, F9 and F10 complete; consumer selection and release qualification remain pending. **Identity:** `JP-20261105-F`. **Parent:** [Jumbo packets (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). **Depends on:** nothing for F1. **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions. **Audit history:** this plan's merging PR.
 
 This plan comes from a downstream consumer's owner-approved program. It stands on its own: an implementer needs nothing outside this repository. "The consumer" below means that downstream program, whose qualification results reach this repository through F11's and F12's issues.
 
@@ -81,12 +81,12 @@ Throwaway builds that raised the constant and pinned the size carried over 8 Gbp
 | [F6](#f6) | complete #1220 | A refused send falls back to the tested size and stays down | F5 | n/a |
 | [F7](#f7) | complete #1221 | Transport-generated confirmation probes and the drop to the initial size | F6 | F6's unconfirmed fallback |
 | [F8](#f8) | complete #1222 | Far-side detection: watching, liveness, re-check | F7 | n/a |
-| [F9](#f9) | new | The exported opt-in, disclosed as experimental | F8 | F1's test setter |
+| [F9](#f9) | complete #1223 | The exported opt-in, disclosed as experimental | F8 | F1's test setter |
 | [F10](#f10) | complete #1224 | Linux GSO batches of more than two jumbo packets | F5 | n/a |
 | [F11](#f11) | conditional | Several short DATAGRAMs in one jumbo packet, with weighted admission | F5; the consumer's comparison selecting this design | n/a |
 | [F12](#f12) | new | The release that claims jumbo, at the qualified commit | The consumer's qualification; the first independent release | n/a |
 
-F1 #1208, F2 #1216, F3 #1217, F4 #1218, F5 #1219, F6 #1220, F7 #1221, F8 #1222 and F10 #1224 are complete. F9 #1223 has its slice dependency satisfied and forms the implementation frontier. F11 #1225 remains conditional on the consumer comparison selecting its design. Nothing here waits for the quicquic-go identity transition before F12, and that transition doesn't wait for this.
+F1 #1208, F2 #1216, F3 #1217, F4 #1218, F5 #1219, F6 #1220, F7 #1221, F8 #1222, F9 #1223 and F10 #1224 are complete. There is no unconditional implementation frontier: F11 #1225 remains conditional on the consumer comparison selecting its design, and F12 #1226 awaits exact-commit consumer qualification, independent release #1111 and owner approval. Nothing here waits for the quicquic-go identity transition before F12, and that transition doesn't wait for this.
 
 ## Implementation slices
 
@@ -293,9 +293,11 @@ Scoped review evidence and technical disposition are linked from [PR #1233](http
 <a id="f9"></a>
 ### F9 — Export the opt-in
 
+**Status:** complete; implemented for #1223. The public opt-in remains experimental and does not qualify a real link or authorize F12's release claim.
+
 **Delivers:** `Transport.ConfigurePacketCeilingV1(n)`, in the existing `...V1` style, before start, accepting 1452 to 8972, refusing other values and any Transport configured for native multipath I/O in either order ([`nativeIOConflict`](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/external_packet_io.go#L190) gains this case). Removes F1's test setter. Discloses the method as experimental in `CHANGELOG.md` and its doc comment. Applies the Windows gate. A public-API loopback test runs the full path including a shrink.
 
-**Disposition / blocked by:** new. Blocked by F8: the method must not exist in a release without recovery.
+**Disposition / blocked by:** complete #1223. F8 #1222 is complete, so the method ships together with recovery.
 
 **Owner / authority:** the Transport. Validated once, before start.
 
@@ -382,10 +384,10 @@ Partial loss on equal-cost paths is a declared non-goal. Guarantees are canonica
 
 ## Acceptance criteria
 
-- [ ] An unconfigured Transport advertises 1452, probes as today and takes no jumbo-tier buffer. Domain, owner and guarantee: first closure row.
+- [x] An unconfigured Transport advertises 1452, probes as today and takes no jumbo-tier buffer. Domain, owner and guarantee: first closure row.
 - [x] Two configured Transports reach about 8,957 on a jumbo path and carry a stream intact.
 - [x] A shrink is survived per the third closure row, with no silent wedge in the tested classes.
-- [ ] The method exists only together with recovery, and is refused with native multipath I/O in either order.
+- [x] The method exists only together with recovery, and is refused with native multipath I/O in either order.
 
 ## Validation gates
 
