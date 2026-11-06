@@ -477,8 +477,7 @@ func (s *SendStream) popNewStreamFrame(maxDataLen protocol.ByteCount) (_ *wire.S
 		if cap(nextFrame.Data) > int(protocol.MaxPacketBufferSize) {
 			// Keep the large allocation owned by the stream. Recovery only retains
 			// a packet-sized copy, and dequeuing never copies the large unsent tail.
-			f := wire.GetStreamFrame()
-			maxDataLen = min(maxDataLen, protocol.MaxPacketBufferSize)
+			f := wire.GetStreamFrameForSize(maxDataLen)
 			f.StreamID = s.streamID
 			f.Offset = s.writeOffset
 			f.DataLenPresent = true
@@ -518,7 +517,7 @@ func (s *SendStream) popNewStreamFrame(maxDataLen protocol.ByteCount) (_ *wire.S
 		return nextFrame, s.nextFrame != nil || s.dataForWriting != nil
 	}
 
-	f := wire.GetStreamFrame()
+	f := wire.GetStreamFrameForSize(maxDataLen)
 	f.Fin = false
 	f.StreamID = s.streamID
 	f.Offset = s.writeOffset

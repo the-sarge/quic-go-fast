@@ -384,3 +384,41 @@ func TestStreamSplittingProducesCorrectLengthFramesWithDataLen(t *testing.T) {
 	}
 	require.Equal(t, 1, frameOneByteTooSmallCounter)
 }
+
+func TestSplitJumboStreamFrame(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		size      int
+		maxBytes  protocol.ByteCount
+		prefixLen int
+		prefixCap int
+		tailCap   int
+	}{
+		{name: "jumbo prefix and tail", size: 8900, maxBytes: 4004, prefixLen: 4000, prefixCap: 8972, tailCap: 8972},
+		{name: "standard tail", size: 8900, maxBytes: 8804, prefixLen: 8800, prefixCap: 8972, tailCap: 1452},
+		{name: "standard prefix", size: 8900, maxBytes: 104, prefixLen: 100, prefixCap: 1452, tailCap: 8972},
+		{name: "standard prefix and tail", size: 1500, maxBytes: 1004, prefixLen: 1000, prefixCap: 1452, tailCap: 1452},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data := bytes.Repeat([]byte("j"), tc.size)
+			f := GetStreamFrameForSize(protocol.ByteCount(tc.size))
+			f.StreamID = 42
+			f.Offset = 0
+			f.DataLenPresent = true
+			f.Fin = true
+			f.Data = append(f.Data[:0], data...)
+			prefix, split := f.MaybeSplitOffFrame(tc.maxBytes, protocol.Version1)
+			require.True(t, split)
+			require.Len(t, prefix.Data, tc.prefixLen)
+			require.Equal(t, data[:tc.prefixLen], prefix.Data)
+			require.Equal(t, data[tc.prefixLen:], f.Data)
+			require.Equal(t, protocol.ByteCount(tc.prefixLen), f.Offset)
+			require.False(t, prefix.Fin)
+			require.True(t, f.Fin)
+			require.Equal(t, tc.prefixCap, cap(prefix.Data))
+			require.Equal(t, tc.tailCap, cap(f.Data))
+			prefix.PutBack()
+			f.PutBack()
+		})
+	}
+}

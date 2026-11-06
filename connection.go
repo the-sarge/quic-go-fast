@@ -585,6 +585,7 @@ func (c *Conn) preSetup() {
 		c.config.EnableStreamResetPartialDelivery,
 		false, // ACK_FREQUENCY is not supported yet
 	)
+	c.frameParser.SetMaxStreamDataLen(c.packetCeiling.size())
 	c.rttStats = utils.NewRTTStats()
 	c.rttObservation = newRTTObservation(c.rttStats)
 	c.connFlowController = newConnectionFlowController(

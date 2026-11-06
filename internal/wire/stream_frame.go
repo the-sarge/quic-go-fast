@@ -19,7 +19,11 @@ type StreamFrame struct {
 	fromPool bool
 }
 
-func ParseStreamFrame(b []byte, typ FrameType, _ protocol.Version) (*StreamFrame, int, error) {
+func ParseStreamFrame(b []byte, typ FrameType, v protocol.Version) (*StreamFrame, int, error) {
+	return parseStreamFrame(b, typ, v, protocol.MaxPacketBufferSize)
+}
+
+func parseStreamFrame(b []byte, typ FrameType, _ protocol.Version, maxDataLen protocol.ByteCount) (*StreamFrame, int, error) {
 	startLen := len(b)
 	hasOffset := typ&0b100 > 0
 	fin := typ&0b1 > 0
@@ -56,6 +60,10 @@ func ParseStreamFrame(b []byte, typ FrameType, _ protocol.Version) (*StreamFrame
 		dataLen = uint64(len(b))
 	}
 
+	if dataLen > uint64(maxDataLen) {
+		return nil, 0, io.EOF
+	}
+
 	var frame *StreamFrame
 	if dataLen < protocol.MinStreamFrameBufferSize {
 		frame = &StreamFrame{}
@@ -63,9 +71,9 @@ func ParseStreamFrame(b []byte, typ FrameType, _ protocol.Version) (*StreamFrame
 			frame.Data = make([]byte, dataLen)
 		}
 	} else {
-		frame = GetStreamFrame()
+		frame = GetStreamFrameForSize(protocol.ByteCount(dataLen))
 		// The STREAM frame can't be larger than the StreamFrame we obtained from the buffer,
-		// since those StreamFrames have a buffer length of the maximum packet size.
+		// since the pool selects a buffer that fits the payload.
 		if dataLen > uint64(cap(frame.Data)) {
 			frame.PutBack()
 			return nil, 0, io.EOF
@@ -170,19 +178,31 @@ func (f *StreamFrame) MaybeSplitOffFrame(maxSize protocol.ByteCount, version pro
 		return nil, true
 	}
 
-	new := GetStreamFrame()
+	new := GetStreamFrameForSize(f.DataLen() - n)
+	if n <= protocol.MaxPacketBufferSize && cap(f.Data) > int(protocol.MaxPacketBufferSize) {
+		// A small retransmission must not retain the jumbo backing buffer.
+		prefix := GetStreamFrame()
+		prefix.Data = prefix.Data[:n]
+		copy(prefix.Data, f.Data[:n])
+		new.Data = new.Data[:f.DataLen()-n]
+		copy(new.Data, f.Data[n:])
+		f.Data, new.Data = new.Data, f.Data
+		f.fromPool, new.fromPool = new.fromPool, f.fromPool
+		new.PutBack()
+		new = prefix
+	} else {
+		// Keep the original buffer for the prefix and copy only the tail.
+		new.Data, f.Data = f.Data, new.Data
+		new.fromPool, f.fromPool = f.fromPool, new.fromPool
+		f.Data = f.Data[:protocol.ByteCount(len(new.Data))-n]
+		copy(f.Data, new.Data[n:])
+		new.Data = new.Data[:n]
+	}
 	new.StreamID = f.StreamID
 	new.Offset = f.Offset
 	new.Fin = false
 	new.DataLenPresent = f.DataLenPresent
 
-	// swap the data slices
-	new.Data, f.Data = f.Data, new.Data
-	new.fromPool, f.fromPool = f.fromPool, new.fromPool
-
-	f.Data = f.Data[:protocol.ByteCount(len(new.Data))-n]
-	copy(f.Data, new.Data[n:])
-	new.Data = new.Data[:n]
 	f.Offset += n
 
 	return new, true

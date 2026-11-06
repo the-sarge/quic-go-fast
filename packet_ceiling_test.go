@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -12,6 +13,8 @@ import (
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/testdata"
+	"github.com/quic-go/quic-go/internal/utils"
+	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/stretchr/testify/require"
 )
 
@@ -170,4 +173,35 @@ func TestJumboPacketCeilingAdvertisement(t *testing.T) {
 		require.EqualValues(t, 8972, c.peerParams.MaxUDPPayloadSize)
 		require.EqualValues(t, 8972, s.peerParams.MaxUDPPayloadSize)
 	})
+}
+
+func TestPacketCeilingStreamParser(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		ceiling packetCeiling
+		accept  bool
+	}{
+		{name: "default"},
+		{name: "configured", ceiling: 8972, accept: true},
+		{name: "above local ceiling", ceiling: 8800},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &Conn{ctx: context.Background(), config: populateConfig(nil), packetCeiling: tc.ceiling, logger: utils.DefaultLogger}
+			c.preSetup()
+			data := bytes.Repeat([]byte("jumbo"), 1780)
+			encoded, err := (&wire.StreamFrame{StreamID: 42, DataLenPresent: true, Data: data}).Append(nil, protocol.Version1)
+			require.NoError(t, err)
+			frame, n, err := c.frameParser.ParseStreamFrame(wire.FrameType(encoded[0]), encoded[1:], protocol.Version1)
+			if !tc.accept {
+				require.Error(t, err)
+				require.Nil(t, frame)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, len(encoded)-1, n)
+			require.Equal(t, data, frame.Data)
+			require.Equal(t, 8972, cap(frame.Data))
+			frame.PutBack()
+		})
+	}
 }

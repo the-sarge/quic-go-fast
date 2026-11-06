@@ -6,12 +6,23 @@ import (
 	"github.com/quic-go/quic-go/internal/protocol"
 )
 
-var pool sync.Pool
+const maxStreamFrameBufferSize = 8972
+
+var (
+	pool                 sync.Pool
+	jumboStreamFramePool sync.Pool
+)
 
 func init() {
 	pool.New = func() any {
 		return &StreamFrame{
 			Data:     make([]byte, 0, protocol.MaxPacketBufferSize),
+			fromPool: true,
+		}
+	}
+	jumboStreamFramePool.New = func() any {
+		return &StreamFrame{
+			Data:     make([]byte, 0, maxStreamFrameBufferSize),
 			fromPool: true,
 		}
 	}
@@ -22,12 +33,24 @@ func GetStreamFrame() *StreamFrame {
 	return f
 }
 
+// GetStreamFrameForSize obtains a frame whose buffer fits the payload.
+func GetStreamFrameForSize(size protocol.ByteCount) *StreamFrame {
+	if size <= protocol.MaxPacketBufferSize {
+		return GetStreamFrame()
+	}
+	return jumboStreamFramePool.Get().(*StreamFrame)
+}
+
 func putStreamFrame(f *StreamFrame) {
 	if !f.fromPool {
 		return
 	}
-	if protocol.ByteCount(cap(f.Data)) != protocol.MaxPacketBufferSize {
+	switch cap(f.Data) {
+	case int(protocol.MaxPacketBufferSize):
+		pool.Put(f)
+	case maxStreamFrameBufferSize:
+		jumboStreamFramePool.Put(f)
+	default:
 		panic("wire.PutStreamFrame called with packet of wrong size!")
 	}
-	pool.Put(f)
 }
