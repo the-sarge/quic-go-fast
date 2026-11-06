@@ -5,6 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/internal/utils/ringbuffer"
 	"github.com/quic-go/quic-go/internal/wire"
@@ -205,4 +206,28 @@ func (h *datagramQueue) Receive(ctx context.Context) ([]byte, error) {
 func (h *datagramQueue) CloseWithError(e error) {
 	h.closeErr = e
 	close(h.closed)
+}
+
+// discardOversized preserves the order of surviving queued messages. A sender
+// racing the size change can still admit using its earlier estimate; the packer
+// retains its existing final fit check for that case.
+func (h *datagramQueue) discardOversized(room protocol.ByteCount, version protocol.Version) {
+	h.sendMx.Lock()
+	defer h.sendMx.Unlock()
+	dropped := false
+	for range h.sendQueue.Len() {
+		frame := h.sendQueue.PopFront()
+		if frame.Length(version) > room {
+			h.sendDrops.Add(1)
+			dropped = true
+		} else {
+			h.sendQueue.PushBack(frame)
+		}
+	}
+	if dropped {
+		select {
+		case h.sent <- struct{}{}:
+		default:
+		}
+	}
 }

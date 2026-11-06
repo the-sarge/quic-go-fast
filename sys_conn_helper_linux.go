@@ -190,3 +190,7 @@ func kernelVersion() (major, minor int) {
 
 	return values[0], values[1]
 }
+
+// isGSOInvalidArgument is not a size-error classifier. A scalar retry must
+// establish whether a jumbo segmented EINVAL actually means message too large.
+func isGSOInvalidArgument(err error) bool { return errors.Is(err, unix.EINVAL) }

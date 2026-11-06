@@ -36,6 +36,7 @@ type packetEmission struct {
 	packer   *packetPacker
 	recovery *ackhandler.SentPacketHandler
 	queue    sender
+	refusals *packetSizeFeedback
 	local    localPacketSender
 	version  protocol.Version
 
@@ -72,6 +73,7 @@ type emissionPolicy interface {
 	noteCoalescedActivity(bool, monotime.Time)
 	noteCoalescedRegistration(protocol.EncryptionLevel, monotime.Time)
 	coalescedSendMetadata(bool) sendMetadata
+	sendPathGeneration() uint64
 }
 
 type emissionStop uint8
@@ -773,7 +775,7 @@ func (e *packetEmission) mtuProbe(finder *mtuFinder, now monotime.Time) emission
 	if handler, ok := ping.Handler.(*mtuFinderAckHandler); ok && e.local != nil {
 		e.local.registerMTUProbe(handler)
 	}
-	e.handoff(buf, 0, ecn, sendMetadata{})
+	e.handoff(buf, 0, ecn, sendMetadata{mtuProbe: true})
 	return emissionResult{progress: true}
 }
 
@@ -798,6 +800,7 @@ func (e *packetEmission) replacePath(conn sendConn, feedback *handshakeSendFeedb
 	e.connMutex.Unlock()
 	e.queue.Close()
 	queue := newSendQueue(conn, feedback)
+	queue.(*sendQueue).refusals = e.refusals
 	e.queue = queue
 	e.bindAuthority(e.authority)
 	e.bindQueueSendQoS(queue)
