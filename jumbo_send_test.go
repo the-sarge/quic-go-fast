@@ -154,8 +154,9 @@ func TestUnconfiguredEmissionKeepsStandardTier(t *testing.T) {
 				entry.release()
 			}
 			for _, size := range []protocol.ByteCount{1342, 1397, 1424, 1438} {
-				_, buffer, err := c.emission.packer.PackMTUProbePacket(ackhandler.Frame{Frame: &wire.PingFrame{}}, size, protocol.Version1)
+				packet, buffer, err := c.emission.packer.PackMTUProbePacket(ackhandler.Frame{Frame: &wire.PingFrame{}}, size, protocol.Version1)
 				require.NoError(t, err)
+				require.NoError(t, c.emission.registerPacket(packet, protocol.ECNUnsupported, monotime.Now()))
 				require.EqualValues(t, size, buffer.Len())
 				require.Equal(t, 1452, cap(buffer.Data))
 				buffer.Release()
