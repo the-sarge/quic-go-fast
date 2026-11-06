@@ -25,11 +25,12 @@ func TestJumboGSOInvalidArgumentAttribution(t *testing.T) {
 		calls   int
 		refused bool
 		fatal   error
+		wantGSO bool
 	}{
-		{"oversized segment", 2000, unix.EMSGSIZE, 2, true, nil},
-		{"segmentation unsupported", 2000, nil, 3, false, nil},
-		{"unrelated scalar failure", 2000, unix.EINVAL, 2, false, unix.EINVAL},
-		{"standard unchanged", 1400, nil, 1, false, unix.EINVAL},
+		{"oversized segment", 2000, unix.EMSGSIZE, 2, true, nil, true},
+		{"segmentation unsupported", 2000, nil, 3, false, nil, false},
+		{"unrelated scalar failure", 2000, unix.EINVAL, 2, false, unix.EINVAL, true},
+		{"standard unchanged", 1400, nil, 1, false, unix.EINVAL, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			raw := NewMockRawConn(gomock.NewController(t))
@@ -57,6 +58,7 @@ func TestJumboGSOInvalidArgumentAttribution(t *testing.T) {
 			} else {
 				require.ErrorIs(t, err, tc.fatal)
 			}
+			require.Equal(t, tc.wantGSO, conn.capabilities().GSO)
 			require.Equal(t, tc.calls, calls)
 			generation, size, pending := feedback.take()
 			require.Equal(t, tc.refused, pending)

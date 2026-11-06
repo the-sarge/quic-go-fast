@@ -99,8 +99,11 @@ func (c *sconn) writeAuthorized(p []byte, gsoSize uint16, ecn protocol.ECN, perm
 	// result supplies definitive size feedback or retains normal fatal errors.
 	if err != nil && gsoSize > 0 && (isGSOError(err) ||
 		(gsoSize > uint16(protocol.MaxPacketBufferSize) && isGSOInvalidArgument(err))) {
-		// disable GSO for future calls
-		c.gotGSOError.Store(true)
+		// Preserve the existing EIO fallback latch. Jumbo EINVAL is still
+		// ambiguous until the scalar attempts establish their outcome.
+		if isGSOError(err) {
+			c.gotGSOError.Store(true)
+		}
 		if c.logger.Debug() {
 			c.logger.Debugf("GSO failed when sending to %s", ai.addr)
 		}
@@ -112,6 +115,8 @@ func (c *sconn) writeAuthorized(p []byte, gsoSize uint16, ecn protocol.ECN, perm
 			}
 			p = p[l:]
 		}
+		// Every scalar submission succeeded, so segmentation itself failed.
+		c.gotGSOError.Store(true)
 		return nil
 	}
 	return err
