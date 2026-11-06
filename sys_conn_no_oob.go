@@ -8,7 +8,11 @@ import (
 )
 
 func newConn(c net.PacketConn, supportsDF, _ bool) (*basicConn, error) {
-	return &basicConn{PacketConn: c, supportsDF: supportsDF}, nil
+	return newConnWithPacketCeiling(c, supportsDF, false, 0)
+}
+
+func newConnWithPacketCeiling(c net.PacketConn, supportsDF, _ bool, ceiling packetCeiling) (*basicConn, error) {
+	return &basicConn{PacketConn: c, supportsDF: supportsDF, packetCeiling: ceiling}, nil
 }
 
 type packetInfo struct {

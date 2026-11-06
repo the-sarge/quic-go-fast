@@ -1,6 +1,6 @@
 # Jumbo packets implementation plan
 
-**Date:** 2026-11-05. **Status:** Accepted; not yet implemented. **Identity:** `JP-20261105-F`. **Parent:** pending. **Depends on:** nothing for F1. **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions. **Audit history:** this plan's merging PR.
+**Date:** 2026-11-05. **Status:** In progress; F1 complete. **Identity:** `JP-20261105-F`. **Parent:** [Jumbo packets (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). **Depends on:** nothing for F1. **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions. **Audit history:** this plan's merging PR.
 
 This plan comes from a downstream consumer's owner-approved program. It stands on its own: an implementer needs nothing outside this repository. "The consumer" below means that downstream program, whose qualification results reach this repository through F11's and F12's issues.
 
@@ -73,7 +73,7 @@ Throwaway builds that raised the constant and pinned the size carried over 8 Gbp
 
 | Slice | Disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| [F1](#f1) | rework #1208 | One Transport-owned value at 1452, threaded to advertisement, discovery and readers | None | n/a |
+| [F1](#f1) | complete #1208 | One Transport-owned value at 1452, threaded to advertisement, discovery and readers | None | n/a |
 | [F2](#f2) | new | Configured readers and receive queues carry 8,972-byte packets whole | F1 | n/a |
 | [F3](#f3) | new | Two-stage search, effective ceiling and stage-one size reporting | F1 | n/a |
 | [F4](#f4) | new | Stream frames larger than 1,452 bytes, through writer and a parser limit set by configuration | F1 | n/a |
@@ -86,12 +86,14 @@ Throwaway builds that raised the constant and pinned the size carried over 8 Gbp
 | [F11](#f11) | conditional | Several short DATAGRAMs in one jumbo packet, with weighted admission | F5; the consumer's comparison selecting this design | n/a |
 | [F12](#f12) | new | The release that claims jumbo, at the qualified commit | The consumer's qualification; the first independent release | n/a |
 
-F1 is the frontier. F2, F3 and F4 are parallel after F1. F10 is parallel with F6–F9. Nothing here waits for the quicquic-go identity transition before F12, and that transition doesn't wait for this.
+F1 #1208 is complete. F2 #1216, F3 #1217 and F4 #1218 are the parallel frontier; their F1 blocker is satisfied. F10 is parallel with F6–F9. Nothing here waits for the quicquic-go identity transition before F12, and that transition doesn't wait for this.
 
 ## Implementation slices
 
 <a id="f1"></a>
 ### F1 — Separate the packet ceiling from the buffer constant
+
+**Status:** complete; implemented for #1208.
 
 **Delivers:** one unexported per-Transport value, zero meaning 1452, that decides the largest packet this endpoint advertises, searches for, or cuts a read at where a reader cuts today. It's fixed when Transport configuration seals, and each connection and newly constructed reader holds a copy from construction. A retained managed Windows decoder receives the current lease's frozen copy as an immutable per-read input under existing endpoint read serialization. No production path can set anything else. Readers differ, and each keeps its behavior at the default: the basic reader, default slot and Windows reader cut to a prefix; a read slot rejects a full slot, and slot sizing stays with F2; a managed read delivers whole ([`sys_conn_oob.go` L304](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/sys_conn_oob.go#L304)); a coalesced read delivers up to the large tier whole and only cuts above it ([`coalesced_read.go` L53-L61](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/coalesced_read.go#L53-L61)). The census at the pinned commit:
 

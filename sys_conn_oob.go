@@ -62,7 +62,8 @@ func isECNDisabledUsingEnv() bool {
 
 type oobConn struct {
 	OOBCapablePacketConn
-	batchConn batchConn
+	batchConn     batchConn
+	packetCeiling packetCeiling
 
 	readPos uint8
 	// Packets received from the kernel, but not yet returned by ReadPacket().
@@ -102,7 +103,14 @@ type oobConnSetup struct {
 }
 
 func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*oobConn, error) {
+	return newConnWithPacketCeiling(c, supportsDF, allowReceiveCoalescing, 0)
+}
+
+func newConnWithPacketCeiling(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool, ceiling packetCeiling) (*oobConn, error) {
 	conn, _, err := newConnWithSetup(c, supportsDF, allowReceiveCoalescing)
+	if err == nil {
+		conn.packetCeiling = ceiling
+	}
 	return conn, err
 }
 
@@ -224,7 +232,7 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 	for {
 		// A coalesced read stays in its slot. Each call copies out one
 		// datagram, preserving ReadPacket's one-datagram contract.
-		if p, ok := c.cursor.next(c.managed); ok {
+		if p, ok := c.cursor.next(c.managed, c.packetCeiling); ok {
 			return p, nil
 		}
 		for len(c.messages) == int(c.readPos) { // all messages read. Read the next batch of messages.
@@ -242,7 +250,7 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 						buffer.Data = buffer.Data[:readSlotBufferSize]
 					default:
 						buffer = getPacketBuffer()
-						buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
+						buffer.Data = buffer.Data[:c.packetCeiling.size()]
 					}
 					c.buffers[i] = buffer
 				}

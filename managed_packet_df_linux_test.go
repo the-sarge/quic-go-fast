@@ -46,7 +46,7 @@ func TestManagedDFLinuxLeaseRestoresNativeOptions(t *testing.T) {
 				for _, value := range read() {
 					require.Equal(t, unix.IP_PMTUDISC_PROBE, value)
 				}
-				base, err := wrapConnWithManagedBuffers(lease, false, tr.managedBuffers())
+				base, err := wrapConnWithManagedBuffers(lease, false, tr.managedBuffers(), tr.packetCeiling)
 				require.NoError(t, err)
 				conn := tr.wrapExternalPacketIO(base)
 				require.True(t, conn.capabilities().DF)

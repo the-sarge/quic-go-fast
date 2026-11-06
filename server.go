@@ -51,8 +51,9 @@ type baseServer struct {
 	disableVersionNegotiation bool
 	acceptEarlyConns          bool
 
-	tlsConf *tls.Config
-	config  *Config
+	tlsConf       *tls.Config
+	config        *Config
+	packetCeiling packetCeiling
 
 	conn      rawConn
 	responses *endpointResponses
@@ -100,6 +101,7 @@ type baseServer struct {
 		qlogwriter.Trace,
 		utils.Logger,
 		protocol.Version,
+		packetCeiling,
 	) *wrappedConn
 
 	closeMx sync.Mutex
@@ -275,6 +277,7 @@ func newServer(
 	disableVersionNegotiation bool,
 	acceptEarly bool,
 	setupAdmission setupAdmission,
+	ceiling packetCeiling,
 ) *baseServer {
 	s := &baseServer{
 		conn:                      conn,
@@ -282,6 +285,7 @@ func newServer(
 		tr:                        tr,
 		tlsConf:                   tlsConf,
 		config:                    config,
+		packetCeiling:             ceiling,
 		tokenGenerator:            handshake.NewTokenGenerator(tokenGeneratorKey),
 		maxTokenAge:               maxTokenAge,
 		verifySourceAddress:       verifySourceAddress,
@@ -995,6 +999,7 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 		qlogTrace,
 		s.logger,
 		hdr.Version,
+		s.packetCeiling,
 	)
 	setup.bind(conn.Conn)
 	conn.installReceivePhase(s.tr.receivePhases)

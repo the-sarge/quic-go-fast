@@ -197,9 +197,10 @@ func countServerConstructors(t *testing.T) *atomic.Int32 {
 		qlogTrace qlogwriter.Trace,
 		logger utils.Logger,
 		v protocol.Version,
+		ceiling packetCeiling,
 	) *wrappedConn {
 		n.Add(1)
-		return orig(ctx, ctxCancel, conn, runner, origDestConnID, retrySrcConnID, clientDestConnID, destConnID, srcConnID, connIDGenerator, statelessResetter, conf, tlsConf, tokenGenerator, clientAddressValidated, rtt, qlogTrace, logger, v)
+		return orig(ctx, ctxCancel, conn, runner, origDestConnID, retrySrcConnID, clientDestConnID, destConnID, srcConnID, connIDGenerator, statelessResetter, conf, tlsConf, tokenGenerator, clientAddressValidated, rtt, qlogTrace, logger, v, ceiling)
 	}
 	t.Cleanup(func() { newConnection = orig })
 	return &n
@@ -691,7 +692,7 @@ func newRefusalServer(t *testing.T, opts *serverOpts) *refusalServer {
 	opts.newConn = func(context.Context, context.CancelCauseFunc, sendConn, connRunner,
 		protocol.ConnectionID, *protocol.ConnectionID, protocol.ConnectionID, protocol.ConnectionID, protocol.ConnectionID,
 		ConnectionIDGenerator, *statelessResetter, *Config, *tls.Config, *handshake.TokenGenerator,
-		bool, time.Duration, qlogwriter.Trace, utils.Logger, protocol.Version,
+		bool, time.Duration, qlogwriter.Trace, utils.Logger, protocol.Version, packetCeiling,
 	) *wrappedConn {
 		s.constructed.Add(1)
 		return &wrappedConn{Conn: &Conn{closeChan: make(chan struct{}, 1)}, testHooks: &connTestHooks{

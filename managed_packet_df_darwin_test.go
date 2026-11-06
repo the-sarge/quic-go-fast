@@ -39,7 +39,7 @@ func TestManagedDFDarwinLeaseRestoresNativeOptions(t *testing.T) {
 				tr := &Transport{Conn: lease}
 				require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
 				require.Equal(t, 1, read(), "registration engages native DF")
-				base, err := wrapConnWithManagedBuffers(lease, false, tr.managedBuffers())
+				base, err := wrapConnWithManagedBuffers(lease, false, tr.managedBuffers(), tr.packetCeiling)
 				require.NoError(t, err)
 				conn := tr.wrapExternalPacketIO(base)
 				require.True(t, conn.capabilities().DF)

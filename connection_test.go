@@ -174,6 +174,7 @@ func newServerTestConnection(
 		testConfigTrace(config, false),
 		utils.DefaultLogger,
 		protocol.Version1,
+		0,
 	)
 	require.Nil(t, wc.testHooks)
 	conn := wc.Conn
@@ -252,6 +253,7 @@ func buildClientTestConnection(
 		testConfigTrace(config, true),
 		utils.DefaultLogger,
 		version,
+		0,
 	)
 	require.Nil(t, conn.testHooks)
 	for _, opt := range opts {

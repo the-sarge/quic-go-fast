@@ -341,6 +341,7 @@ func TestCandidateSendQueueAuthorityEachController(t *testing.T) {
 						protocol.ConnectionID{}, protocol.ConnectionID{}, randConnID(6), &protocol.DefaultConnectionIDGenerator{},
 						newStatelessResetter(nil), populateConfig(conf), &tls.Config{},
 						handshake.NewTokenGenerator(handshake.TokenProtectorKey{}), false, time.Second, nil, utils.DefaultLogger, protocol.Version1,
+						0,
 					).Conn
 					c.emission.bindAuthority(authority) // as bindCandidate does
 				}
@@ -480,8 +481,9 @@ func retainClosedEntries(t *testing.T, retention time.Duration) {
 		qlogTrace qlogwriter.Trace,
 		logger utils.Logger,
 		v protocol.Version,
+		ceiling packetCeiling,
 	) *wrappedConn {
-		return orig(ctx, ctxCancel, conn, retainingRunner{connRunner: runner, retention: retention}, origDestConnID, retrySrcConnID, clientDestConnID, destConnID, srcConnID, connIDGenerator, statelessResetter, conf, tlsConf, tokenGenerator, clientAddressValidated, rtt, qlogTrace, logger, v)
+		return orig(ctx, ctxCancel, conn, retainingRunner{connRunner: runner, retention: retention}, origDestConnID, retrySrcConnID, clientDestConnID, destConnID, srcConnID, connIDGenerator, statelessResetter, conf, tlsConf, tokenGenerator, clientAddressValidated, rtt, qlogTrace, logger, v, ceiling)
 	}
 	t.Cleanup(func() { newConnection = orig })
 }

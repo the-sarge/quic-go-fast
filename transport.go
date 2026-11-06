@@ -156,6 +156,9 @@ type Transport struct {
 
 	packetIO packetIOConfig
 
+	// packetCeiling is fixed before initialization and copied at construction.
+	packetCeiling packetCeiling
+
 	initOnce sync.Once
 	initErr  error
 
@@ -284,6 +287,7 @@ func (t *Transport) createServer(tlsConf *tls.Config, conf *Config, allow0RTT bo
 		t.DisableVersionNegotiationPackets,
 		allow0RTT,
 		t.setupAdmission,
+		t.packetCeiling,
 	)
 	t.server = s
 	return s, nil
@@ -395,6 +399,7 @@ func (t *Transport) doDial(
 		qlogTrace,
 		logger,
 		version,
+		t.packetCeiling,
 	)
 	if !setup.bind(conn.Conn) {
 		// The deadline passed while no connection held the reservation.
@@ -495,7 +500,7 @@ func (t *Transport) init(allowZeroLengthConnIDs bool) error {
 			conn = c
 		} else {
 			var err error
-			conn, err = wrapConnWithManagedBuffers(t.Conn, t.receiveCoalescingAllowed(), managed)
+			conn, err = wrapConnWithManagedBuffers(t.Conn, t.receiveCoalescingAllowed(), managed, t.packetCeiling)
 			if err != nil {
 				t.initErr = err
 				return

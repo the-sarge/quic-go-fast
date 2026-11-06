@@ -96,10 +96,10 @@ type ReadBatchSlotsV1Conn interface {
 // allowReceiveCoalescing grants socket-wide receive-format mutation. External
 // permission is resolved by Transport after validating the exact binding.
 func wrapConn(pc net.PacketConn, allowReceiveCoalescing bool) (rawConn, error) {
-	return wrapConnWithManagedBuffers(pc, allowReceiveCoalescing, nil)
+	return wrapConnWithManagedBuffers(pc, allowReceiveCoalescing, nil, 0)
 }
 
-func wrapConnWithManagedBuffers(pc net.PacketConn, allowReceiveCoalescing bool, managed *managedBufferSetup) (rawConn, error) {
+func wrapConnWithManagedBuffers(pc net.PacketConn, allowReceiveCoalescing bool, managed *managedBufferSetup, ceiling packetCeiling) (rawConn, error) {
 	if managed == nil {
 		warnBufferSize(setReceiveBuffer(pc))
 		warnBufferSize(setSendBuffer(pc))
@@ -129,9 +129,9 @@ func wrapConnWithManagedBuffers(pc net.PacketConn, allowReceiveCoalescing bool, 
 		if managed == nil {
 			utils.DefaultLogger.Infof("PacketConn is not a net.UDPConn. Disabling optimizations possible on UDP connections.")
 		}
-		return &basicConn{PacketConn: pc, supportsDF: supportsDF}, nil
+		return &basicConn{PacketConn: pc, supportsDF: supportsDF, packetCeiling: ceiling}, nil
 	}
-	return newConn(c, supportsDF, allowReceiveCoalescing)
+	return newConnWithPacketCeiling(c, supportsDF, allowReceiveCoalescing, ceiling)
 }
 
 // Preserve the shared warning budget and opt-out for ordinary and managed setup.
@@ -154,16 +154,17 @@ func warnBufferSize(err error) {
 // * when the OS doesn't support OOB.
 type basicConn struct {
 	net.PacketConn
-	supportsDF bool
+	supportsDF    bool
+	packetCeiling packetCeiling
 }
 
 var _ rawConn = &basicConn{}
 
 func (c *basicConn) ReadPacket() (receivedPacket, error) {
 	buffer := getPacketBuffer()
-	// The packet size should not exceed protocol.MaxPacketBufferSize bytes
+	// The packet size should not exceed the endpoint ceiling.
 	// If it does, we only read a truncated packet, which will then end up undecryptable
-	buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
+	buffer.Data = buffer.Data[:c.packetCeiling.size()]
 	n, addr, err := c.ReadFrom(buffer.Data)
 	if err != nil {
 		buffer.Release()

@@ -132,7 +132,8 @@ const (
 //   - [StatelessResetError]: when we receive a stateless reset
 //   - [VersionNegotiationError]: returned by the client, when there's no version overlap between the peers
 type Conn struct {
-	pathCredit *pathCreditRegistry
+	packetCeiling packetCeiling
+	pathCredit    *pathCreditRegistry
 	// pathSurface is set before the connection runs, and only if it advertises multipath.
 	pathSurface *multipathSurface
 	// pathOpen holds the one local path operation, from request until its fence resolves.
@@ -317,12 +318,14 @@ var newConnection = func(
 	qlogTrace qlogwriter.Trace,
 	logger utils.Logger,
 	v protocol.Version,
+	ceiling packetCeiling,
 ) *wrappedConn {
 	s := &Conn{
 		ctx:                 ctx,
 		ctxCancel:           ctxCancel,
 		conn:                conn,
 		config:              conf,
+		packetCeiling:       ceiling,
 		handshakeDestConnID: destConnID,
 		srcConnIDLen:        srcConnID.Len(),
 		tokenGenerator:      tokenGenerator,
@@ -382,7 +385,7 @@ var newConnection = func(
 		MaxUniStreamNum:                 protocol.StreamNum(s.config.MaxIncomingUniStreams),
 		MaxAckDelay:                     protocol.MaxAckDelayInclGranularity,
 		AckDelayExponent:                protocol.AckDelayExponent,
-		MaxUDPPayloadSize:               protocol.MaxPacketBufferSize,
+		MaxUDPPayloadSize:               ceiling.size(),
 		StatelessResetToken:             &statelessResetToken,
 		OriginalDestinationConnectionID: origDestConnID,
 		DisableActiveMigration:          networkDisablesActiveMigration(conn),
@@ -443,10 +446,12 @@ var newClientConnection = func(
 	qlogTrace qlogwriter.Trace,
 	logger utils.Logger,
 	v protocol.Version,
+	ceiling packetCeiling,
 ) *wrappedConn {
 	s := &Conn{
 		conn:                conn,
 		config:              conf,
+		packetCeiling:       ceiling,
 		origDestConnID:      destConnID,
 		initialSrcConnID:    srcConnID,
 		handshakeDestConnID: destConnID,
@@ -517,7 +522,7 @@ var newClientConnection = func(
 		MaxBidiStreamNum:               protocol.StreamNum(s.config.MaxIncomingStreams),
 		MaxUniStreamNum:                protocol.StreamNum(s.config.MaxIncomingUniStreams),
 		MaxAckDelay:                    protocol.MaxAckDelayInclGranularity,
-		MaxUDPPayloadSize:              protocol.MaxPacketBufferSize,
+		MaxUDPPayloadSize:              ceiling.size(),
 		AckDelayExponent:               protocol.AckDelayExponent,
 		// For interoperability with quic-go versions before May 2023, this value must be set to a value
 		// different from protocol.DefaultActiveConnectionIDLimit.
@@ -1126,7 +1131,7 @@ func (c *Conn) resetPathPacketSize(now monotime.Time) {
 
 // peerMaxPacketSize is the largest packet any discovery may probe toward this peer.
 func (c *Conn) peerMaxPacketSize() protocol.ByteCount {
-	maxPacketSize := protocol.ByteCount(protocol.MaxPacketBufferSize)
+	maxPacketSize := c.packetCeiling.size()
 	if c.peerParams.MaxUDPPayloadSize > 0 && c.peerParams.MaxUDPPayloadSize < maxPacketSize {
 		maxPacketSize = c.peerParams.MaxUDPPayloadSize
 	}
@@ -2900,11 +2905,7 @@ func (c *Conn) applyTransportParameters() {
 		// Preserve ordinary connection-ID rotation without adopting the address.
 		c.connIDManager.AddFromPreferredAddress(params.PreferredAddress.ConnectionID, params.PreferredAddress.StatelessResetToken)
 	}
-	maxPacketSize := protocol.ByteCount(protocol.MaxPacketBufferSize)
-	if params.MaxUDPPayloadSize > 0 && params.MaxUDPPayloadSize < maxPacketSize {
-		maxPacketSize = params.MaxUDPPayloadSize
-	}
-	c.mtuDiscoverer = c.newPathMTUFinder(c.effectiveInitialPacketSize, maxPacketSize)
+	c.mtuDiscoverer = c.newPathMTUFinder(c.effectiveInitialPacketSize, c.peerMaxPacketSize())
 }
 
 // newPathMTUFinder attaches the connection's settled signal to every finder, so a
