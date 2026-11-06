@@ -51,3 +51,62 @@ func TestWindowsPacketCeilingUROGuard(t *testing.T) {
 	require.True(t, reader.uroGuardTripped)
 	p.buffer.Release()
 }
+
+func TestWindowsManagedPacketCeilingGuard(t *testing.T) {
+	script := &uroReadConn{t: t, payloads: [][]byte{bytes.Repeat([]byte{'p'}, 1420), []byte("next")}, oobs: [][]byte{nil, nil}, addr: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1234}}
+	reader := newUROConn(t, script)
+	reader.managed = true
+	endpoint, acquire, err := newManagedPacketEndpoint(script)
+	require.NoError(t, err)
+	defer endpoint.Close()
+	endpoint.(*managedPacketConn).endpoint.receiver = reader
+	lease, err := acquire()
+	require.NoError(t, err)
+	defer lease.Close()
+	tr := &Transport{Conn: lease}
+	require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
+	require.NoError(t, tr.setPacketCeilingForTesting(1400), "final configuration may follow registration")
+	require.NoError(t, tr.beginPacketIO())
+	b := make([]byte, 2000)
+	n, _, err := lease.ReadFrom(b)
+	require.NoError(t, err)
+	require.Equal(t, "next", string(b[:n]), "the inner guard must reject the metadata-free 1420-byte read")
+	require.True(t, reader.uroGuardTripped)
+	require.EqualValues(t, 1, reader.receiveCoalescingFallbackCount().Load())
+}
+
+func TestWindowsManagedPacketCeilingHandback(t *testing.T) {
+	script := &uroReadConn{t: t, payloads: [][]byte{bytes.Repeat([]byte{'p'}, 1420), bytes.Repeat([]byte{'q'}, 1300), bytes.Repeat([]byte{'r'}, 1420), bytes.Repeat([]byte{'s'}, 1420)}, oobs: [][]byte{nil, nil, nil, nil}, addr: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1234}}
+	reader := newUROConn(t, script)
+	reader.managed = true
+	endpoint, acquire, err := newManagedPacketEndpoint(script)
+	require.NoError(t, err)
+	defer endpoint.Close()
+	endpoint.(*managedPacketConn).endpoint.receiver = reader
+	read := func(conn net.PacketConn, size int, fill byte) {
+		t.Helper()
+		b := make([]byte, 2000)
+		n, _, err := conn.ReadFrom(b)
+		require.NoError(t, err)
+		require.Equal(t, bytes.Repeat([]byte{fill}, size), b[:n])
+		require.False(t, reader.uroGuardTripped)
+	}
+	read(endpoint, 1420, 'p')
+	lease, err := acquire()
+	require.NoError(t, err)
+	tr := &Transport{Conn: lease}
+	require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
+	require.NoError(t, tr.setPacketCeilingForTesting(1400))
+	require.NoError(t, tr.beginPacketIO())
+	read(lease, 1300, 'q')
+	require.NoError(t, lease.Close())
+	read(endpoint, 1420, 'r')
+	next, err := acquire()
+	require.NoError(t, err)
+	defer next.Close()
+	nextTransport := &Transport{Conn: next}
+	require.NoError(t, nextTransport.ConfigureManagedPacketIOV1(next, next, nil))
+	require.NoError(t, nextTransport.beginPacketIO())
+	read(next, 1420, 's')
+	require.Same(t, reader, endpoint.(*managedPacketConn).endpoint.receiver, "decoder/URO state survives both leases")
+}
