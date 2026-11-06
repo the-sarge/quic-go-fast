@@ -1239,10 +1239,11 @@ func (c *Conn) handleHandshakeConfirmed(now monotime.Time) error {
 	return nil
 }
 
-// startMTUDiscovery is the only place probing starts: at handshake confirmation and
-// after each path change. Without DF, a probe could be fragmented instead of testing
-// the path. When discovery will not run, or has nothing to search, the first path is
-// settled at confirmation; after a path change it is already settled.
+// startMTUDiscovery is the only place probing starts: at handshake confirmation,
+// after each path change, and after initial-size recovery confirmation. Without DF,
+// a probe could be fragmented instead of testing the path. When discovery will not
+// run, or has nothing to search, the first path is settled at confirmation; after a
+// path change it is already settled.
 func (c *Conn) startMTUDiscovery(now monotime.Time) {
 	if c.config.DisablePathMTUDiscovery || !c.conn.capabilities().DF {
 		c.pathMTUSettled.settle()

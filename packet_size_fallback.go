@@ -119,6 +119,7 @@ func (c *Conn) confirmPacketSizeFallback(context ackhandler.PacketContext, size 
 		return
 	}
 	if size == f.size {
+		ackhandler.RetireMTURecoveryProbes(c.sentPacketHandler, monotime.Now(), false)
 		f.confirmed, f.active, f.probe = true, false, nil
 		if size == c.effectiveInitialPacketSize {
 			c.mtuDiscoverer.Reset(size, c.discoveryPacketCeiling())

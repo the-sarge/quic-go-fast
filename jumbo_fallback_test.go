@@ -555,3 +555,56 @@ func TestJumboFallbackProbeCongestionLimited(t *testing.T) {
 	close(q.closeCalled)
 	require.NoError(t, q.Run())
 }
+
+func TestJumboFallbackProbeAckAfterOrdinaryLossThreshold(t *testing.T) {
+	for _, expired := range []bool{false, true} {
+		name := "before owned deadline"
+		if expired {
+			name = "after owned loss verdict"
+		}
+		t.Run(name, func(t *testing.T) {
+			tc := newJumboRefusalEmission(t)
+			c := tc.conn
+			now := monotime.Now()
+			c.packetSizeFeedback.publish(c.pathGeneration, 8957)
+			c.applyPacketSizeFallback(now)
+			probeNumber, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+			require.NoError(t, c.triggerSending(now).err)
+			probe := c.mtuFallback.probe
+			q := c.emission.queue.(*sendQueue)
+			t.Cleanup(func() {
+				for len(q.queue) > 0 {
+					(<-q.queue).buf.Release()
+				}
+			})
+			var later protocol.PacketNumber
+			for i := range 3 {
+				later, _ = c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+				c.framer.QueueControlFrame(&wire.PingFrame{})
+				result := c.emission.advance(now.Add(time.Duration(i+1)*time.Millisecond), false)
+				require.NoError(t, result.err)
+				require.True(t, result.progress)
+			}
+			ack := func(pn protocol.PacketNumber, at monotime.Time) {
+				_, err := c.sentPacketHandler.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: pn, Largest: pn}}}, protocol.Encryption1RTT, at)
+				require.NoError(t, err)
+			}
+			ack(later, now.Add(4*time.Millisecond))
+			require.False(t, c.mtuFallback.confirmed)
+			at := now.Add(5 * time.Millisecond)
+			require.True(t, at.Before(probe.deadline))
+			if expired {
+				c.advancePacketSizeRecovery(probe.deadline)
+				require.Equal(t, 1, c.mtuFallback.lost)
+				require.NoError(t, c.triggerSending(probe.deadline).err)
+				require.NotSame(t, probe, c.mtuFallback.probe)
+				at = probe.deadline.Add(time.Millisecond)
+			}
+			ack(probeNumber, at)
+			require.True(t, c.mtuFallback.confirmed, "a valid probe ACK must survive ordinary loss-threshold processing")
+			require.False(t, c.mtuFallback.active)
+			require.Nil(t, c.mtuFallback.probe)
+			require.Zero(t, c.sentPacketHandler.GetLossDetectionTimeout(), "terminal confirmation retires the remaining recovery flight")
+		})
+	}
+}

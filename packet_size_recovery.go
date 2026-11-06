@@ -48,13 +48,15 @@ func (c *Conn) advancePacketSizeRecovery(now monotime.Time) {
 	if !p.laterSmallAck {
 		return
 	}
+	ackhandler.RetireMTURecoveryProbes(c.sentPacketHandler, now, true)
 	f.lost++
 	f.probe = nil
-	if f.lost < 3 {
+	if f.lost < ackhandler.MaxMTURecoveryProbes {
 		return
 	}
 	if f.size == c.effectiveInitialPacketSize {
 		f.active = false
+		ackhandler.RetireMTURecoveryProbes(c.sentPacketHandler, now, false)
 		return
 	}
 	f.lost = 0
@@ -83,6 +85,8 @@ func (c *Conn) preparePacketSizeRecovery(now monotime.Time) packetSizeRecoveryIn
 // Recovery PINGs aren't retransmitted by a frame handler. The padded attempts
 // use the MTU-probe loss exemption; follow-up PINGs retain ordinary loss rules.
 type packetSizeRecoveryHandler struct{}
+
+func (*packetSizeRecoveryHandler) HasMTURecoveryDeadline() {}
 
 func (*packetSizeRecoveryHandler) OnAcked(wire.Frame) {}
 func (*packetSizeRecoveryHandler) OnLost(wire.Frame)  {}
