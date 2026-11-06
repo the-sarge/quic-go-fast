@@ -61,8 +61,9 @@ func (c *Conn) PathMTUSettledV1() <-chan struct{} {
 // The stage-one size is zero until the current path's standard-size search has
 // finished. It is the largest size validated by that search, or the initial size
 // if no larger probe succeeded. It remains available during stage two and resets
-// to zero when a new path starts searching. If discovery cannot run, it can stay
-// zero even after PathMTUSettledV1 closes.
+// to zero when a new path starts searching, or when recovery confirms the initial
+// size and restarts the standard-size search on the same path. If discovery cannot
+// run, it can stay zero even after PathMTUSettledV1 closes.
 //
 // This observation does not enable jumbo packets or change the sending limit.
 // It is safe to call concurrently and never blocks.
