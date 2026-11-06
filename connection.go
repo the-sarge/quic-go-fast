@@ -799,6 +799,7 @@ runLoop:
 			break runLoop
 		}
 		c.applyPacketSizeFallback(now)
+		c.advancePacketSizeRecovery(now)
 		if h, ok := c.sentPacketHandler.(deliveryLifecycle); ok {
 			h.ExpireDelivery(now)
 		}
@@ -1044,6 +1045,9 @@ func (c *Conn) maybeResetTimer() {
 			deadline = t
 		}
 	}
+	if t := c.packetSizeRecoveryTime(); !t.IsZero() && t.Before(deadline) {
+		deadline = t
+	}
 	// If the connection is hard-blocked, we can't even send acknowledgments,
 	// nor can we send PTO probe packets.
 	if c.blocked == blockModeHardBlocked {
@@ -1130,6 +1134,7 @@ func (c *Conn) switchToNewPath(tr *Transport, now monotime.Time) {
 // The caller starts discovery once the new path is in place.
 func (c *Conn) resetPathPacketSize(now monotime.Time) {
 	size := c.effectiveInitialPacketSize
+	c.mtuFallback.active, c.mtuFallback.probe = false, nil
 	c.sentPacketHandler.MigratedPath(now, size)
 	c.mtuDiscoverer.Reset(size, c.discoveryPacketCeiling())
 	c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(size)))
@@ -1234,10 +1239,11 @@ func (c *Conn) handleHandshakeConfirmed(now monotime.Time) error {
 	return nil
 }
 
-// startMTUDiscovery is the only place probing starts: at handshake confirmation and
-// after each path change. Without DF, a probe could be fragmented instead of testing
-// the path. When discovery will not run, or has nothing to search, the first path is
-// settled at confirmation; after a path change it is already settled.
+// startMTUDiscovery is the only place probing starts: at handshake confirmation,
+// after each path change, and after initial-size recovery confirmation. Without DF,
+// a probe could be fragmented instead of testing the path. When discovery will not
+// run, or has nothing to search, the first path is settled at confirmation; after a
+// path change it is already settled.
 func (c *Conn) startMTUDiscovery(now monotime.Time) {
 	if c.config.DisablePathMTUDiscovery || !c.conn.capabilities().DF {
 		c.pathMTUSettled.settle()

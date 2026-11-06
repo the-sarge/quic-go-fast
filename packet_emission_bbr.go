@@ -82,6 +82,9 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 	if !confirmed {
 		e.policy.applyHandshakeMTUFallback()
 	}
+	if intent := e.policy.preparePacketSizeRecovery(now); intent.probe != nil {
+		return e.packetSizeRecovery(intent, now)
+	}
 	size := e.policy.maxPacketSize()
 	if b := e.bbr.controller; b != nil {
 		if b.GetCongestionWindow() == 0 {

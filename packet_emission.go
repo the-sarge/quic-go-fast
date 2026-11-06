@@ -62,6 +62,7 @@ type packetEmission struct {
 type emissionPolicy interface {
 	applyHandshakeMTUFallback()
 	prepareEmission(monotime.Time) emissionIntent
+	preparePacketSizeRecovery(monotime.Time) packetSizeRecoveryIntent
 	maxPacketSize() protocol.ByteCount
 	logPathProbe(shortHeaderPacket, net.Addr, protocol.ByteCount, qlog.DatagramPayloadChecksum)
 	logShortHeaderPacket(shortHeaderPacket, protocol.ECN, protocol.ByteCount)
@@ -172,6 +173,9 @@ func (e *packetEmission) send(now monotime.Time, confirmed bool) (result emissio
 				result.progress = result.progress || progress
 				return result
 			}
+		}
+		if intent := e.policy.preparePacketSizeRecovery(now); intent.probe != nil {
+			return e.packetSizeRecovery(intent, now)
 		}
 		result = e.dispatch(now, confirmed)
 		if result.err != nil {

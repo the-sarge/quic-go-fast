@@ -93,6 +93,7 @@ type sentPacketHandler struct {
 	paths       map[protocol.PathID]*sentPacketHandler
 
 	mtuAcked                func(PacketContext, protocol.ByteCount, monotime.Time)
+	mtuRecoveryAcks         [MaxMTURecoveryProbes]mtuRecoveryAck
 	local                   *localCompletions
 	initialPackets          *packetNumberSpace
 	handshakePackets        *packetNumberSpace
@@ -414,7 +415,8 @@ func (h *sentPacketHandler) sentPacket(context PacketContext, t monotime.Time, p
 		pnSpace.lastAckElicitingPacketTime = t
 		h.bytesInFlight += size
 		p.includedInBytesInFlight = true
-		if h.numProbesToSend > 0 {
+		// Recovery owns this emission separately from ordinary PTO packing credits.
+		if h.numProbesToSend > 0 && !p.isMTURecoveryPacket() {
 			h.numProbesToSend--
 		}
 	}
@@ -543,6 +545,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 	}
 	if encLevel == protocol.Encryption1RTT {
 		h.ackCarriers.acknowledge(ack, rcvTime, h.ignorePacketsBelow)
+		h.acknowledgeMTURecoveryProbes(ack)
 	}
 	if h.congestionEvents != nil {
 		h.ExpireDelivery(rcvTime)
@@ -1071,7 +1074,7 @@ func (h *sentPacketHandler) detectLostPackets(now monotime.Time, encLevel protoc
 			break
 		}
 
-		if !p.networkEligible() {
+		if !p.networkEligible() || p.hasMTURecoveryDeadline() {
 			continue
 		}
 		var packetLost bool
@@ -1329,7 +1332,7 @@ func (h *sentPacketHandler) localTrackedPackets() int {
 }
 
 func (h *sentPacketHandler) CanSendPathProbe() bool {
-	if h.local != nil && h.local.closed {
+	if !h.canTrackPacket() {
 		return false
 	}
 	root := h
@@ -1340,7 +1343,11 @@ func (h *sentPacketHandler) CanSendPathProbe() bool {
 	for _, path := range root.paths {
 		probes += path.appDataPackets.history.pathProbePackets.Len()
 	}
-	if probes >= maxOutstandingPathProbes {
+	return probes < maxOutstandingPathProbes
+}
+
+func (h *sentPacketHandler) canTrackPacket() bool {
+	if h.local != nil && h.local.closed {
 		return false
 	}
 	// Popping the next packet number can also insert a skipped-number marker.
@@ -1544,6 +1551,7 @@ func (h *sentPacketHandler) MigratedPath(now monotime.Time, initialMaxDatagramSi
 // resetForPacketSize retires registrations in recovery order before replacing
 // congestion state. STREAM callbacks requeue data for the smaller packet budget.
 func (h *sentPacketHandler) resetForPacketSize(now monotime.Time, initialMaxDatagramSize protocol.ByteCount) {
+	clear(h.mtuRecoveryAcks[:])
 	h.packetThresholdDisabled = false
 	h.timeThresholdEighths = defaultTimeThresholdEighths
 	h.minPNToRelaxReordering = protocol.InvalidPacketNumber
