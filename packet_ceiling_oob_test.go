@@ -51,15 +51,16 @@ func TestJumboReadSlotsLoopback(t *testing.T) {
 	require.NoError(t, err)
 	defer reader.releaseReadBuffers()
 	reader.setReadSlots(8, true)
-	requireJumboLoopback(t, reader, socket, "reject", 8973)
-	capacity := 0
-	for _, b := range reader.buffers {
-		if b != nil {
-			capacity += cap(b.Data)
+	native := reader.batchConn
+	reader.batchConn = lifetimeBatchReader(func(ms []ipv4.Message) (int, error) {
+		capacity := 0
+		for _, msg := range ms {
+			capacity += cap(msg.Buffers[0])
 		}
-	}
-	// The last slot transferred to the consumer; seven remain with the reader.
-	require.Equal(t, 62811, capacity)
+		require.Equal(t, 71784, capacity, "eight posted read slots")
+		return native.ReadBatch(ms, 0)
+	})
+	requireJumboLoopback(t, reader, socket, "reject", 8973)
 	t.Log("eight posted read slots retain 71784 payload bytes; default: 11624")
 }
 
