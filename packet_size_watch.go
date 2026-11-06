@@ -71,7 +71,7 @@ func (c *Conn) packetSizeWatchTime() monotime.Time {
 		}
 		return 0
 	}
-	if w.probe != nil {
+	if w.recheck && w.probe != nil {
 		return w.probe.deadline
 	}
 	return 0
@@ -93,10 +93,18 @@ func (c *Conn) advancePacketSizeWatch(now monotime.Time) {
 		w.checking, w.since = true, now
 	}
 	p := w.probe
+	if !w.recheck {
+		// Ordinary recovery owns unanswered liveness loss and backoff. Sending on a
+		// separate base-PTO clock would keep postponing its last-send-anchored alarm.
+		if p != nil && p.expired {
+			w.probe = nil
+		}
+		return
+	}
 	if p == nil || p.deadline == 0 || now.Before(p.deadline) {
 		return
 	}
-	if !w.recheck || !p.laterSmallAck {
+	if !p.laterSmallAck {
 		// Without later small delivery the probe has no loss verdict. Retry liveness,
 		// including after a second outage immediately following the first small ACK.
 		ackhandler.RetireMTURecoveryProbes(c.sentPacketHandler, now, false)
@@ -126,7 +134,19 @@ func (c *Conn) preparePacketSizeWatch(now monotime.Time) packetSizeRecoveryInten
 	}
 	p := w.probe
 	if p.sent == 0 {
-		return packetSizeRecoveryIntent{probe: p, followup: !w.recheck}
+		intent := packetSizeRecoveryIntent{probe: p, followup: !w.recheck}
+		if !w.recheck {
+			generation := c.pathGeneration
+			intent.lost = func() {
+				// This callback reports an ordinary-loss fact in the connection context;
+				// the next run-loop preparation decides whether to retry the same epoch.
+				if generation == c.pathGeneration && c.mtuWatch.probe == p && !c.mtuWatch.recheck {
+					p.expired = true
+					c.scheduleSending()
+				}
+			}
+		}
+		return intent
 	}
 	if w.recheck && !p.followupSent {
 		return packetSizeRecoveryIntent{probe: p, followup: true}

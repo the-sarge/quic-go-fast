@@ -18,14 +18,16 @@ import (
 )
 
 type jumboShrinkProxy struct {
-	limit         atomic.Int64
-	outage        atomic.Bool
-	impair        atomic.Int32
-	firstSmallAck chan struct{}
-	secondOutage  atomic.Bool
-	reordered     atomic.Uint64
-	armedSmall    atomic.Bool
-	once          sync.Once
+	limit                 atomic.Int64
+	outage                atomic.Bool
+	impair                atomic.Int32
+	firstSmallAck         chan struct{}
+	secondOutage          atomic.Bool
+	reordered             atomic.Uint64
+	armedSmall            atomic.Bool
+	once                  sync.Once
+	outageSmall           atomic.Int64
+	outageLargeAfterSmall atomic.Int64
 }
 
 func newJumboShrinkPair(t *testing.T, initialLimit int64) (*Conn, *Conn, *jumboShrinkProxy) {
@@ -43,9 +45,22 @@ func newJumboShrinkPair(t *testing.T, initialLimit int64) (*Conn, *Conn, *jumboS
 		Conn: proxySocket, ServerAddr: serverSocket.LocalAddr().(*net.UDPAddr), PacketSize: 8973,
 		DropPacket: func(dir quicproxy.Direction, _, _ net.Addr, b []byte) bool {
 			if control.outage.Load() {
+				if dir == quicproxy.DirectionIncoming {
+					if len(b) == 64 {
+						control.outageSmall.Add(1)
+					}
+					if len(b) > 1452 && control.outageSmall.Load() > 0 {
+						control.outageLargeAfterSmall.Add(1)
+					}
+				}
 				return true
 			}
 			if dir == quicproxy.DirectionIncoming {
+				// During restoration, admit the liveness ACK before any jumbo
+				// delivery so the second-outage ordering is deterministic.
+				if control.secondOutage.Load() && len(b) > 1452 {
+					return true
+				}
 				if control.secondOutage.Load() && len(b) == 64 {
 					control.armedSmall.Store(true)
 				}
@@ -56,7 +71,7 @@ func newJumboShrinkPair(t *testing.T, initialLimit int64) (*Conn, *Conn, *jumboS
 					return random.IntN(100) < 5
 				}
 			} else if control.secondOutage.Load() && control.armedSmall.Load() && len(b) <= 1452 {
-				control.once.Do(func() { control.outage.Store(true); close(control.firstSmallAck) })
+				control.once.Do(func() { control.outage.Store(true); control.secondOutage.Store(false); close(control.firstSmallAck) })
 			}
 			return false
 		},
@@ -271,6 +286,13 @@ func TestJumboDiscoveryLossDoesNotTriggerFallback(t *testing.T) {
 	ceiling, stageOne := c.PathMTUInfoV1()
 	require.EqualValues(t, 8972, ceiling)
 	require.EqualValues(t, 1438, stageOne)
+	// The estimate is atomic and published before the settled signal. With a
+	// 1500-byte UDP cap, the finder's 20-byte termination interval is 1480..1500;
+	// 37 bytes is this API's conservative short-header overhead allowance.
+	settledSize := c.maxPayloadSizeEstimate.Load() + 37
+	require.GreaterOrEqual(t, settledSize, uint32(1480))
+	require.LessOrEqual(t, settledSize, uint32(1500))
+	t.Logf("settled UDP payload size %d under the 1500-byte proxy cap", settledSize)
 	// Discovery on a 1500-byte payload path settles just below that limit, rather
 	// than permanently falling back to the standard stage.
 	require.NoError(t, c.SendDatagram(bytes.Repeat([]byte{'s'}, 1430)))
@@ -307,21 +329,35 @@ func TestJumboFarSidePreservation(t *testing.T) {
 				proxy.secondOutage.Store(true)
 			}
 			received := startJumboTraffic(t, c, s, 8200)
-			time.Sleep(800 * time.Millisecond)
+			outage := 800 * time.Millisecond
+			if kind == "outage_restore" {
+				outage = 3 * time.Second
+			}
+			time.Sleep(outage)
+			if kind == "outage_restore" {
+				require.Positive(t, proxy.outageSmall.Load(), "the liveness phase must be reached")
+				require.Positive(t, proxy.outageLargeAfterSmall.Load(), "ordinary PTO must still dispatch jumbo traffic after unanswered liveness")
+				t.Logf("outage: %d small liveness packets; %d jumbo packets after first liveness", proxy.outageSmall.Load(), proxy.outageLargeAfterSmall.Load())
+			}
 			if kind == "outage_restore" || kind == "second_outage_after_small_ack" {
 				proxy.outage.Store(false)
 			}
 			if kind == "second_outage_after_small_ack" {
 				select {
 				case <-proxy.firstSmallAck:
-				case <-time.After(3 * time.Second):
+				case <-time.After(10 * time.Second):
 					t.Fatal("liveness ACK was never observed")
 				}
 				time.Sleep(300 * time.Millisecond)
 				proxy.outage.Store(false)
 			}
 			time.Sleep(800 * time.Millisecond)
-			require.Positive(t, received.Load(), "jumbo application delivery must resume")
+			if kind == "outage_restore" || kind == "second_outage_after_small_ack" {
+				// Ordinary PTO retains its backed-off schedule during the outage.
+				require.Eventually(t, func() bool { return received.Load() > 0 }, 10*time.Second, 5*time.Millisecond, "jumbo application delivery must resume within the idle interval")
+			} else {
+				require.Positive(t, received.Load(), "jumbo application delivery must continue")
+			}
 			select {
 			case <-c.PathMTUFallbackV1():
 				t.Fatal("transient loss or outage caused permanent fallback")
