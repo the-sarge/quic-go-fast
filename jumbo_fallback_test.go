@@ -93,7 +93,7 @@ func newJumboRefusalPair(t *testing.T, controller, route string) (*Conn, *Conn, 
 	serverPC := network.NewEndpoint(&net.UDPAddr{IP: net.ParseIP("1.0.0.2"), Port: 9002}, settings)
 	migrationPC := network.NewEndpoint(&net.UDPAddr{IP: net.ParseIP("1.0.0.3"), Port: 9003}, settings)
 	migration := &Transport{Conn: &basicConn{PacketConn: migrationPC, supportsDF: true, packetCeiling: 8972}}
-	require.NoError(t, migration.setPacketCeilingForTesting(8972))
+	require.NoError(t, migration.ConfigurePacketCeilingV1(8972))
 	require.NoError(t, network.Start())
 	deferCleanup := func() { network.Close(); clientPC.Close(); serverPC.Close(); migrationPC.Close() }
 	t.Cleanup(deferCleanup)
@@ -116,8 +116,8 @@ func newJumboRefusalPair(t *testing.T, controller, route string) (*Conn, *Conn, 
 	}
 	server := &Transport{Conn: &basicConn{PacketConn: serverPC, supportsDF: true, packetCeiling: 8972}}
 	t.Cleanup(func() { client.Close(); server.Close(); migration.Close() })
-	require.NoError(t, client.setPacketCeilingForTesting(8972))
-	require.NoError(t, server.setPacketCeilingForTesting(8972))
+	require.NoError(t, client.ConfigurePacketCeilingV1(8972))
+	require.NoError(t, server.ConfigurePacketCeilingV1(8972))
 	conf := &Config{InitialPacketSize: 1232, EnableDatagrams: true, KeepAlivePeriod: 15 * time.Second, MaxIdleTimeout: time.Minute}
 	require.NoError(t, conf.SetCongestionControlV1(controller))
 	serverTLS, clientTLS := silentDropTLSConfigs()

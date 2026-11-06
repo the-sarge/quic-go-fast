@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net"
 	"net/netip"
 	"slices"
@@ -898,4 +899,22 @@ func TestMultipathSetupParticipantCap(t *testing.T) {
 	}
 	_, err := tr.Dial(t.Context(), nativeShutdownAddress, nativeClientTLS(), multipathConfig(t))
 	require.ErrorIs(t, err, ErrMultipathResourceLimitV1)
+}
+
+func TestPacketCeilingRefusesNativeMultipathIO(t *testing.T) {
+	activateMultipathProfile(t)
+	for _, n := range []int{1452, 8972} {
+		t.Run(fmt.Sprint(n), func(t *testing.T) {
+			t.Run("ceiling first", func(t *testing.T) {
+				tr := &Transport{Conn: newUDPConnLocalhost(t)}
+				t.Cleanup(func() { tr.Close() })
+				require.NoError(t, tr.ConfigurePacketCeilingV1(n))
+				require.ErrorIs(t, tr.ConfigureMultipathIOV1(time.Second), ErrMultipathUnsupportedV1)
+			})
+			t.Run("native I/O first", func(t *testing.T) {
+				tr := grantedTransport(t)
+				require.ErrorIs(t, tr.ConfigurePacketCeilingV1(n), ErrMultipathUnsupportedV1)
+			})
+		})
+	}
 }

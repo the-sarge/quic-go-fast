@@ -65,7 +65,7 @@ func TestWindowsManagedPacketCeilingGuard(t *testing.T) {
 	defer lease.Close()
 	tr := &Transport{Conn: lease}
 	require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
-	require.NoError(t, tr.setPacketCeilingForTesting(1400), "final configuration may follow registration")
+	tr.packetCeiling = 1400 // retained internal lease-freezing characterization
 	require.NoError(t, tr.beginPacketIO())
 	b := make([]byte, 2000)
 	n, _, err := lease.ReadFrom(b)
@@ -96,7 +96,7 @@ func TestWindowsManagedPacketCeilingHandback(t *testing.T) {
 	require.NoError(t, err)
 	tr := &Transport{Conn: lease}
 	require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
-	require.NoError(t, tr.setPacketCeilingForTesting(1400))
+	tr.packetCeiling = 1400 // retained internal lease-freezing characterization
 	require.NoError(t, tr.beginPacketIO())
 	read(lease, 1300, 'q')
 	require.NoError(t, lease.Close())
@@ -142,7 +142,7 @@ func TestWindowsJumboManagedPacketCeilingGuard(t *testing.T) {
 	defer lease.Close()
 	tr := &Transport{Conn: lease}
 	require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
-	require.NoError(t, tr.setPacketCeilingForTesting(8972))
+	require.NoError(t, tr.ConfigurePacketCeilingV1(8972))
 	require.NoError(t, tr.beginPacketIO())
 	buffer := make([]byte, 10000)
 	n, _, err := lease.ReadFrom(buffer)

@@ -51,7 +51,7 @@ func requireJumboLoopback(t *testing.T, reader rawConn, socket net.PacketConn, h
 func TestJumboBasicReaderLoopback(t *testing.T) {
 	socket := newUDPConnLocalhost(t)
 	tr := &Transport{Conn: socket}
-	require.NoError(t, tr.setPacketCeilingForTesting(8972))
+	require.NoError(t, tr.ConfigurePacketCeilingV1(8972))
 	reader := &basicConn{PacketConn: socket, packetCeiling: tr.packetCeiling}
 	requireJumboLoopback(t, reader, socket, "prefix", 8972)
 }

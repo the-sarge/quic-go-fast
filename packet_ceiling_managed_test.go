@@ -49,13 +49,13 @@ func TestPacketCeilingManagedLeaseReads(t *testing.T) {
 	require.NoError(t, err)
 	tr := &Transport{Conn: lease}
 	require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
-	require.NoError(t, tr.setPacketCeilingForTesting(1400), "registration does not freeze the ceiling")
-	read(lease, 1452) // ordinary establishment reads keep the default until sealing
+	tr.packetCeiling = 1400 // retained internal lease-freezing characterization
+	read(lease, 1452)       // ordinary establishment reads keep the default until sealing
 	require.NoError(t, tr.beginPacketIO())
 	read(lease, 1400)
 	require.NoError(t, tr.beginPacketIO(), "sealing is idempotent")
 	read(lease, 1400)
-	require.Error(t, tr.setPacketCeilingForTesting(1300))
+	require.Error(t, tr.ConfigurePacketCeilingV1(8972))
 	require.NoError(t, lease.Close())
 	read(endpoint, 1452)
 	next, err := acquire()
@@ -79,7 +79,7 @@ func TestPacketCeilingManagedCloseAfterHandback(t *testing.T) {
 			tr := &Transport{Conn: lease}
 			defer tr.Close()
 			require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
-			require.NoError(t, tr.setPacketCeilingForTesting(1400))
+			tr.packetCeiling = 1400 // retained internal lease-freezing characterization
 			if started {
 				require.NoError(t, tr.init(false))
 				require.NoError(t, tr.Close())
@@ -123,7 +123,7 @@ func TestJumboManagedLeaseLoopback(t *testing.T) {
 		tr := &Transport{Conn: lease}
 		require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
 		if configured != 0 {
-			require.NoError(t, tr.setPacketCeilingForTesting(configured))
+			require.NoError(t, tr.ConfigurePacketCeilingV1(int(configured)))
 		}
 		require.NoError(t, tr.beginPacketIO())
 		require.NoError(t, lease.SetReadDeadline(time.Now().Add(scaleDuration(5*time.Second))))

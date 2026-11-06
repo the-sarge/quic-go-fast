@@ -38,8 +38,8 @@ func newJumboShrinkPair(t *testing.T, initialLimit int64) (*Conn, *Conn, *jumboS
 	server := &Transport{Conn: &basicConn{PacketConn: serverSocket, supportsDF: true, packetCeiling: 8972}}
 	client := &Transport{Conn: &basicConn{PacketConn: clientSocket, supportsDF: true, packetCeiling: 8972}}
 	t.Cleanup(func() { client.Close(); server.Close() })
-	require.NoError(t, server.setPacketCeilingForTesting(8972))
-	require.NoError(t, client.setPacketCeilingForTesting(8972))
+	require.NoError(t, server.ConfigurePacketCeilingV1(8972))
+	require.NoError(t, client.ConfigurePacketCeilingV1(8972))
 	control := &jumboShrinkProxy{firstSmallAck: make(chan struct{})}
 	control.limit.Store(initialLimit)
 	random := rand.New(rand.NewPCG(1, 2))

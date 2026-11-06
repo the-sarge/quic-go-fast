@@ -37,7 +37,7 @@ func TestPacketCeilingDefaultSlotReader(t *testing.T) {
 func TestJumboDefaultSlotLoopback(t *testing.T) {
 	socket := newUDPConnLocalhost(t)
 	tr := &Transport{Conn: socket}
-	require.NoError(t, tr.setPacketCeilingForTesting(8972))
+	require.NoError(t, tr.ConfigurePacketCeilingV1(8972))
 	reader, err := newConnWithPacketCeiling(socket, true, false, tr.packetCeiling)
 	require.NoError(t, err)
 	defer reader.releaseReadBuffers()
