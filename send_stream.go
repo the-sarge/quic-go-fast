@@ -740,7 +740,7 @@ func (s *SendStream) CancelWrite(errorCode StreamErrorCode) {
 				if f.Offset+f.DataLen() <= reliableOffset {
 					retransmissionQueue = append(retransmissionQueue, f)
 				} else {
-					f.Data = f.Data[:reliableOffset-f.Offset]
+					f.TruncateData(reliableOffset - f.Offset)
 					retransmissionQueue = append(retransmissionQueue, f)
 				}
 			}
@@ -968,7 +968,7 @@ func (s *sendStreamAckHandler) OnLost(f wire.Frame) {
 		// If the payload of the frame extends beyond the reliable size,
 		// truncate the frame to the reliable size.
 		if sf.Offset+sf.DataLen() > (*SendStream)(s).reliableOffset() {
-			sf.Data = sf.Data[:(*SendStream)(s).reliableOffset()-sf.Offset]
+			sf.TruncateData((*SendStream)(s).reliableOffset() - sf.Offset)
 		}
 	}
 

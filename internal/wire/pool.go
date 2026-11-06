@@ -41,6 +41,22 @@ func GetStreamFrameForSize(size protocol.ByteCount) *StreamFrame {
 	return jumboStreamFramePool.Get().(*StreamFrame)
 }
 
+// TruncateData keeps the first n bytes, releasing jumbo storage when the
+// retained payload fits the standard tier.
+func (f *StreamFrame) TruncateData(n protocol.ByteCount) {
+	f.Data = f.Data[:n]
+	if n > protocol.MaxPacketBufferSize || cap(f.Data) <= int(protocol.MaxPacketBufferSize) {
+		return
+	}
+	standard := GetStreamFrame()
+	standard.Data = standard.Data[:n]
+	copy(standard.Data, f.Data)
+	// The temporary frame returns the previous storage with its original ownership.
+	f.Data, standard.Data = standard.Data, f.Data
+	f.fromPool, standard.fromPool = standard.fromPool, f.fromPool
+	standard.PutBack()
+}
+
 func putStreamFrame(f *StreamFrame) {
 	if !f.fromPool {
 		return

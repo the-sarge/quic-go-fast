@@ -6,6 +6,7 @@ import (
 	"testing"
 	"testing/synctest"
 
+	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
 
@@ -169,6 +170,57 @@ func TestSendStreamJumboRetransmission(t *testing.T) {
 				requireJumboStreamFrameRoundTrip(t, resent.Frame)
 				resent.Handler.OnAcked(resent.Frame)
 			})
+		})
+	}
+}
+
+func TestSendStreamJumboReliableCancellation(t *testing.T) {
+	for _, cancelFirst := range []bool{false, true} {
+		name := "loss before cancellation"
+		if cancelFirst {
+			name = "cancellation before loss"
+		}
+		t.Run(name, func(t *testing.T) {
+			const streamID protocol.StreamID = 42
+			sender := NewMockStreamSender(gomock.NewController(t))
+			str := newSendStream(context.Background(), streamID, sender, newTestStreamFlowControllerWithSendWindow(streamID, protocol.MaxByteCount), true)
+			sender.EXPECT().onHasStreamData(streamID, str).Times(2)
+			sender.EXPECT().onHasStreamControlFrame(streamID, str)
+			sender.EXPECT().onHasStreamRetransmission(streamID, str)
+			prefix := bytes.Repeat([]byte("r"), 100)
+			require.NoError(t, str.TryWriteAll(prefix))
+			str.SetReliableBoundary()
+			require.NoError(t, str.TryWriteAll(bytes.Repeat([]byte("x"), 8800)))
+			original, blocked, more := str.popStreamFrame(8904, protocol.Version1)
+			require.Nil(t, blocked)
+			require.False(t, more)
+			require.Len(t, original.Frame.Data, 8900)
+			require.Equal(t, 8972, cap(original.Frame.Data))
+			if cancelFirst {
+				str.CancelWrite(123)
+				original.Handler.OnLost(original.Frame)
+			} else {
+				original.Handler.OnLost(original.Frame)
+				str.CancelWrite(123)
+			}
+
+			retransmission, more := str.popRetransmissionFrame(1452, protocol.Version1)
+			require.False(t, more)
+			require.Same(t, original.Frame, retransmission.Frame)
+			require.Equal(t, 1452, cap(retransmission.Frame.Data))
+			require.Equal(t, prefix, retransmission.Frame.Data)
+			require.Equal(t, streamID, retransmission.Frame.StreamID)
+			require.Zero(t, retransmission.Frame.Offset)
+			require.True(t, retransmission.Frame.DataLenPresent)
+			require.False(t, retransmission.Frame.Fin)
+			requireJumboStreamFrameRoundTrip(t, retransmission.Frame)
+			control, ok, more := str.getControlFrame(monotime.Now())
+			require.True(t, ok)
+			require.False(t, more)
+			require.Equal(t, &wire.ResetStreamFrame{StreamID: streamID, ErrorCode: 123, FinalSize: 8900, ReliableSize: 100}, control.Frame)
+			control.Handler.OnAcked(control.Frame)
+			sender.EXPECT().onStreamCompleted(streamID)
+			retransmission.Handler.OnAcked(retransmission.Frame)
 		})
 	}
 }
