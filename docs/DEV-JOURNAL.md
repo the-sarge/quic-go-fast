@@ -9574,4 +9574,4 @@ Certified head `349cfaf267ffff21870b16b1ac4cb936e6db5b59` passed affected-packag
 
 ### Next
 
-At this entry, F3 #1217 code is merged and its required journal/task closure is finishing. The product PR already owns its committed completion/frontier transition: F4 #1218 remains the implementation frontier and F5 #1219 remains blocked on F4 #1218. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) is the live coordination view; the [normative plan](adr/2026-11-05-jumbo-packets-plan.md#f3) owns the contract.
+At this entry, F3 #1217 code is merged and its required journal/task closure is finishing. PR #1247 already owns its committed completion/frontier transition: F4 #1218 remains the implementation frontier and F5 #1219 remains blocked on F4 #1218. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) is the live coordination view; the [normative plan](adr/2026-11-05-jumbo-packets-plan.md#f3) owns the contract.
