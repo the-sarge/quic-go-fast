@@ -21,6 +21,7 @@ import (
 func TestPacketCeilingPublicLoopback(t *testing.T) {
 	t.Setenv("QUIC_GO_DISABLE_GSO", "true")
 	udp := func() *net.UDPConn {
+		t.Helper()
 		socket, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 		require.NoError(t, err)
 		t.Cleanup(func() { socket.Close() })
