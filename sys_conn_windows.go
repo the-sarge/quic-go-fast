@@ -38,6 +38,7 @@ const oobBufferSize = 128
 // in the reader's buffer, and ReadPacket copies one datagram per call into an
 // ordinary pooled buffer (#860), as the Linux GRO reader does (#853).
 type windowsConn struct {
+	packetCeiling packetCeiling
 	OOBCapablePacketConn
 
 	// ReadPacket is only ever called from a single reader goroutine, so one
@@ -73,6 +74,10 @@ var _ rawConn = &windowsConn{}
 // The read-only USO probe is independent of that permission and close ownership;
 // segmented sends still go through the supplied connection's WriteMsgUDP.
 func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*windowsConn, error) {
+	return newConnWithPacketCeiling(c, supportsDF, allowReceiveCoalescing, 0)
+}
+
+func newConnWithPacketCeiling(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool, ceiling packetCeiling) (*windowsConn, error) {
 	var needsPacketInfo bool
 	if udpAddr, ok := c.LocalAddr().(*net.UDPAddr); ok && udpAddr.IP.IsUnspecified() {
 		needsPacketInfo = true
@@ -112,6 +117,7 @@ func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*
 		uro, receive.disabledReason = enableURO(rawConn)
 	}
 	return &windowsConn{
+		packetCeiling:        ceiling,
 		OOBCapablePacketConn: c,
 		oobBuffer:            make([]byte, oobBufferSize),
 		cap:                  connCapabilities{DF: supportsDF, GSO: uso, GRO: uro, receiveCoalescing: receive},
@@ -169,13 +175,19 @@ func enableUROWith(conn syscall.RawConn, setRecvCoalescing func(fd uintptr) erro
 }
 
 func (c *windowsConn) ReadPacket() (receivedPacket, error) {
+	return c.readPacketWithPacketCeiling(c.packetCeiling)
+}
+
+// The endpoint passes its current lease's frozen input without changing the
+// decoder's retained URO state or buffers. Its read lock owns serialization.
+func (c *windowsConn) readPacketWithPacketCeiling(ceiling packetCeiling) (receivedPacket, error) {
 	// A coalesced read stays in the reader's buffer. Each call copies out one
 	// datagram, preserving ReadPacket's one-datagram contract.
-	if p, ok := c.cursor.next(c.managed); ok {
+	if p, ok := c.cursor.next(c.managed, ceiling); ok {
 		return p, nil
 	}
 	if !c.cap.GRO && !c.managed {
-		return c.readOrdinaryPacket()
+		return c.readOrdinaryPacket(ceiling)
 	}
 	if c.readBuffer == nil {
 		// a single coalesced read can deliver up to 65535 bytes
@@ -204,7 +216,7 @@ func (c *windowsConn) ReadPacket() (receivedPacket, error) {
 		if !c.cap.GRO {
 			// Without URO, a read is one datagram.
 			segmentSize = 0
-		} else if !c.uroFallback && segmentSize == 0 && n > protocol.MaxPacketBufferSize {
+		} else if !c.uroFallback && segmentSize == 0 && protocol.ByteCount(n) > ceiling.size() {
 			if !c.uroGuardTripped {
 				c.fallBackFromURO()
 			}
@@ -217,18 +229,18 @@ func (c *windowsConn) ReadPacket() (receivedPacket, error) {
 			info:       info,
 			ecn:        ecn,
 		}, segmentSize)
-		p, _ := c.cursor.next(c.managed)
+		p, _ := c.cursor.next(c.managed, ceiling)
 		return p, nil
 	}
 }
 
 // readOrdinaryPacket reads one datagram into an ordinary pooled buffer, for
 // an unmanaged reader without URO.
-func (c *windowsConn) readOrdinaryPacket() (receivedPacket, error) {
-	// The packet size should not exceed protocol.MaxPacketBufferSize bytes
+func (c *windowsConn) readOrdinaryPacket(ceiling packetCeiling) (receivedPacket, error) {
+	// The packet size should not exceed the endpoint ceiling.
 	// If it does, we only read a truncated packet, which will then end up undecryptable
 	buffer := getPacketBuffer()
-	buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
+	buffer.Data = buffer.Data[:ceiling.size()]
 	n, oobn, _, addr, err := c.ReadMsgUDP(buffer.Data, c.oobBuffer)
 	if err != nil {
 		buffer.Release()
@@ -254,8 +266,8 @@ func (c *windowsConn) readOrdinaryPacket() (receivedPacket, error) {
 // once for the rest of the socket's life. After that, a read without its
 // record is one datagram, copied out as copyCoalescedDatagram copies any
 // datagram: whole up to the 20 KiB tier, and above it whole for a managed
-// reader and as its 1,452-byte prefix for any other. A read with its record
-// is still split.
+// reader and as a prefix up to its endpoint ceiling (1,452 bytes by default)
+// for any other. A read with its record is still split.
 // If URO cannot be turned off, it may still be on, so the guard stays armed
 // and keeps dropping such reads rather than deliver one as a datagram.
 func (c *windowsConn) fallBackFromURO() {

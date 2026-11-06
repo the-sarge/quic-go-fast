@@ -61,7 +61,7 @@ func TestDarwinManagedECNReceive(t *testing.T) {
 			defer lease.Close()
 			tr := &Transport{Conn: lease}
 			require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
-			base, err := wrapConnWithManagedBuffers(lease, false, tr.packetIO.external.managedBuffers)
+			base, err := wrapConnWithManagedBuffers(lease, false, tr.packetIO.external.managedBuffers, tr.packetCeiling)
 			require.NoError(t, err)
 			conn := tr.wrapExternalPacketIO(base)
 			t.Logf("family qualification: %+v", lease.(*managedPacketConn).endpoint.managedECNSetup)
@@ -213,7 +213,7 @@ func newDarwinECNTestPath(t *testing.T, network, peerNetwork, ip, route string) 
 	}
 	tr := &Transport{Conn: conn}
 	require.NoError(t, tr.ConfigureManagedPacketIOV1(conn, l, batch))
-	base, err := wrapConnWithManagedBuffers(conn, false, tr.packetIO.external.managedBuffers)
+	base, err := wrapConnWithManagedBuffers(conn, false, tr.packetIO.external.managedBuffers, tr.packetCeiling)
 	require.NoError(t, err)
 	raw := tr.wrapExternalPacketIO(base)
 	t.Cleanup(func() {
@@ -370,7 +370,7 @@ func TestDarwinManagedECNLeaseDatagrams(t *testing.T) {
 			defer again.Close()
 			tr := &Transport{Conn: again}
 			require.NoError(t, tr.ConfigureManagedPacketIOV1(again, again, nil))
-			base, err := wrapConnWithManagedBuffers(again, false, tr.packetIO.external.managedBuffers)
+			base, err := wrapConnWithManagedBuffers(again, false, tr.packetIO.external.managedBuffers, tr.packetCeiling)
 			require.NoError(t, err)
 			current := tr.wrapExternalPacketIO(base)
 			require.True(t, current.capabilities().ECN)

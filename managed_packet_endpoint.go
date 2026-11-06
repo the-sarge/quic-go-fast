@@ -130,15 +130,25 @@ type managedPacketReceiver interface {
 	releaseReadBuffers()
 }
 
+// A retained decoder can take the current read's immutable lease input while
+// keeping its own lifetime, receive-format state and storage across leases.
+type managedPacketCeilingReceiver interface {
+	readPacketWithPacketCeiling(packetCeiling) (receivedPacket, error)
+}
+
 // Pointer identity is the generation token. It is never recycled, including
 // when a lease has been returned or the endpoint has terminated.
 type managedPacketLease struct {
-	dfRestore    func() error
-	quic         bool
-	returning    bool
-	done         chan struct{}
-	closeErr     error
-	readDeadline time.Time
+	// The bound Transport freezes this copy at configuration sealing. The
+	// endpoint mutex protects freezing and per-read snapshots, not decoder state.
+	packetCeiling packetCeiling
+	ceilingFrozen bool
+	dfRestore     func() error
+	quic          bool
+	returning     bool
+	done          chan struct{}
+	closeErr      error
+	readDeadline  time.Time
 }
 
 type managedPacketConn struct {
@@ -210,6 +220,20 @@ func (c *managedPacketConn) bindQUIC() (managedPacketIOSetup, error) {
 	}, nil
 }
 
+// freezePacketCeiling copies into the exact lease fixed by registration, whose
+// identity is never recycled. This is not I/O admission: a historic lease can
+// receive its immutable copy after handback without affecting its successor.
+// Actual reads retain begin/checkLocked admission before decoder access.
+func (c *managedPacketConn) freezePacketCeiling(ceiling packetCeiling) {
+	e := c.endpoint
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	if !c.lease.ceilingFrozen {
+		c.lease.packetCeiling = ceiling
+		c.lease.ceilingFrozen = true
+	}
+}
+
 func (c *managedPacketConn) begin() error {
 	e := c.endpoint
 	e.mutex.Lock()
@@ -243,8 +267,10 @@ func (c *managedPacketConn) ReadFrom(p []byte) (int, net.Addr, error) {
 	e.mutex.Lock()
 	err := c.checkLocked()
 	deadline := e.readDeadline
+	ceiling := packetCeiling(0)
 	if c.lease != nil {
 		deadline = c.lease.readDeadline
+		ceiling = c.lease.packetCeiling
 	}
 	if err == nil && e.receiver != nil && !deadline.IsZero() && !time.Now().Before(deadline) {
 		err = &net.OpError{Op: "read", Net: e.conn.LocalAddr().Network(), Source: e.conn.LocalAddr(), Err: os.ErrDeadlineExceeded}
@@ -256,7 +282,12 @@ func (c *managedPacketConn) ReadFrom(p []byte) (int, net.Addr, error) {
 	if e.receiver == nil {
 		return e.conn.ReadFrom(p)
 	}
-	packet, err := e.receiver.ReadPacket()
+	var packet receivedPacket
+	if receiver, ok := e.receiver.(managedPacketCeilingReceiver); ok {
+		packet, err = receiver.readPacketWithPacketCeiling(ceiling)
+	} else {
+		packet, err = e.receiver.ReadPacket()
+	}
 	if err != nil {
 		return 0, nil, err
 	}

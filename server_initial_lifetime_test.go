@@ -154,8 +154,9 @@ func testServerInitialLifetimeCollision(t *testing.T) {
 				qlogTrace qlogwriter.Trace,
 				logger utils.Logger,
 				v protocol.Version,
+				ceiling packetCeiling,
 			) *wrappedConn {
-				loser = newConnection(ctx, ctxCancel, conn, runner, origDestConnID, retrySrcConnID, clientDestConnID, destConnID, srcConnID, connIDGenerator, statelessResetter, conf, tlsConf, tokenGenerator, clientAddressValidated, rtt, qlogTrace, logger, v)
+				loser = newConnection(ctx, ctxCancel, conn, runner, origDestConnID, retrySrcConnID, clientDestConnID, destConnID, srcConnID, connIDGenerator, statelessResetter, conf, tlsConf, tokenGenerator, clientAddressValidated, rtt, qlogTrace, logger, v, 0)
 				crypto = &initialLifetimeCrypto{cryptoStreamHandler: loser.cryptoStreamHandler}
 				loser.cryptoStreamHandler = crypto
 				close(constructed)

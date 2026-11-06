@@ -58,6 +58,7 @@ type serverOpts struct {
 		qlogwriter.Trace,
 		utils.Logger,
 		protocol.Version,
+		packetCeiling,
 	) *wrappedConn
 }
 
@@ -89,6 +90,7 @@ func newTestServer(t *testing.T, serverOpts *serverOpts) *testServer {
 		serverOpts.disableVersionNegotiation,
 		serverOpts.acceptEarly,
 		serverOpts.setupAdmission,
+		0,
 	)
 	s.newConn = serverOpts.newConn
 	if serverOpts.refusedInitialsCapacity > 0 && s.refusedInitials != nil {
@@ -768,6 +770,7 @@ func (r *connConstructorRecorder) NewConn(
 	_ qlogwriter.Trace,
 	_ utils.Logger,
 	version protocol.Version,
+	ceiling packetCeiling,
 ) *wrappedConn {
 	r.ch <- connConstructorArgs{
 		ctx:              ctx,
@@ -1020,6 +1023,7 @@ func TestServerReceiveQueue(t *testing.T) {
 			_ qlogwriter.Trace,
 			_ utils.Logger,
 			_ protocol.Version,
+			ceiling packetCeiling,
 		) *wrappedConn {
 			newConnChan <- struct{}{}
 			<-acceptConn

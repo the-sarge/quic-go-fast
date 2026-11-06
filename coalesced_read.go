@@ -25,14 +25,14 @@ func (c *coalescedReadCursor) start(p receivedPacket, segmentSize int) {
 
 // next copies the next datagram of the cursor's read out of the reader's
 // buffer. The read's datagrams share its metadata.
-func (c *coalescedReadCursor) next(managed bool) (receivedPacket, bool) {
+func (c *coalescedReadCursor) next(managed bool, ceiling packetCeiling) (receivedPacket, bool) {
 	if !c.active {
 		return receivedPacket{}, false
 	}
 	p := c.packet
 	remaining := p.data
 	n := min(c.segmentSize, len(remaining))
-	p.buffer = copyCoalescedDatagram(remaining[:n], managed)
+	p.buffer = copyCoalescedDatagram(remaining[:n], managed, ceiling)
 	p.data = p.buffer.Data
 	if n == len(remaining) {
 		*c = coalescedReadCursor{}
@@ -47,7 +47,7 @@ func (c *coalescedReadCursor) next(managed bool) (receivedPacket, bool) {
 // without coalescing would deliver it (#853): a managed endpoint delivers it
 // whole, and every other reader reads into the ordinary tier, where only its
 // prefix fits.
-func copyCoalescedDatagram(datagram []byte, managed bool) *packetBuffer {
+func copyCoalescedDatagram(datagram []byte, managed bool, ceiling packetCeiling) *packetBuffer {
 	var buffer *packetBuffer
 	switch {
 	case len(datagram) <= protocol.MaxPacketBufferSize:
@@ -58,7 +58,7 @@ func copyCoalescedDatagram(datagram []byte, managed bool) *packetBuffer {
 		buffer = getCoalescedPacketBuffer()
 	default:
 		buffer = getPacketBuffer()
-		datagram = datagram[:protocol.MaxPacketBufferSize]
+		datagram = datagram[:ceiling.size()]
 	}
 	buffer.Data = append(buffer.Data, datagram...)
 	return buffer

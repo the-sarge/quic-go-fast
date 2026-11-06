@@ -181,6 +181,9 @@ func (t *Transport) beginPacketIOLocked() error {
 		}
 		return t.nativeIOConflict()
 	}
+	if c.external != nil && c.external.managedLease != nil {
+		c.external.managedLease.freezePacketCeiling(t.packetCeiling)
+	}
 	return nil
 }
 

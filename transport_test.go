@@ -592,6 +592,7 @@ func TestTransportConfigPreparation(t *testing.T) {
 		_ qlogwriter.Trace,
 		_ utils.Logger,
 		_ protocol.Version,
+		ceiling packetCeiling,
 	) *wrappedConn {
 		effectiveConfig <- conf
 		return &wrappedConn{testHooks: &connTestHooks{
@@ -667,6 +668,7 @@ func testTransportDial(t *testing.T, early bool) {
 			_ qlogwriter.Trace,
 			_ utils.Logger,
 			_ protocol.Version,
+			ceiling packetCeiling,
 		) *wrappedConn {
 			return &wrappedConn{testHooks: conn}
 		}
@@ -757,6 +759,7 @@ func testTransportDialingVersionNegotiation(t *testing.T, lowered bool) {
 		_ qlogwriter.Trace,
 		_ utils.Logger,
 		v protocol.Version,
+		ceiling packetCeiling,
 	) *wrappedConn {
 		connChan <- connParams{pn: pn, hasNegotiatedVersion: hasNegotiatedVersion, lowered: initialPacketSizeLowered, version: v}
 		if counter == 0 {
