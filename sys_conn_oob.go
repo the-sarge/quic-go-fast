@@ -223,6 +223,18 @@ func (c *oobConn) setReadSlots(n int, readSlots bool) {
 	c.readPos = uint8(n)
 }
 
+// Like ordinary packet buffers, read slots use a jumbo tier only when the
+// Transport opted into a larger ceiling. The extra posted byte detects truncation.
+func getReadSlotBufferForCeiling(ceiling packetCeiling) *packetBuffer {
+	if ceiling.size() <= protocol.MaxPacketBufferSize {
+		return getReadSlotBuffer()
+	}
+	buf := jumboReadSlotBufferPool.Get().(*packetBuffer)
+	buf.refCount = 1
+	buf.Data = buf.Data[:0]
+	return buf
+}
+
 var invalidCmsgOnceV4, invalidCmsgOnceV6 sync.Once
 
 func (c *oobConn) ReadPacket() (receivedPacket, error) {
@@ -246,10 +258,10 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 						buffer = getCoalescedPacketBuffer()
 						buffer.Data = buffer.Data[:protocol.MaxCoalescedPacketBufferSize]
 					case c.readSlots:
-						buffer = getReadSlotBuffer()
-						buffer.Data = buffer.Data[:readSlotBufferSize]
+						buffer = getReadSlotBufferForCeiling(c.packetCeiling)
+						buffer.Data = buffer.Data[:c.packetCeiling.size()+1]
 					default:
-						buffer = getPacketBuffer()
+						buffer = getPacketBufferForCeiling(c.packetCeiling)
 						buffer.Data = buffer.Data[:c.packetCeiling.size()]
 					}
 					c.buffers[i] = buffer

@@ -2257,7 +2257,7 @@ func (c *Conn) handlePacket(p receivedPacket) {
 	// Discard packets once the queue is full: protocol.MaxConnUnprocessedPackets
 	// until the handshake is confirmed, protocol.MaxConnUnprocessedPacketsConfirmed
 	// after. The entries beyond protocol.MaxConnUnprocessedPackets take only
-	// packets that fit a packet-sized buffer, so they bound queued memory
+	// packets that fit a buffer selected by the endpoint ceiling, bounding queued memory
 	// whatever buffer the reader delivered in. With DATAGRAM support, every
 	// admission also requires room for the backlog plus the payloads still
 	// awaiting ReceiveDatagram in the received-DATAGRAM queue: the run
@@ -2267,7 +2267,7 @@ func (c *Conn) handlePacket(p receivedPacket) {
 	extended := queued >= protocol.MaxConnUnprocessedPackets
 	if (extended && (!c.receivedPacketsConfirmed ||
 		queued >= protocol.MaxConnUnprocessedPacketsConfirmed ||
-		len(p.data) > protocol.MaxPacketBufferSize)) ||
+		protocol.ByteCount(len(p.data)) > c.packetCeiling.size())) ||
 		(c.config.EnableDatagrams && queued+c.datagramQueue.receiveQueueLen() >= maxDatagramRcvQueueLen) {
 		c.unprocessedPacketDropped(p)
 		c.receivedPacketMx.Unlock()
@@ -2275,7 +2275,7 @@ func (c *Conn) handlePacket(p receivedPacket) {
 		return
 	}
 	if extended {
-		p = inPacketSizedBuffer(p)
+		p = inPacketSizedBuffer(p, c.packetCeiling)
 	}
 	c.receivedPackets.PushBack(p)
 	c.receivedPacketMx.Unlock()
@@ -2286,17 +2286,18 @@ func (c *Conn) handlePacket(p receivedPacket) {
 	}
 }
 
-// inPacketSizedBuffer returns p held in a protocol.MaxPacketBufferSize
-// buffer, copying it out of a larger one, such as the 64 KiB buffer a managed
+// inPacketSizedBuffer returns p held in a buffer selected by the endpoint
+// ceiling, copying it out of a larger one, such as the 64 KiB buffer a managed
 // reader without coalescing delivers each datagram in. A read slot, one byte
 // larger, is kept as delivered: copying it would add a per-datagram copy to
 // the opted-in read path (#857). The caller has checked that p fits.
-func inPacketSizedBuffer(p receivedPacket) receivedPacket {
+func inPacketSizedBuffer(p receivedPacket, ceiling packetCeiling) receivedPacket {
 	old := p.buffer
-	if cap(old.Data) == protocol.MaxPacketBufferSize || cap(old.Data) == readSlotBufferSize {
+	if cap(old.Data) == protocol.MaxPacketBufferSize || cap(old.Data) == readSlotBufferSize ||
+		(ceiling.size() > protocol.MaxPacketBufferSize && (cap(old.Data) == jumboPacketBufferSize || cap(old.Data) == jumboReadSlotBufferSize)) {
 		return p
 	}
-	buf := getPacketBuffer()
+	buf := getPacketBufferForCeiling(ceiling)
 	buf.Data = append(buf.Data, p.data...)
 	p.buffer = buf
 	p.data = buf.Data
@@ -3305,9 +3306,9 @@ func (c *Conn) DatagramReceiveDropsV1() uint64 {
 // UnprocessedPacketDropsV1 returns how many received packets this connection
 // dropped because its queue of packets awaiting processing could not take
 // them. The queue holds 256 packets until the handshake is confirmed and
-// 1,024 after. Its entries beyond 256 take only packets of at most 1,452
-// bytes, so a larger packet arriving then is dropped and counted. On a
-// connection with DATAGRAM support, every admission also requires the queued
+// 1,024 after. Its entries beyond 256 take only packets up to the endpoint
+// ceiling (1,452 bytes by default), so larger packets are dropped and counted.
+// On a connection with DATAGRAM support, every admission also requires the queued
 // packets plus the DATAGRAM payloads still awaiting ReceiveDatagram to
 // number fewer than 1,024. A packet refused by that condition is also dropped
 // and counted. The count excludes packets released because the

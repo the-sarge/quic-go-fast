@@ -322,3 +322,44 @@ func TestConnectionUnprocessedQueueReadmitsAsDatagramsAreRead(t *testing.T) {
 	require.Equal(t, 258, tc.conn.receivedPackets.Len())
 	require.EqualValues(t, 2, tc.conn.UnprocessedPacketDropsV1())
 }
+
+func TestJumboUnprocessedQueueBeyond256(t *testing.T) {
+	tc := newServerTestConnection(t, nil, nil, false, connectionOptHandshakeConfirmed())
+	tc.conn.packetCeiling = 8972
+	defer tc.conn.closePacketAdmission()
+	payload := bytes.Repeat([]byte{'j'}, 8972)
+	for i := range protocol.MaxConnUnprocessedPacketsConfirmed {
+		if i == 256 {
+			// Test the length guard while the confirmed queue still has room.
+			oversized := getCoalescedPacketBuffer()
+			oversized.Data = append(oversized.Data, bytes.Repeat([]byte{'o'}, 8973)...)
+			tc.conn.handlePacket(receivedPacket{buffer: oversized, data: oversized.Data, remoteAddr: tc.remoteAddr})
+			require.Zero(t, oversized.refCount)
+			require.Equal(t, 256, tc.conn.receivedPackets.Len())
+		}
+		buffer := getPacketBufferForCeiling(8972)
+		if i >= 256 && i%2 == 0 {
+			buffer.Release()
+			buffer = getCoalescedPacketBuffer()
+		}
+		buffer.Data = append(buffer.Data, payload...)
+		tc.conn.handlePacket(receivedPacket{buffer: buffer, data: buffer.Data, remoteAddr: tc.remoteAddr})
+	}
+	require.Equal(t, 1024, tc.conn.receivedPackets.Len())
+	require.EqualValues(t, 1, tc.conn.UnprocessedPacketDropsV1())
+	oversized := getCoalescedPacketBuffer()
+	oversized.Data = append(oversized.Data, bytes.Repeat([]byte{'o'}, 8973)...)
+	tc.conn.handlePacket(receivedPacket{buffer: oversized, data: oversized.Data, remoteAddr: tc.remoteAddr})
+	require.Zero(t, oversized.refCount)
+	require.EqualValues(t, 2, tc.conn.UnprocessedPacketDropsV1())
+	capacity := 0
+	for !tc.conn.receivedPackets.Empty() {
+		p := tc.conn.receivedPackets.PopFront()
+		require.Equal(t, payload, p.data)
+		require.Equal(t, 8972, cap(p.buffer.Data))
+		capacity += cap(p.buffer.Data)
+		require.NotPanics(t, p.buffer.Release)
+	}
+	require.Equal(t, 9187328, capacity)
+	t.Log("1024 jumbo queue buffers retain 9187328 payload bytes; default: 1486848")
+}

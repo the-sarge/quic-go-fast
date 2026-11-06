@@ -161,7 +161,7 @@ type basicConn struct {
 var _ rawConn = &basicConn{}
 
 func (c *basicConn) ReadPacket() (receivedPacket, error) {
-	buffer := getPacketBuffer()
+	buffer := getPacketBufferForCeiling(c.packetCeiling)
 	// The packet size should not exceed the endpoint ceiling.
 	// If it does, we only read a truncated packet, which will then end up undecryptable
 	buffer.Data = buffer.Data[:c.packetCeiling.size()]

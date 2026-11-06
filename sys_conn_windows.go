@@ -239,7 +239,7 @@ func (c *windowsConn) readPacketWithPacketCeiling(ceiling packetCeiling) (receiv
 func (c *windowsConn) readOrdinaryPacket(ceiling packetCeiling) (receivedPacket, error) {
 	// The packet size should not exceed the endpoint ceiling.
 	// If it does, we only read a truncated packet, which will then end up undecryptable
-	buffer := getPacketBuffer()
+	buffer := getPacketBufferForCeiling(ceiling)
 	buffer.Data = buffer.Data[:ceiling.size()]
 	n, oobn, _, addr, err := c.ReadMsgUDP(buffer.Data, c.oobBuffer)
 	if err != nil {

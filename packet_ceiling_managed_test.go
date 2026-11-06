@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"bytes"
 	"net"
 	"os"
 	"testing"
@@ -105,5 +106,37 @@ func TestPacketCeilingManagedCloseAfterHandback(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, "new lease", string(b[:n]))
 		})
+	}
+}
+
+func TestJumboManagedLeaseLoopback(t *testing.T) {
+	// Keep this whole-datagram gate independent of the Windows URO guard.
+	// The URO tests separately exercise the lease-frozen configured limit.
+	t.Setenv("QUIC_GO_DISABLE_GRO", "true")
+	for _, configured := range []protocol.ByteCount{0, 8972} {
+		socket := newUDPConnLocalhost(t)
+		endpoint, acquire, err := newManagedPacketEndpoint(socket)
+		require.NoError(t, err)
+		defer endpoint.Close()
+		lease, err := acquire()
+		require.NoError(t, err)
+		tr := &Transport{Conn: lease}
+		require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
+		if configured != 0 {
+			require.NoError(t, tr.setPacketCeilingForTesting(configured))
+		}
+		require.NoError(t, tr.beginPacketIO())
+		require.NoError(t, lease.SetReadDeadline(time.Now().Add(scaleDuration(5*time.Second))))
+		peer := newUDPConnLocalhost(t)
+		for _, size := range []int{8972, 8973} {
+			payload := bytes.Repeat([]byte{'m'}, size)
+			_, err = peer.WriteTo(payload, lease.LocalAddr())
+			require.NoError(t, err)
+			buffer := make([]byte, 10000)
+			n, _, err := lease.ReadFrom(buffer)
+			require.NoError(t, err)
+			require.Equal(t, payload, buffer[:n])
+		}
+		require.NoError(t, lease.Close())
 	}
 }
