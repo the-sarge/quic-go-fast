@@ -9477,3 +9477,26 @@ Two independent agent audits of the slice graph, and RAS review `20261105T060153
 ### Next
 
 F1, #1208, is the frontier and isn't dispatched. #1215 is the live view.
+
+---
+
+## Native pipeline redesign handoff - 2026-11-05 21:29 EST
+
+**Main:** `b5245d049c88`
+**Actor:** Codex
+
+### Summary
+
+[PR #1230 — Audited native pipeline redesign](https://github.com/the-sarge/quic-go-fast/pull/1230) merged the replacement N-track contract and frozen diagnostic evidence. The unchanged complete prototype's first clean ordinary STREAM/GSO-on pair reached 104.886% baseline goodput and 106.899% CPU/useful byte against the existing 95%/110% targets. This is scoped feasibility; the prototype remains separate from production and full qualification is pending. Earlier contaminated comparisons remain ineligible.
+
+### Decisions
+
+The [current pipeline plan](adr/2026-11-04-native-endpoint-efficiency-plan.md) separates canonical requests, staging, grouping, recovery facts, construction ownership, protection placement and synchronized integration. Completed N0/N1/N2/N4 remain complete; withdrawn N5 stays unused. The [five-stack analysis for issue #1232](audits/2026-11-05-send-pipeline-comparison-1232.md) is published and [issue #1232](https://github.com/the-sarge/quic-go-fast/issues/1232) is closed. Immutable protection runs on the existing writer while key policy and ordered registration remain connection-owned. Exact native outcomes, original deadlines, capacities and independent progress remain binding.
+
+### Validation
+
+Independent source and policy/graph audits passed after the recorded ownership corrections. Independent raw-evidence replay passed 3,219 checks. Local documentation link/identity/graph checks and all 17 same-head hosted checks passed before the exact-head guarded squash merge. Seven remaining child plan pointers, native blocker relationships, frontier labels and ten changed OmniFocus mappings were read back successfully. Diagnostic accounting is 238 invocations / at least 5248.659792051 measured host-seconds, with preparation/quiet overhead separate. The authorized competing-workload restriction was not applied because those workloads ended before preflight; no competing affinity needed restoration.
+
+### Next
+
+As of this entry, [N6 — Canonical native members (#1235)](https://github.com/the-sarge/quic-go-fast/issues/1235) and [N9 — Canonical recovery facts (#1236)](https://github.com/the-sarge/quic-go-fast/issues/1236) are the verified frontier; neither was dispatched. N7 #1237/N8 #1238 and N10 #1239 lead to N11 #1240, then [N3 — Synchronized integration and qualification (#1202)](https://github.com/the-sarge/quic-go-fast/issues/1202). [Track #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) and [program #646](https://github.com/the-sarge/quic-go-fast/issues/646) are the live views: 4/11 N and 30/46 total complete. R17 #1037/R18 #1038 retain N3 #1202 as their runtime/evidence blocker. Lessons for a reusable pipeline-assessment skill are recorded for discussion after the larger effort.
