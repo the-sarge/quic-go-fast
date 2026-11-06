@@ -1,6 +1,6 @@
 # Jumbo packets implementation plan
 
-**Date:** 2026-11-05. **Status:** In progress; F1, F2, F3, F4, F5 and F6 complete. **Identity:** `JP-20261105-F`. **Parent:** [Jumbo packets (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). **Depends on:** nothing for F1. **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions. **Audit history:** this plan's merging PR.
+**Date:** 2026-11-05. **Status:** In progress; F1, F2, F3, F4, F5, F6 and F10 complete. **Identity:** `JP-20261105-F`. **Parent:** [Jumbo packets (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). **Depends on:** nothing for F1. **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions. **Audit history:** this plan's merging PR.
 
 This plan comes from a downstream consumer's owner-approved program. It stands on its own: an implementer needs nothing outside this repository. "The consumer" below means that downstream program, whose qualification results reach this repository through F11's and F12's issues.
 
@@ -82,11 +82,11 @@ Throwaway builds that raised the constant and pinned the size carried over 8 Gbp
 | [F7](#f7) | new | Transport-generated confirmation probes and the drop to the initial size | F6 | F6's unconfirmed fallback |
 | [F8](#f8) | new | Far-side detection: watching, liveness, re-check | F7 | n/a |
 | [F9](#f9) | new | The exported opt-in, disclosed as experimental | F8 | F1's test setter |
-| [F10](#f10) | new | Linux GSO batches of more than two jumbo packets | F5 | n/a |
+| [F10](#f10) | complete #1224 | Linux GSO batches of more than two jumbo packets | F5 | n/a |
 | [F11](#f11) | conditional | Several short DATAGRAMs in one jumbo packet, with weighted admission | F5; the consumer's comparison selecting this design | n/a |
 | [F12](#f12) | new | The release that claims jumbo, at the qualified commit | The consumer's qualification; the first independent release | n/a |
 
-F1 #1208, F2 #1216, F3 #1217, F4 #1218, F5 #1219 and F6 #1220 are complete. F7 #1221 and the still-open F10 #1224 have their slice dependencies satisfied and form the implementation frontier. F11 #1225 remains conditional on the consumer comparison selecting its design. F10 #1224 is parallel with F7 #1221 through F9 #1223. Nothing here waits for the quicquic-go identity transition before F12, and that transition doesn't wait for this.
+F1 #1208, F2 #1216, F3 #1217, F4 #1218, F5 #1219, F6 #1220 and F10 #1224 are complete. F7 #1221 has its slice dependency satisfied and forms the implementation frontier. F11 #1225 remains conditional on the consumer comparison selecting its design. Nothing here waits for the quicquic-go identity transition before F12, and that transition doesn't wait for this.
 
 ## Implementation slices
 
@@ -296,6 +296,8 @@ Scoped review evidence and technical disposition are linked from [PR #1233](http
 
 <a id="f10"></a>
 ### F10 — Batch jumbo packets on Linux GSO
+
+**Status:** complete; implemented for #1224 in [PR #1255](https://github.com/the-sarge/quic-go-fast/pull/1255).
 
 **Delivers:** on Linux, a connection whose current packet size is above 1452 uses the existing 64 KiB tier and byte budget for segmented sends instead of the [20 KiB limit](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/packet_emission_bbr.go#L154), so a batch holds 7 jumbo packets instead of 2. A configured connection still sending at the standard size keeps today's batches.
 
