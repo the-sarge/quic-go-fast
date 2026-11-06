@@ -1,6 +1,6 @@
 # Jumbo packets implementation plan
 
-**Date:** 2026-11-05. **Status:** In progress; F1, F2 and F3 complete. **Identity:** `JP-20261105-F`. **Parent:** [Jumbo packets (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). **Depends on:** nothing for F1. **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions. **Audit history:** this plan's merging PR.
+**Date:** 2026-11-05. **Status:** In progress; F1, F2, F3 and F4 complete. **Identity:** `JP-20261105-F`. **Parent:** [Jumbo packets (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). **Depends on:** nothing for F1. **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions. **Audit history:** this plan's merging PR.
 
 This plan comes from a downstream consumer's owner-approved program. It stands on its own: an implementer needs nothing outside this repository. "The consumer" below means that downstream program, whose qualification results reach this repository through F11's and F12's issues.
 
@@ -76,7 +76,7 @@ Throwaway builds that raised the constant and pinned the size carried over 8 Gbp
 | [F1](#f1) | complete #1208 | One Transport-owned value at 1452, threaded to advertisement, discovery and readers | None | n/a |
 | [F2](#f2) | complete #1216 | Configured readers and receive queues carry 8,972-byte packets whole | F1 | n/a |
 | [F3](#f3) | complete #1217 | Two-stage search, effective ceiling and stage-one size reporting | F1 | n/a |
-| [F4](#f4) | new | Stream frames larger than 1,452 bytes, through writer and a parser limit set by configuration | F1 | n/a |
+| [F4](#f4) | complete #1218 | Stream frames larger than 1,452 bytes, through writer and a parser limit set by configuration | F1 | n/a |
 | [F5](#f5) | new | Two configured Transports carry a stream at about 8,957-byte packets over loopback | F2, F3, F4 | n/a |
 | [F6](#f6) | new | A refused send falls back to the tested size and stays down | F5 | n/a |
 | [F7](#f7) | new | Transport-generated confirmation probes and the drop to the initial size | F6 | F6's unconfirmed fallback |
@@ -86,7 +86,7 @@ Throwaway builds that raised the constant and pinned the size carried over 8 Gbp
 | [F11](#f11) | conditional | Several short DATAGRAMs in one jumbo packet, with weighted admission | F5; the consumer's comparison selecting this design | n/a |
 | [F12](#f12) | new | The release that claims jumbo, at the qualified commit | The consumer's qualification; the first independent release | n/a |
 
-F1 #1208, F2 #1216 and F3 #1217 are complete. F4 #1218 remains the implementation frontier; its F1 blocker is satisfied. F5 #1219 remains blocked on F4 #1218. F10 is parallel with F6–F9. Nothing here waits for the quicquic-go identity transition before F12, and that transition doesn't wait for this.
+F1 #1208, F2 #1216, F3 #1217 and F4 #1218 are complete. F5 #1219 is the implementation frontier; its F2, F3 and F4 blockers are satisfied. F10 is parallel with F6–F9. Nothing here waits for the quicquic-go identity transition before F12, and that transition doesn't wait for this.
 
 ## Implementation slices
 
@@ -178,6 +178,8 @@ Scoped review evidence and technical disposition are linked from [PR #1233](http
 
 <a id="f4"></a>
 ### F4 — Carry stream frames larger than 1,452 bytes
+
+**Status:** complete; implemented for #1218 in [PR #1249](https://github.com/the-sarge/quic-go-fast/pull/1249).
 
 **Delivers:** a frame pool with two sizes chosen by payload, frame splitting that picks the right one ([`stream_frame.go` L183](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/internal/wire/stream_frame.go#L183) would panic otherwise), the large-allocation branches in `send_stream.go` no longer capping a frame at 1,452 when the packet allows more, and a parser limit that comes from the connection's local ceiling. An unconfigured connection keeps today's rejection of an oversized STREAM frame ([`stream_frame.go` L66](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/internal/wire/stream_frame.go#L66)), which a peer ignoring the advertised limit can reach today, because large datagrams already arrive whole through some readers. The limit on what `Write` copies ([`send_stream.go` L351](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/send_stream.go#L351)) stays 1,452, so `Write` timing doesn't change. In production, `maxBytes` never exceeds the standard size and the parser limit stays at the default until F9, so this is inert.
 
