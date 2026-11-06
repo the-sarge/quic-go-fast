@@ -1,6 +1,6 @@
 # Packet-protection placement design for N3 #1202
 
-**Status:** local prototype validated; comparative performance unresolved. This is not an accepted implementation contract or product qualification. **Date:** 2026-11-05. **Source basis:** retained measured diagnostic `35b83b13a3b94ec3665889c0f6a0844d0f851060`. **Related:** [pipeline redesign](2026-11-05-native-pipeline-redesign.md), [latest clean ECN/writer result](2026-11-05-native-ecn-writer-prototype.md), [comparison input from issue #1232](2026-11-05-send-pipeline-comparison-1232.md). N3 #1202 remains stopped; draft PR #1230 remains held.
+**Status:** local prototype validated; one clean ordinary diagnostic meets both targets. This historical design is superseded by the [current implementation plan](../adr/2026-11-04-native-endpoint-efficiency-plan.md#n11); it is not product qualification. **Date:** 2026-11-05. **Source basis:** retained measured diagnostic `35b83b13a3b94ec3665889c0f6a0844d0f851060`. **Related:** [pipeline redesign](2026-11-05-native-pipeline-redesign.md), [preceding clean ECN/writer result](2026-11-05-native-ecn-writer-prototype.md), [comparison input from issue #1232](2026-11-05-send-pipeline-comparison-1232.md). N3 #1202 remains stopped; draft PR #1230 remains held.
 
 ## Problem and possible benefit
 
@@ -56,4 +56,4 @@ The retained read-only source assessments cover the closed-emission counterexamp
 
 ## Prototype outcome
 
-The [implemented prototype and two-attempt receipt](2026-11-05-native-protection-placement-prototype.md) binds source `78fac7ec3cd60d0dfc03c14dded71ed66c5bf0b2`, discriminating tests, final compiler/layout costs and the explicit private-buffer observer limit. Both remote pairs are contaminated and establish no performance pass; profiles do establish protection placement on the writer. The latest clean target evidence remains the ECN/writer result. Preserve the source while obtaining an isolated comparison before selecting another performance-driven change.
+The [implemented prototype and three-attempt receipt](2026-11-05-native-protection-placement-prototype.md) binds source `78fac7ec3cd60d0dfc03c14dded71ed66c5bf0b2`, discriminating tests, final compiler/layout costs and the explicit private-buffer observer limit. The original pair and its contamination-only replacement remain ineligible. The separately authorized final validation is clean and reaches 104.886% baseline goodput / 106.899% CPU/useful byte with the unchanged source, runner and targets. Profiles establish protection on the existing writer. This supports scoped feasibility and final production slice design, not broader qualification or automatic resumption of N3 #1202.
