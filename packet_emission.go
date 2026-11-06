@@ -313,8 +313,8 @@ func (e *packetEmission) withoutGSO(now monotime.Time) (result emissionResult) {
 }
 
 func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
-	buf := getLargePacketBuffer()
 	maxSize := e.packetSize()
+	buf := getGSOPacketBuffer(maxSize)
 	ecn := e.selected().ECNMode(true)
 	batch := newGSOBatch(maxSize, e.shortSegments)
 	for {
@@ -362,7 +362,7 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 			return result
 		}
 		ecn = nextECN
-		buf, batch = getLargePacketBuffer(), newGSOBatch(maxSize, e.shortSegments)
+		buf, batch = getGSOPacketBuffer(maxSize), newGSOBatch(maxSize, e.shortSegments)
 	}
 }
 

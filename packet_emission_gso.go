@@ -2,6 +2,7 @@ package quic
 
 import (
 	"os"
+	"runtime"
 	"strconv"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
@@ -12,6 +13,22 @@ import (
 // maxGSOSegments bounds the packets in one segmented send. Linux before 6.9
 // rejects more than 64 (UDP_MAX_SEGMENTS) with EINVAL.
 const maxGSOSegments = 64
+
+// gsoPacketBufferSize keeps standard-size batches at the existing limit.
+// Only Linux jumbo segments use the existing 64 KiB tier.
+func gsoPacketBufferSize(size protocol.ByteCount) protocol.ByteCount {
+	if runtime.GOOS == "linux" && size > protocol.MaxPacketBufferSize {
+		return protocol.MaxCoalescedPacketBufferSize
+	}
+	return protocol.MaxLargePacketBufferSize
+}
+
+func getGSOPacketBuffer(size protocol.ByteCount) *packetBuffer {
+	if gsoPacketBufferSize(size) == protocol.MaxCoalescedPacketBufferSize {
+		return getCoalescedPacketBuffer()
+	}
+	return getLargePacketBuffer()
+}
 
 // disableShortGSOSegmentsEnv names the switch that turns off equal-size
 // batching of short DATAGRAM packets, keeping segmented send at the maximum

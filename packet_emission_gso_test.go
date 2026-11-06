@@ -23,6 +23,7 @@ type gsoTestPacket struct {
 }
 
 type gsoTestWrite struct {
+	capacity    int
 	opportunity int // the emission call that handed it off
 	segment     uint16
 	packets     []gsoTestPacket
@@ -75,7 +76,7 @@ func emitGSOWrites(t *testing.T, tc *testConnection, now monotime.Time) []gsoTes
 func decodeGSOTestWrite(t *testing.T, c *Conn, e queueEntry) gsoTestWrite {
 	t.Helper()
 	data := e.buf.Data
-	w := gsoTestWrite{segment: e.gsoSize}
+	w := gsoTestWrite{segment: e.gsoSize, capacity: cap(e.buf.Data)}
 	segment := len(data)
 	if e.gsoSize > 0 {
 		segment = int(e.gsoSize)
@@ -433,4 +434,65 @@ func TestGSOBatchContinuation(t *testing.T) {
 		require.False(t, b.add(100, datagram))
 		require.Equal(t, uint16(100), b.gsoSize())
 	})
+}
+
+// Negotiation alone does not enlarge standard-size segmented sends. Compare
+// the configured cases to the same default workload through real emission.
+func TestGSOStandardSizeBatchesPreserved(t *testing.T) {
+	for _, bbr := range []bool{false, true} {
+		t.Run(map[bool]string{false: "reno", true: "bbrv3"}[bbr], func(t *testing.T) {
+			var standardBatches [][]int
+			var standardSegments []uint16
+			for _, row := range []struct {
+				name      string
+				local     packetCeiling
+				peer      protocol.ByteCount
+				effective protocol.ByteCount
+			}{
+				{"unconfigured", 0, 8972, 1452},
+				{"peer capped", 8972, 1452, 1452},
+				{"active at standard size", 8972, 8972, 8972},
+			} {
+				t.Run(row.name, func(t *testing.T) {
+					var test *testConnection
+					now := monotime.Now()
+					if bbr {
+						test, now = newGSOEmissionTest(t, true)
+					} else {
+						tc, recovery := newGSOBatchTestConnection(t)
+						recovery.EXPECT().ECNMode(true).Return(protocol.ECNUnsupported).AnyTimes()
+						test = tc
+					}
+					c := test.conn
+					c.packetCeiling = row.local
+					c.peerParams = &wire.TransportParameters{MaxUDPPayloadSize: row.peer}
+					require.Equal(t, row.effective, c.effectivePacketCeiling())
+					c.mtuDiscoverer = c.newPathMTUFinder(1452, c.effectivePacketCeiling())
+					require.EqualValues(t, 1452, c.maxPacketSize())
+					c.sentPacketHandler.SetMaxDatagramSize(1452)
+					if bbr {
+						c.emission.bbr = newBBRSendPolicyWithCeiling(100_000_000, 1452, row.local.size(), now)
+					}
+					var sizes []int
+					for range 20 {
+						sizes = append(sizes, gsoDatagramPayloadSize(test))
+					}
+					payloads := gsoTestPayloads(sizes...)
+					queueGSOTestDatagrams(t, c, payloads)
+					writes := emitGSOWrites(t, test, now)
+					batches, segments := gsoTestDatagramWrites(t, writes, payloads)
+					for _, write := range writes {
+						require.Equal(t, 20*1024, write.capacity)
+						require.LessOrEqual(t, len(write.packets), 14, "standard-size byte budget remains 20 KiB")
+					}
+					if row.name == "unconfigured" {
+						standardBatches, standardSegments = batches, segments
+					} else {
+						require.Equal(t, standardBatches, batches)
+						require.Equal(t, standardSegments, segments)
+					}
+				})
+			}
+		})
+	}
 }

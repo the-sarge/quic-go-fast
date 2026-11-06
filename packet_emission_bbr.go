@@ -151,7 +151,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 	e.confirmSupplyGap(now)
 	limit := size
 	if confirmed && e.opportunityCapabilities().GSO {
-		limit = min(e.bbr.budget(now), allowance, protocol.MaxLargePacketBufferSize)
+		limit = min(e.bbr.budget(now), allowance, gsoPacketBufferSize(size))
 		limit -= limit % size
 	}
 	if !e.reserveLocal(limit, true, false, now) {
@@ -172,7 +172,7 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 	buf := getPacketBufferForCeiling(packetCeiling(size))
 	if gso {
 		buf.Release()
-		buf = getLargePacketBuffer()
+		buf = getGSOPacketBuffer(size)
 	}
 	ecn := (*e.recovery).ECNMode(true)
 	// The reservation covers whole maximum-size packets; handoff resizes it to
