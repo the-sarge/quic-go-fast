@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/quic-go/quic-go/internal/monotime"
@@ -39,41 +40,48 @@ func TestPacketCeilingAdvertisementAndDiscovery(t *testing.T) {
 		{name: "local ceiling below peer", configured: 1400, serverDefault: true, want: 1400, probes: []protocol.ByteCount{1316, 1358, 1379}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			server := &Transport{Conn: newUDPConnLocalhost(t)}
-			client := &Transport{Conn: newUDPConnLocalhost(t)}
-			defer server.Close()
-			defer client.Close()
-			if tc.configured != 0 {
-				if !tc.serverDefault {
-					require.NoError(t, server.setPacketCeilingForTesting(tc.configured))
+			synctest.Test(t, func(t *testing.T) {
+				clientSocket, serverSocket, closeLink := newSimnetLink(t, 5*time.Millisecond)
+				defer closeLink()
+				server := &Transport{Conn: serverSocket}
+				client := &Transport{Conn: clientSocket}
+				defer server.Close()
+				defer client.Close()
+				if tc.configured != 0 {
+					if !tc.serverDefault {
+						require.NoError(t, server.setPacketCeilingForTesting(tc.configured))
+					}
+					require.NoError(t, client.setPacketCeilingForTesting(tc.configured))
 				}
-				require.NoError(t, client.setPacketCeilingForTesting(tc.configured))
-			}
-			conf := &Config{InitialPacketSize: 1232, DisablePathMTUDiscovery: true}
-			serverTLS := testdata.GetTLSConfig()
-			serverTLS.NextProtos = []string{"packet-ceiling"}
-			ln, err := server.Listen(serverTLS, conf)
-			require.NoError(t, err)
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			c, err := client.Dial(ctx, ln.Addr(), &tls.Config{InsecureSkipVerify: true, NextProtos: []string{"packet-ceiling"}}, conf)
-			require.NoError(t, err)
-			s, err := ln.Accept(ctx)
-			require.NoError(t, err)
-			require.NoError(t, c.CloseWithError(0, ""))
-			require.NoError(t, s.CloseWithError(0, ""))
-			serverWant := tc.want
-			if tc.serverDefault {
-				serverWant = 1452
-			}
-			require.Equal(t, serverWant, c.peerParams.MaxUDPPayloadSize, "server advertisement")
-			require.Equal(t, tc.want, s.peerParams.MaxUDPPayloadSize, "client advertisement")
-			for _, conn := range []*Conn{c, s} {
-				requirePacketCeilingSearch(t, conn, tc.probes)
-				// A new path must use the same endpoint ceiling.
-				conn.resetPathPacketSize(monotime.Now())
-				requirePacketCeilingSearch(t, conn, tc.probes)
-			}
+				conf := &Config{InitialPacketSize: 1232, DisablePathMTUDiscovery: true}
+				serverTLS := testdata.GetTLSConfig()
+				serverTLS.NextProtos = []string{"packet-ceiling"}
+				ln, err := server.Listen(serverTLS, conf)
+				require.NoError(t, err)
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				c, err := client.Dial(ctx, ln.Addr(), &tls.Config{InsecureSkipVerify: true, NextProtos: []string{"packet-ceiling"}}, conf)
+				require.NoError(t, err)
+				s, err := ln.Accept(ctx)
+				require.NoError(t, err)
+				require.NoError(t, c.CloseWithError(0, ""))
+				require.NoError(t, s.CloseWithError(0, ""))
+				// CloseWithError publishes the close before the final RTT snapshot.
+				// Finish both run loops before this fixture drives discovery.
+				synctest.Wait()
+				serverWant := tc.want
+				if tc.serverDefault {
+					serverWant = 1452
+				}
+				require.Equal(t, serverWant, c.peerParams.MaxUDPPayloadSize, "server advertisement")
+				require.Equal(t, tc.want, s.peerParams.MaxUDPPayloadSize, "client advertisement")
+				for _, conn := range []*Conn{c, s} {
+					requirePacketCeilingSearch(t, conn, tc.probes)
+					// A new path must use the same endpoint ceiling.
+					conn.resetPathPacketSize(monotime.Now())
+					requirePacketCeilingSearch(t, conn, tc.probes)
+				}
+			})
 		})
 	}
 }
