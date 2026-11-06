@@ -26,13 +26,16 @@ import (
 // write boundary can refuse a datagram after discovery has validated jumbo.
 type jumboRefusingConn struct {
 	*basicConn
-	limit        atomic.Int64
-	refused      atomic.Int64
-	gso          bool
-	segmented    atomic.Int64
-	batchRefused atomic.Int64
-	block        chan struct{}
-	entered      chan struct{}
+	limit         atomic.Int64
+	dropSize      atomic.Int64
+	dropAtOrAbove atomic.Int64
+	dropped       atomic.Int64
+	refused       atomic.Int64
+	gso           bool
+	segmented     atomic.Int64
+	batchRefused  atomic.Int64
+	block         chan struct{}
+	entered       chan struct{}
 }
 
 func (c *jumboRefusingConn) capabilities() connCapabilities {
@@ -43,6 +46,10 @@ func (c *jumboRefusingConn) WritePacket(b []byte, addr net.Addr, oob []byte, gso
 	size := len(b)
 	if gso != 0 {
 		size = int(gso)
+	}
+	if c.dropSize.CompareAndSwap(int64(size), 0) {
+		c.dropped.Add(1)
+		return len(b), nil
 	}
 	if limit := c.limit.Load(); limit != 0 && int64(size) > limit {
 		if c.block != nil {
@@ -57,6 +64,10 @@ func (c *jumboRefusingConn) WritePacket(b []byte, addr net.Addr, oob []byte, gso
 			c.segmented.Add(1)
 		}
 		return 0, testutils.SendMsgSizeErr
+	}
+	if threshold := c.dropAtOrAbove.Load(); threshold != 0 && int64(size) >= threshold {
+		c.dropped.Add(1)
+		return len(b), nil
 	}
 	if gso != 0 {
 		total := 0
@@ -387,4 +398,160 @@ func TestJumboRefusalDuringShutdown(t *testing.T) {
 		default:
 		}
 	})
+}
+
+// With only one unreliable application message, the transport must supply both
+// confirmation and the later small ACK that distinguishes a lost probe from an outage.
+func TestJumboFallbackDatagramOnly(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c, _, socket, _ := newJumboRefusalPair(t, "reno", "ordinary")
+		synctest.Wait()
+		socket.limit.Store(1500)
+		socket.dropSize.Store(1438)
+		require.NoError(t, c.SendDatagram(bytes.Repeat([]byte{'d'}, 7000)))
+		<-c.PathMTUFallbackV1()
+		time.Sleep(time.Second)
+		synctest.Wait()
+		require.EqualValues(t, 1, socket.dropped.Load())
+		require.Equal(t, 1, c.mtuFallback.lost, "the first probe needs a deadline and the follow-up PING ACK for its verdict")
+		require.True(t, c.mtuFallback.confirmed, "DATAGRAM-only fallback stalled without transport confirmation")
+		require.EqualValues(t, 1438, c.maxPacketSize())
+		require.NoError(t, c.CloseWithError(0, "done"))
+	})
+}
+
+func TestJumboFallbackReachesInitialSize(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c, _, socket, _ := newJumboRefusalPair(t, "reno", "ordinary")
+		synctest.Wait()
+		socket.limit.Store(1300)
+		require.NoError(t, c.SendDatagram(bytes.Repeat([]byte{'d'}, 7000)))
+		<-c.PathMTUFallbackV1()
+		time.Sleep(time.Second)
+		synctest.Wait()
+		require.True(t, c.mtuFallback.confirmed)
+		require.EqualValues(t, 1232, c.mtuFallback.size, "three lost standard probes reach the initial size")
+		require.EqualValues(t, 1232, c.maxPacketSize())
+		require.EqualValues(t, 1452, c.mtuDiscoverer.ceiling, "stage two stays disabled")
+		require.EqualValues(t, 1342, c.mtuDiscoverer.inFlight, "confirmation restarts stage one's first probe")
+		require.Zero(t, c.mtuDiscoverer.StageOneSize(), "the new search is still running")
+		require.NoError(t, c.CloseWithError(0, "done"))
+	})
+}
+
+func TestJumboFallbackAllProbesLost(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c, _, socket, _ := newJumboRefusalPair(t, "reno", "ordinary")
+		synctest.Wait()
+		socket.limit.Store(1500)
+		socket.dropAtOrAbove.Store(1232)
+		require.NoError(t, c.SendDatagram(bytes.Repeat([]byte{'d'}, 7000)))
+		<-c.PathMTUFallbackV1()
+		time.Sleep(time.Second)
+		synctest.Wait()
+		require.EqualValues(t, 6, socket.dropped.Load(), "only three probes at each size")
+		require.False(t, c.mtuFallback.active)
+		require.False(t, c.mtuFallback.confirmed)
+		require.Equal(t, 3, c.mtuFallback.lost)
+		require.EqualValues(t, 1232, c.maxPacketSize())
+		require.Zero(t, c.packetSizeRecoveryTime())
+		require.NoError(t, c.Context().Err(), "probe exhaustion doesn't close the connection")
+		// Ordinary keepalives continue after recovery has stopped.
+		time.Sleep(61 * time.Second)
+		synctest.Wait()
+		require.EqualValues(t, 6, socket.dropped.Load(), "recovery stays stopped across ordinary keepalives")
+		require.NoError(t, c.Context().Err())
+		require.NoError(t, c.CloseWithError(0, "done"))
+	})
+}
+
+func TestJumboFallbackPathChangeCancelsRecovery(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c, _, socket, migration := newJumboRefusalPair(t, "reno", "ordinary")
+		synctest.Wait()
+		socket.limit.Store(1500)
+		socket.dropAtOrAbove.Store(1232)
+		require.NoError(t, c.SendDatagram(bytes.Repeat([]byte{'d'}, 7000)))
+		<-c.PathMTUFallbackV1()
+		synctest.Wait()
+		require.NotNil(t, c.mtuFallback.probe)
+		oldGeneration := c.pathGeneration
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		path, err := c.AddPath(migration)
+		require.NoError(t, err)
+		require.NoError(t, path.Probe(ctx))
+		require.NoError(t, path.Switch())
+		time.Sleep(time.Second)
+		synctest.Wait()
+		require.Greater(t, c.pathGeneration, oldGeneration)
+		require.False(t, c.mtuFallback.active)
+		require.Nil(t, c.mtuFallback.probe)
+		require.Zero(t, c.mtuFallback.lost, "migration loss callbacks aren't recovery verdicts")
+		require.EqualValues(t, 1438, c.mtuFallback.size, "migration doesn't trigger the initial-size fallback")
+		require.LessOrEqual(t, c.maxPacketSize(), protocol.ByteCount(1452))
+		require.NoError(t, c.CloseWithError(0, "done"))
+	})
+}
+
+func TestJumboFallbackProbeDeadlineAndLaterAck(t *testing.T) {
+	tc := newJumboRefusalEmission(t)
+	c := tc.conn
+	now := monotime.Now()
+	c.packetSizeFeedback.publish(c.pathGeneration, 8957)
+	c.applyPacketSizeFallback(now)
+	require.NoError(t, c.triggerSending(now).err)
+	probe := c.mtuFallback.probe
+	require.NotNil(t, probe)
+	require.Zero(t, c.sentPacketHandler.GetLossDetectionTimeout(), "a recovery probe doesn't arm the ordinary loss alarm")
+	c.advancePacketSizeRecovery(probe.deadline)
+	require.Zero(t, c.mtuFallback.lost, "a deadline alone is an outage, not loss")
+	require.NoError(t, c.triggerSending(probe.deadline).err)
+	require.NotZero(t, c.sentPacketHandler.GetLossDetectionTimeout(), "the follow-up PING keeps ordinary loss rules")
+	c.confirmPacketSizeFallback(ackhandler.PacketContext{TupleGeneration: c.pathGeneration}, 64, probe.sent)
+	require.False(t, probe.laterSmallAck, "the small packet must have been sent later")
+	c.confirmPacketSizeFallback(ackhandler.PacketContext{TupleGeneration: c.pathGeneration}, 64, probe.deadline)
+	c.advancePacketSizeRecovery(probe.deadline.Add(-time.Nanosecond))
+	require.Zero(t, c.mtuFallback.lost, "a later ACK alone isn't a loss verdict")
+	c.advancePacketSizeRecovery(probe.deadline)
+	require.Equal(t, 1, c.mtuFallback.lost)
+	q := c.emission.queue.(*sendQueue)
+	tc.sendConn.EXPECT().Write(gomock.Any(), uint16(0), gomock.Any()).Return(nil).Times(2)
+	close(q.closeCalled)
+	require.NoError(t, q.Run())
+}
+
+func TestJumboFallbackProbeCongestionLimited(t *testing.T) {
+	tc := newJumboRefusalEmission(t)
+	c := tc.conn
+	now := monotime.Now()
+	c.packetSizeFeedback.publish(c.pathGeneration, 8957)
+	c.applyPacketSizeFallback(now)
+	// Fill the actual congestion window using real packet registration. Drain
+	// only local buffers; no ACK frees the flight before the recovery opportunity.
+	q := c.emission.queue.(*sendQueue)
+	for range 64 {
+		now = now.Add(time.Second)
+		if c.sentPacketHandler.SendMode(now) == ackhandler.SendAck {
+			break
+		}
+		require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: bytes.Repeat([]byte{'d'}, 1000)}))
+		result := c.emission.advance(now, false)
+		require.NoError(t, result.err)
+		require.True(t, result.progress)
+		for len(q.queue) > 0 {
+			(<-q.queue).buf.Release()
+		}
+	}
+	require.Equal(t, ackhandler.SendAck, c.sentPacketHandler.SendMode(now))
+	require.NoError(t, c.triggerSending(now).err)
+	require.NotNil(t, c.mtuFallback.probe)
+	require.NotZero(t, c.mtuFallback.probe.deadline)
+	require.Len(t, q.queue, 1)
+	tc.sendConn.EXPECT().Write(gomock.Any(), uint16(0), gomock.Any()).DoAndReturn(func(b []byte, _ uint16, _ protocol.ECN) error {
+		require.Len(t, b, 1438)
+		return nil
+	})
+	close(q.closeCalled)
+	require.NoError(t, q.Run())
 }

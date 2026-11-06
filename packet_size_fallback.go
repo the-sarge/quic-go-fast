@@ -53,6 +53,10 @@ type mtuFallback struct {
 	generation uint64
 	size       protocol.ByteCount
 	confirmed  bool
+	active     bool
+	since      monotime.Time
+	lost       int
+	probe      *packetSizeRecoveryProbe
 	dropped    chan struct{}
 }
 
@@ -66,8 +70,7 @@ type mtuFallback struct {
 func (c *Conn) PathMTUFallbackV1() <-chan struct{} { return c.mtuFallback.dropped }
 
 // applyPacketSizeFallback is the sole owner of a post-discovery size reduction.
-// Its unconfirmed state is intentional: F7 adds transport confirmation probes
-// and the eventual drop to the initial packet size.
+// The same owner reduces to the initial size if transport confirmation fails.
 func (c *Conn) applyPacketSizeFallback(now monotime.Time) {
 	if c.packetSizeFeedback.wakeup == nil {
 		return
@@ -84,7 +87,16 @@ func (c *Conn) applyPacketSizeFallback(now monotime.Time) {
 	if fallback == 0 {
 		return
 	}
-	c.mtuFallback.started, c.mtuFallback.generation, c.mtuFallback.size = now, generation, fallback
+	c.mtuFallback.started, c.mtuFallback.generation = now, generation
+	c.mtuFallback.active = true
+	c.reducePacketSizeForRecovery(now, fallback)
+	c.pathMTUSettled.settle()
+	close(c.mtuFallback.dropped)
+}
+
+func (c *Conn) reducePacketSizeForRecovery(now monotime.Time, fallback protocol.ByteCount) {
+	c.mtuFallback.size, c.mtuFallback.since = fallback, now
+	c.mtuFallback.probe = nil
 	// Reset the finder first, so loss callbacks from retired probes are stale.
 	// A settled finder at the tested size prevents any further search on this path.
 	c.mtuDiscoverer.Reset(fallback, fallback)
@@ -96,16 +108,25 @@ func (c *Conn) applyPacketSizeFallback(now monotime.Time) {
 		}
 	}
 	c.emission.resetLocalPath(c.pathGeneration, now)
-	c.pathMTUSettled.settle()
-	close(c.mtuFallback.dropped)
 	c.pacingDeadline = deadlineSendImmediately
 	c.scheduleSending()
 }
 
 func (c *Conn) confirmPacketSizeFallback(context ackhandler.PacketContext, size protocol.ByteCount, sent monotime.Time) {
 	f := &c.mtuFallback
-	if f.started != 0 && context.PathID == 0 && context.TupleGeneration == f.generation &&
-		c.pathGeneration == f.generation && !sent.Before(f.started) && size == f.size {
-		f.confirmed = true
+	if !f.active || context.PathID != 0 || context.TupleGeneration != f.generation ||
+		c.pathGeneration != f.generation || sent.Before(f.since) {
+		return
+	}
+	if size == f.size {
+		f.confirmed, f.active, f.probe = true, false, nil
+		if size == c.effectiveInitialPacketSize {
+			c.mtuDiscoverer.Reset(size, c.discoveryPacketCeiling())
+			c.startMTUDiscovery(monotime.Now())
+		}
+		return
+	}
+	if p := f.probe; p != nil && p.sent != 0 && size <= protocol.MaxPacketBufferSize && sent.After(p.sent) {
+		p.laterSmallAck = true
 	}
 }
