@@ -9710,3 +9710,22 @@ Certified head `f7684b6c2af2e6e6b2132332f5a72fd0b9befc72` passed root/recovery s
 ### Next
 
 At this entry, F7 #1221 code is merged and its required journal/task/readiness reconciliation is finishing. PR #1257 already owns the committed completion/header/graph/frontier transition. F8 #1222 follows after that closure; F11 #1225 remains conditional on the consumer comparison selecting its design. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) is the live coordination view, and the [F7 normative plan](adr/2026-11-05-jumbo-packets-plan.md#f7) owns the accepted contract.
+
+---
+
+## Standard-tier MTU fixture registration - 2026-11-06 11:06 EST
+
+**Main:** `dc5b832c7595`
+**Actor:** Codex
+
+### Summary
+
+[PR #1263 — Register standard-tier fixture MTU probes](https://github.com/the-sarge/quic-go-fast/pull/1263) merged the two-line correction for [bug #1262](https://github.com/the-sarge/quic-go-fast/issues/1262): retain each real packed probe's metadata and register it through the existing emission owner before assertions and buffer release. Both Reno/BBRv3 cases, all four probe sizes, standard-tier pool/queue/length/capacity assertions and explicit buffer release remain intact. Production, dependencies, workflows and frozen evidence are unchanged. The repair follows the [approved plan v1 and delegated decision for bug #1262](https://github.com/the-sarge/quic-go-fast/issues/1262#issuecomment-6689088786).
+
+### Validation
+
+The captured [failed unit job for contract PR #1261](https://github.com/the-sarge/quic-go-fast/actions/runs/42242302070/job/127975425612) and pinned source identified omitted registrations before packet history's sequential-number guard. The corrected existing fixture passed once for both controllers. Fresh parallel Standards/Spec preparation and full four-agent RAS run `20261106T155846-72287c06298b549ef9c1f2c4` reported zero findings. Fresh exact-head certification passed affected-package tests, vet, tidy-diff, formatting/diff checks and the six normal lint profiles; all 17 hosted checks succeeded before the match-head squash merge. The test remains example-level verification at its existing real-packer/recovery seam, without an exhaustive random-skip proof or added campaign.
+
+### Next
+
+Finish this journal and reconcile [bug #1262](https://github.com/the-sarge/quic-go-fast/issues/1262), then return to [program #1215's live coordination](https://github.com/the-sarge/quic-go-fast/issues/1215) so the retained owner can resume [contract PR #1261](https://github.com/the-sarge/quic-go-fast/pull/1261) and [F8 #1222](https://github.com/the-sarge/quic-go-fast/issues/1222).
