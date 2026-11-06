@@ -13,17 +13,23 @@ import (
 // decide its verdict, including callbacks caused by a path change.
 type packetSizeRecoveryProbe struct {
 	size                                 protocol.ByteCount
+	number                               protocol.PacketNumber
 	timeout                              time.Duration
 	sent, deadline                       monotime.Time
 	expired, followupSent, laterSmallAck bool
+	retryable                            bool // an ordinary loss/PTO opportunity for this liveness epoch
 }
 
 type packetSizeRecoveryIntent struct {
 	probe    *packetSizeRecoveryProbe
 	followup bool
+	lost     func()
 }
 
 func (c *Conn) packetSizeRecoveryTime() monotime.Time {
+	if t := c.packetSizeWatchTime(); t != 0 {
+		return t
+	}
 	f := &c.mtuFallback
 	if !f.active || f.generation != c.pathGeneration || f.probe == nil || f.probe.expired {
 		return 0
@@ -65,6 +71,9 @@ func (c *Conn) advancePacketSizeRecovery(now monotime.Time) {
 
 func (c *Conn) preparePacketSizeRecovery(now monotime.Time) packetSizeRecoveryIntent {
 	c.advancePacketSizeRecovery(now)
+	if intent := c.preparePacketSizeWatch(now); intent.probe != nil {
+		return intent
+	}
 	f := &c.mtuFallback
 	if !f.active {
 		return packetSizeRecoveryIntent{}
@@ -84,12 +93,16 @@ func (c *Conn) preparePacketSizeRecovery(now monotime.Time) packetSizeRecoveryIn
 
 // Recovery PINGs aren't retransmitted by a frame handler. The padded attempts
 // use the MTU-probe loss exemption; follow-up PINGs retain ordinary loss rules.
-type packetSizeRecoveryHandler struct{}
+type packetSizeRecoveryHandler struct{ lost func() }
 
 func (*packetSizeRecoveryHandler) IsMTURecoveryPacket() {}
 
 func (*packetSizeRecoveryHandler) OnAcked(wire.Frame) {}
-func (*packetSizeRecoveryHandler) OnLost(wire.Frame)  {}
+func (h *packetSizeRecoveryHandler) OnLost(wire.Frame) {
+	if h.lost != nil {
+		h.lost()
+	}
+}
 
 func (e *packetEmission) packetSizeRecovery(intent packetSizeRecoveryIntent, now monotime.Time) emissionResult {
 	if e.queue.WouldBlock() {
@@ -107,7 +120,7 @@ func (e *packetEmission) packetSizeRecovery(intent packetSizeRecoveryIntent, now
 	if e.bbr != nil && !e.reserveLocal(size, false, false, now) {
 		return e.localBlocked()
 	}
-	ping := ackhandler.Frame{Frame: &wire.PingFrame{}, Handler: &packetSizeRecoveryHandler{}}
+	ping := ackhandler.Frame{Frame: &wire.PingFrame{}, Handler: &packetSizeRecoveryHandler{lost: intent.lost}}
 	p, buf, err := e.packer.packMTUProbePacket(e.route, ping, size, e.version)
 	if err != nil {
 		return emissionResult{err: err}
@@ -121,8 +134,12 @@ func (e *packetEmission) packetSizeRecovery(intent packetSizeRecoveryIntent, now
 	}
 	if intent.followup {
 		intent.probe.followupSent = true
+		if intent.probe.sent == 0 {
+			intent.probe.sent, intent.probe.number = now, p.PacketNumber
+		}
 	} else {
 		intent.probe.sent, intent.probe.deadline = now, now.Add(intent.probe.timeout)
+		intent.probe.number = p.PacketNumber
 	}
 	e.handoff(buf, 0, ecn, sendMetadata{mtuProbe: !intent.followup})
 	return emissionResult{progress: true, retry: true}

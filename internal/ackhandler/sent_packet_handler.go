@@ -92,7 +92,8 @@ type sentPacketHandler struct {
 	largestPath protocol.PathID
 	paths       map[protocol.PathID]*sentPacketHandler
 
-	mtuAcked                func(PacketContext, protocol.ByteCount, monotime.Time)
+	mtuAcked                func(PacketContext, protocol.ByteCount, protocol.PacketNumber)
+	mtuLost                 func(PacketContext, protocol.ByteCount, monotime.Time)
 	mtuRecoveryAcks         [MaxMTURecoveryProbes]mtuRecoveryAck
 	local                   *localCompletions
 	initialPackets          *packetNumberSpace
@@ -652,7 +653,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 		}
 		if p.EncryptionLevel == protocol.Encryption1RTT {
 			if h.mtuAcked != nil && !p.isPathProbePacket {
-				h.mtuAcked(p.Context, p.Length, p.SendTime)
+				h.mtuAcked(p.Context, p.Length, p.PacketNumber)
 			}
 			if !acked1RTTPacket.Valid || p.Context.KeyGeneration >= acked1RTTPacket.KeyGeneration {
 				acked1RTTPacket = protocol.ApplicationKeyReceipt{Valid: true, PathID: p.Context.PathID, PacketNumber: p.PacketNumber, KeyGeneration: p.Context.KeyGeneration}
@@ -1120,6 +1121,7 @@ func (h *sentPacketHandler) detectLostPackets(now monotime.Time, encLevel protoc
 			pnSpace.lossTime = lossTime
 		}
 		if packetLost {
+			h.reportMTULoss(p, now)
 			h.captureCongestionLoss(encLevel, pn, p)
 			if p.Outstanding() && (encLevel == protocol.Encryption0RTT || encLevel == protocol.Encryption1RTT) {
 				h.lostPackets.Add(pn, p.recoveryTime())
@@ -1450,6 +1452,7 @@ func (h *sentPacketHandler) QueueProbePacketAt(encLevel protocol.EncryptionLevel
 		d.recovery.retirePTO(congestionKey(encLevel, pn))
 		d.retire(congestionKey(encLevel, pn), now, h.rttStats.PTO(encLevel == protocol.Encryption1RTT), deliveryRetiredPTO)
 	}
+	h.reportMTULoss(p, now)
 	// TODO: don't declare the packet lost here.
 	// Keep track of acknowledged frames instead.
 	// Call DeclareLost before queueFramesForRetransmission, which clears the packet's frames.

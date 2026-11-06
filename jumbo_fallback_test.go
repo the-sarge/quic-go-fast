@@ -307,8 +307,21 @@ func TestJumboRefusalPolicyAndQueuedDatagrams(t *testing.T) {
 			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: bytes.Repeat([]byte{'j'}, 7000)}))
 			small := &wire.DatagramFrame{DataLenPresent: true, Data: []byte("surviving message")}
 			require.NoError(t, c.datagramQueue.Add(small))
+			now := monotime.Now()
+			registerProbe := func() protocol.PacketNumber {
+				t.Helper()
+				packet, buffer, err := c.emission.packer.PackMTUProbePacket(ackhandler.Frame{Frame: &wire.PingFrame{}}, 1438, protocol.Version1)
+				require.NoError(t, err)
+				require.NoError(t, c.emission.registerPacket(packet, protocol.ECNUnsupported, now))
+				buffer.Release()
+				return packet.PacketNumber
+			}
+			oldNumber := protocol.InvalidPacketNumber
+			if tc.fallback {
+				oldNumber = registerProbe()
+			}
 			c.packetSizeFeedback.publish(tc.generation, 8957)
-			c.applyPacketSizeFallback(monotime.Now())
+			c.applyPacketSizeFallback(now)
 			if !tc.fallback {
 				require.Equal(t, tc.current, c.maxPacketSize())
 				require.Zero(t, c.mtuFallback.started)
@@ -325,10 +338,12 @@ func TestJumboRefusalPolicyAndQueuedDatagrams(t *testing.T) {
 			require.Equal(t, started, c.mtuFallback.started)
 			require.False(t, c.mtuFallback.confirmed)
 			// Old-path or old-send ACK facts cannot confirm the new size.
-			c.confirmPacketSizeFallback(ackhandler.PacketContext{TupleGeneration: 8}, 1438, started)
-			c.confirmPacketSizeFallback(ackhandler.PacketContext{TupleGeneration: 9}, 1438, started.Add(-time.Millisecond))
-			require.False(t, c.mtuFallback.confirmed)
-			c.confirmPacketSizeFallback(ackhandler.PacketContext{TupleGeneration: 9}, 1438, started)
+			newNumber := registerProbe()
+			c.confirmPacketSizeFallback(ackhandler.PacketContext{TupleGeneration: 8}, 1438, newNumber)
+			c.confirmPacketSizeFallback(ackhandler.PacketContext{TupleGeneration: 9}, 1438, oldNumber)
+			require.False(t, c.mtuFallback.confirmed, "earlier registration cannot confirm even with the same clock stamp")
+			_, err := c.sentPacketHandler.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: newNumber, Largest: newNumber}}}, protocol.Encryption1RTT, now.Add(time.Millisecond))
+			require.NoError(t, err)
 			require.True(t, c.mtuFallback.confirmed)
 		})
 	}
@@ -514,11 +529,12 @@ func TestJumboFallbackProbeDeadlineAndLaterAck(t *testing.T) {
 	require.Zero(t, c.sentPacketHandler.GetLossDetectionTimeout(), "a recovery probe doesn't arm the ordinary loss alarm")
 	c.advancePacketSizeRecovery(probe.deadline)
 	require.Zero(t, c.mtuFallback.lost, "a deadline alone is an outage, not loss")
+	laterNumber, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
 	require.NoError(t, c.triggerSending(probe.deadline).err)
 	require.NotZero(t, c.sentPacketHandler.GetLossDetectionTimeout(), "the follow-up PING keeps ordinary loss rules")
-	c.confirmPacketSizeFallback(ackhandler.PacketContext{TupleGeneration: c.pathGeneration}, 64, probe.sent)
+	c.confirmPacketSizeFallback(ackhandler.PacketContext{TupleGeneration: c.pathGeneration}, 64, probe.number)
 	require.False(t, probe.laterSmallAck, "the small packet must have been sent later")
-	c.confirmPacketSizeFallback(ackhandler.PacketContext{TupleGeneration: c.pathGeneration}, 64, probe.deadline)
+	c.confirmPacketSizeFallback(ackhandler.PacketContext{TupleGeneration: c.pathGeneration}, 64, laterNumber)
 	c.advancePacketSizeRecovery(probe.deadline.Add(-time.Nanosecond))
 	require.Zero(t, c.mtuFallback.lost, "a later ACK alone isn't a loss verdict")
 	c.advancePacketSizeRecovery(probe.deadline)
