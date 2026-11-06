@@ -289,7 +289,7 @@ func TestPathMTUInfoCeiling(t *testing.T) {
 			ceiling, stageOne := c.PathMTUInfoV1()
 			require.EqualValues(t, tc.want, ceiling)
 			require.Zero(t, stageOne)
-			require.LessOrEqual(t, c.peerMaxPacketSize(), protocol.ByteCount(1452), "F5 owns actual jumbo emission")
+			require.LessOrEqual(t, c.peerMaxPacketSize(), protocol.ByteCount(1452), "non-zero paths remain standard sized")
 		})
 	}
 }
@@ -317,9 +317,7 @@ func TestPathMTUInfoStageOneLoss(t *testing.T) {
 
 func TestPathMTUSettledAfterTwoStages(t *testing.T) {
 	c, cs := newPathMTUSettledTestConnection(t, &Config{InitialPacketSize: 1232, EnableDatagrams: true}, 8972, true, 8972)
-	// Simulate jumbo receipts without emitting a jumbo packet. F5 will lift the
-	// connection's emission cap once jumbo packet construction is available.
-	c.mtuDiscoverer = c.newPathMTUFinder(1232, 8972)
+	// Simulate jumbo receipts through the connection-owned finder.
 	cs.EXPECT().Set1RTTAcked(gomock.Any(), gomock.Any()).AnyTimes()
 	now := monotime.Now()
 	confirmPathMTUSettledTestConnection(t, c, cs, now)

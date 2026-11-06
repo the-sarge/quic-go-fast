@@ -1123,7 +1123,7 @@ func (c *Conn) switchToNewPath(tr *Transport, now monotime.Time) {
 func (c *Conn) resetPathPacketSize(now monotime.Time) {
 	size := c.effectiveInitialPacketSize
 	c.sentPacketHandler.MigratedPath(now, size)
-	c.mtuDiscoverer.Reset(size, c.peerMaxPacketSize())
+	c.mtuDiscoverer.Reset(size, c.effectivePacketCeiling())
 	c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(size)))
 	// The first path's search is over. Settle after the reset, so the limit read
 	// afterwards is the initial size. MigratedPath can declare an in-flight probe
@@ -1132,8 +1132,7 @@ func (c *Conn) resetPathPacketSize(now monotime.Time) {
 	c.pathMTUSettled.settle()
 }
 
-// peerMaxPacketSize keeps actual probe emission at the standard size until the
-// jumbo packet construction and send path are enabled by F5.
+// Non-zero multipath paths retain the standard packet ceiling.
 func (c *Conn) peerMaxPacketSize() protocol.ByteCount {
 	return min(c.effectivePacketCeiling(), protocol.MaxPacketBufferSize)
 }
@@ -2915,7 +2914,7 @@ func (c *Conn) applyTransportParameters() {
 		// Preserve ordinary connection-ID rotation without adopting the address.
 		c.connIDManager.AddFromPreferredAddress(params.PreferredAddress.ConnectionID, params.PreferredAddress.StatelessResetToken)
 	}
-	c.mtuDiscoverer = c.newPathMTUFinder(c.effectiveInitialPacketSize, c.peerMaxPacketSize())
+	c.mtuDiscoverer = c.newPathMTUFinder(c.effectiveInitialPacketSize, c.effectivePacketCeiling())
 }
 
 // newPathMTUFinder attaches the connection's settled signal to every finder, so a
@@ -3022,7 +3021,7 @@ func (c *Conn) initPacketEmission(packer *packetPacker) {
 		shortSegments: shortGSOSegmentsEnabled(),
 	}
 	if bbr {
-		c.emission.enableBBR(monotime.Now())
+		c.emission.enableBBR(monotime.Now(), c.packetCeiling.size())
 		c.emission.enableBBRECN()
 	}
 }

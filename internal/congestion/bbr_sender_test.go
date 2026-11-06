@@ -288,3 +288,13 @@ func feedbackRoundRTT(b *BBRSender, ordinal, delivered, rate uint64, limited Sen
 	b.Sent(SendEvent{Packet: p})
 	b.Feedback(FeedbackEvent{PathGeneration: b.pathGeneration, SampleGeneration: b.sampleGeneration, Time: now, HasAck: true, RawRTT: rtt, PostInFlight: flight, Acked: []PacketInfo{p}, Delivery: DeliverySample{Delivered: delivered, Ordinal: ordinal, BytesPerSecond: rate, Interval: 100 * time.Millisecond, Limited: limited, Valid: true}})
 }
+
+func TestBBRPacketCeilingSurvivesReset(t *testing.T) {
+	standard := NewBBRSender(1232)
+	require.Panics(t, func() { standard.SetMaxDatagramSize(1453) })
+	jumbo := NewBBRSenderWithPacketCeiling(1232, 8972)
+	require.NotPanics(t, func() { jumbo.SetMaxDatagramSize(8957) })
+	jumbo.Reset(1, 1, 0)
+	require.NotPanics(t, func() { jumbo.SetMaxDatagramSize(8972) })
+	require.Panics(t, func() { jumbo.SetMaxDatagramSize(8973) })
+}

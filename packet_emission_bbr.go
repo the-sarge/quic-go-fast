@@ -169,7 +169,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protocol.ByteCount) emissionResult {
 	exhausted := false
 	gso := e.opportunityCapabilities().GSO
-	buf := getPacketBuffer()
+	buf := getPacketBufferForCeiling(packetCeiling(size))
 	if gso {
 		buf.Release()
 		buf = getLargePacketBuffer()

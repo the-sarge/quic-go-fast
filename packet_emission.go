@@ -279,7 +279,7 @@ func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCo
 
 func (e *packetEmission) withoutGSO(now monotime.Time) (result emissionResult) {
 	for {
-		buf := getPacketBuffer()
+		buf := getPacketBufferForCeiling(packetCeiling(e.packetSize()))
 		ecn := e.selected().ECNMode(true)
 		if _, _, err := e.appendPacket(buf, e.packetSize(), false, ecn, now); err != nil {
 			if err == errNothingToPack {

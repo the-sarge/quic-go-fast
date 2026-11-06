@@ -1,6 +1,6 @@
 # Jumbo packets implementation plan
 
-**Date:** 2026-11-05. **Status:** In progress; F1, F2, F3 and F4 complete. **Identity:** `JP-20261105-F`. **Parent:** [Jumbo packets (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). **Depends on:** nothing for F1. **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions. **Audit history:** this plan's merging PR.
+**Date:** 2026-11-05. **Status:** In progress; F1, F2, F3, F4 and F5 complete. **Identity:** `JP-20261105-F`. **Parent:** [Jumbo packets (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). **Depends on:** nothing for F1. **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions. **Audit history:** this plan's merging PR.
 
 This plan comes from a downstream consumer's owner-approved program. It stands on its own: an implementer needs nothing outside this repository. "The consumer" below means that downstream program, whose qualification results reach this repository through F11's and F12's issues.
 
@@ -77,7 +77,7 @@ Throwaway builds that raised the constant and pinned the size carried over 8 Gbp
 | [F2](#f2) | complete #1216 | Configured readers and receive queues carry 8,972-byte packets whole | F1 | n/a |
 | [F3](#f3) | complete #1217 | Two-stage search, effective ceiling and stage-one size reporting | F1 | n/a |
 | [F4](#f4) | complete #1218 | Stream frames larger than 1,452 bytes, through writer and a parser limit set by configuration | F1 | n/a |
-| [F5](#f5) | new | Two configured Transports carry a stream at about 8,957-byte packets over loopback | F2, F3, F4 | n/a |
+| [F5](#f5) | complete #1219 | Two configured Transports carry a stream at about 8,957-byte packets over loopback | F2, F3, F4 | n/a |
 | [F6](#f6) | new | A refused send falls back to the tested size and stays down | F5 | n/a |
 | [F7](#f7) | new | Transport-generated confirmation probes and the drop to the initial size | F6 | F6's unconfirmed fallback |
 | [F8](#f8) | new | Far-side detection: watching, liveness, re-check | F7 | n/a |
@@ -86,7 +86,7 @@ Throwaway builds that raised the constant and pinned the size carried over 8 Gbp
 | [F11](#f11) | conditional | Several short DATAGRAMs in one jumbo packet, with weighted admission | F5; the consumer's comparison selecting this design | n/a |
 | [F12](#f12) | new | The release that claims jumbo, at the qualified commit | The consumer's qualification; the first independent release | n/a |
 
-F1 #1208, F2 #1216, F3 #1217 and F4 #1218 are complete. F5 #1219 is the implementation frontier; its F2, F3 and F4 blockers are satisfied. F10 is parallel with F6–F9. Nothing here waits for the quicquic-go identity transition before F12, and that transition doesn't wait for this.
+F1 #1208, F2 #1216, F3 #1217, F4 #1218 and F5 #1219 are complete. F6 #1220 and F10 #1224 have their slice dependencies satisfied and form the implementation frontier. F6 #1220 retains the published-N3/current-source/active-owner comparison recorded in its issue before dispatch; no additional dependency is introduced. F11 #1225 remains conditional on the consumer comparison selecting its design. F10 #1224 is parallel with F6 #1220 through F9 #1223. Nothing here waits for the quicquic-go identity transition before F12, and that transition doesn't wait for this.
 
 ## Implementation slices
 
@@ -202,7 +202,7 @@ Scoped review evidence and technical disposition are linked from [PR #1233](http
 
 **Delivers:** the first end-to-end jumbo connection. Two Transports set to 8972 through the test setter reach about 8,957-byte packets over real loopback sockets, and a stream carries data intact with both Reno and BBR. Send buffers in emission and packing take the jumbo tier when the size is above 1452, including the padded probe packer ([`packet_packer.go` L945](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/packet_packer.go#L945)). The BBR guards ([`bbr_send_policy.go` L38](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/bbr_send_policy.go#L38), [`bbr_sender.go` L93](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/internal/congestion/bbr_sender.go#L93)) check the connection's own ceiling, so an unconfigured connection keeps today's 1,452 guard.
 
-**Disposition / blocked by:** new. Blocked by F2 (the receiver must hold them), F3 (the size must rise) and F4 (frames must fit).
+**Disposition / blocked by:** complete #1219. F2 #1216, F3 #1217 and F4 #1218 prerequisites are satisfied.
 
 **Owner / authority:** the run loop's size, as today. Emission asks one helper for a buffer of the right tier.
 
@@ -364,7 +364,7 @@ Partial loss on equal-cost paths is a declared non-goal. Guarantees are canonica
 ## Acceptance criteria
 
 - [ ] An unconfigured Transport advertises 1452, probes as today and takes no jumbo-tier buffer. Domain, owner and guarantee: first closure row.
-- [ ] Two configured Transports reach about 8,957 on a jumbo path and carry a stream intact.
+- [x] Two configured Transports reach about 8,957 on a jumbo path and carry a stream intact.
 - [ ] A shrink is survived per the third closure row, with no silent wedge in the tested classes.
 - [ ] The method exists only together with recovery, and is refused with native multipath I/O in either order.
 

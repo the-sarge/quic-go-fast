@@ -11,6 +11,7 @@ import (
 // bbrSendPolicy is connection-owned. rate includes BBR's 1% margin;
 // Reno's pacer and its burst/rate adjustments are deliberately independent.
 type bbrSendPolicy struct {
+	ceiling    protocol.ByteCount
 	controller *congestion.BBRSender
 	credit     *localSendCredit
 	rate       uint64 // UDP payload bytes per second
@@ -28,14 +29,18 @@ type bbrSendPolicy struct {
 }
 
 func newBBRSendPolicy(rate uint64, size protocol.ByteCount, now monotime.Time) *bbrSendPolicy {
-	p := &bbrSendPolicy{updated: now, refilledAt: now, credit: newLocalSendCredit()}
+	return newBBRSendPolicyWithCeiling(rate, size, protocol.MaxPacketBufferSize, now)
+}
+
+func newBBRSendPolicyWithCeiling(rate uint64, size, ceiling protocol.ByteCount, now monotime.Time) *bbrSendPolicy {
+	p := &bbrSendPolicy{ceiling: ceiling, updated: now, refilledAt: now, credit: newLocalSendCredit()}
 	p.update(rate, size, now)
 	p.tokens = int64(p.quantum) * 1e9
 	return p
 }
 
 func (p *bbrSendPolicy) update(rate uint64, size protocol.ByteCount, now monotime.Time) {
-	if rate == 0 || size <= 0 || size > protocol.MaxPacketBufferSize {
+	if rate == 0 || size <= 0 || size > p.ceiling {
 		panic("invalid BBR send policy")
 	}
 	p.budget(now)

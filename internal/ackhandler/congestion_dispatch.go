@@ -381,11 +381,16 @@ func (h *sentPacketHandler) captureBBRECN(ack *wire.AckFrame, level protocol.Enc
 // EnableBBR installs the built-in controller before the first registration.
 // Its caller must install bounded emission and BBR ECN validation.
 func EnableBBR(handler SentPacketHandler, size protocol.ByteCount, pending func() protocol.ByteCount) *congestion.BBRSender {
+	return EnableBBRWithPacketCeiling(handler, size, protocol.MaxPacketBufferSize, pending)
+}
+
+// EnableBBRWithPacketCeiling installs BBR with the connection-owned packet ceiling.
+func EnableBBRWithPacketCeiling(handler SentPacketHandler, size, ceiling protocol.ByteCount, pending func() protocol.ByteCount) *congestion.BBRSender {
 	h, ok := handler.(*sentPacketHandler)
 	if !ok || h.bytesSent != 0 || h.congestionEvents != nil || h.pathRoot != nil || len(h.paths) != 0 {
 		panic("invalid BBR installation")
 	}
-	b := congestion.NewBBRSender(size)
+	b := congestion.NewBBRSenderWithPacketCeiling(size, ceiling)
 	EnableDeliverySampling(h, b, pending)
 	h.congestion = b
 	return b

@@ -211,7 +211,7 @@ func (p *packetPacker) PackPathClose(route *pathRoute, frame *wire.ConnectionClo
 	if size := p.shortHeaderPacketLength(connID, pnLen, pl) + protocol.ByteCount(sealer.Overhead()); size > maxPacketSize {
 		return shortHeaderPacket{}, nil, fmt.Errorf("packet too large (%d bytes, allowed %d bytes)", size, maxPacketSize)
 	}
-	buffer := getPacketBuffer()
+	buffer := getPacketBufferForCeiling(packetCeiling(maxPacketSize))
 	packet, err := p.appendShortHeaderPacket(context, buffer, connID, pn, pnLen, sealer.KeyPhase(), pl, 0, maxPacketSize, sealer, false, v)
 	if err != nil {
 		buffer.Release()
@@ -300,7 +300,7 @@ func (p *packetPacker) packConnectionClose(
 	if size > maxPacketSize {
 		return nil, fmt.Errorf("packet too large (%d bytes, allowed %d bytes)", size, maxPacketSize)
 	}
-	buffer := getPacketBuffer()
+	buffer := getPacketBufferForCeiling(packetCeiling(maxPacketSize))
 	packet := &coalescedPacket{
 		buffer:         buffer,
 		longHdrPackets: make([]*longHeaderPacket, 0, numLongHdrPackets),
@@ -468,7 +468,7 @@ func (p *packetPacker) PackCoalescedPacket(onlyAck bool, maxSize protocol.ByteCo
 	if size > maxSize {
 		return nil, fmt.Errorf("packet too large (%d bytes, allowed %d bytes)", size, maxSize)
 	}
-	buffer := getPacketBuffer()
+	buffer := getPacketBufferForCeiling(packetCeiling(maxSize))
 	packet := &coalescedPacket{
 		buffer:         buffer,
 		longHdrPackets: make([]*longHeaderPacket, 0, 3),
@@ -515,7 +515,7 @@ func (p *packetPacker) PackAckOnlyPacket(maxSize protocol.ByteCount, now monotim
 }
 
 func (p *packetPacker) packAckOnlyPacket(route *pathRoute, maxSize protocol.ByteCount, now monotime.Time, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
-	buf := getPacketBuffer()
+	buf := getPacketBufferForCeiling(packetCeiling(maxSize))
 	packet, err := p.appendPacket(route, buf, true, maxSize, now, v)
 	if err != nil {
 		buf.Release()
@@ -888,7 +888,7 @@ func (p *packetPacker) packPTOProbePacket(
 	if size > maxPacketSize {
 		return nil, fmt.Errorf("packet too large (%d bytes, allowed %d bytes)", size, maxPacketSize)
 	}
-	buffer := getPacketBuffer()
+	buffer := getPacketBufferForCeiling(packetCeiling(maxPacketSize))
 	packet := &coalescedPacket{buffer: buffer}
 	var padding protocol.ByteCount
 	if encLevel == protocol.EncryptionInitial {
@@ -922,7 +922,7 @@ func (p *packetPacker) packPTOProbePacket1RTT(route *pathRoute, maxPacketSize pr
 		pl.frames = append(pl.frames, ackhandler.Frame{Frame: ping, Handler: emptyHandler{}})
 		pl.length += ping.Length(v)
 	}
-	buffer := getPacketBuffer()
+	buffer := getPacketBufferForCeiling(packetCeiling(maxPacketSize))
 	packet := &coalescedPacket{buffer: buffer}
 	shp, err := p.appendShortHeaderPacket(context, buffer, connID, pn, pnLen, kp, pl, 0, maxPacketSize, s, false, v)
 	if err != nil {
@@ -942,7 +942,7 @@ func (p *packetPacker) packMTUProbePacket(route *pathRoute, ping ackhandler.Fram
 		frames: []ackhandler.Frame{ping},
 		length: ping.Frame.Length(v),
 	}
-	buffer := getPacketBuffer()
+	buffer := getPacketBufferForCeiling(packetCeiling(size))
 	s, err := p.cryptoSetup.Get1RTTSealer()
 	if err != nil {
 		buffer.Release()
@@ -1000,6 +1000,7 @@ func (p *packetPacker) preparePathProbePacketOn(context ackhandler.PacketContext
 		return preparedShortHeaderPacket{}, nil, err
 	}
 	pn, pnLen := numbers.PeekPacketNumber(protocol.Encryption1RTT)
+	// Path validation is padded only to the minimum, regardless of amplification allowance.
 	buf := getPacketBuffer()
 	s, err := p.cryptoSetup.Get1RTTSealer()
 	if err != nil {

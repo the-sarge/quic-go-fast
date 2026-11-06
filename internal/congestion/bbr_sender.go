@@ -59,7 +59,7 @@ type BBRSender struct {
 	probeWait        time.Duration
 	roundsSinceProbe uint64
 
-	size, initialWindow, window                           protocol.ByteCount
+	size, ceiling, initialWindow, window                  protocol.ByteCount
 	phase                                                 bbrPhase
 	rate, bandwidth, fullBandwidth                        uint64
 	deliveryBase, delivered, nextRound, round, drainRound uint64
@@ -84,13 +84,18 @@ type BBRSender struct {
 }
 
 func NewBBRSender(size protocol.ByteCount) *BBRSender {
-	w := bbrInitialWindow(size)
-	return &BBRSender{random: (&utils.Rand{}).Int31n, size: size, initialWindow: w, window: w, rate: bbrScale(uint64(w)*10, 2772588722, 1000000000), inflightLong: protocol.MaxByteCount, inflightShort: protocol.MaxByteCount, bandwidthShort: math.MaxUint64}
+	return NewBBRSenderWithPacketCeiling(size, protocol.MaxPacketBufferSize)
+}
+
+// NewBBRSenderWithPacketCeiling fixes the connection-owned validation ceiling.
+func NewBBRSenderWithPacketCeiling(size, ceiling protocol.ByteCount) *BBRSender {
+	w := bbrInitialWindow(size, ceiling)
+	return &BBRSender{ceiling: ceiling, random: (&utils.Rand{}).Int31n, size: size, initialWindow: w, window: w, rate: bbrScale(uint64(w)*10, 2772588722, 1000000000), inflightLong: protocol.MaxByteCount, inflightShort: protocol.MaxByteCount, bandwidthShort: math.MaxUint64}
 }
 
 // bbrInitialWindow validates a packet size and returns its initial window.
-func bbrInitialWindow(size protocol.ByteCount) protocol.ByteCount {
-	if size <= 0 || size > protocol.MaxPacketBufferSize {
+func bbrInitialWindow(size, ceiling protocol.ByteCount) protocol.ByteCount {
+	if size <= 0 || size > ceiling {
 		panic("invalid BBR packet size")
 	}
 	return min(10*size, max(14720, 2*size))
@@ -520,8 +525,8 @@ func (b *BBRSender) Reset(path, sample, delivered uint64) {
 	if b.closed {
 		return
 	}
-	size, random := b.size, b.random
-	*b = *NewBBRSender(size)
+	size, ceiling, random := b.size, b.ceiling, b.random
+	*b = *NewBBRSenderWithPacketCeiling(size, ceiling)
 	b.random = random
 	b.pathGeneration, b.sampleGeneration, b.modelSampleFloor = path, sample, sample
 	b.delivered, b.deliveryBase, b.nextRound = delivered, delivered, delivered
@@ -531,7 +536,7 @@ func (b *BBRSender) SetMaxDatagramSize(size protocol.ByteCount) {
 	if b.closed {
 		return
 	}
-	b.size, b.initialWindow = size, bbrInitialWindow(size)
+	b.size, b.initialWindow = size, bbrInitialWindow(size, b.ceiling)
 	if b.persistentModel {
 		b.initialWindow = 2 * size
 	}
