@@ -1,6 +1,6 @@
 # Packet-protection placement design for N3 #1202
 
-**Status:** selected for a local correctness/compiler prototype, not an accepted implementation contract or product qualification. **Date:** 2026-11-05. **Source basis:** retained measured diagnostic `35b83b13a3b94ec3665889c0f6a0844d0f851060`. **Related:** [pipeline redesign](2026-11-05-native-pipeline-redesign.md), [latest measured ECN/writer result](2026-11-05-native-ecn-writer-prototype.md), [comparison input from issue #1232](2026-11-05-send-pipeline-comparison-1232.md). N3 #1202 remains stopped; draft PR #1230 remains held.
+**Status:** local prototype validated; comparative performance unresolved. This is not an accepted implementation contract or product qualification. **Date:** 2026-11-05. **Source basis:** retained measured diagnostic `35b83b13a3b94ec3665889c0f6a0844d0f851060`. **Related:** [pipeline redesign](2026-11-05-native-pipeline-redesign.md), [latest clean ECN/writer result](2026-11-05-native-ecn-writer-prototype.md), [comparison input from issue #1232](2026-11-05-send-pipeline-comparison-1232.md). N3 #1202 remains stopped; draft PR #1230 remains held.
 
 ## Problem and possible benefit
 
@@ -53,3 +53,7 @@ Existing lifetime characterizations pass on baseline, temporary changed source a
 ## Evidence and next decision
 
 The retained read-only source assessments cover the closed-emission counterexamples, Linux vector error information loss, concrete crypto mutability/concurrency, whole-role profile attribution and exact initialization patch. The two independent reviews support the concrete bounded descriptor/cleanup design. A temporary local prototype is selected at source `2dabc2cbdd5a6e6ad8eb471e3fda3d72cf5f53e1`, with discriminating tests of ciphertext equivalence, key policy/reentry, old-generation concurrent sealing, callback-driven metadata retirement, cancellation and native retry/fallback. Source/escape/layout review remains pending; there is no performance observation for this design. No remote comparison, new worker, queue, threshold, operational budget or dispatchable issue graph is selected by this checkpoint.
+
+## Prototype outcome
+
+The [implemented prototype and two-attempt receipt](2026-11-05-native-protection-placement-prototype.md) binds source `78fac7ec3cd60d0dfc03c14dded71ed66c5bf0b2`, discriminating tests, final compiler/layout costs and the explicit private-buffer observer limit. Both remote pairs are contaminated and establish no performance pass; profiles do establish protection placement on the writer. The latest clean target evidence remains the ECN/writer result. Preserve the source while obtaining an isolated comparison before selecting another performance-driven change.
