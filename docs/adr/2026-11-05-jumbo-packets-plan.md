@@ -246,13 +246,22 @@ Scoped review evidence and technical disposition are linked from [PR #1233](http
 
 **Disposition / blocked by:** new. Blocked by F6, whose fallback it confirms.
 
-**Owner / authority:** the run loop owns the deadlines and the verdict. Probes are built by the padded probe packer, and their loss isn't reported to congestion control, while other lost packets still are.
+**Owner / authority:** the run loop owns the deadlines and the verdict. Probes are built by the padded probe packer, and their loss isn't reported to congestion control, while other lost packets still are. Recovery owns registration-credit accounting: both padded recovery probes and their follow-up PINGs are transport-owned recovery emissions and preserve pending ordinary PTO dispatch credits. The follow-up PING retains ordinary outstanding-packet, loss-alarm and congestion-loss classification.
 
 **Seams / blast radius:** removes F6's unconfirmed fallback. Adds one emission intent reached only during recovery, so ordinary loss timeouts and discovery probes don't change. A probe's handler is guarded by path generation, because [a path change declares every probe lost](https://github.com/the-sarge/quic-go-fast/blob/e243f863dd/internal/ackhandler/sent_packet_handler.go#L1544). Untraced: none expected.
 
 **Artifacts / representation / closure:** required safety enforcement. Guarantee: example-level. Closure: [third row](#contract-closure).
 
-**TDD and evidence budget:** written first: a DATAGRAM-only connection with no other traffic confirming its fallback. A probe reaching a lost verdict with no return traffic other than the follow-up PING's ACK. A congestion-limited sender getting its probe out. A fake that refuses above 1,300 too, reaching the initial size and running stage one again without stage two. All probes lost stops probing with the connection's normal rules still in force. A path change during recovery causes no fallback. One guard mutation: remove the deadline and see the DATAGRAM-only test stall. One review plus at most one replacement.
+**PTO-credit preservation classes:** the existing recovery registration and private recovery-frame construction own this classification; wire parsing and ACK validation remain with their existing owners. The finite control and two recovery classes discharge this preservation row without a controller/route crossproduct.
+
+| Class at an app-data PTO | Expected disposition | Enforcement owner | Finite evidence |
+| --- | --- | --- | --- |
+| No pending recovery emission | Two ordinary PTO dispatches | Recovery's existing PTO credit grant and consumption | Control in `TestJumboFallbackPreservesPendingPTOCredits` |
+| Padded recovery probe pending | Its owned probe plus both ordinary PTO dispatches; owned probe deadline unchanged | Recovery-owned registration credit classification | Padded case in the same regression |
+| Recovery follow-up PING pending | Its PING plus both ordinary PTO dispatches; ordinary PING loss alarm unchanged | Same registration credit class, independent of the MTU-probe loss flag | Follow-up case in the same regression |
+
+
+**TDD and evidence budget:** written first: a DATAGRAM-only connection with no other traffic confirming its fallback. A probe reaching a lost verdict with no return traffic other than the follow-up PING's ACK. A congestion-limited sender getting its probe out. A fake that refuses above 1,300 too, reaching the initial size and running stage one again without stage two. All probes lost stops probing with the connection's normal rules still in force. A path change during recovery causes no fallback. One focused pending-app-data-PTO regression uses real registration and emission with an outstanding 500-byte DATAGRAM: its control retains two ordinary PTO dispatches, and recovery retains those two dispatches alongside either a padded probe or its 64-byte follow-up PING, without imposing ordering. The follow-up keeps its ordinary loss alarm, and padded recovery keeps its owned deadline. One guard mutation: remove the deadline and see the DATAGRAM-only test stall. One review plus at most one replacement.
 
 **Context:** at most 18k: this slice, the Decision section, F6's routine, the emission intent code and the padded probe packer.
 
