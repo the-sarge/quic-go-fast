@@ -9604,3 +9604,30 @@ Certified head `677f509b789df0700666ef640f2e6584e92c1ced` passed full affected-p
 ### Next
 
 At this entry, F4 #1218 code is merged and its required journal/task/readiness reconciliation is finishing. PR #1249 already owns the committed F4 completion/header/graph/frontier transition: F5 #1219 is the only newly ready implementation slice after full closure; later and conditional children are unchanged. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) remains the live coordination view, and the [normative plan](adr/2026-11-05-jumbo-packets-plan.md) owns the accepted contract.
+
+---
+
+## Jumbo emission at the discovered size - 2026-11-06 03:05 EST
+
+**Main:** `291a4afd68d5`
+**Actor:** Codex
+
+### Summary
+
+[PR #1251 — Send at the discovered jumbo size (#1219)](https://github.com/the-sarge/quic-go-fast/pull/1251) merged as `291a4afd68d5d36f0d9ec6886e12f97088ede703`, completing F5 #1219 under [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). Two Transports configured through the test-only ceiling setter carry an intact stream with ordinary 8,957-byte UDP payloads under Reno and BBRv3; a 1,400-byte application DATAGRAM arrives after jumbo discovery. Public opt-in and shrink recovery remain later accepted slices.
+
+Path-zero finder creation/reset now use the effective ceiling. Emission and packers choose the existing packet-buffer tier using the current construction limit, including padded MTU probes. Both BBR guards retain the connection's local ceiling through controller reset. Non-zero multipath paths retain their 1,452-byte cap, and fixed-1,200 path validation keeps standard storage rather than treating its amplification allowance as a packet size. Linux GSO keeps its existing large buffer, which holds two packets at the discovered jumbo size. No general performance claim is made.
+
+### Validation
+
+The first real-loopback test was red for Reno and BBRv3 at 1,438-byte probes. The final existing examples pass at 8,957-byte ordinary STREAM UDP payloads with intact data. Literal capped-peer discovery and path reset, representative standard send/padded-probe no-jumbo-tier borrowing, and BBR ceiling/reset guards remain green. Complete affected-package tests, focused race checks, vet, tidy-diff and all six existing OS lint profiles passed on reviewed/certified head `6d20397823e7994888c50c8b35fc3972c9f72870`; [PR #1251 final certification](https://github.com/the-sarge/quic-go-fast/pull/1251#issuecomment-6680034346) records the commands and review links.
+
+The first hosted Windows unit jobs exposed a test-observer assumption: successful Windows native sends can report zero completion bytes. The observer now records the submitted atomic UDP payload length on success while returning the underlying values unchanged. This test-only correction changed no production behavior, skip or assertion threshold. The [PR #1251 diagnosis receipt](https://github.com/the-sarge/quic-go-fast/pull/1251#issuecomment-6679926572) records evidence and dispositions; no same-head rerun or extra campaign was used.
+
+All 17 existing hosted checks then succeeded on the corrected head. Existing [Windows Go 1.26.10 unit evidence for PR #1251](https://github.com/the-sarge/quic-go-fast/actions/runs/42182965431/job/127776582199) and [Windows Go 1.27.3 unit evidence for PR #1251](https://github.com/the-sarge/quic-go-fast/actions/runs/42182965431/job/127776582108) show both Reno and BBRv3 cases actually ran, each reporting 8,957-byte STREAM payloads and passing intact-data/DATAGRAM assertions, with no loopback skip. This is loopback evidence relevant to F9 #1223, not advance certification of its future public implementation. [PR #1251 hosted receipt](https://github.com/the-sarge/quic-go-fast/pull/1251#issuecomment-6680217570) links unit `42182965431`, integration `42182965607`, lint `42182965465`, cross-compilation `42182965434` and interop `42182965481`.
+
+Fresh parallel Standards/Spec preparation returned no findings. Initial full-panel RAS `20261106T073059-4ceddd2b3fbd4e8f5280eb42` required no scoped fix; its [PR #1251 independent dispositions](https://github.com/the-sarge/quic-go-fast/pull/1251#issuecomment-6679863064) reject extra BBR assertion/status-format obligations and retain the native-multipath/jumbo steering concern as an excluded combination already governed by F9 #1223's refusal in both configuration orders. The sole permitted full-panel replacement `20261106T074603-b015115984b3de1b25c6661e` reviewed the observer correction and returned zero findings. No RAS ran for this journal. The product merge's parent is the checked base `1b483d551a45e1a86959198d919f8db703cc7416`, and its tree exactly matches the certified candidate.
+
+### Next
+
+At this entry, F5 #1219 code is merged and its required journal/task/readiness closure is finishing. PR #1251 already owns the committed completion/header/graph/frontier transition: F6 #1220 and F10 #1224 have their slice dependencies satisfied; F6 #1220 retains the published N3 #1202/current-source/active-owner comparison before dispatch, and F11 #1225 remains conditional on the consumer selecting its design. The excluded native-multipath/jumbo combination is not claimed supported; no new follow-up ticket or untraced supported-domain effect is identified. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) is the live coordination view, and the [normative plan](adr/2026-11-05-jumbo-packets-plan.md#f5) owns the contract.
