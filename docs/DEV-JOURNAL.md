@@ -9656,3 +9656,26 @@ Certified head `b2a57dfa7fd4066d81035be3478ecabd7a3ec10f` passed affected root/r
 ### Next
 
 At this entry, F6 #1220 code is merged and its required journal/task/readiness reconciliation is finishing. PR #1253 already owns the committed completion/header/graph/frontier transition: F7 #1221 follows F6 in the recovery chain, and the still-open F10 #1224 retains its independent worker and queued candidate. F11 #1225 remains conditional on the consumer selecting its design. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) remains the live coordination view, and the [normative plan](adr/2026-11-05-jumbo-packets-plan.md#f6) owns the accepted contract.
+
+---
+
+## Linux jumbo GSO batching landed - 2026-11-06 06:09 EST
+
+**Main:** `26dd14b45fc5`
+**Actor:** Codex
+
+### Summary
+
+[PR #1255 — Use 64 KiB batches for Linux jumbo GSO sends (#1224)](https://github.com/the-sarge/quic-go-fast/pull/1255) merged as `26dd14b45fc5208c32382c3d9a056f2ee1c5f9cc`, implementing F10 #1224 under [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). Linux segmented sends whose current packet size exceeds 1,452 now use the existing 65,535-byte storage tier. Emission applies a separate 65,507-byte aggregate payload budget to Reno continuation and BBR before quantization. Standard-size batches retain the previous 20 KiB limit. Protocol-state, congestion, recovery and socket-I/O ownership remain unchanged.
+
+### Validation
+
+The Linux loopback STREAM regression was red at two jumbo segments under both Reno and BBR, with intact data. It now observes successful seven-segment jumbo batches and intact delivery under both controllers. Preservation cases at current size 1,452 retain the standard tier and batch layout for default, peer-capped and jumbo-active connections still sending at the standard size.
+
+Initial review identified that storage capacity alone admitted aggregates above the UDP payload limit. Bounded full-size Reno/BBR and equal-short Reno regressions were red before the usable-budget repair and pass afterward, preserving storage and DATAGRAM payloads. The short representative uses 2,184-byte encoded segments at current size 8,957; smaller short segments inherit the same bound by inspection of the current-size argument, without an additional runtime claim. The [PR #1255 repair receipt](https://github.com/the-sarge/quic-go-fast/pull/1255#issuecomment-6683193177) records the correction. Source verification resolved the finding, and the one replacement full-panel review required no further change. Its conditional native-endpoint observation was rejected within the accepted native-route exclusion already owned by F9 #1223; no supported-domain follow-up remains.
+
+Certified head `e1add4e254c986415fbee8f65fe809028fffacce` passed affected-package tests on Linux and Darwin, vet, module tidiness, all six existing selected-build lint profiles, and clean-tree/diff checks. All 17 existing hosted checks succeeded, including [Linux Go 1.27.3 unit checks for PR #1255](https://github.com/the-sarge/quic-go-fast/actions/runs/42206255051/job/127853530054). The unchanged-base squash merge has the exact certified tree `70a645d11422ee6e02bc81cbd88296c3018fe68b`. This is the accepted example-level batching evidence, without NIC-specific software GSO or real-link qualification.
+
+### Next
+
+At this entry, F10 #1224 code is merged and its journal/task reconciliation is finishing. PR #1255 owns the committed completion and frontier transition. F7 #1221 retains its independent coding work and is the remaining implementation frontier; F11 #1225 remains conditional on the consumer comparison selecting its design. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) is the live coordination view, and the [F10 normative plan](adr/2026-11-05-jumbo-packets-plan.md#f10) owns the accepted contract.

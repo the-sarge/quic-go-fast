@@ -319,8 +319,9 @@ func (e *packetEmission) withoutGSO(now monotime.Time) (result emissionResult) {
 }
 
 func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
-	buf := getLargePacketBuffer()
 	maxSize := e.packetSize()
+	buf := getGSOPacketBuffer(maxSize)
+	byteLimit := gsoPacketSendLimit(maxSize)
 	ecn := e.selected().ECNMode(true)
 	batch := newGSOBatch(maxSize, e.shortSegments)
 	for {
@@ -351,7 +352,7 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 			done = mode != ackhandler.SendAny
 		}
 		nextECN := e.selected().ECNMode(true)
-		if !done && more && nextECN == ecn && batch.fits(buf.Len(), buf.Cap()) {
+		if !done && more && nextECN == ecn && batch.fits(buf.Len(), byteLimit) {
 			continue
 		}
 		e.handoff(buf, batch.gsoSize(), ecn, sendMetadata{})
@@ -368,7 +369,7 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 			return result
 		}
 		ecn = nextECN
-		buf, batch = getLargePacketBuffer(), newGSOBatch(maxSize, e.shortSegments)
+		buf, batch = getGSOPacketBuffer(maxSize), newGSOBatch(maxSize, e.shortSegments)
 	}
 }
 
