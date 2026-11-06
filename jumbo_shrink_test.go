@@ -13,21 +13,23 @@ import (
 	"testing"
 	"time"
 
-	quicproxy "github.com/quic-go/quic-go/integrationtests/tools/proxy"
+	quicproxy "github.com/quic-go/quic-go/internal/testutils/quicproxy"
 	"github.com/stretchr/testify/require"
 )
 
 type jumboShrinkProxy struct {
-	limit                 atomic.Int64
-	outage                atomic.Bool
-	impair                atomic.Int32
-	firstSmallAck         chan struct{}
-	secondOutage          atomic.Bool
-	reordered             atomic.Uint64
-	armedSmall            atomic.Bool
-	once                  sync.Once
-	outageSmall           atomic.Int64
-	outageLargeAfterSmall atomic.Int64
+	limit                   atomic.Int64
+	outage                  atomic.Bool
+	impair                  atomic.Int32
+	firstSmallAck           chan struct{}
+	secondOutage            atomic.Bool
+	reordered               atomic.Uint64
+	armedSmall              atomic.Bool
+	once                    sync.Once
+	outageSmall             atomic.Int64
+	outageLargeAfterSmall   atomic.Int64
+	livenessLossesRemaining atomic.Int64
+	livenessDrops           atomic.Int64
 }
 
 func newJumboShrinkPair(t *testing.T, initialLimit int64) (*Conn, *Conn, *jumboShrinkProxy) {
@@ -65,6 +67,11 @@ func newJumboShrinkPair(t *testing.T, initialLimit int64) (*Conn, *Conn, *jumboS
 					control.armedSmall.Store(true)
 				}
 				if limit := control.limit.Load(); limit != 0 && int64(len(b)) > limit {
+					return true
+				}
+				if len(b) == 64 && control.limit.Load() != 0 && control.livenessLossesRemaining.Load() > 0 {
+					control.livenessLossesRemaining.Add(-1)
+					control.livenessDrops.Add(1)
 					return true
 				}
 				if control.impair.Load() == 1 {
@@ -141,21 +148,29 @@ func TestJumboFarSideShrink(t *testing.T) {
 			if returns {
 				testJumboShrinkWithSmallReturns(t)
 			} else {
-				testJumboShrinkStream(t)
+				testJumboShrinkStream(t, 0)
 			}
 		})
 	}
 }
 
-func testJumboShrinkStream(t *testing.T) {
+func TestJumboFarSideShrinkLostLiveness(t *testing.T) {
+	testJumboShrinkStream(t, 2)
+}
+
+func testJumboShrinkStream(t *testing.T, lostLiveness int64) {
+	t.Helper()
 	c, s, proxy := newJumboShrinkPair(t, 0)
+	proxy.livenessLossesRemaining.Store(lostLiveness)
 	proxy.limit.Store(1500)
 	start := time.Now()
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	data := bytes.Repeat([]byte("intact through far-side shrink"), 8192)
 	done := make(chan error, 1)
+	t.Cleanup(func() { c.CloseWithError(0, ""); <-done })
 	go func() {
+		defer close(done)
 		stream, err := c.OpenUniStreamSync(ctx)
 		if err == nil {
 			_, err = stream.Write(data)
@@ -177,7 +192,8 @@ func testJumboShrinkStream(t *testing.T) {
 	default:
 		t.Fatal("far-side shrink never triggered fallback")
 	}
-	t.Logf("far-side recovery %s (0.3s target, not a pass criterion)", time.Since(start))
+	require.EqualValues(t, lostLiveness, proxy.livenessDrops.Load())
+	t.Logf("far-side recovery %s after %d lost liveness packets (0.3s target, not a pass criterion)", time.Since(start), lostLiveness)
 }
 
 func testJumboShrinkWithSmallReturns(t *testing.T) {

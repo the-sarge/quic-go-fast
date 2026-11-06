@@ -818,6 +818,7 @@ runLoop:
 				break runLoop
 			}
 			c.countHandshakeTimeout(outcome)
+			c.notePacketSizePTO(outcome)
 			if c.pathCredit != nil {
 				c.pathCredit.notePTO(outcome, now)
 			}

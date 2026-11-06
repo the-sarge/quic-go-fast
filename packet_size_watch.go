@@ -10,6 +10,7 @@ import (
 // The window approximates three backed-off PTOs (1+2+4), regardless of which
 // detector declared the losses. A successful jumbo ACK starts a fresh window.
 type packetSizeWatch struct {
+	generation                uint64
 	deadline, since           monotime.Time
 	losses, lostProbes        int
 	checking, recheck, retire bool
@@ -29,9 +30,33 @@ func (c *Conn) notePacketSizeLoss(context ackhandler.PacketContext, _ protocol.B
 		return
 	}
 	if w.losses == 0 {
+		w.generation = c.pathGeneration
 		w.deadline = now.Add(7 * c.rttStats.PTO(true))
 	}
 	w.losses++
+	c.scheduleSending()
+}
+
+// The run loop supplies this returned fact synchronously, before sending or a
+// path switch. Retry eligibility does not depend on retiring this PING from the
+// front of recovery history, and does not consume ordinary PTO dispatch credits.
+func (c *Conn) notePacketSizePTO(outcome ackhandler.TimeoutOutcome) {
+	if !outcome.PTO || outcome.PathID != 0 || outcome.EncLevel != protocol.Encryption1RTT {
+		return
+	}
+	w := &c.mtuWatch
+	c.notePacketSizeLivenessRetry(w.generation, w.probe)
+}
+
+func (c *Conn) notePacketSizeLivenessRetry(generation uint64, p *packetSizeRecoveryProbe) {
+	if p == nil || p.sent == 0 || !c.watchingPacketSize() {
+		return
+	}
+	w := &c.mtuWatch
+	if generation != c.pathGeneration || w.generation != generation || !w.checking || w.recheck || w.probe != p {
+		return
+	}
+	p.retryable = true
 	c.scheduleSending()
 }
 
@@ -94,9 +119,9 @@ func (c *Conn) advancePacketSizeWatch(now monotime.Time) {
 	}
 	p := w.probe
 	if !w.recheck {
-		// Ordinary recovery owns unanswered liveness loss and backoff. Sending on a
-		// separate base-PTO clock would keep postponing its last-send-anchored alarm.
-		if p != nil && p.expired {
+		// Ordinary loss or a PTO opportunity can admit one retry. There is no
+		// separate clock that can keep postponing the ordinary loss alarm.
+		if p != nil && p.retryable {
 			w.probe = nil
 		}
 		return
@@ -140,10 +165,7 @@ func (c *Conn) preparePacketSizeWatch(now monotime.Time) packetSizeRecoveryInten
 			intent.lost = func() {
 				// This callback reports an ordinary-loss fact in the connection context;
 				// the next run-loop preparation decides whether to retry the same epoch.
-				if generation == c.pathGeneration && c.mtuWatch.probe == p && !c.mtuWatch.recheck {
-					p.expired = true
-					c.scheduleSending()
-				}
+				c.notePacketSizeLivenessRetry(generation, p)
 			}
 		}
 		return intent

@@ -16,6 +16,7 @@ type packetSizeRecoveryProbe struct {
 	timeout                              time.Duration
 	sent, deadline                       monotime.Time
 	expired, followupSent, laterSmallAck bool
+	retryable                            bool // an ordinary loss/PTO opportunity for this liveness epoch
 }
 
 type packetSizeRecoveryIntent struct {
