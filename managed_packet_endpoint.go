@@ -220,27 +220,18 @@ func (c *managedPacketConn) bindQUIC() (managedPacketIOSetup, error) {
 	}, nil
 }
 
-// freezePacketCeiling runs after the Transport validates its exact registration.
-// The lease owns this immutable copy; the endpoint's retained decoder is not
-// reconfigured, and ordinary reads outside this lease keep the default.
-func (c *managedPacketConn) freezePacketCeiling(ceiling packetCeiling) error {
+// freezePacketCeiling copies into the exact lease fixed by registration, whose
+// identity is never recycled. This is not I/O admission: a historic lease can
+// receive its immutable copy after handback without affecting its successor.
+// Actual reads retain begin/checkLocked admission before decoder access.
+func (c *managedPacketConn) freezePacketCeiling(ceiling packetCeiling) {
 	e := c.endpoint
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
-	// Later Transport.Close calls can repeat sealing after lease handback.
-	// With no new copy to make, they must not revalidate or affect its successor.
-	if c.lease != nil && c.lease.ceilingFrozen {
-		return nil
+	if !c.lease.ceilingFrozen {
+		c.lease.packetCeiling = ceiling
+		c.lease.ceilingFrozen = true
 	}
-	if err := c.checkLocked(); err != nil {
-		return err
-	}
-	if c.lease == nil || !c.lease.quic {
-		return errors.New("quic: packet ceiling requires a bound managed lease")
-	}
-	c.lease.packetCeiling = ceiling
-	c.lease.ceilingFrozen = true
-	return nil
 }
 
 func (c *managedPacketConn) begin() error {

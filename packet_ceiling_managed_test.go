@@ -2,7 +2,9 @@ package quic
 
 import (
 	"net"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/stretchr/testify/require"
@@ -65,4 +67,43 @@ func TestPacketCeilingManagedLeaseReads(t *testing.T) {
 	require.Same(t, receiver, endpoint.(*managedPacketConn).endpoint.receiver)
 	require.NoError(t, tr.beginPacketIO(), "late sealing is idempotent and cannot configure the new lease")
 	read(next, 1452)
+}
+
+func TestPacketCeilingManagedCloseAfterHandback(t *testing.T) {
+	for _, started := range []bool{false, true} {
+		t.Run(map[bool]string{false: "registered but never started", true: "initialized then closed"}[started], func(t *testing.T) {
+			_, acquire := newTestManagedEndpoint(t)
+			lease, err := acquire()
+			require.NoError(t, err)
+			tr := &Transport{Conn: lease}
+			defer tr.Close()
+			require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
+			require.NoError(t, tr.setPacketCeilingForTesting(1400))
+			if started {
+				require.NoError(t, tr.init(false))
+				require.NoError(t, tr.Close())
+			}
+			require.NoError(t, lease.Close())
+			next, err := acquire()
+			require.NoError(t, err)
+			defer next.Close()
+			nextTransport := &Transport{Conn: next}
+			require.NoError(t, nextTransport.ConfigureManagedPacketIOV1(next, next, nil))
+			require.NoError(t, next.SetReadDeadline(time.Now().Add(-time.Second)))
+			require.NoError(t, tr.Close(), "cleanup does not depend on prior initialization or a live lease")
+			require.NoError(t, tr.Close(), "repeated cleanup preserves its existing result")
+			b := make([]byte, 32)
+			_, _, err = lease.ReadFrom(b)
+			require.ErrorIs(t, err, net.ErrClosed, "copying a historic lease does not admit stale reads")
+			_, _, err = next.ReadFrom(b)
+			require.ErrorIs(t, err, os.ErrDeadlineExceeded, "old cleanup cannot clear the new lease's deadline")
+			require.NoError(t, next.SetReadDeadline(time.Now().Add(time.Second)))
+			peer := newUDPConnLocalhost(t)
+			_, err = peer.WriteTo([]byte("new lease"), next.LocalAddr())
+			require.NoError(t, err)
+			n, _, err := next.ReadFrom(b)
+			require.NoError(t, err)
+			require.Equal(t, "new lease", string(b[:n]))
+		})
+	}
 }
