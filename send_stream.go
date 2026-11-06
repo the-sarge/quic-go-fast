@@ -477,8 +477,7 @@ func (s *SendStream) popNewStreamFrame(maxDataLen protocol.ByteCount) (_ *wire.S
 		if cap(nextFrame.Data) > int(protocol.MaxPacketBufferSize) {
 			// Keep the large allocation owned by the stream. Recovery only retains
 			// a packet-sized copy, and dequeuing never copies the large unsent tail.
-			f := wire.GetStreamFrame()
-			maxDataLen = min(maxDataLen, protocol.MaxPacketBufferSize)
+			f := wire.GetStreamFrameForSize(maxDataLen)
 			f.StreamID = s.streamID
 			f.Offset = s.writeOffset
 			f.DataLenPresent = true
@@ -518,7 +517,7 @@ func (s *SendStream) popNewStreamFrame(maxDataLen protocol.ByteCount) (_ *wire.S
 		return nextFrame, s.nextFrame != nil || s.dataForWriting != nil
 	}
 
-	f := wire.GetStreamFrame()
+	f := wire.GetStreamFrameForSize(maxDataLen)
 	f.Fin = false
 	f.StreamID = s.streamID
 	f.Offset = s.writeOffset
@@ -741,7 +740,7 @@ func (s *SendStream) CancelWrite(errorCode StreamErrorCode) {
 				if f.Offset+f.DataLen() <= reliableOffset {
 					retransmissionQueue = append(retransmissionQueue, f)
 				} else {
-					f.Data = f.Data[:reliableOffset-f.Offset]
+					f.TruncateData(reliableOffset - f.Offset)
 					retransmissionQueue = append(retransmissionQueue, f)
 				}
 			}
@@ -969,7 +968,7 @@ func (s *sendStreamAckHandler) OnLost(f wire.Frame) {
 		// If the payload of the frame extends beyond the reliable size,
 		// truncate the frame to the reliable size.
 		if sf.Offset+sf.DataLen() > (*SendStream)(s).reliableOffset() {
-			sf.Data = sf.Data[:(*SendStream)(s).reliableOffset()-sf.Offset]
+			sf.TruncateData((*SendStream)(s).reliableOffset() - sf.Offset)
 		}
 	}
 

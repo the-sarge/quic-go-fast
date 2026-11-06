@@ -14,6 +14,7 @@ var errUnknownFrameType = errors.New("unknown frame type")
 
 // The FrameParser parses QUIC frames, one by one.
 type FrameParser struct {
+	maxStreamDataLen      protocol.ByteCount
 	ackDelayExponent      uint8
 	supportsDatagrams     bool
 	supportsResetStreamAt bool
@@ -28,6 +29,7 @@ type FrameParser struct {
 // NewFrameParser creates a new frame parser.
 func NewFrameParser(supportsDatagrams, supportsResetStreamAt, supportsAckFrequency bool) *FrameParser {
 	return &FrameParser{
+		maxStreamDataLen:      protocol.MaxPacketBufferSize,
 		supportsDatagrams:     supportsDatagrams,
 		supportsResetStreamAt: supportsResetStreamAt,
 		supportsAckFrequency:  supportsAckFrequency,
@@ -82,7 +84,7 @@ func (p *FrameParser) ParseType(b []byte, encLevel protocol.EncryptionLevel) (Fr
 }
 
 func (p *FrameParser) ParseStreamFrame(frameType FrameType, data []byte, v protocol.Version) (*StreamFrame, int, error) {
-	frame, n, err := ParseStreamFrame(data, frameType, v)
+	frame, n, err := parseStreamFrame(data, frameType, v, p.maxStreamDataLen)
 	if err != nil {
 		return nil, n, &qerr.TransportError{
 			ErrorCode:    qerr.FrameEncodingError,
@@ -240,4 +242,10 @@ func replaceUnexpectedEOF(e error) error {
 		return io.EOF
 	}
 	return e
+}
+
+// SetMaxStreamDataLen sets the STREAM payload limit from the local packet ceiling.
+// It must be called before parsing begins.
+func (p *FrameParser) SetMaxStreamDataLen(limit protocol.ByteCount) {
+	p.maxStreamDataLen = limit
 }
