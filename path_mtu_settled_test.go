@@ -52,11 +52,13 @@ func newPathMTUSettledTestConnection(t *testing.T, conf *Config, maxUDPPayloadSi
 	sc.EXPECT().RemoteAddr().Return(tc.remoteAddr).AnyTimes()
 	sc.EXPECT().LocalAddr().Return(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1234}).AnyTimes()
 	c.conn = sc
-	c.peerParams = &wire.TransportParameters{
-		MaxUDPPayloadSize:       maxUDPPayloadSize,
-		MaxDatagramFrameSize:    wire.MaxDatagramSize,
-		ActiveConnectionIDLimit: 2,
-	}
+	require.NoError(t, c.handleTransportParameters(&wire.TransportParameters{
+		InitialSourceConnectionID:       c.handshakeDestConnID,
+		OriginalDestinationConnectionID: c.origDestConnID,
+		MaxUDPPayloadSize:               maxUDPPayloadSize,
+		MaxDatagramFrameSize:            wire.MaxDatagramSize,
+		ActiveConnectionIDLimit:         2,
+	}))
 	c.applyTransportParameters()
 	return c, cs
 }
@@ -356,4 +358,28 @@ func TestPathMTUInfoHandshakeFallback(t *testing.T) {
 	ceiling, stageOne := c.PathMTUInfoV1()
 	require.EqualValues(t, 8972, ceiling)
 	require.EqualValues(t, 1436, stageOne)
+}
+
+func TestPathMTUInfoAtPeerParameters(t *testing.T) {
+	tc := newClientTestConnection(t, nil, &Config{InitialPacketSize: 1232}, false)
+	c := tc.conn
+	c.packetCeiling = 8972
+	params := &wire.TransportParameters{
+		InitialSourceConnectionID:       c.handshakeDestConnID,
+		OriginalDestinationConnectionID: c.origDestConnID,
+		MaxUDPPayloadSize:               8000,
+		ActiveConnectionIDLimit:         2,
+	}
+	invalid := *params
+	invalid.InitialSourceConnectionID = protocol.ParseConnectionID([]byte{1, 2, 3, 4})
+	require.Error(t, c.handleTransportParameters(&invalid))
+	ceiling, stageOne := c.PathMTUInfoV1()
+	require.Zero(t, ceiling, "rejected parameters do not publish a ceiling")
+	require.Zero(t, stageOne)
+	require.NoError(t, c.handleTransportParameters(params))
+	ceiling, stageOne = c.PathMTUInfoV1()
+	require.EqualValues(t, 8000, ceiling, "accepted parameters are observable before handshake completion")
+	require.Zero(t, stageOne)
+	require.Nil(t, c.mtuDiscoverer, "sending parameters still wait for handshake completion")
+	require.EqualValues(t, 1232, c.maxPacketSize())
 }

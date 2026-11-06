@@ -2839,6 +2839,7 @@ func (c *Conn) handleTransportParameters(params *wire.TransportParameters) error
 	}
 
 	c.peerParams = params
+	c.pathMTUEffectiveCeiling.Store(uint32(c.effectivePacketCeiling()))
 	// On the client side we have to wait for handshake completion.
 	// During a 0-RTT connection, we are only allowed to use the new transport parameters for 1-RTT packets.
 	if c.perspective == protocol.PerspectiveServer {
@@ -2913,7 +2914,6 @@ func (c *Conn) applyTransportParameters() {
 		// Preserve ordinary connection-ID rotation without adopting the address.
 		c.connIDManager.AddFromPreferredAddress(params.PreferredAddress.ConnectionID, params.PreferredAddress.StatelessResetToken)
 	}
-	c.pathMTUEffectiveCeiling.Store(uint32(c.effectivePacketCeiling()))
 	c.mtuDiscoverer = c.newPathMTUFinder(c.effectiveInitialPacketSize, c.peerMaxPacketSize())
 }
 

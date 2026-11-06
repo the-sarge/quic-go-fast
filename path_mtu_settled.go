@@ -53,7 +53,7 @@ func (c *Conn) PathMTUSettledV1() <-chan struct{} {
 // PathMTUInfoV1 reports the effective packet ceiling and the tested stage-one
 // packet size, in bytes of UDP payload. The ceiling is the smaller of the local
 // Transport's ceiling and the peer's advertised max_udp_payload_size. It is zero
-// until the peer's transport parameters have been applied; it does not promise
+// until the peer's transport parameters have been received and accepted; it does not promise
 // that the path supports that size.
 //
 // The stage-one size is zero until the current path's standard-size search has
