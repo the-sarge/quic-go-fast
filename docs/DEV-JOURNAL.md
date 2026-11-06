@@ -9550,3 +9550,28 @@ Certified head `9c2730cce4d06ae7faa09ab88b6230bc2cc3af95` passed the full affect
 ### Next
 
 At this entry, F2 #1216 code is merged and its journal/task closure is finishing. F3 #1217 and F4 #1218 remain the frontier; F5 #1219 remains blocked on both. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) is the live coordination view. This slice adds no public configuration or sending/recovery behavior; later accepted slices retain those responsibilities.
+
+---
+
+## Two-stage MTU discovery landed - 2026-11-06 00:59 EST
+
+**Main:** `3959ffb85d22`
+**Actor:** Codex
+
+### Summary
+
+[PR #1247 — Preserve standard MTU discovery before staged jumbo search](https://github.com/the-sarge/quic-go-fast/pull/1247) merged as `3959ffb85d2241b67296a12ded55000f95be43e8`, closing [F3 #1217](https://github.com/the-sarge/quic-go-fast/issues/1217) under [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). The finder preserves today's standard search, records its tested stage-one size, and opens a second stage only after topping out. `Conn.PathMTUInfoV1()` reports the effective ceiling on accepted peer-parameter receipt and stage one's tested size after it finishes. `PathMTUSettledV1` follows the complete search and final DATAGRAM-limit publication.
+
+Production discovery remains capped at 1,452 bytes. F5 #1219 will feed the actual effective ceiling to path-zero finder creation/reset when jumbo packet construction and emission are ready; non-zero multipath paths retain their 1,452 cap. Handshake fallback retains the finder's overall ceiling through replacement. This slice adds no jumbo socket emission, buffers, STREAM expansion, recovery or public opt-in.
+
+### Validation
+
+The accepted simulated rows match the plan: IPv4 MTU 1500 settles at 1,470 with 17 probes and 11 losses, IPv4 MTU 9000 at 8,957 with 13 probes and no losses, and WireGuard 1420 retains 1,390 with 8 probes and 4 losses. Peer-1452, smaller tested fallback, reset, handshake replacement and settled-order regressions passed. The single approved topped-out-guard mutation made WireGuard fail with 19 probes instead of 8 and was restored. These are example-level probe-table results, not an end-to-end jumbo qualification.
+
+The [PR #1247 preparation receipt](https://github.com/the-sarge/quic-go-fast/pull/1247#issuecomment-6677960628) records separate Standards/Spec reviews and the validated early-client publication fix. Full-panel RAS run `20261106T054637-b947d39017d7dd6ae19c5163` completed all four reviewers and adjudicators; the [PR #1247 independent disposition receipt](https://github.com/the-sarge/quic-go-fast/pull/1247#issuecomment-6678094802) records rejection of optional comment/glossary suggestions. No behavioral fix, verification, replacement review or follow-up remained.
+
+Certified head `349cfaf267ffff21870b16b1ac4cb936e6db5b59` passed affected-package tests, existing settled integration tests, vet, tidy diff, clean-tree/diff/contract checks and all six normal selected-build lint profiles. All 17 hosted checks succeeded on it: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/42170316129), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/42170316064), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/42170316056), [cross compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/42170316214) and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/42170316203). The [PR #1247 exact-head certification receipt](https://github.com/the-sarge/quic-go-fast/pull/1247#issuecomment-6678108607) retains local evidence; the unchanged-base squash merge's tree was verified identical to the certified tree.
+
+### Next
+
+At this entry, F3 #1217 code is merged and its required journal/task closure is finishing. PR #1247 already owns its committed completion/frontier transition: F4 #1218 remains the implementation frontier and F5 #1219 remains blocked on F4 #1218. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) is the live coordination view; the [normative plan](adr/2026-11-05-jumbo-packets-plan.md#f3) owns the contract.
