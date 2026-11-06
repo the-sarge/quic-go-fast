@@ -41,6 +41,7 @@ func TestPacketCeilingAdvertisementAndDiscovery(t *testing.T) {
 		{name: "default", want: 1452, probes: []protocol.ByteCount{1342, 1397, 1424, 1438}},
 		{name: "threaded", configured: 1400, want: 1400, probes: []protocol.ByteCount{1316, 1358, 1379}},
 		{name: "local ceiling below peer", configured: 1400, serverDefault: true, want: 1400, probes: []protocol.ByteCount{1316, 1358, 1379}},
+		{name: "jumbo local capped by peer", configured: 8972, serverDefault: true, want: 1452, probes: []protocol.ByteCount{1342, 1397, 1424, 1438}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -77,11 +78,17 @@ func TestPacketCeilingAdvertisementAndDiscovery(t *testing.T) {
 					serverWant = 1452
 				}
 				require.Equal(t, serverWant, c.peerParams.MaxUDPPayloadSize, "server advertisement")
-				require.Equal(t, tc.want, s.peerParams.MaxUDPPayloadSize, "client advertisement")
+				clientWant := tc.want
+				if tc.configured != 0 {
+					clientWant = tc.configured
+				}
+				require.Equal(t, clientWant, s.peerParams.MaxUDPPayloadSize, "client advertisement")
 				for _, conn := range []*Conn{c, s} {
+					require.Equal(t, tc.want, conn.effectivePacketCeiling())
 					requirePacketCeilingSearch(t, conn, tc.probes)
 					// A new path must use the same endpoint ceiling.
 					conn.resetPathPacketSize(monotime.Now())
+					require.Equal(t, tc.want, conn.effectivePacketCeiling())
 					requirePacketCeilingSearch(t, conn, tc.probes)
 				}
 			})

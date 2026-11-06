@@ -16,7 +16,7 @@ func TestBBRProbeRTTIdleAndResume(t *testing.T) {
 		t.Run(reason, func(t *testing.T) {
 			c := newEmissionTestConnection(t, false).conn
 			now := monotime.Now()
-			b := c.emission.enableBBR(now)
+			b := c.emission.enableBBR(now, protocol.MaxPacketBufferSize)
 			q := c.emission.queue.(*sendQueue)
 			defer func() {
 				for len(q.queue) > 0 {

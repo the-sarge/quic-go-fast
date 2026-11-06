@@ -9,13 +9,13 @@ import (
 
 // enableBBR installs the selected controller and bounded emission together,
 // before any packet registration.
-func (e *packetEmission) enableBBR(now monotime.Time) *congestion.BBRSender {
+func (e *packetEmission) enableBBR(now monotime.Time, ceiling protocol.ByteCount) *congestion.BBRSender {
 	if e.bbr != nil {
 		panic("BBR already installed")
 	}
 	size := e.policy.maxPacketSize()
-	e.bbr = newBBRSendPolicy(1, size, now)
-	b := ackhandler.EnableBBR(*e.recovery, size, func() protocol.ByteCount {
+	e.bbr = newBBRSendPolicyWithCeiling(1, size, ceiling, now)
+	b := ackhandler.EnableBBRWithPacketCeiling(*e.recovery, size, ceiling, func() protocol.ByteCount {
 		e.bbr.credit.mu.Lock()
 		defer e.bbr.credit.mu.Unlock()
 		// The current construction reservation is capacity for the packet being

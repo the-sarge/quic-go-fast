@@ -25,7 +25,7 @@ func TestBBRInstalledPendingObservation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := newEmissionTestConnection(t, false).conn
 			now := monotime.Now()
-			c.emission.enableBBR(now)
+			c.emission.enableBBR(now, protocol.MaxPacketBufferSize)
 			if tt.olderDebt {
 				reservation := c.emission.bbr.credit.reserve(1200, 2400, true, false)
 				require.NotNil(t, reservation)
@@ -53,7 +53,7 @@ func TestBBRInstalledPendingObservation(t *testing.T) {
 func TestBBRTransportFeedbackToAllowance(t *testing.T) {
 	c := newEmissionTestConnection(t, false).conn
 	now := monotime.Now()
-	b := c.emission.enableBBR(now)
+	b := c.emission.enableBBR(now, protocol.MaxPacketBufferSize)
 	require.EqualValues(t, 12000, b.GetCongestionWindow())
 	q := c.emission.queue.(*sendQueue)
 	defer func() {
