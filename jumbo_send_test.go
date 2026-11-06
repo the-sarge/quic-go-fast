@@ -21,6 +21,8 @@ import (
 
 // Keep the real socket's OOB/DF interface while observing actual UDP writes.
 // GSO is disabled in this test, so each observed write is one UDP datagram.
+// Record the submitted length on success: Windows overlapped sends can report
+// zero transferred bytes even when the datagram arrives (see windowsConn.WritePacket).
 type jumboSendRecordingConn struct {
 	*net.UDPConn
 	largest atomic.Int64
@@ -37,7 +39,7 @@ func (c *jumboSendRecordingConn) record(n int) {
 func (c *jumboSendRecordingConn) WriteMsgUDP(b, oob []byte, addr *net.UDPAddr) (int, int, error) {
 	n, oobn, err := c.UDPConn.WriteMsgUDP(b, oob, addr)
 	if err == nil {
-		c.record(n)
+		c.record(len(b))
 	}
 	return n, oobn, err
 }
@@ -45,7 +47,7 @@ func (c *jumboSendRecordingConn) WriteMsgUDP(b, oob []byte, addr *net.UDPAddr) (
 func (c *jumboSendRecordingConn) WriteTo(b []byte, addr net.Addr) (int, error) {
 	n, err := c.UDPConn.WriteTo(b, addr)
 	if err == nil {
-		c.record(n)
+		c.record(len(b))
 	}
 	return n, err
 }
