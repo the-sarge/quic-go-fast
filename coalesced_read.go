@@ -52,12 +52,14 @@ func copyCoalescedDatagram(datagram []byte, managed bool, ceiling packetCeiling)
 	switch {
 	case len(datagram) <= protocol.MaxPacketBufferSize:
 		buffer = getPacketBuffer()
+	case ceiling.size() > protocol.MaxPacketBufferSize && len(datagram) <= int(ceiling.size()):
+		buffer = getPacketBufferForCeiling(ceiling)
 	case len(datagram) <= protocol.MaxLargePacketBufferSize:
 		buffer = getLargePacketBuffer()
 	case managed:
 		buffer = getCoalescedPacketBuffer()
 	default:
-		buffer = getPacketBuffer()
+		buffer = getPacketBufferForCeiling(ceiling)
 		datagram = datagram[:ceiling.size()]
 	}
 	buffer.Data = append(buffer.Data, datagram...)

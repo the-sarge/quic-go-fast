@@ -110,3 +110,44 @@ func TestWindowsManagedPacketCeilingHandback(t *testing.T) {
 	read(next, 1420, 's')
 	require.Same(t, reader, endpoint.(*managedPacketConn).endpoint.receiver, "decoder/URO state survives both leases")
 }
+
+func TestJumboWindowsOrdinaryLoopback(t *testing.T) {
+	socket := newUDPConnLocalhost(t)
+	reader, err := newConnWithPacketCeiling(socket, true, false, 8972)
+	require.NoError(t, err)
+	defer reader.releaseReadBuffers()
+	requireJumboLoopback(t, reader, socket, "prefix", 8972)
+}
+
+func TestJumboWindowsCoalescedLoopback(t *testing.T) {
+	socket := newUDPConnLocalhost(t)
+	reader, err := newConnWithPacketCeiling(socket, true, false, 8972)
+	require.NoError(t, err)
+	defer reader.releaseReadBuffers()
+	reader.cap.GRO = true
+	requireJumboLoopback(t, reader, socket, "reject", 0)
+	require.True(t, reader.uroGuardTripped, "only the over-limit read trips the guard")
+}
+
+func TestWindowsJumboManagedPacketCeilingGuard(t *testing.T) {
+	script := &uroReadConn{t: t, payloads: [][]byte{bytes.Repeat([]byte{'j'}, 8972), []byte("next")}, oobs: [][]byte{nil, nil}, addr: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1234}}
+	reader := newUROConn(t, script)
+	reader.managed = true
+	endpoint, acquire, err := newManagedPacketEndpoint(script)
+	require.NoError(t, err)
+	defer endpoint.Close()
+	endpoint.(*managedPacketConn).endpoint.receiver = reader
+	lease, err := acquire()
+	require.NoError(t, err)
+	defer lease.Close()
+	tr := &Transport{Conn: lease}
+	require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
+	require.NoError(t, tr.setPacketCeilingForTesting(8972))
+	require.NoError(t, tr.beginPacketIO())
+	buffer := make([]byte, 10000)
+	n, _, err := lease.ReadFrom(buffer)
+	require.NoError(t, err)
+	require.Equal(t, bytes.Repeat([]byte{'j'}, 8972), buffer[:n])
+	require.False(t, reader.uroGuardTripped)
+	require.Zero(t, reader.receiveCoalescingFallbackCount().Load())
+}

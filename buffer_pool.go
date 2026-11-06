@@ -70,6 +70,16 @@ func (b *packetBuffer) putBack() {
 		readSlotBufferPool.Put(b)
 		return
 	}
+	// Capacity identifies the originating pool for every borrowed buffer.
+	// Jumbo tiers are selected only by a configured Transport's ceiling.
+	if cap(b.Data) == jumboPacketBufferSize {
+		jumboBufferPool.Put(b)
+		return
+	}
+	if cap(b.Data) == jumboReadSlotBufferSize {
+		jumboReadSlotBufferPool.Put(b)
+		return
+	}
 	panic("putPacketBuffer called with packet of wrong size!")
 }
 
@@ -78,7 +88,25 @@ func (b *packetBuffer) putBack() {
 // packet ceiling, so a full slot means the datagram was truncated.
 const readSlotBufferSize = protocol.MaxPacketBufferSize + 1
 
-var bufferPool, largeBufferPool, coalescedBufferPool, readSlotBufferPool sync.Pool
+const (
+	jumboPacketBufferSize   = 8972
+	jumboReadSlotBufferSize = jumboPacketBufferSize + 1
+)
+
+var (
+	bufferPool, largeBufferPool, coalescedBufferPool, readSlotBufferPool sync.Pool
+	jumboBufferPool, jumboReadSlotBufferPool                             sync.Pool
+)
+
+func getPacketBufferForCeiling(ceiling packetCeiling) *packetBuffer {
+	if ceiling.size() <= protocol.MaxPacketBufferSize {
+		return getPacketBuffer()
+	}
+	buf := jumboBufferPool.Get().(*packetBuffer)
+	buf.refCount = 1
+	buf.Data = buf.Data[:0]
+	return buf
+}
 
 func getPacketBuffer() *packetBuffer {
 	buf := bufferPool.Get().(*packetBuffer)
@@ -124,6 +152,12 @@ func init() {
 	}
 	coalescedBufferPool.New = func() any {
 		return &packetBuffer{Data: make([]byte, 0, protocol.MaxCoalescedPacketBufferSize)}
+	}
+	jumboBufferPool.New = func() any {
+		return &packetBuffer{Data: make([]byte, 0, jumboPacketBufferSize)}
+	}
+	jumboReadSlotBufferPool.New = func() any {
+		return &packetBuffer{Data: make([]byte, 0, jumboReadSlotBufferSize)}
 	}
 	readSlotBufferPool.New = func() any {
 		return &packetBuffer{Data: make([]byte, 0, readSlotBufferSize)}

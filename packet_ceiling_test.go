@@ -144,3 +144,30 @@ func TestPacketCeilingBasicReader(t *testing.T) {
 		})
 	}
 }
+
+func TestJumboPacketCeilingAdvertisement(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		clientSocket, serverSocket, closeLink := newSimnetLink(t, 5*time.Millisecond)
+		defer closeLink()
+		server := &Transport{Conn: serverSocket}
+		client := &Transport{Conn: clientSocket}
+		defer server.Close()
+		defer client.Close()
+		require.NoError(t, server.setPacketCeilingForTesting(8972))
+		require.NoError(t, client.setPacketCeilingForTesting(8972))
+		conf := &Config{DisablePathMTUDiscovery: true}
+		serverTLS := testdata.GetTLSConfig()
+		serverTLS.NextProtos = []string{"jumbo-ceiling"}
+		ln, err := server.Listen(serverTLS, conf)
+		require.NoError(t, err)
+		c, err := client.Dial(t.Context(), ln.Addr(), &tls.Config{InsecureSkipVerify: true, NextProtos: []string{"jumbo-ceiling"}}, conf)
+		require.NoError(t, err)
+		s, err := ln.Accept(t.Context())
+		require.NoError(t, err)
+		require.NoError(t, c.CloseWithError(0, ""))
+		require.NoError(t, s.CloseWithError(0, ""))
+		synctest.Wait()
+		require.EqualValues(t, 8972, c.peerParams.MaxUDPPayloadSize)
+		require.EqualValues(t, 8972, s.peerParams.MaxUDPPayloadSize)
+	})
+}
