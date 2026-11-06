@@ -154,7 +154,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 	e.confirmSupplyGap(now)
 	limit := size
 	if confirmed && e.opportunityCapabilities().GSO {
-		limit = min(e.bbr.budget(now), allowance, gsoPacketBufferSize(size))
+		limit = min(e.bbr.budget(now), allowance, gsoPacketSendLimit(size))
 		limit -= limit % size
 	}
 	if !e.reserveLocal(limit, true, false, now) {

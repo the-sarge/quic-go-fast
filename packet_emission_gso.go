@@ -23,6 +23,17 @@ func gsoPacketBufferSize(size protocol.ByteCount) protocol.ByteCount {
 	return protocol.MaxLargePacketBufferSize
 }
 
+// gsoPacketSendLimit separates usable UDP payload from storage capacity.
+// Linux IPv4 leaves 20 bytes for IP and 8 for UDP in the 65535-byte limit;
+// using that bound for IPv6 too keeps the shared send path conservative.
+func gsoPacketSendLimit(size protocol.ByteCount) protocol.ByteCount {
+	capacity := gsoPacketBufferSize(size)
+	if capacity == protocol.MaxCoalescedPacketBufferSize {
+		return 65507
+	}
+	return capacity
+}
+
 func getGSOPacketBuffer(size protocol.ByteCount) *packetBuffer {
 	if gsoPacketBufferSize(size) == protocol.MaxCoalescedPacketBufferSize {
 		return getCoalescedPacketBuffer()
