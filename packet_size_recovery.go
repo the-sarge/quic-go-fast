@@ -86,7 +86,7 @@ func (c *Conn) preparePacketSizeRecovery(now monotime.Time) packetSizeRecoveryIn
 // use the MTU-probe loss exemption; follow-up PINGs retain ordinary loss rules.
 type packetSizeRecoveryHandler struct{}
 
-func (*packetSizeRecoveryHandler) HasMTURecoveryDeadline() {}
+func (*packetSizeRecoveryHandler) IsMTURecoveryPacket() {}
 
 func (*packetSizeRecoveryHandler) OnAcked(wire.Frame) {}
 func (*packetSizeRecoveryHandler) OnLost(wire.Frame)  {}

@@ -755,3 +755,64 @@ func TestJumboFallbackIgnoresPathProbeCategoryCap(t *testing.T) {
 		}
 	})
 }
+
+// Ordinary PTO packing opportunities are separate from transport-owned recovery
+// emission, including a follow-up PING that still has ordinary loss semantics.
+func TestJumboFallbackPreservesPendingPTOCredits(t *testing.T) {
+	emitted := make(map[string][]int)
+	for _, kind := range []string{"control", "padded", "follow-up"} {
+		t.Run(kind, func(t *testing.T) {
+			tc := newJumboRefusalEmission(t)
+			c := tc.conn
+			now := monotime.Now()
+			c.packetSizeFeedback.publish(c.pathGeneration, 8957)
+			c.applyPacketSizeFallback(now)
+			q := c.emission.queue.(*sendQueue)
+			drain := func() []int {
+				var sizes []int
+				for len(q.queue) > 0 {
+					entry := <-q.queue
+					sizes = append(sizes, len(entry.buf.Data))
+					entry.buf.Release()
+				}
+				return sizes
+			}
+			t.Cleanup(func() { drain() })
+			if kind == "control" {
+				c.mtuFallback.active, c.mtuFallback.confirmed = false, true
+			} else if kind == "follow-up" {
+				require.NoError(t, c.triggerSending(now).err)
+				require.Equal(t, []int{1438}, drain())
+			}
+			// This real outstanding DATAGRAM arms the ordinary app-data loss clock.
+			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: bytes.Repeat([]byte{'d'}, 500)}))
+			result := c.emission.advance(now.Add(time.Millisecond), false)
+			require.NoError(t, result.err)
+			require.True(t, result.progress)
+			require.Len(t, drain(), 1)
+			deadline := c.sentPacketHandler.GetLossDetectionTimeout()
+			require.NotZero(t, deadline)
+			timeout, err := c.sentPacketHandler.OnLossDetectionTimeout(deadline)
+			require.NoError(t, err)
+			require.True(t, timeout.PTO)
+			require.Equal(t, ackhandler.SendPTOAppData, c.sentPacketHandler.SendMode(deadline))
+			// Reno may dispatch both ordinary PTOs in one opportunity. Recovery can
+			// use its separate opportunity before or after them without consuming one.
+			for range 2 {
+				require.NoError(t, c.triggerSending(deadline).err)
+			}
+			emitted[kind] = drain()
+			if kind == "padded" {
+				require.NotNil(t, c.mtuFallback.probe)
+				require.True(t, c.mtuFallback.probe.deadline.After(deadline))
+			} else if kind == "follow-up" {
+				require.True(t, c.mtuFallback.probe.followupSent)
+				require.NotZero(t, c.sentPacketHandler.GetLossDetectionTimeout(), "the follow-up PING retains ordinary loss-alarm eligibility")
+			}
+		})
+	}
+	control := emitted["control"]
+	require.Len(t, control, 2, "the control retains both ordinary PTO dispatches")
+	require.ElementsMatch(t, []int{control[0], control[1], 1438}, emitted["padded"])
+	require.ElementsMatch(t, []int{control[0], control[1], 64}, emitted["follow-up"])
+}

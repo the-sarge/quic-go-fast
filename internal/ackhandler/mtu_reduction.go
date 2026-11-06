@@ -20,11 +20,15 @@ func ResetForMTUReduction(handler SentPacketHandler, now monotime.Time, size pro
 // hasMTURecoveryDeadline identifies transport recovery probes whose clock and
 // verdict belong to the connection run loop. Discovery probes keep ordinary loss.
 func (p *packet) hasMTURecoveryDeadline() bool {
-	if !p.IsPathMTUProbePacket {
-		return false
-	}
+	return p.IsPathMTUProbePacket && p.isMTURecoveryPacket()
+}
+
+// isMTURecoveryPacket classifies the transport's dedicated recovery emission for
+// registration credit. Both padded attempts and follow-up PINGs belong to it;
+// IsPathMTUProbePacket independently retains their different loss classification.
+func (p *packet) isMTURecoveryPacket() bool {
 	for _, frame := range p.Frames {
-		if _, ok := frame.Handler.(interface{ HasMTURecoveryDeadline() }); ok {
+		if _, ok := frame.Handler.(interface{ IsMTURecoveryPacket() }); ok {
 			return true
 		}
 	}

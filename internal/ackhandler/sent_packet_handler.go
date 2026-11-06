@@ -415,7 +415,8 @@ func (h *sentPacketHandler) sentPacket(context PacketContext, t monotime.Time, p
 		pnSpace.lastAckElicitingPacketTime = t
 		h.bytesInFlight += size
 		p.includedInBytesInFlight = true
-		if h.numProbesToSend > 0 {
+		// Recovery owns this emission separately from ordinary PTO packing credits.
+		if h.numProbesToSend > 0 && !p.isMTURecoveryPacket() {
 			h.numProbesToSend--
 		}
 	}
