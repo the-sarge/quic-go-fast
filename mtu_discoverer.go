@@ -1,6 +1,8 @@
 package quic
 
 import (
+	"sync/atomic"
+
 	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
@@ -85,6 +87,14 @@ type mtuFinder struct {
 	inFlight protocol.ByteCount // the size of the probe packet currently in flight. InvalidByteCount if none is in flight
 	min      protocol.ByteCount
 
+	// Two-stage discovery preserves the standard search before trying jumbo.
+	// Single-stage finders are also used for independent multipath searches.
+	twoStage       bool
+	ceiling        protocol.ByteCount
+	stageOneMax    protocol.ByteCount
+	stageOneSize   protocol.ByteCount
+	stageOneReport *atomic.Uint32
+
 	// on initialization, we treat the maximum size as the first "lost" packet
 	lost             [maxLostMTUProbes]protocol.ByteCount
 	lastProbeWasLost bool
@@ -117,7 +127,34 @@ func newMTUDiscoverer(
 	return f
 }
 
+// newTwoStageMTUDiscoverer searches up to the standard size first. Jumbo
+// probing is admitted only when losses did not narrow that stage's upper bound.
+func newTwoStageMTUDiscoverer(rttStats *utils.RTTStats, start, max protocol.ByteCount, qlogger qlogwriter.Recorder) *mtuFinder {
+	f := &mtuFinder{
+		inFlight: protocol.InvalidByteCount,
+		rttStats: rttStats,
+		qlogger:  qlogger,
+		twoStage: true,
+	}
+	f.init(start, max)
+	return f
+}
+
 func (f *mtuFinder) init(start, max protocol.ByteCount) {
+	f.ceiling = max
+	f.stageOneMax = max
+	if f.twoStage {
+		f.stageOneMax = min(max, protocol.MaxPacketBufferSize)
+	}
+	f.stageOneSize = 0
+	if f.stageOneReport != nil {
+		f.stageOneReport.Store(0)
+	}
+	f.initSearch(start, f.stageOneMax)
+	f.finishStageOne()
+}
+
+func (f *mtuFinder) initSearch(start, max protocol.ByteCount) {
 	f.min = start
 	for i := range f.lost {
 		if i == 0 {
@@ -131,6 +168,24 @@ func (f *mtuFinder) init(start, max protocol.ByteCount) {
 func (f *mtuFinder) done() bool {
 	return f.max()-f.min <= maxMTUDiff+1
 }
+
+// finishStageOne records its tested fallback before opening the jumbo interval.
+func (f *mtuFinder) finishStageOne() {
+	if f.stageOneSize != 0 || !f.done() {
+		return
+	}
+	f.stageOneSize = f.min
+	if f.stageOneReport != nil {
+		f.stageOneReport.Store(uint32(f.stageOneSize))
+	}
+	if f.ceiling > f.stageOneMax && f.max() == f.stageOneMax {
+		f.initSearch(f.min, f.ceiling)
+		f.lastProbeWasLost = false
+	}
+}
+
+// StageOneSize is zero until the first stage has finished.
+func (f *mtuFinder) StageOneSize() protocol.ByteCount { return f.stageOneSize }
 
 func (f *mtuFinder) max() protocol.ByteCount {
 	for i, v := range f.lost {
@@ -244,6 +299,7 @@ func (h *mtuFinderAckHandler) OnAcked(wire.Frame) {
 			}
 		}
 	}
+	h.finishStageOne()
 	if h.qlogger != nil {
 		h.qlogger.RecordEvent(qlog.MTUUpdated{
 			Value: int(size),
@@ -278,6 +334,7 @@ func (h *mtuFinderAckHandler) OnLost(wire.Frame) {
 			break
 		}
 	}
+	h.finishStageOne()
 	if h.settled != nil && h.done() {
 		h.settled.settle()
 	}

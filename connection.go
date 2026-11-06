@@ -198,8 +198,10 @@ type Conn struct {
 	// and stays zero without path admission. Emission stores it.
 	pathPayloadLimit atomic.Uint32
 	// failureOwner is published at activation, for a transport's close to read.
-	failureOwner   atomic.Pointer[pathCreditRegistry]
-	pathMTUSettled pathMTUSettled // see PathMTUSettledV1
+	failureOwner            atomic.Pointer[pathCreditRegistry]
+	pathMTUSettled          pathMTUSettled // see PathMTUSettledV1
+	pathMTUEffectiveCeiling atomic.Uint32
+	pathMTUStageOneSize     atomic.Uint32
 
 	initialStream       *initialCryptoStream
 	handshakeStream     *cryptoStream
@@ -1129,8 +1131,13 @@ func (c *Conn) resetPathPacketSize(now monotime.Time) {
 	c.pathMTUSettled.settle()
 }
 
-// peerMaxPacketSize is the largest packet any discovery may probe toward this peer.
+// peerMaxPacketSize keeps actual probe emission at the standard size until the
+// jumbo packet construction and send path are enabled by F5.
 func (c *Conn) peerMaxPacketSize() protocol.ByteCount {
+	return min(c.effectivePacketCeiling(), protocol.MaxPacketBufferSize)
+}
+
+func (c *Conn) effectivePacketCeiling() protocol.ByteCount {
 	maxPacketSize := c.packetCeiling.size()
 	if c.peerParams.MaxUDPPayloadSize > 0 && c.peerParams.MaxUDPPayloadSize < maxPacketSize {
 		maxPacketSize = c.peerParams.MaxUDPPayloadSize
@@ -2906,14 +2913,17 @@ func (c *Conn) applyTransportParameters() {
 		// Preserve ordinary connection-ID rotation without adopting the address.
 		c.connIDManager.AddFromPreferredAddress(params.PreferredAddress.ConnectionID, params.PreferredAddress.StatelessResetToken)
 	}
+	c.pathMTUEffectiveCeiling.Store(uint32(c.effectivePacketCeiling()))
 	c.mtuDiscoverer = c.newPathMTUFinder(c.effectiveInitialPacketSize, c.peerMaxPacketSize())
 }
 
 // newPathMTUFinder attaches the connection's settled signal to every finder, so a
 // finder replaced by the handshake fallback reports to the same signal.
 func (c *Conn) newPathMTUFinder(start, max protocol.ByteCount) *mtuFinder {
-	f := newMTUDiscoverer(c.rttStats, start, max, c.qlogger)
+	f := newTwoStageMTUDiscoverer(c.rttStats, start, max, c.qlogger)
 	f.settled = &c.pathMTUSettled
+	f.stageOneReport = &c.pathMTUStageOneSize
+	c.pathMTUStageOneSize.Store(uint32(f.StageOneSize()))
 	return f
 }
 
