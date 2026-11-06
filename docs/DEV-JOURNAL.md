@@ -9500,3 +9500,30 @@ Independent source and policy/graph audits passed after the recorded ownership c
 ### Next
 
 As of this entry, [N6 — Canonical native members (#1235)](https://github.com/the-sarge/quic-go-fast/issues/1235) and [N9 — Canonical recovery facts (#1236)](https://github.com/the-sarge/quic-go-fast/issues/1236) are the verified frontier; neither was dispatched. N7 #1237/N8 #1238 and N10 #1239 lead to N11 #1240, then [N3 — Synchronized integration and qualification (#1202)](https://github.com/the-sarge/quic-go-fast/issues/1202). [Track #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) and [program #646](https://github.com/the-sarge/quic-go-fast/issues/646) are the live views: 4/11 N and 30/46 total complete. R17 #1037/R18 #1038 retain N3 #1202 as their runtime/evidence blocker. Lessons for a reusable pipeline-assessment skill are recorded for discussion after the larger effort.
+
+---
+
+## Transport packet ceiling separated - 2026-11-05 22:53 EST
+
+**Main:** `3977f5d7fad1`
+**Actor:** Codex
+
+### Summary
+
+[PR #1233 — Separate the Transport packet ceiling](https://github.com/the-sarge/quic-go-fast/pull/1233) completed [F1 — Separate the packet ceiling from the buffer constant (#1208)](https://github.com/the-sarge/quic-go-fast/issues/1208) under [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). The Transport now owns one immutable private ceiling, copied through client/server advertisement, peer-capped discovery and existing reader limits. Zero preserves 1452; production has no new opt-in or jumbo buffer tier. Retained managed Windows decoding receives an immutable lease input while existing read admission and cleanup retain their ownership.
+
+### Decisions
+
+[PR #1234 — Retained-reader ownership contract](https://github.com/the-sarge/quic-go-fast/pull/1234) and [PR #1242 — Copying outside I/O admission](https://github.com/the-sarge/quic-go-fast/pull/1242) published the bounded ownership/evidence corrections. Historical lease copying grants no I/O and adds no Close error. The allocation comparison retains unchanged deterministic pins and disclosed unequal real-UDP transfer counts, with no exact equality or timing claim; [PR #1233 — technical evidence disposition](https://github.com/the-sarge/quic-go-fast/pull/1233#issuecomment-6674961234) holds the decision.
+
+The configured full RAS panel ran the initial and permitted replacement review, with source findings and the cleanup regression resolved through the recorded scoped repairs and verification. The final unused no-OOB wrapper deletion used the owner's narrow focused-review/full-checks exception; [PR #1233 — owner decision and pinned review](https://github.com/the-sarge/quic-go-fast/pull/1233#issuecomment-6676176279) records its exact scope. No extra RAS round was started for that exception.
+
+### Validation
+
+Final certified and focused-reviewed head `1b5253c53342bd5b12b91e735b9effe692b49bef` merged as `3977f5d7fad10c84ee43705f812c68f55a83f375`; the reachable merge tree exactly matches that head. All 17 applicable hosted checks succeeded on it, including [unit and platform race checks](https://github.com/the-sarge/quic-go-fast/actions/runs/42157576928), [integration and Linux race](https://github.com/the-sarge/quic-go-fast/actions/runs/42157576887), [lint across the existing target profiles](https://github.com/the-sarge/quic-go-fast/actions/runs/42157576845), [cross compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/42157576807) and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/42157576799). The base remained unchanged at merge.
+
+Local certification covered the ordinary Go suite, focused managed/ceiling race tests, Darwin fallback read slots, Windows/OpenBSD/Solaris test compilation, affected GOOS lint, vet, module tidiness and diff checks. Literal default/threaded advertisement, probe and read-limit pins, the three admitted owner-bypass failures, managed guard/handback and started/unstarted cleanup tests discharge the finite contract. [PR #1233 — final certification and evidence receipt](https://github.com/the-sarge/quic-go-fast/pull/1233#issuecomment-6676239262) retains the details and limitations.
+
+### Next
+
+As of this entry, F1 #1208 is merged and its issue is closed; journal/task/readiness reconciliation is finishing. F2 [#1216](https://github.com/the-sarge/quic-go-fast/issues/1216), F3 [#1217](https://github.com/the-sarge/quic-go-fast/issues/1217) and F4 [#1218](https://github.com/the-sarge/quic-go-fast/issues/1218) each have only the now-closed F1 dependency and form the parallel engineering frontier after full closure. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) remains the live coordination view; the [normative plan](adr/2026-11-05-jumbo-packets-plan.md) owns later-slice contracts.
