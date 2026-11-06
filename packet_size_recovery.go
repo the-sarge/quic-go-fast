@@ -24,6 +24,9 @@ type packetSizeRecoveryIntent struct {
 }
 
 func (c *Conn) packetSizeRecoveryTime() monotime.Time {
+	if t := c.packetSizeWatchTime(); t != 0 {
+		return t
+	}
 	f := &c.mtuFallback
 	if !f.active || f.generation != c.pathGeneration || f.probe == nil || f.probe.expired {
 		return 0
@@ -65,6 +68,9 @@ func (c *Conn) advancePacketSizeRecovery(now monotime.Time) {
 
 func (c *Conn) preparePacketSizeRecovery(now monotime.Time) packetSizeRecoveryIntent {
 	c.advancePacketSizeRecovery(now)
+	if intent := c.preparePacketSizeWatch(now); intent.probe != nil {
+		return intent
+	}
 	f := &c.mtuFallback
 	if !f.active {
 		return packetSizeRecoveryIntent{}
@@ -121,6 +127,9 @@ func (e *packetEmission) packetSizeRecovery(intent packetSizeRecoveryIntent, now
 	}
 	if intent.followup {
 		intent.probe.followupSent = true
+		if intent.probe.sent == 0 {
+			intent.probe.sent, intent.probe.deadline = now, now.Add(intent.probe.timeout)
+		}
 	} else {
 		intent.probe.sent, intent.probe.deadline = now, now.Add(intent.probe.timeout)
 	}

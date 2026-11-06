@@ -100,3 +100,16 @@ func CanSendMTURecoveryProbe(handler SentPacketHandler) bool {
 	h := handler.(*sentPacketHandler)
 	return h.canTrackPacket() && !h.isAmplificationLimited()
 }
+
+// ObservePacketSize reports synchronous transport facts to the connection owner.
+// It adds no policy or cross-context handoff to recovery.
+func ObservePacketSize(handler SentPacketHandler, acked func(PacketContext, protocol.ByteCount, monotime.Time), lost func(PacketContext, protocol.ByteCount, monotime.Time)) {
+	h := handler.(*sentPacketHandler)
+	h.mtuAcked, h.mtuLost = acked, lost
+}
+
+func (h *sentPacketHandler) reportMTULoss(p *packet, now monotime.Time) {
+	if h.mtuLost != nil && p.EncryptionLevel == protocol.Encryption1RTT && !p.IsPathMTUProbePacket && !p.isPathProbePacket && p.Length > protocol.MaxPacketBufferSize {
+		h.mtuLost(p.Context, p.Length, now)
+	}
+}

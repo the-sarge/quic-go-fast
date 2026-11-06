@@ -60,8 +60,8 @@ type mtuFallback struct {
 	dropped    chan struct{}
 }
 
-// PathMTUFallbackV1 returns a channel that closes when a local size refusal
-// causes this connection to fall back from jumbo to its tested stage-one size.
+// PathMTUFallbackV1 returns a channel that closes when a local size refusal or
+// a confirmed far-side shrink causes this connection to fall back from jumbo to its tested stage-one size.
 // It reports that first size drop, not confirmation or application delivery.
 // Failed confirmation can lower the limit again to the initial packet size;
 // confirming that size restarts standard discovery and can raise the limit up to
@@ -85,13 +85,18 @@ func (c *Conn) applyPacketSizeFallback(now monotime.Time) {
 		size <= protocol.MaxPacketBufferSize {
 		return
 	}
+	c.startPacketSizeFallback(now)
+}
+
+func (c *Conn) startPacketSizeFallback(now monotime.Time) {
 	fallback := c.mtuDiscoverer.StageOneSize()
 	// No tested standard stage exists on this path yet.
 	if fallback == 0 {
 		return
 	}
-	c.mtuFallback.started, c.mtuFallback.generation = now, generation
+	c.mtuFallback.started, c.mtuFallback.generation = now, c.pathGeneration
 	c.mtuFallback.active = true
+	c.mtuWatch = packetSizeWatch{}
 	c.reducePacketSizeForRecovery(now, fallback)
 	c.pathMTUSettled.settle()
 	close(c.mtuFallback.dropped)
@@ -116,6 +121,7 @@ func (c *Conn) reducePacketSizeForRecovery(now monotime.Time, fallback protocol.
 }
 
 func (c *Conn) confirmPacketSizeFallback(context ackhandler.PacketContext, size protocol.ByteCount, sent monotime.Time) {
+	c.notePacketSizeAck(context, size, sent)
 	f := &c.mtuFallback
 	if !f.active || context.PathID != 0 || context.TupleGeneration != f.generation ||
 		c.pathGeneration != f.generation || sent.Before(f.since) {

@@ -187,6 +187,10 @@ type SocketEvent struct {
 
 // Proxy is a QUIC proxy that can drop and delay packets.
 type Proxy struct {
+	// PacketSize optionally raises the read buffer for tests of larger datagrams.
+	// Set before Start; zero preserves the standard packet buffer.
+	PacketSize int
+
 	// Conn is the caller-owned UDP listening socket. Supply it without active
 	// deadlines. From successful Start until Close returns, the proxy exclusively
 	// uses its I/O and deadlines; the caller may still close it to abort I/O.
@@ -357,7 +361,7 @@ func (p *Proxy) newConnection(cliAddr *net.UDPAddr) (*connection, error) {
 // runProxy listens on the proxy address and handles incoming packets.
 func (p *Proxy) runProxy() error {
 	for {
-		buffer := make([]byte, protocol.MaxPacketBufferSize)
+		buffer := make([]byte, max(protocol.MaxPacketBufferSize, p.PacketSize))
 		n, cliaddr, err := p.Conn.ReadFromUDP(buffer)
 		p.observeRead(DirectionIncoming, cliaddr, p.Conn.LocalAddr(), buffer[:n], n, err)
 		if err != nil {
@@ -430,7 +434,7 @@ func (p *Proxy) runOutgoingConnection(conn *connection) error {
 				return
 			default:
 			}
-			buffer := make([]byte, protocol.MaxPacketBufferSize)
+			buffer := make([]byte, max(protocol.MaxPacketBufferSize, p.PacketSize))
 			socket := conn.GetServerConn()
 			n, addr, err := socket.ReadFrom(buffer)
 			p.observeRead(DirectionOutgoing, addr, socket.LocalAddr(), buffer[:n], n, err)

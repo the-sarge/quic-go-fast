@@ -1,6 +1,6 @@
 # Jumbo packets implementation plan
 
-**Date:** 2026-11-05. **Status:** In progress; F1, F2, F3, F4, F5, F6, F7 and F10 complete. **Identity:** `JP-20261105-F`. **Parent:** [Jumbo packets (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). **Depends on:** nothing for F1. **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions. **Audit history:** this plan's merging PR.
+**Date:** 2026-11-05. **Status:** In progress; F1, F2, F3, F4, F5, F6, F7, F8 and F10 complete. **Identity:** `JP-20261105-F`. **Parent:** [Jumbo packets (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215). **Depends on:** nothing for F1. **Normative scope:** current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions. **Audit history:** this plan's merging PR.
 
 This plan comes from a downstream consumer's owner-approved program. It stands on its own: an implementer needs nothing outside this repository. "The consumer" below means that downstream program, whose qualification results reach this repository through F11's and F12's issues.
 
@@ -80,13 +80,13 @@ Throwaway builds that raised the constant and pinned the size carried over 8 Gbp
 | [F5](#f5) | complete #1219 | Two configured Transports carry a stream at about 8,957-byte packets over loopback | F2, F3, F4 | n/a |
 | [F6](#f6) | complete #1220 | A refused send falls back to the tested size and stays down | F5 | n/a |
 | [F7](#f7) | complete #1221 | Transport-generated confirmation probes and the drop to the initial size | F6 | F6's unconfirmed fallback |
-| [F8](#f8) | new | Far-side detection: watching, liveness, re-check | F7 | n/a |
+| [F8](#f8) | complete #1222 | Far-side detection: watching, liveness, re-check | F7 | n/a |
 | [F9](#f9) | new | The exported opt-in, disclosed as experimental | F8 | F1's test setter |
 | [F10](#f10) | complete #1224 | Linux GSO batches of more than two jumbo packets | F5 | n/a |
 | [F11](#f11) | conditional | Several short DATAGRAMs in one jumbo packet, with weighted admission | F5; the consumer's comparison selecting this design | n/a |
 | [F12](#f12) | new | The release that claims jumbo, at the qualified commit | The consumer's qualification; the first independent release | n/a |
 
-F1 #1208, F2 #1216, F3 #1217, F4 #1218, F5 #1219, F6 #1220, F7 #1221 and F10 #1224 are complete. F8 #1222 has its slice dependency satisfied and forms the implementation frontier. F11 #1225 remains conditional on the consumer comparison selecting its design. Nothing here waits for the quicquic-go identity transition before F12, and that transition doesn't wait for this.
+F1 #1208, F2 #1216, F3 #1217, F4 #1218, F5 #1219, F6 #1220, F7 #1221, F8 #1222 and F10 #1224 are complete. F9 #1223 has its slice dependency satisfied and forms the implementation frontier. F11 #1225 remains conditional on the consumer comparison selecting its design. Nothing here waits for the quicquic-go identity transition before F12, and that transition doesn't wait for this.
 
 ## Implementation slices
 
@@ -270,6 +270,8 @@ Scoped review evidence and technical disposition are linked from [PR #1233](http
 <a id="f8"></a>
 ### F8 — Detect a far-side shrink
 
+**Status:** complete; implemented for #1222.
+
 **Delivers:** steps 1, 2 and 3. Losses above 1452 are counted from both loss detectors, excluding discovery probes. The window, liveness check and re-check at the current size trigger F6's routine, using F7's probes. This covers a peer whose interface shrank, a hop that started dropping, and a consumer whose socket layer absorbs the kernel's refusal, including a connection sending only jumbo DATAGRAMs.
 
 **Disposition / blocked by:** new. Blocked by F7, whose probes it uses and which a detected shrink needs to confirm with no small traffic.
@@ -380,7 +382,7 @@ Partial loss on equal-cost paths is a declared non-goal. Guarantees are canonica
 
 - [ ] An unconfigured Transport advertises 1452, probes as today and takes no jumbo-tier buffer. Domain, owner and guarantee: first closure row.
 - [x] Two configured Transports reach about 8,957 on a jumbo path and carry a stream intact.
-- [ ] A shrink is survived per the third closure row, with no silent wedge in the tested classes.
+- [x] A shrink is survived per the third closure row, with no silent wedge in the tested classes.
 - [ ] The method exists only together with recovery, and is refused with native multipath I/O in either order.
 
 ## Validation gates

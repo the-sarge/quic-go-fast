@@ -163,6 +163,7 @@ type Conn struct {
 	handshakeSendFeedback handshakeSendFeedback
 	packetSizeFeedback    packetSizeFeedback
 	mtuFallback           mtuFallback
+	mtuWatch              packetSizeWatch
 	pathGeneration        uint64
 
 	// lazily initialzed: most connections never migrate
@@ -376,6 +377,9 @@ var newConnection = func(
 		s.qlogger,
 		s.logger,
 	)
+	if s.packetCeiling.size() > protocol.MaxPacketBufferSize {
+		ackhandler.ObservePacketSize(s.sentPacketHandler, s.confirmPacketSizeFallback, s.notePacketSizeLoss)
+	}
 	s.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(s.config.initialPacketSize())))
 	s.pathMTUSettled = newPathMTUSettled()
 	statelessResetToken := statelessResetter.GetStatelessResetToken(srcConnID)
@@ -509,6 +513,9 @@ var newClientConnection = func(
 		s.qlogger,
 		s.logger,
 	)
+	if s.packetCeiling.size() > protocol.MaxPacketBufferSize {
+		ackhandler.ObservePacketSize(s.sentPacketHandler, s.confirmPacketSizeFallback, s.notePacketSizeLoss)
+	}
 	s.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(s.config.initialPacketSize())))
 	s.pathMTUSettled = newPathMTUSettled()
 	if initialPacketSizeLowered {
@@ -800,6 +807,7 @@ runLoop:
 		}
 		c.applyPacketSizeFallback(now)
 		c.advancePacketSizeRecovery(now)
+		c.advancePacketSizeWatch(now)
 		if h, ok := c.sentPacketHandler.(deliveryLifecycle); ok {
 			h.ExpireDelivery(now)
 		}
@@ -1135,6 +1143,7 @@ func (c *Conn) switchToNewPath(tr *Transport, now monotime.Time) {
 func (c *Conn) resetPathPacketSize(now monotime.Time) {
 	size := c.effectiveInitialPacketSize
 	c.mtuFallback.active, c.mtuFallback.probe = false, nil
+	c.mtuWatch = packetSizeWatch{}
 	c.sentPacketHandler.MigratedPath(now, size)
 	c.mtuDiscoverer.Reset(size, c.discoveryPacketCeiling())
 	c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(size)))
