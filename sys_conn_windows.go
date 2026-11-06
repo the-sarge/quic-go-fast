@@ -266,8 +266,8 @@ func (c *windowsConn) readOrdinaryPacket(ceiling packetCeiling) (receivedPacket,
 // once for the rest of the socket's life. After that, a read without its
 // record is one datagram, copied out as copyCoalescedDatagram copies any
 // datagram: whole up to the 20 KiB tier, and above it whole for a managed
-// reader and as its 1,452-byte prefix for any other. A read with its record
-// is still split.
+// reader and as a prefix up to its endpoint ceiling (1,452 bytes by default)
+// for any other. A read with its record is still split.
 // If URO cannot be turned off, it may still be on, so the guard stays armed
 // and keeps dropping such reads rather than deliver one as a datagram.
 func (c *windowsConn) fallBackFromURO() {
