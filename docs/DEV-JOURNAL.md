@@ -9527,3 +9527,26 @@ Local certification covered the ordinary Go suite, focused managed/ceiling race 
 ### Next
 
 As of this entry, F1 #1208 is merged and its issue is closed; journal/task/readiness reconciliation is finishing. F2 [#1216](https://github.com/the-sarge/quic-go-fast/issues/1216), F3 [#1217](https://github.com/the-sarge/quic-go-fast/issues/1217) and F4 [#1218](https://github.com/the-sarge/quic-go-fast/issues/1218) each have only the now-closed F1 dependency and form the parallel engineering frontier after full closure. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) remains the live coordination view; the [normative plan](adr/2026-11-05-jumbo-packets-plan.md) owns later-slice contracts.
+
+---
+
+## Jumbo receive tiers and queues landed - 2026-11-06 00:03 EST
+
+**Main:** `8ed51a138b7b`
+**Actor:** Codex
+
+### Summary
+
+[PR #1244 — Carry jumbo datagrams through readers and receive queues](https://github.com/the-sarge/quic-go-fast/pull/1244) merged as `8ed51a138b7b4322abac2be4683d32c90133a0a1`, closing [F2 #1216](https://github.com/the-sarge/quic-go-fast/issues/1216). It implements [F2's accepted receive contract](adr/2026-11-05-jumbo-packets-plan.md#f2): configured readers select 8,972-byte packet and 8,973-byte read-slot tiers, and confirmed receive queues retain jumbo packets beyond depth 256 through the existing 1,024-entry limit. The frozen Transport ceiling selects allocation; capacity still identifies the return pool. Unconfigured readers retain existing tiers, and the managed Windows decoder keeps its lease-frozen per-read input and retained lifetime.
+
+### Validation
+
+Real-socket regressions cover 8,972-byte whole delivery and each reader's existing one-byte-over behavior. Queue regressions cover whole data, copy-down, jumbo-slot retention and safe release. Held payload capacities are 71,784 bytes for eight jumbo read slots and 9,187,328 bytes for 1,024 jumbo queue buffers, excluding allocator metadata and other connection state. Ubuntu hosted tests exposed a test-only assumption about post-batch slot residency; the corrected assertion measures all eight posted capacities at the native read boundary.
+
+The [PR #1244 preparation receipt](https://github.com/the-sarge/quic-go-fast/pull/1244#issuecomment-6677113714) records separate fresh Standards/Spec reviews and independent dispositions. Full-panel RAS run `20261106T044426-79750a4354e58f6dd352dcc0` completed all four reviewers and adjudicators with only a duplicate plan-header omission; the [PR #1244 review disposition](https://github.com/the-sarge/quic-go-fast/pull/1244#issuecomment-6677233972) records the documentation-only fix and skipped additional RAS cycle. No behavioral finding or deferred follow-up remains.
+
+Certified head `9c2730cce4d06ae7faa09ab88b6230bc2cc3af95` passed the full affected-package suite, focused race checks, Darwin stub checks, vet, tidy-diff and documentation consistency. All six selected GOOS lint profiles and platform test compilation passed. All 17 hosted checks succeeded on that exact head, including both native Windows unit lanes: [unit run](https://github.com/the-sarge/quic-go-fast/actions/runs/42165117662), [integration run](https://github.com/the-sarge/quic-go-fast/actions/runs/42165117666), [lint run](https://github.com/the-sarge/quic-go-fast/actions/runs/42165117691), [cross-compilation run](https://github.com/the-sarge/quic-go-fast/actions/runs/42165117721) and [interop run](https://github.com/the-sarge/quic-go-fast/actions/runs/42165117809). The unchanged-base squash merge's tree was verified identical to the certified tree.
+
+### Next
+
+At this entry, F2 #1216 code is merged and its journal/task closure is finishing. F3 #1217 and F4 #1218 remain the frontier; F5 #1219 remains blocked on both. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) is the live coordination view. This slice adds no public configuration or sending/recovery behavior; later accepted slices retain those responsibilities.
