@@ -9887,3 +9887,26 @@ The [PR #1273 compiler/layout receipt](https://github.com/the-sarge/quic-go-fast
 ### Next
 
 At this entry's timestamp the committed N track is 8/11 complete and the program 34/46. [N8 #1238](https://github.com/the-sarge/quic-go-fast/issues/1238) is the current frontier; [N11 #1240](https://github.com/the-sarge/quic-go-fast/issues/1240) still waits for N8. [Program #646](https://github.com/the-sarge/quic-go-fast/issues/646) and [parent #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) remain the live frontier views. No surviving review follow-up or material untraced effect was identified. N3 #1202 and R17 #1037/R18 #1038 retain combined native/product qualification; public activation remains behind R19 #1039.
+
+---
+
+## N8 natural emission grouping merged - 2026-11-07 10:49 EST
+
+**Main:** `51fd3831f20b`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #1276 — Group native requests through the natural emission turn (#1238)](https://github.com/the-sarge/quic-go-fast/pull/1276) as `51fd3831f20b3914a53b085f72fed6f756a260e3`, completing [N8 #1238](https://github.com/the-sarge/quic-go-fast/issues/1238) under the [accepted native pipeline contract](adr/2026-11-04-native-endpoint-efficiency-plan.md#n8). Ordinary native members accumulate in the existing local builder through the natural emission turn; route, tuple, epoch, control and existing resource barriers seal the canonical request. Immediate ordered registration, member-qualified geometry/receipts, exact admission, original deadlines, all existing bounds and the final native borrow fence remain with their established owners. The product merge records 9/11 native slices and 35/46 program slices complete, with [N11 #1240](https://github.com/the-sarge/quic-go-fast/issues/1240) as the next committed frontier.
+
+### Decisions
+
+The once-only parallel Standards/Spec preparation found and fixed a failed-buffer suffix overtaking earlier member completion. Initial full-panel RAS found and fixed candidate-route buffer allowance missing before steering; the real regression constructs 32 members in fewer than three records and preserves primary STREAM and queued DATAGRAM progress. [Preparation disposition (PR #1276)](https://github.com/the-sarge/quic-go-fast/pull/1276#issuecomment-6708719202), [route finding disposition (PR #1276)](https://github.com/the-sarge/quic-go-fast/pull/1276#issuecomment-6708927122), and [pinned resolved verification (PR #1276)](https://github.com/the-sarge/quic-go-fast/pull/1276#issuecomment-6709001766) retain the evidence. The one replacement review had no required fix or follow-up; an unreachable malformed internal-count observation was independently rejected in [the final disposition (PR #1276)](https://github.com/the-sarge/quic-go-fast/pull/1276#issuecomment-6709115471). Both full panels attempted all four configured reviewers; three completed and Fable’s usage-limit failure was preserved under the existing quorum.
+
+### Validation
+
+Final product head `4746e5a82ef8f090f08d7abfe7486873538f2747` passed the full Go suite, affected-package vet, tidy diff, actual Go-fix commands, formatting/lint and whitespace checks; named Linux amd64 ordinarycost/nativequal fixtures compiled. The focused construction-lifetime race passed after the preparation ownership repair. An Ubuntu failure exposed a test-only syscall-count assumption between native GSO and segmented fallback; payload-targeted failure injection reproduced red/green while the reviewed runtime stayed byte-identical. [The fixture diagnosis (PR #1276)](https://github.com/the-sarge/quic-go-fast/pull/1276#issuecomment-6709134669) and [independent final-head artifact review (PR #1276)](https://github.com/the-sarge/quic-go-fast/pull/1276#issuecomment-6709195511) document that correction. All 17 fresh hosted checks passed on the exact final head: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/42387375054), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/42387375025), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/42387375030), [cross compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/42387375105), and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/42387375050). Base `4c776426d1369ea1d9938e800b00973e588251ee` was unchanged at guarded squash merge. No intermediate performance campaign was run.
+
+### Next
+
+Complete the post-merge journal/mirror reconciliation and dispatch [N11 #1240](https://github.com/the-sarge/quic-go-fast/issues/1240) after the verified [N8 #1238](https://github.com/the-sarge/quic-go-fast/issues/1238) and [N10 #1239](https://github.com/the-sarge/quic-go-fast/issues/1239) closures. The [program tracker (#646)](https://github.com/the-sarge/quic-go-fast/issues/646) and [native parent (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193) are the live frontier views. Whole-pipeline qualification remains with [N3 #1202](https://github.com/the-sarge/quic-go-fast/issues/1202), [R17 #1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and [R18 #1038](https://github.com/the-sarge/quic-go-fast/issues/1038); public activation remains gated by [R19 #1039](https://github.com/the-sarge/quic-go-fast/issues/1039).
