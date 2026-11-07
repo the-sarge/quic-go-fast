@@ -36,6 +36,7 @@ type packet struct {
 
 	includedInBytesInFlight bool
 	isPathProbePacket       bool
+	reusableStreamFrames    bool // preparation-owned metadata, never native storage
 }
 
 func (p *packet) Outstanding() bool {
@@ -48,11 +49,18 @@ func (p *packet) IsAckEliciting() bool {
 
 var packetPool = sync.Pool{New: func() any { return &packet{} }}
 
-func getPacket() *packet {
+func getPacket() *packet { return acquirePacket(false) }
+
+func acquirePacket(reuseStreams bool) *packet {
 	p := packetPool.Get().(*packet)
+	streams := p.StreamFrames
 	p.Context = PacketContext{}
 	p.local = nil
 	p.StreamFrames = nil
+	if reuseStreams && cap(streams) == 1 {
+		p.StreamFrames = streams[:0]
+	}
+	p.reusableStreamFrames = reuseStreams
 	p.Frames = nil
 	p.LargestAcked = 0
 	p.ackTargets = ackTargets{}
@@ -65,12 +73,20 @@ func getPacket() *packet {
 	return p
 }
 
-// We currently only return Packets back into the pool when they're acknowledged (not when they're lost).
-// This simplifies the code, and gives the vast majority of the performance benefit we can gain from using the pool.
+// Registered packets return to the pool only after acknowledgment, not loss.
+// Discard also returns never-registered construction metadata. Both paths clear
+// retained frame references before reuse.
 func putPacket(p *packet) {
 	p.local = nil
 	p.Frames = nil
-	p.StreamFrames = nil
+	if p.reusableStreamFrames && cap(p.StreamFrames) == 1 {
+		// Construction may have appended through an alias while this header
+		// still has length zero. Clear the retained slot, not just its length.
+		clear(p.StreamFrames[:1])
+		p.StreamFrames = p.StreamFrames[:0]
+	} else {
+		p.StreamFrames = nil
+	}
 	packetPool.Put(p)
 }
 

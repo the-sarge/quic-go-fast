@@ -186,7 +186,7 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 	batch := newGSOBatch(size, e.shortSegments)
 	for {
 		next, datagramOnly := batch.next()
-		p, n, err := e.appendPacket(buf, next, datagramOnly, ecn, now)
+		receipt, err := e.appendPacket(buf, next, datagramOnly, ecn, now)
 		if err != nil {
 			if err != errNothingToPack || buf.Len() == 0 {
 				buf.Release()
@@ -201,7 +201,7 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 			exhausted = !datagramOnly
 			break
 		}
-		more := batch.add(n, p.Frames)
+		more := batch.add(receipt.size, receipt.frames)
 		mode, allowance := (*e.recovery).(boundedRecovery).SendAllowance(now)
 		if !gso || !more || !batch.fits(buf.Len(), limit) || mode != ackhandler.SendAny || allowance < size || (*e.recovery).ECNMode(true) != ecn {
 			break
