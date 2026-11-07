@@ -206,7 +206,7 @@ func (s *nativeOrdinarySender) WouldBlock() bool {
 	if s.pending != nil {
 		identity := s.constructionIdentity(s.route)
 		identity.registration = s.pending.identity.registration
-		if identity == s.pending.identity {
+		if identity == s.pending.identity && (len(s.pending.members) == 0 || s.pending.request.epoch == s.constructionEpoch()) {
 			return false
 		}
 		s.finish()
@@ -338,13 +338,11 @@ func (s *nativeOrdinarySender) Send(buffer *packetBuffer, segment uint16, ecn pr
 		panic("local packet handoff without reserved construction capacity")
 	}
 	destination, base, writeState := s.destination, s.oob, s.writeState
-	var epoch *responseEpoch
+	epoch := s.constructionEpoch()
 	routed := true
 	if route := s.route; route != nil {
 		destination, routed = nativeDestination(route.addr)
-		base, writeState, epoch = route.info.OOB(), &route.writeState, route.epoch
-	} else if credit := s.connection.pathCredit; credit != nil {
-		epoch = credit.zeroEpoch()
+		base, writeState = route.info.OOB(), &route.writeState
 	}
 	member := endpointMember{buffer: buffer, oob: packetOOB(base, destination, ecn), gsoSize: segment, nativeGSO: s.nativeGSO, writeState: writeState, credit: metadata.credit}
 	if len(record.members) == 0 {

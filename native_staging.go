@@ -280,3 +280,13 @@ func (s *nativeOrdinarySender) constructionIdentity(route *pathRoute) endpointId
 	}
 	return identity
 }
+
+func (s *nativeOrdinarySender) constructionEpoch() *responseEpoch {
+	if s.route != nil {
+		return s.route.epoch
+	}
+	if credit := s.connection.pathCredit; credit != nil {
+		return credit.zeroEpoch()
+	}
+	return nil
+}

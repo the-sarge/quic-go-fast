@@ -234,3 +234,21 @@ func TestNativeGroupRecoveryCapacityStopsBeforeExtraction(t *testing.T) {
 		require.NoError(t, sender.consume())
 	})
 }
+
+func TestNativeGroupEpochBarrierOnAdmittedRoute(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		f.c.pathCredit.selectPrimaryPrivate(1)
+		require.Nil(t, f.c.emission.capacity())
+		sender := f.c.emission.local.(*nativeOrdinarySender)
+		appendNativeGroupMember(t, f.tc, sender, getPacketBuffer(), "old epoch", protocol.ECNNon, sendMetadata{})
+		old := sender.pending
+		sender.route.epoch = &responseEpoch{}
+		require.True(t, sender.reserveBuffer(protocol.MaxPacketBufferSize))
+		require.Equal(t, ordinaryEndpointOwned, old.state)
+		require.NotSame(t, old, sender.pending)
+		sender.finish()
+		synctest.Wait()
+		require.NoError(t, sender.consume())
+	})
+}
