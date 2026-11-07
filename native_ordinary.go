@@ -31,15 +31,30 @@ type ordinaryLocalPacket struct {
 	mtu      *mtuFinderAckHandler
 }
 
+type ordinaryLocalState uint8
+
+const (
+	ordinaryFree ordinaryLocalState = iota
+	ordinaryBuilding
+	ordinaryStaged
+	ordinaryEndpointOwned
+	ordinaryTerminalProcessing
+)
+
 type ordinaryLocalRecord struct {
-	admission endpointAdmission
-	endpoint  *nativeEndpoint // where admission is held
-	identity  endpointIdentity
-	packets   [maxGSOSegments + 3]ordinaryLocalPacket
-	count     int
-	datagrams int
-	metadata  sendMetadata
-	bytes     protocol.ByteCount
+	state       ordinaryLocalState
+	participant *endpointParticipant
+	request     endpointRequest
+	offered     bool
+	deadline    monotime.Time
+	terminal    endpointResult
+	endpoint    *nativeEndpoint
+	identity    endpointIdentity
+	packets     []ordinaryLocalPacket
+	count       int
+	datagrams   int
+	metadata    sendMetadata
+	bytes       protocol.ByteCount
 }
 
 type nativeOrdinarySender struct {
@@ -71,13 +86,13 @@ type nativeOrdinarySender struct {
 	// origin is where a member with a nil transport sends: the connection's own
 	// endpoint, which path zero's fields stop naming once path zero moves.
 	origin *endpointParticipant
-	// fitting stays registered at its endpoint while selection holds a DATAGRAM for
-	// that endpoint's capacity. refused says the latest WouldBlock met that capacity.
-	fitting *endpointParticipant
-	refused bool
 	// faultHanded means the registry holds an endpoint fault. The fault channel then
 	// goes quiet, and every later fault wakes the connection through completed.
 	faultHanded bool
+	sequence    uint64
+	deferred    []*ordinaryLocalRecord
+	consuming   bool
+	processing  bool
 }
 
 type nativeOrdinaryConn struct {
@@ -112,34 +127,6 @@ func (c *Conn) useNativeOrdinary(endpoint *nativeEndpoint, destination netip.Add
 	queue.writeState = &conn.writeState
 	c.conn = conn
 	return nil
-}
-
-func (e *nativeEndpoint) prepare(p *endpointParticipant, lane, size int) (endpointAdmission, error) {
-	var admission endpointAdmission
-	err := net.ErrClosed
-	e.do(func(s *endpointState) { admission, err = s.admit(p, lane, size) })
-	return admission, err
-}
-
-func (e *nativeEndpoint) submit(admission endpointAdmission, request endpointRequest) error {
-	err := net.ErrClosed
-	e.do(func(s *endpointState) {
-		if admission.index < 0 || admission.index >= len(s.records) {
-			return
-		}
-		record := &s.records[admission.index]
-		if !record.used || !record.reserved || record.serial != admission.serial || !s.valid(record.participant) || s.sealed || s.faulted {
-			return
-		}
-		err = errEndpointRequest
-		size, valid := request.checkedSize(record.participant.class)
-		if request.identity.connection != record.participant.id || !valid || size > record.bytes {
-			return
-		}
-		s.commit(admission, request)
-		err = nil
-	})
-	return err
 }
 
 // drain moves terminal disposal to the endpoint. Queued requests keep their
@@ -185,10 +172,6 @@ func (e *nativeEndpoint) depositCloseUpTo(p *endpointParticipant, request endpoi
 	return err
 }
 
-func (e *nativeEndpoint) cancelAdmission(admission endpointAdmission) {
-	e.do(func(s *endpointState) { s.cancelAdmission(admission) })
-}
-
 func (e *nativeEndpoint) cancelGeneration(p *endpointParticipant, generation uint64) {
 	e.do(func(s *endpointState) {
 		for index := range s.records {
@@ -204,7 +187,6 @@ func (e *nativeEndpoint) cancelGeneration(p *endpointParticipant, generation uin
 }
 
 func (s *nativeOrdinarySender) WouldBlock() bool {
-	s.refused = false
 	if s.drained || s.closed || s.err != nil {
 		return true
 	}
@@ -215,8 +197,8 @@ func (s *nativeOrdinarySender) WouldBlock() bool {
 	return s.pending == nil
 }
 
-// reserve takes a record and endpoint capacity for a route's next packet, without
-// binding that route. It returns nil when anything refuses.
+// reserve holds connection-local capacity before destructive packing. It never
+// advertises endpoint demand; only a frozen Staged head can do that.
 func (s *nativeOrdinarySender) reserve(route *pathRoute) *ordinaryLocalRecord {
 	packets := 1
 	if !s.connection.handshakeConfirmed {
@@ -225,31 +207,21 @@ func (s *nativeOrdinarySender) reserve(route *pathRoute) *ordinaryLocalRecord {
 	if !s.recovery.CanRegisterLocalPackets(packets) {
 		return nil
 	}
-	for index := range s.records {
-		record := &s.records[index]
-		if record.admission.serial != 0 {
+	participant := s.participantOf(route)
+	if participant == nil || s.routeSaturated(participant.endpoint) {
+		return nil
+	}
+	for i := range s.records {
+		record := &s.records[i]
+		if record.state != ordinaryFree {
 			continue
 		}
-		participant := s.participantOf(route)
-		if participant == nil {
-			return nil
-		}
-		if s.routeSaturated(participant.endpoint) {
-			return nil
-		}
-		admission, err := participant.endpoint.prepare(participant, 0, int(protocol.MaxLargePacketBufferSize))
-		if err != nil {
-			s.refused = errors.Is(err, errEndpointCapacity)
-			if !s.refused && !errors.Is(err, net.ErrClosed) {
-				s.err = err
-			}
-			return nil
-		}
-		identity := endpointIdentity{connection: s.participant.id, generation: s.generation, pathGeneration: s.connection.pathGeneration, tuple: s.connection.pathGeneration, registration: admission.serial}
+		s.sequence++
+		identity := endpointIdentity{connection: s.participant.id, generation: s.generation, pathGeneration: s.connection.pathGeneration, tuple: s.connection.pathGeneration, registration: s.sequence}
 		if route != nil {
 			identity.path, identity.pathGeneration, identity.tuple = uint64(route.context.PathID), route.context.TupleGeneration, route.context.TupleGeneration
 		}
-		*record = ordinaryLocalRecord{admission: admission, endpoint: participant.endpoint, identity: identity}
+		*record = ordinaryLocalRecord{state: ordinaryBuilding, endpoint: participant.endpoint, participant: participant, identity: identity, deadline: monotime.Now().Add(participant.endpoint.budget)}
 		return record
 	}
 	return nil
@@ -266,11 +238,6 @@ func (s *nativeOrdinarySender) faulted() <-chan struct{} {
 		return nil
 	}
 	return s.endpoint.fault
-}
-
-// routeParticipant is where the selected path's packets are reserved and submitted.
-func (s *nativeOrdinarySender) routeParticipant() *endpointParticipant {
-	return s.participantOf(s.route)
 }
 
 func (s *nativeOrdinarySender) participantOf(route *pathRoute) *endpointParticipant {
@@ -296,75 +263,34 @@ func (s *nativeOrdinarySender) routeSaturated(endpoint *nativeEndpoint) bool {
 	}
 	held := 0
 	for index := range s.records {
-		if s.records[index].admission.serial != 0 && s.records[index].endpoint == endpoint {
+		if s.records[index].state != ordinaryFree && s.records[index].endpoint == endpoint {
 			held++
 		}
 	}
 	return held >= len(s.records)-1
 }
 
-// useRoute binds the next reservation. No packet is registered against an unused
-// reservation, so changing route only returns it to its owning endpoint.
+// useRoute changes only the current local builder. Frozen staged requests retain
+// their route, identity, demand and payload until admission or local settlement.
 func (s *nativeOrdinarySender) useRoute(route *pathRoute) {
 	s.finish()
-	if previous := s.routeParticipant(); previous != nil && previous != s.fitting {
-		previous.endpoint.cancelReadiness(previous, 0)
-	}
 	s.route = route
 }
 
-// steer reserves on the route that fits the next DATAGRAM and binds it. A refusal
-// leaves the current route's registration and reservation alone, so that route still
-// uses a turn it was woken for. A success gives them up, and costs the current route
-// one turn. A route already bound with its reservation keeps it, because selection
-// runs again before the packet is built.
 func (s *nativeOrdinarySender) steer(route *pathRoute) bool {
-	s.refused = false
 	if s.drained || s.closed || s.err != nil {
 		return false
 	}
 	if s.route == route && s.pending != nil {
 		return true
 	}
+	s.finish()
 	record := s.reserve(route)
-	target, current := s.participantOf(route), s.routeParticipant()
 	if record == nil {
-		s.holdReadiness(target)
-		if !s.refused && target != nil && target != current {
-			target.endpoint.cancelReadiness(target, 0)
-		}
 		return false
 	}
-	s.finish()
-	if current != nil && current != target {
-		current.endpoint.cancelReadiness(current, 0)
-	}
 	s.route, s.pending = route, record
-	s.releaseReadiness()
 	return true
-}
-
-// holdReadiness keeps target's registration across the fallback when its endpoint's
-// capacity refused the DATAGRAM. Other connections can fill that endpoint with no
-// result of this one's to wake it, so its turn is what wakes the loop. Any other
-// refusal is this connection's own, and its completions wake the loop.
-func (s *nativeOrdinarySender) holdReadiness(target *endpointParticipant) {
-	if s.fitting != target {
-		s.releaseReadiness()
-	}
-	s.fitting = nil
-	if s.refused {
-		s.fitting = target
-	}
-}
-
-// releaseReadiness ends the hold, so an unwanted turn can't delay other connections.
-// A registration on the current route is that route's own to keep.
-func (s *nativeOrdinarySender) releaseReadiness() {
-	if s.fitting != nil && s.fitting != s.routeParticipant() {
-		s.fitting.endpoint.cancelReadiness(s.fitting, 0)
-	}
-	s.fitting = nil
 }
 
 // routeUsable reports whether a path's endpoint can still take its packets. A
@@ -379,10 +305,10 @@ func (s *nativeOrdinarySender) routeUsable(target *Transport) bool {
 }
 
 func (s *nativeOrdinarySender) register(token ackhandler.LocalCompletionToken, datagram bool) {
-	if s.pending == nil || s.pending.count == len(s.pending.packets) {
+	if s.pending == nil || s.pending.count == maxGSOSegments+3 {
 		panic("local packet registration without reserved construction capacity")
 	}
-	s.pending.packets[s.pending.count] = ordinaryLocalPacket{token: token, datagram: datagram}
+	s.pending.packets = append(s.pending.packets, ordinaryLocalPacket{token: token, datagram: datagram})
 	s.pending.count++
 }
 
@@ -408,25 +334,18 @@ func (s *nativeOrdinarySender) Send(buffer *packetBuffer, segment uint16, ecn pr
 	request := endpointRequest{
 		identity: record.identity, destination: destination,
 		members:  []endpointMember{{buffer: buffer, oob: packetOOB(base, destination, ecn), gsoSize: segment, nativeGSO: s.nativeGSO, writeState: writeState, credit: metadata.credit}},
-		deadline: record.admission.deadline, epoch: epoch,
+		deadline: record.deadline.ToTime(), epoch: epoch,
 	}
 	record.datagrams = request.members[0].datagrams()
-	err := errEndpointRequest
-	if routed && (segment == 0 || record.count == record.datagrams) {
-		err = record.endpoint.submit(record.admission, request)
-	}
-	if err != nil {
-		// A sealed refusal isn't this connection's failure: the transport reports the
-		// close, and consume reads the fault.
-		if !errors.Is(err, net.ErrClosed) {
-			s.err = err
-		}
-		buffer.Release()
-		metadata.credit.complete()
-		s.finish()
+	record.request = request
+	record.state = ordinaryStaged
+	s.pending = nil
+	if !routed || (segment != 0 && record.count != record.datagrams) {
+		s.err = errors.Join(s.err, errEndpointRequest)
+		s.settleLocal(record, errEndpointRequest)
 		return
 	}
-	s.pending = nil
+	s.serviceParticipant(record.participant)
 }
 
 func (s *nativeOrdinarySender) packetOOB(ecn protocol.ECN) []byte {
@@ -452,8 +371,7 @@ func (s *nativeOrdinarySender) drain() {
 		return
 	}
 	s.drained = true
-	s.finish()
-	s.releaseReadiness()
+	s.cancelLocal(nil)
 	s.endpoint.drain(s.participant)
 	for _, target := range s.targets {
 		target.endpoint.drain(target)
@@ -591,6 +509,16 @@ func (s *nativeOrdinarySender) sendProbe(buffer *packetBuffer, target *Transport
 // probesPending reports whether a probe under epoch can still reach the socket.
 // It reads the endpoint's records and never waits for a native return.
 func (s *nativeOrdinarySender) probesPending(target *Transport, epoch *responseEpoch) bool {
+	// Retiring a tuple first settles its unadmitted work. Recovery still owns the
+	// old token context here, before the registry can reclaim it at the native fence.
+	s.expireLocal()
+	for i := range s.records {
+		r := &s.records[i]
+		if r.state == ordinaryStaged && r.request.epoch == epoch {
+			return true
+		}
+	}
+
 	var endpoint *nativeEndpoint
 	if target != nil {
 		endpoint = nativeTransportEndpoint(target)
@@ -661,18 +589,27 @@ func (s *nativeOrdinarySender) finish() {
 	}
 	record := s.pending
 	s.pending = nil
-	for _, packet := range record.packets[:record.count] {
-		s.completePacket(packet, ackhandler.LocalPacketUnsubmitted, monotime.Now(), false)
-	}
-	record.endpoint.cancelAdmission(record.admission)
-	*record = ordinaryLocalRecord{}
+	s.settleLocal(record, nil)
 }
 
 func (s *nativeOrdinarySender) consume() error {
-	s.consumeParticipant(s.participant)
-	for _, target := range s.targets {
-		s.consumeParticipant(target)
+	if s.consuming {
+		return s.err
 	}
+	// Consume the shared hint before draining every participant. A concurrent later
+	// publication then leaves a new hint; empty drains never re-signal themselves.
+	select {
+	case <-s.participant.completed:
+	default:
+	}
+	s.consuming = true
+	defer func() { s.consuming = false }()
+	s.expireLocal()
+	s.progress(s.participant)
+	for _, target := range s.targets {
+		s.progress(target)
+	}
+	s.consumeDeferred()
 	if !s.admitted() {
 		select {
 		case <-s.endpoint.fault:
@@ -715,7 +652,7 @@ func (s *nativeOrdinarySender) reconcileFailure(participant *endpointParticipant
 	}
 	for index := range s.records {
 		record := &s.records[index]
-		if record == s.pending || record.admission.serial == 0 || record.endpoint != participant.endpoint {
+		if record.state != ordinaryEndpointOwned || record.endpoint != participant.endpoint {
 			continue
 		}
 		for _, packet := range record.packets[:record.count] {
@@ -730,71 +667,69 @@ func (s *nativeOrdinarySender) reconcileFailure(participant *endpointParticipant
 // latest path switch settles its tokens and nothing else, so a path the connection
 // left can't end it or affect its replacement.
 func (s *nativeOrdinarySender) consumeParticipant(participant *endpointParticipant) {
-	for {
-		terminal, ok := participant.endpoint.take(participant)
-		if !ok {
-			return
+	s.serviceParticipant(participant)
+	s.consumeDeferred()
+}
+
+func (s *nativeOrdinarySender) consumeResult(participant *endpointParticipant, terminal endpointResult) {
+	identity := terminal.identity
+	identity.endpoint = 0
+	for index := range s.records {
+		record := &s.records[index]
+		if record.state != ordinaryEndpointOwned && record.state != ordinaryTerminalProcessing || record.identity != identity {
+			continue
 		}
-		// A target's result can free the capacity the selected route is waiting for.
-		s.connection.scheduleSending()
-		identity := terminal.identity
-		identity.endpoint = 0
-		for index := range s.records {
-			record := &s.records[index]
-			if record.admission.serial == 0 || record.identity != identity {
-				continue
-			}
-			// Current producers are singleton callers. The endpoint's member vector
-			// is authoritative; the connection maps this member's datagrams to tokens.
-			if len(terminal.members) != 1 {
-				s.err = errors.Join(s.err, errEndpointRequest)
-				break
-			}
-			result := terminal.members[0]
-			if result.accepted < 0 || result.uncertain < 0 || result.unsubmitted < 0 || result.accepted+result.uncertain+result.unsubmitted != record.datagrams {
-				s.err = errors.Join(s.err, errEndpointRequest)
-				break
-			}
-			if result.accepted == record.datagrams && result.err == nil {
-				for _, receipt := range record.metadata.terminalReceipts {
-					if receipt != nil {
-						receipt.publish(result.returnedAt)
-					}
-				}
-			}
-			if !s.completeAcceptedPackets(record.packets[:record.count], record.datagrams, result.accepted, result.err, result.returnedAt) {
-				for packetIndex, packet := range record.packets[:record.count] {
-					datagram := 0
-					if record.datagrams != 1 {
-						datagram = packetIndex
-					}
-					outcome := ackhandler.LocalPacketUnsubmitted
-					if datagram < result.accepted {
-						outcome = ackhandler.LocalPacketAccepted
-					} else if datagram < result.accepted+result.uncertain {
-						outcome = ackhandler.LocalPacketUncertain
-					} else if packet.datagram {
-						s.droppedDatagrams++
-					}
-					s.completePacket(packet, outcome, result.returnedAt, isSendMsgSizeErr(result.err))
-				}
-			}
-			if credit := s.connection.pathCredit; credit != nil && credit.hasAdmission() {
-				credit.noteOutcome(protocol.PathID(identity.path), identity.tuple, result.accepted, result.uncertain, record.datagrams)
-			}
-			err := errors.Join(result.err, terminal.err)
-			if identity.generation < s.switchGeneration {
-				s.connection.scheduleSending()
-			} else if isSendMsgSizeErr(err) {
-				if record.metadata.handshake && record.datagrams == 1 && record.bytes > protocol.MinInitialPacketSize {
-					s.connection.handshakeSendFeedback.publish(record.metadata.pathGeneration)
-				}
-			} else if err != nil && !localEndpointBackpressure(err) && !errors.Is(err, errEndpointRevoked) && !s.pathSendFailed(participant, identity, err) && !s.endpointOwnsResult(participant) {
-				s.err = errors.Join(s.err, err)
-			}
-			*record = ordinaryLocalRecord{}
+		// Current producers are singleton callers. The endpoint's member vector
+		// is authoritative; the connection maps this member's datagrams to tokens.
+		if len(terminal.members) != 1 {
+			s.err = errors.Join(s.err, errEndpointRequest)
 			break
 		}
+		record.state = ordinaryTerminalProcessing
+		result := terminal.members[0]
+		if result.accepted < 0 || result.uncertain < 0 || result.unsubmitted < 0 || result.accepted+result.uncertain+result.unsubmitted != record.datagrams {
+			s.err = errors.Join(s.err, errEndpointRequest)
+			break
+		}
+		if result.accepted == record.datagrams && result.err == nil {
+			for _, receipt := range record.metadata.terminalReceipts {
+				if receipt != nil {
+					receipt.publish(result.returnedAt)
+				}
+			}
+		}
+		if !s.completeAcceptedPackets(record.packets[:record.count], record.datagrams, result.accepted, result.err, result.returnedAt) {
+			for packetIndex, packet := range record.packets[:record.count] {
+				datagram := 0
+				if record.datagrams != 1 {
+					datagram = packetIndex
+				}
+				outcome := ackhandler.LocalPacketUnsubmitted
+				if datagram < result.accepted {
+					outcome = ackhandler.LocalPacketAccepted
+				} else if datagram < result.accepted+result.uncertain {
+					outcome = ackhandler.LocalPacketUncertain
+				} else if packet.datagram {
+					s.droppedDatagrams++
+				}
+				s.completePacket(packet, outcome, result.returnedAt, isSendMsgSizeErr(result.err))
+			}
+		}
+		if credit := s.connection.pathCredit; credit != nil && credit.hasAdmission() {
+			credit.noteOutcome(protocol.PathID(identity.path), identity.tuple, result.accepted, result.uncertain, record.datagrams)
+		}
+		err := errors.Join(result.err, terminal.err)
+		if identity.generation < s.switchGeneration {
+			s.connection.scheduleSending()
+		} else if isSendMsgSizeErr(err) {
+			if record.metadata.handshake && record.datagrams == 1 && record.bytes > protocol.MinInitialPacketSize {
+				s.connection.handshakeSendFeedback.publish(record.metadata.pathGeneration)
+			}
+		} else if err != nil && !localEndpointBackpressure(err) && !errors.Is(err, errEndpointRevoked) && !s.pathSendFailed(participant, identity, err) && !s.endpointOwnsResult(participant) {
+			s.err = errors.Join(s.err, err)
+		}
+		*record = ordinaryLocalRecord{}
+		break
 	}
 }
 
@@ -826,7 +761,7 @@ func (s *nativeOrdinarySender) reject() {
 }
 
 func (s *nativeOrdinarySender) reset() {
-	s.finish()
+	s.cancelLocal(nil)
 	s.endpoint.cancelGeneration(s.participant, s.generation)
 	for _, target := range s.targets {
 		target.endpoint.cancelGeneration(target, s.generation)
@@ -887,7 +822,7 @@ func (s *nativeOrdinarySender) moveZero(target *Transport, address net.Addr, inf
 		return nil
 	}
 	s.finish()
-	s.participant.endpoint.cancelReadiness(s.participant, 0)
+	s.cancelZero()
 	if participant != s.participant {
 		s.targets = slices.DeleteFunc(s.targets, func(p *endpointParticipant) bool { return p == participant })
 		s.targets = append(s.targets, s.participant)
@@ -906,7 +841,7 @@ func (s *nativeOrdinarySender) rebindZero(address net.Addr, info packetInfo, con
 		s.reject()
 		return
 	}
-	s.finish()
+	s.cancelZero()
 	s.destination, s.oob, s.info = destination, info.OOB(), info
 	s.writeState.wroteFirstPacket = false
 	s.writeState.gsoDisabled.Store(false)
@@ -947,13 +882,11 @@ func (s *nativeOrdinarySender) detachReady(target *Transport) bool {
 	if participant == nil {
 		return true
 	}
-	if s.pending != nil && s.pending.endpoint == participant.endpoint {
-		s.finish()
-	}
+	s.cancelLocal(participant)
 	participant.endpoint.cancelReadiness(participant, 0)
 	s.consumeParticipant(participant)
 	for index := range s.records {
-		if s.records[index].admission.serial != 0 && s.records[index].endpoint == participant.endpoint {
+		if s.records[index].state != ordinaryFree && s.records[index].endpoint == participant.endpoint {
 			return false
 		}
 	}
@@ -1000,13 +933,14 @@ func (s *nativeOrdinarySender) Close() {
 		return
 	}
 	s.closed = true
+	s.cancelLocal(nil)
 	s.recovery.CloseLocal(monotime.Now())
-	s.finish()
 	s.endpoint.detach(s.participant)
 	for _, target := range s.targets {
 		target.endpoint.detach(target)
 	}
 	clear(s.records[:])
+	s.deferred = nil
 }
 
 func (c *nativeOrdinaryConn) localRoute() {}

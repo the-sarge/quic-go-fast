@@ -17,7 +17,6 @@ type localPacketSender interface {
 	probesPending(*Transport, *responseEpoch) bool
 	useRoute(*pathRoute)
 	steer(*pathRoute) bool
-	releaseReadiness()
 	routeUsable(*Transport) bool
 	reserveTarget(*Transport) error
 	finish()
@@ -26,6 +25,7 @@ type localPacketSender interface {
 	sendPathClose(*packetBuffer, protocol.ECN, *pathRoute) error
 	routeInfo() packetInfo
 	consume() error
+	localDeadline() monotime.Time
 	reset()
 	completed() <-chan struct{}
 	faulted() <-chan struct{}
@@ -92,4 +92,11 @@ func (e *packetEmission) resetLocal() {
 	if e.local != nil {
 		e.local.reset()
 	}
+}
+
+func (e *packetEmission) localDeadline() monotime.Time {
+	if e.local != nil {
+		return e.local.localDeadline()
+	}
+	return 0
 }

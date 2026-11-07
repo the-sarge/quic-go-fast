@@ -105,7 +105,7 @@ func TestPathFailureReadLossSpares(t *testing.T) {
 		require.Equal(t, 0, f.targetBytes(t, targetSocket, 1), "the borrow is outstanding, so nothing is settled")
 		held := 0
 		for index := range sender.records {
-			if sender.records[index].admission.serial != 0 {
+			if sender.records[index].state != ordinaryFree {
 				held++
 			}
 		}
@@ -121,7 +121,7 @@ func TestPathFailureReadLossSpares(t *testing.T) {
 		}
 		heldPass(t, f.reliableFixture)
 		for index := range sender.records {
-			require.Zero(t, sender.records[index].admission.serial, "each record settles once")
+			require.Equal(t, ordinaryFree, sender.records[index].state, "each record settles once")
 		}
 		require.Equal(t, "uncertain", p.members[0].lastOutcome)
 		require.Equal(t, 1000, f.targetBytes(t, targetSocket, 1), "the survivor delivers the work")
@@ -225,7 +225,7 @@ func TestPathFailureNoSpinOrLateResult(t *testing.T) {
 		require.NoError(t, f.c.emission.consumeLocal(), "a late fatal result can't end the connection")
 		require.Nil(t, f.c.closeErr.Load())
 		for index := range sender.records {
-			require.Zero(t, sender.records[index].admission.serial)
+			require.Equal(t, ordinaryFree, sender.records[index].state)
 		}
 
 		// Nothing is left to wake the loop.

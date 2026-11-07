@@ -63,19 +63,19 @@ func selectPath(views []pathView, primary protocol.PathID) (chosen, steerTo prot
 }
 
 // selectRoute binds this opportunity before any capacity read or destructive
-// packing, and tells the sender, which cancels a reservation made for another route.
+// packing. The sender changes only its local builder; frozen staged requests keep
+// their original route and exact endpoint demand.
 func (e *packetEmission) selectRoute(now monotime.Time) {
 	if e.pathCredit == nil || e.local == nil {
 		return
 	}
 	route, steerTo, steering, held := e.pathCredit.selectRoute(now)
 	e.held = held
-	// Steering also needs endpoint capacity, so a saturated fitting endpoint holds
-	// the DATAGRAM and not the chosen route's traffic. Its readiness wakes the loop,
-	// and selection keeps that registration only while it names the same need.
+	// Local capacity precedes extraction. Once constructed, a fitting DATAGRAM
+	// stays on that route even when exact endpoint admission refuses it.
 	if steering {
 		// A route selection has left gives up its place. The attempt leaves the chosen
-		// route's alone, and one already bound to steerTo keeps its reservation.
+		// route's alone, and one already bound to steerTo keeps its local builder.
 		if e.route != steerTo {
 			e.useRoute(route)
 		}
@@ -86,9 +86,6 @@ func (e *packetEmission) selectRoute(now monotime.Time) {
 	}
 	e.steered = false
 	e.useRoute(route)
-	if !steering {
-		e.local.releaseReadiness()
-	}
 }
 
 func (e *packetEmission) useRoute(route *pathRoute) {

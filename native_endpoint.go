@@ -207,6 +207,7 @@ type endpointDiagnostic struct {
 
 type nativeEndpoint struct {
 	generation        uint64
+	budget            time.Duration // immutable local preparation budget
 	commands          chan func(*endpointState)
 	work              chan *endpointToken
 	returned          chan struct{}
@@ -241,13 +242,15 @@ type endpointFaultRecord struct {
 }
 
 type endpointParticipant struct {
-	endpoint  *nativeEndpoint
-	id        uint64
-	slot      int
-	ready     chan uint64
-	completed chan struct{}
-	retired   chan struct{}
-	class     endpointClass
+	endpoint     *nativeEndpoint
+	id           uint64
+	slot         int
+	ready        chan uint64
+	completed    chan struct{}
+	retired      chan struct{}
+	class        endpointClass
+	notification atomic.Uint64 // coalesced progress hint, never admission authority
+	observed     uint64        // connection-owned notification generation
 	// The fields below belong exclusively to endpoint control.
 	active                     bool
 	retained                   int
@@ -274,6 +277,7 @@ type endpointClosing struct {
 }
 
 type endpointWait struct {
+	sequence  uint64
 	pending   bool
 	bytes     int
 	notBefore time.Time
@@ -342,6 +346,7 @@ func newNativeEndpoint(socket *net.UDPConn, budget time.Duration, sink func(endp
 
 func startNativeEndpoint(native endpointNativeIO, budget time.Duration, sink func(endpointDiagnostic)) *nativeEndpoint {
 	e := &nativeEndpoint{
+		budget:     budget,
 		generation: nextNativeEndpoint.Add(1),
 		commands:   make(chan func(*endpointState)), work: make(chan *endpointToken, 1),
 		returned: make(chan struct{}, 1), writer: make(chan struct{}), done: make(chan struct{}), fault: make(chan struct{}),
@@ -461,28 +466,62 @@ func (s *endpointState) occupiedParticipants(cursor int) iter.Seq[*endpointParti
 // both the buffers and their backing array; neither is retained by the endpoint.
 func (e *nativeEndpoint) offer(p *endpointParticipant, lane int, request endpointRequest) error {
 	err := net.ErrClosed
+	e.do(func(s *endpointState) { err = s.offer(p, lane, request) })
+	return err
+}
+
+func (s *endpointState) offer(p *endpointParticipant, lane int, request endpointRequest) error {
+	if s.sealed || s.faulted || !s.valid(p) || p.draining || !request.authorized() {
+		return net.ErrClosed
+	}
+	if lane < 0 || lane > 2 || request.identity.connection != p.id || (p.class != endpointData && lane != 0) {
+		return errEndpointRequest
+	}
+	n, valid := request.checkedSize(p.class)
+	if !valid {
+		return errEndpointRequest
+	}
+	wait := &p.wait[lane]
+	if wait.sequence != request.identity.registration {
+		wait.pending = false
+		if g := s.grant; g != nil && g.participant == p && g.lane == lane {
+			s.releaseGrant()
+		}
+		wait.sequence = request.identity.registration
+	}
+	admission, err := s.admit(p, lane, n)
+	if err == nil {
+		s.commit(admission, request)
+	}
+	return err
+}
+
+// exchange detaches the bounded immutable terminal FIFO and optionally admits one
+// exact frozen head in the same actor transaction. Refusal leaves payload ownership
+// with the producer. No callback or protocol processing runs under endpoint control.
+func (e *nativeEndpoint) exchange(p *endpointParticipant, request *endpointRequest) ([]endpointResult, error) {
+	var results []endpointResult
+	err := net.ErrClosed
 	e.do(func(s *endpointState) {
-		if s.sealed || s.faulted || !s.valid(p) || p.draining {
+		if p == nil || p.endpoint != e {
 			return
 		}
-		if !request.authorized() {
-			return
+		if len(p.results) != 0 {
+			results = make([]endpointResult, 0, len(p.results))
 		}
-		err = errEndpointRequest
-		if lane < 0 || lane > 2 || request.identity.connection != p.id || (p.class != endpointData && lane != 0) {
-			return
+		for _, i := range p.results {
+			results = append(results, s.records[i].result)
+			s.records[i] = endpointRecord{}
+			p.retained--
+			s.capacityGeneration++
 		}
-		n, valid := request.checkedSize(p.class)
-		if !valid {
-			return
-		}
-		var admission endpointAdmission
-		admission, err = s.admit(p, lane, n)
-		if err == nil {
-			s.commit(admission, request)
+		p.results = p.results[:0]
+		err = nil
+		if request != nil {
+			err = s.offer(p, 0, *request)
 		}
 	})
-	return err
+	return results, err
 }
 
 func (s *endpointState) admit(p *endpointParticipant, lane, size int) (endpointAdmission, error) {
@@ -609,6 +648,7 @@ func (e *nativeEndpoint) take(p *endpointParticipant) (endpointResult, bool) {
 		// A connection's participants can share this channel, so control only
 		// signals it. A drain here could swallow another endpoint's wakeup.
 		if len(p.results) != 0 {
+			p.notification.Add(1)
 			select {
 			case p.completed <- struct{}{}:
 			default:
@@ -746,6 +786,7 @@ func (s *endpointState) retire(p *endpointParticipant) {
 		s.occupied = slices.Delete(s.occupied, i, i+1)
 		close(p.retired)
 		// A connection spared by a read failure settles what this participant left.
+		p.notification.Add(1)
 		select {
 		case p.completed <- struct{}{}:
 		default:
@@ -825,6 +866,7 @@ func (s *endpointState) publish(index int, result endpointResult) {
 		return
 	}
 	p.results = append(p.results, index)
+	p.notification.Add(1)
 	select {
 	case p.completed <- struct{}{}:
 	default:
@@ -1008,7 +1050,9 @@ func (s *endpointState) reclaimGrant(now time.Time) {
 		s.releaseGrant()
 	}
 	if g := s.grant; g != nil && !g.expires.IsZero() && !now.Before(g.expires) {
-		g.participant.wait[g.lane].pending = false
+		// A frozen ordinary head remains demand until explicit withdrawal.
+		// Complete-input attempts (sequence zero) retain release-on-refusal behavior.
+		g.participant.wait[g.lane].pending = g.participant.wait[g.lane].sequence != 0
 		g.participant.wait[g.lane].notBefore = now.Add(endpointRetry)
 		s.releaseGrant()
 	}
@@ -1017,6 +1061,7 @@ func (s *endpointState) reclaimGrant(now time.Time) {
 // A selected large request accumulates capacity before its lease begins. Other
 // arrivals cannot consume that capacity. An unused lease ends its registration;
 // a producer that still owns pending work can register again after the floor.
+// Exact staged heads retain their immutable demand across that retry floor.
 func (s *endpointState) chooseGrant(now time.Time) {
 	s.arbitrate(now, nil, 0)
 }
@@ -1094,6 +1139,7 @@ func (s *endpointState) arbitrate(now time.Time, admitting *endpointParticipant,
 		case p.ready <- s.capacityGeneration:
 		default:
 		}
+		p.notification.Add(1)
 		select {
 		case p.completed <- struct{}{}:
 		default:
@@ -1141,6 +1187,7 @@ func (s *endpointState) fail(cause endpointFaultCause, err error) {
 		// An idle shared participant has no result to wake its connection with.
 		for _, p := range s.participants {
 			if p != nil {
+				p.notification.Add(1)
 				select {
 				case p.completed <- struct{}{}:
 				default:

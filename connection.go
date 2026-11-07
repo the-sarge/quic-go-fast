@@ -1042,6 +1042,10 @@ func (c *Conn) maybeResetTimer() {
 			deadline = t
 		}
 	}
+	// Staged local requests expire even while endpoint capacity blocks sending.
+	if t := c.emission.localDeadline(); t != 0 && t.Before(deadline) {
+		deadline = t
+	}
 	// Path attempts expire even while local capacity blocks all sending.
 	if c.pathManager != nil {
 		if t := c.pathManager.NextExpiry(); !t.IsZero() && t.Before(deadline) {

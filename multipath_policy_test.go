@@ -176,6 +176,10 @@ func TestPathPolicyLocalResultsDoNotCountTowardSuspicion(t *testing.T) {
 				f.pass(t)
 				f.socket.result = func([]byte) (int, error) { return 0, nativeError }
 				for range suspectPTOAttempts + 2 {
+					// Service local retry readiness before advancing the recovery-only test
+					// clock; the real run loop drains this wake independently of a PTO.
+					time.Sleep(endpointRetry)
+					f.pass(t)
 					f.policyPTO(t, 0)
 				}
 				require.Equal(t, 1, p.members[0].attempts)

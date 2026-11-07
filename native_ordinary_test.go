@@ -230,7 +230,7 @@ func TestNativeOrdinaryAcceptedReceiptSurvivesDeadlineResetFailure(t *testing.T)
 		receipt := &pathAbandonReceipt{}
 		found := false
 		for i := range queue.records {
-			if queue.records[i].admission.serial != 0 {
+			if queue.records[i].state != ordinaryFree {
 				queue.records[i].metadata.terminalReceipts = []*pathAbandonReceipt{receipt}
 				found = true
 			}
@@ -344,7 +344,7 @@ func TestNativeOrdinaryTerminalLifetime(t *testing.T) {
 				}
 				require.NoError(t, c.emission.consumeLocal())
 				for _, record := range queue.records {
-					require.Zero(t, record.admission.serial)
+					require.Equal(t, ordinaryFree, record.state)
 				}
 				require.Error(t, queue.recovery.CompleteLocalPacket(token, ackhandler.LocalPacketAccepted, monotime.Now()), "late duplicate facts cannot consume a registration again")
 				if lifecycle == "Retry" || lifecycle == "early ACK" {
