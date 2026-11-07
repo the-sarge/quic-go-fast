@@ -1265,11 +1265,6 @@ func endpointSendmsgError(err error, cause error) bool {
 	return ok && system.Syscall == "sendmsg" && errors.Is(system.Err, cause)
 }
 
-func writeEndpointRequest(native endpointNativeIO, token *endpointToken) endpointResult {
-	var scratch handshake.PacketProtectionScratch
-	return writeEndpointRequestWithScratch(native, token, &scratch)
-}
-
 func writeEndpointRequestWithScratch(native endpointNativeIO, token *endpointToken, scratch *handshake.PacketProtectionScratch) endpointResult {
 	request := token.request
 	result := endpointResult{members: make([]endpointMemberResult, len(request.members))}

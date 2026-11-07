@@ -19,6 +19,7 @@ func (*nativeProtectionConstruction) observeSealer(handshake.ShortHeaderSealer) 
 func (*nativeProtectionConstruction) reserve(sealer, protocol.PacketNumber, int, int, protocol.PacketNumberLen, int) (bool, error) {
 	return false, nil
 }
+
 func (*nativeProtectionConstruction) send(e *packetEmission, b *packetBuffer, gso uint16, ecn protocol.ECN, metadata sendMetadata) {
 	e.queue.Send(b, gso, ecn, metadata)
 }

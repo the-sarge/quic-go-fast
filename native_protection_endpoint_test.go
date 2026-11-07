@@ -304,3 +304,9 @@ func TestNativeProtectionEndpointUnclaimedDisposal(t *testing.T) {
 		})
 	}
 }
+
+// Direct writer fixtures supply their own scratch; production keeps one per writer.
+func writeEndpointRequest(native endpointNativeIO, token *endpointToken) endpointResult {
+	var scratch handshake.PacketProtectionScratch
+	return writeEndpointRequestWithScratch(native, token, &scratch)
+}
