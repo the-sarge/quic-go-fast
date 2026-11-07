@@ -59,7 +59,14 @@ func aeadAESGCMTLS13(key, nonceMask []byte) cipher.AEAD {
 		panic(err)
 	}
 
-	ret := &xorNonceAEAD{aead: aead}
+	kind := packetProtectionUnsupported
+	switch len(key) {
+	case 16:
+		kind = packetProtectionAES128
+	case 32:
+		kind = packetProtectionAES256
+	}
+	ret := &xorNonceAEAD{aead: aead, protectionKind: kind}
 	copy(ret.nonceMask[:], nonceMask)
 	return ret
 }
@@ -73,7 +80,7 @@ func aeadChaCha20Poly1305(key, nonceMask []byte) cipher.AEAD {
 		panic(err)
 	}
 
-	ret := &xorNonceAEAD{aead: aead}
+	ret := &xorNonceAEAD{aead: aead, protectionKind: packetProtectionChaCha}
 	copy(ret.nonceMask[:], nonceMask)
 	return ret
 }
@@ -82,7 +89,10 @@ func aeadChaCha20Poly1305(key, nonceMask []byte) cipher.AEAD {
 // before each call.
 type xorNonceAEAD struct {
 	nonceMask [aeadNonceLength]byte
-	aead      cipher.AEAD
+	// Only the concrete constructors above authorize an immutable transform.
+	// Keep this proof separate from the arbitrary cipher.AEAD interface.
+	protectionKind packetProtectionKind
+	aead           cipher.AEAD
 }
 
 func (f *xorNonceAEAD) NonceSize() int        { return 8 } // 64-bit sequence number

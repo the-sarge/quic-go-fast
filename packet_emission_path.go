@@ -130,7 +130,7 @@ func (e *packetEmission) steeredDatagram(now monotime.Time) emissionResult {
 		}
 		return emissionResult{err: err}
 	}
-	e.handoff(buf, 0, ecn, sendMetadata{})
+	e.handoff(buf, 0, ecn, sendMetadata{}, nil)
 	return emissionResult{progress: true, stop: emissionProbeSent}
 }
 

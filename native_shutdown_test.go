@@ -1075,14 +1075,38 @@ func TestNativeRouteLoopback(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, path.Probe(ctx))
 	require.NoError(t, path.Switch())
-	// The server switches only on the highest-numbered non-probing packet it sees on
-	// a validated tuple, and the two sockets' packets can arrive in either order. A
-	// packet that loses that race has no successor when the connection goes idle.
-	for server.RemoteAddr().String() != nextSocket.LocalAddr().String() {
-		exchange(t, client, server, "after the switch")
+	// The server switches only on the highest-numbered non-probing packet it sees
+	// on a validated tuple. Keep producing successors independently of stream
+	// acceptance: the two sockets' packets can arrive in either order.
+	progress, err := client.OpenStreamSync(ctx)
+	require.NoError(t, err)
+	defer progress.CancelWrite(0)
+	defer progress.CancelRead(0)
+	deadline, ok := ctx.Deadline()
+	require.True(t, ok)
+	require.NoError(t, progress.SetWriteDeadline(deadline))
+	var expected []byte
+	for {
+		payload := []byte("after the switch")
+		written, err := progress.Write(payload)
+		expected = append(expected, payload[:written]...)
+		require.NoError(t, err)
+		require.Equal(t, len(payload), written)
 		require.NoError(t, ctx.Err(), "the server never followed the switch")
+		if server.RemoteAddr().String() == nextSocket.LocalAddr().String() {
+			break
+		}
 		time.Sleep(time.Millisecond)
 	}
+	require.NoError(t, progress.Close())
+	accepted, err := server.AcceptStream(ctx)
+	require.NoError(t, err)
+	defer accepted.CancelRead(0)
+	defer accepted.CancelWrite(0)
+	require.NoError(t, accepted.SetReadDeadline(deadline))
+	data, err := io.ReadAll(accepted)
+	require.NoError(t, err)
+	require.Equal(t, expected, data, "retain the first post-switch prefix and every successor")
 
 	// The live close reaches the peer asynchronously.
 	require.NoError(t, client.CloseWithError(7, "finished"))

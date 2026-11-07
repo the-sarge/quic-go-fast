@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/handshake"
 	"github.com/quic-go/quic-go/internal/monotime"
 )
 
@@ -64,6 +65,7 @@ var nextNativeEndpoint atomic.Uint64
 // the endpoint; raw datagrams retain their separate public/stateless lifetime.
 // Geometry and credit belong to this member, never to the enclosing request.
 type endpointMember struct {
+	protection *nativeProtectionPlan
 	buffer     *packetBuffer
 	datagram   *endpointDatagram
 	oob        []byte
@@ -136,7 +138,7 @@ func (request endpointRequest) checkedSize(class endpointClass) (int, bool) {
 	size := 0
 	for i, member := range request.members {
 		if member.datagram != nil {
-			if member.buffer != nil || len(request.members) != 1 || class < endpointStateless || member.gsoSize != 0 || member.nativeGSO || member.writeState != nil || member.credit != nil {
+			if member.protection != nil || member.buffer != nil || len(request.members) != 1 || class < endpointStateless || member.gsoSize != 0 || member.nativeGSO || member.writeState != nil || member.credit != nil {
 				return 0, false
 			}
 			size += cap(member.datagram.data)
@@ -144,6 +146,9 @@ func (request endpointRequest) checkedSize(class endpointClass) (int, bool) {
 		}
 		buffer := member.buffer
 		if buffer == nil || buffer.refCount != 1 || len(buffer.Data) == 0 {
+			return 0, false
+		}
+		if member.protection != nil && !member.protection.validForMember(member) {
 			return 0, false
 		}
 		for _, earlier := range request.members[:i] {
@@ -167,7 +172,11 @@ func (request endpointRequest) snapshot() endpointRequest {
 // releasePayload follows the final native fence (or a decision never to submit).
 // Releasing all buffers first prevents a credit wake from reusing a live borrow.
 func (request endpointRequest) releasePayload() {
-	for _, member := range request.members {
+	for i := range request.members {
+		member := &request.members[i]
+		plan := member.protection
+		member.protection = nil
+		plan.release()
 		if member.buffer != nil {
 			member.buffer.Release()
 		}
@@ -1180,6 +1189,7 @@ func (s *endpointState) fail(cause endpointFaultCause, err error) {
 
 func (e *nativeEndpoint) write(native endpointNativeIO) {
 	defer close(e.writer)
+	var scratch handshake.PacketProtectionScratch
 	for token := range e.work {
 		var result endpointResult
 		fault := false
@@ -1187,7 +1197,7 @@ func (e *nativeEndpoint) write(native endpointNativeIO) {
 			result = token.request.unsubmitted(err)
 			fault = true
 		} else {
-			result = writeEndpointRequest(native, token)
+			result = writeEndpointRequestWithScratch(native, token, &scratch)
 			fault = endpointFatalWrite(result.failure())
 		}
 		if err := native.SetWriteDeadline(time.Time{}); err != nil {
@@ -1255,11 +1265,11 @@ func endpointSendmsgError(err error, cause error) bool {
 	return ok && system.Syscall == "sendmsg" && errors.Is(system.Err, cause)
 }
 
-func writeEndpointRequest(native endpointNativeIO, token *endpointToken) endpointResult {
+func writeEndpointRequestWithScratch(native endpointNativeIO, token *endpointToken, scratch *handshake.PacketProtectionScratch) endpointResult {
 	request := token.request
 	result := endpointResult{members: make([]endpointMemberResult, len(request.members))}
 	for i, member := range request.members {
-		result.members[i] = writeEndpointMember(native, token, member)
+		result.members[i] = writeEndpointMember(native, token, member, scratch)
 		if result.members[i].err != nil {
 			// The untouched suffix has no native error or native-return time.
 			now := monotime.Now()
@@ -1272,7 +1282,7 @@ func writeEndpointRequest(native endpointNativeIO, token *endpointToken) endpoin
 	return result
 }
 
-func writeEndpointMember(native endpointNativeIO, token *endpointToken, member endpointMember) (result endpointMemberResult) {
+func writeEndpointMember(native endpointNativeIO, token *endpointToken, member endpointMember, scratch *handshake.PacketProtectionScratch) (result endpointMemberResult) {
 	result.unsubmitted = member.datagrams()
 	defer func() { result.returnedAt = monotime.Now() }()
 	if member.datagram != nil {
@@ -1294,6 +1304,13 @@ func writeEndpointMember(native endpointNativeIO, token *endpointToken, member e
 			result.uncertain, result.unsubmitted = 1, 0
 		}
 		return result
+	}
+	if member.protection != nil {
+		if err := endpointSubmissionAllowed(token); err != nil {
+			result.err = err
+			return result
+		}
+		member.protection.protectAll(scratch)
 	}
 	data := member.buffer.Data
 	segment := len(data)

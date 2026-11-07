@@ -70,6 +70,12 @@ type updatableAEAD struct {
 	headerDecrypter headerProtector
 	headerEncrypter headerProtector
 
+	// Populated only by deferred native protection. The cached transform is
+	// immutable; these source identities remain on the connection owner.
+	packetProtection       *packetProtectionKey
+	packetProtectionAEAD   *xorNonceAEAD
+	packetProtectionHeader headerProtector
+
 	rttStats *utils.RTTStats
 
 	qlogger qlogwriter.Recorder
@@ -124,6 +130,7 @@ func (a *updatableAEAD) rollKeys() {
 	a.prevRcvAEAD = a.rcvAEAD
 	a.rcvAEAD = a.nextRcvAEAD
 	a.sendAEAD = a.nextSendAEAD
+	a.clearPacketProtection()
 
 	a.prevRcvTrafficSecret = a.rcvTrafficSecret
 	a.rcvTrafficSecret = a.nextRcvTrafficSecret
@@ -183,6 +190,7 @@ func (a *updatableAEAD) SetWriteKey(suite cipherSuite, trafficSecret []byte) {
 
 	a.nextSendTrafficSecret = a.getNextTrafficSecret(suite.Hash, trafficSecret)
 	a.nextSendAEAD = createAEAD(suite, a.nextSendTrafficSecret, a.version)
+	a.clearPacketProtection()
 }
 
 func (a *updatableAEAD) setAEADParameters(aead cipher.AEAD, suite cipherSuite) {

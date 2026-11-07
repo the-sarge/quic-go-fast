@@ -141,6 +141,6 @@ func (e *packetEmission) packetSizeRecovery(intent packetSizeRecoveryIntent, now
 		intent.probe.sent, intent.probe.deadline = now, now.Add(intent.probe.timeout)
 		intent.probe.number = p.PacketNumber
 	}
-	e.handoff(buf, 0, ecn, sendMetadata{mtuProbe: !intent.followup})
+	e.handoff(buf, 0, ecn, sendMetadata{mtuProbe: !intent.followup}, nil)
 	return emissionResult{progress: true, retry: true}
 }
