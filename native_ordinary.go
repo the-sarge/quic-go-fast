@@ -605,23 +605,14 @@ func (s *nativeOrdinarySender) finish() {
 	}
 	record := s.pending
 	s.pending = nil
-	// A failed buffer can have a registered prefix without a native member.
-	// Detach that suffix before handoff or callbacks can reenter this sender.
-	end := record.memberEnd()
-	failed := record.packets[end:record.count]
-	record.count, record.packets = end, record.packets[:end]
+	// A failed buffer can have registered packets without a native member.
+	// Keep that suffix in the sidecar until earlier member facts are applied.
 	if len(record.members) == 0 {
-		*record = ordinaryLocalRecord{}
-	} else {
-		record.state = ordinaryStaged
-		s.serviceParticipant(record.participant)
+		s.settleLocal(record, nil)
+		return
 	}
-	for _, packet := range failed {
-		if packet.datagram {
-			s.droppedDatagrams++
-		}
-		s.completePacket(packet, ackhandler.LocalPacketUnsubmitted, monotime.Now(), false)
-	}
+	record.state = ordinaryStaged
+	s.serviceParticipant(record.participant)
 }
 
 func (s *nativeOrdinarySender) consume() error {
@@ -687,8 +678,15 @@ func (s *nativeOrdinarySender) reconcileFailure(participant *endpointParticipant
 		if record.state != ordinaryEndpointOwned || record.endpoint != participant.endpoint {
 			continue
 		}
-		for _, packet := range record.packets[:record.count] {
-			s.completePacket(packet, ackhandler.LocalPacketUncertain, monotime.Now(), false)
+		for i, packet := range record.packets[:record.count] {
+			outcome := ackhandler.LocalPacketUncertain
+			if i >= record.memberEnd() {
+				outcome = ackhandler.LocalPacketUnsubmitted
+				if packet.datagram {
+					s.droppedDatagrams++
+				}
+			}
+			s.completePacket(packet, outcome, monotime.Now(), false)
 		}
 		s.connection.pathCredit.noteOutcome(protocol.PathID(record.identity.path), record.identity.tuple, 0, record.datagrams, record.datagrams)
 		*record = ordinaryLocalRecord{}
@@ -762,6 +760,12 @@ func (s *nativeOrdinarySender) consumeResult(participant *endpointParticipant, t
 			} else if err != nil && !localEndpointBackpressure(err) && !errors.Is(err, errEndpointRevoked) && !s.pathSendFailed(participant, identity, err) && !s.endpointOwnsResult(participant) {
 				s.err = errors.Join(s.err, err)
 			}
+		}
+		for _, packet := range record.packets[start:record.count] {
+			if packet.datagram {
+				s.droppedDatagrams++
+			}
+			s.completePacket(packet, ackhandler.LocalPacketUnsubmitted, monotime.Now(), false)
 		}
 		*record = ordinaryLocalRecord{}
 		break

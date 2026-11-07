@@ -141,6 +141,16 @@ func TestNativeFrozenGroupSharedRefusalAndExpiry(t *testing.T) {
 	})
 }
 
+type nativeGroupCompletionObserver struct {
+	ackhandler.LocalSentPacketHandler
+	completed []ackhandler.LocalCompletionToken
+}
+
+func (o *nativeGroupCompletionObserver) CompleteLocalPacket(token ackhandler.LocalCompletionToken, outcome ackhandler.LocalPacketOutcome, at monotime.Time) error {
+	o.completed = append(o.completed, token)
+	return o.LocalSentPacketHandler.CompleteLocalPacket(token, outcome, at)
+}
+
 func TestNativeGroupPartialConstructionKeepsEarlierMembers(t *testing.T) {
 	nativeOrdinaryTest(t, func(t *testing.T) {
 		tc, sender, socket := nativeProbeRecoveryConnection(t, "reno")
@@ -158,9 +168,14 @@ func TestNativeGroupPartialConstructionKeepsEarlierMembers(t *testing.T) {
 		_, err = tc.conn.emission.appendPacket(failed, 1200, false, protocol.ECNNon, monotime.Now())
 		require.ErrorIs(t, err, cause)
 		failed.Release()
+		tokens := []ackhandler.LocalCompletionToken{sender.pending.packets[0].token, sender.pending.packets[1].token}
+		observer := &nativeGroupCompletionObserver{LocalSentPacketHandler: sender.recovery}
+		sender.recovery = observer
 		sender.finish()
+		require.Empty(t, observer.completed, "a failed later suffix cannot overtake earlier native member facts")
 		synctest.Wait()
 		require.NoError(t, sender.consume())
+		require.Equal(t, tokens, observer.completed, "native prefix and failed suffix complete in registration order")
 		require.Len(t, socket.writes, 1)
 		require.Contains(t, string(socket.writes[0].data), "completed earlier member")
 		require.EqualValues(t, 1, sender.droppedDatagrams)
