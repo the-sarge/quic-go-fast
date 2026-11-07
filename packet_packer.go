@@ -557,14 +557,24 @@ func (p *packetPacker) AppendDatagramPacket(route *pathRoute, buf *packetBuffer,
 	}
 	context, numbers, connID := p.shortHeaderIdentity(route)
 	pn, pnLen := numbers.PeekPacketNumber(protocol.Encryption1RTT)
+	pl, err := p.datagramPayload(f, maxSize, wire.ShortHeaderLen(connID, pnLen), sealer, v)
+	if err != nil {
+		return shortHeaderPacket{}, err
+	}
+
+	return p.appendShortHeaderPacket(context, buf, connID, pn, pnLen, sealer.KeyPhase(), pl, 0, maxSize, sealer, false, v)
+}
+
+// datagramPayload is shared by native preparation and value construction. It
+// leaves a non-fitting DATAGRAM queued and commits extraction only on success.
+func (p *packetPacker) datagramPayload(f *wire.DatagramFrame, maxSize, headerLen protocol.ByteCount, sealer sealer, v protocol.Version) (payload, error) {
 	size := f.Length(v)
-	if size > maxSize-wire.ShortHeaderLen(connID, pnLen)-protocol.ByteCount(sealer.Overhead()) {
-		return shortHeaderPacket{}, errNothingToPack
+	if size > maxSize-headerLen-protocol.ByteCount(sealer.Overhead()) {
+		return payload{}, errNothingToPack
 	}
 	p.datagramQueue.Pop()
 	p.numNonAckElicitingAcks = 0
-	pl := payload{frames: []ackhandler.Frame{{Frame: f}}, length: size}
-	return p.appendShortHeaderPacket(context, buf, connID, pn, pnLen, sealer.KeyPhase(), pl, 0, maxSize, sealer, false, v)
+	return payload{frames: []ackhandler.Frame{{Frame: f}}, length: size}, nil
 }
 
 // datagramRoom is the frame length a fresh packet on route can carry at maxSize. It
@@ -612,19 +622,37 @@ func (p *packetPacker) appendPacket(
 	return p.appendShortHeaderPacket(context, buf, connID, pn, pnLen, kp, pl, 0, maxPacketSize, sealer, false, v)
 }
 
-// appendPreparedPacket writes ordinary path-zero facts into the sole preparation.
+// appendPreparedPacket writes ordinary native facts into the sole preparation.
 // Header facts remain stack-owned by emission and expire before registration.
-func (p *packetPacker) appendPreparedPacket(buf *packetBuffer, maxPacketSize protocol.ByteCount, now monotime.Time, v protocol.Version, prepared *ackhandler.PacketPreparation, header *nativeHeaderFacts) error {
+func (p *packetPacker) appendPreparedPacket(route *pathRoute, buf *packetBuffer, maxPacketSize protocol.ByteCount, datagramOnly bool, now monotime.Time, v protocol.Version, prepared *ackhandler.PacketPreparation, header *nativeHeaderFacts) error {
+	if datagramOnly && p.datagramQueue == nil {
+		return errNothingToPack
+	}
 	sealer, err := p.cryptoSetup.Get1RTTSealer()
 	if err != nil {
 		return err
 	}
-	context, numbers, connID := p.shortHeaderIdentity(nil)
+	var datagram *wire.DatagramFrame
+	if datagramOnly {
+		datagram = p.datagramQueue.Peek()
+		if datagram == nil {
+			return errNothingToPack
+		}
+	}
+	context, numbers, connID := p.shortHeaderIdentity(route)
 	pn, pnLen := numbers.PeekPacketNumber(protocol.Encryption1RTT)
 	hdrLen := wire.ShortHeaderLen(connID, pnLen)
-	pl := p.maybeGetShortHeaderPacket(sealer, hdrLen, maxPacketSize, false, now, v, prepared.StreamStorage())
-	if pl.length == 0 {
-		return errNothingToPack
+	var pl payload
+	if datagramOnly {
+		pl, err = p.datagramPayload(datagram, maxPacketSize, hdrLen, sealer, v)
+		if err != nil {
+			return err
+		}
+	} else {
+		pl = p.maybeGetShortHeaderPacket(sealer, hdrLen, maxPacketSize, false, now, v, prepared.StreamStorage())
+		if pl.length == 0 {
+			return errNothingToPack
+		}
 	}
 	kp := sealer.KeyPhase()
 	seal, err := p.prepareShortHeaderPayload(context, buf, connID, pn, pnLen, kp, pl, 0, maxPacketSize, sealer, false, v)

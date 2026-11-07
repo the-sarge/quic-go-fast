@@ -24,20 +24,17 @@ type nativePacketReceipt struct {
 	size   protocol.ByteCount
 }
 
-func (e *packetEmission) usesPreparedPacket(datagramOnly bool) bool {
-	return e.local != nil && !datagramOnly && e.route == nil && e.pathCredit == nil
-}
-
-func (e *packetEmission) appendNativePacket(buf *packetBuffer, maxSize protocol.ByteCount, ecn protocol.ECN, now monotime.Time) (nativePacketReceipt, error) {
+func (e *packetEmission) appendNativePacket(buf *packetBuffer, maxSize protocol.ByteCount, datagramOnly bool, ecn protocol.ECN, now monotime.Time) (nativePacketReceipt, error) {
 	start := buf.Len()
 	prepared := ackhandler.PreparePacket()
 	var header nativeHeaderFacts
-	if err := e.packer.appendPreparedPacket(buf, maxSize, now, e.version, &prepared, &header); err != nil {
+	if err := e.packer.appendPreparedPacket(e.route, buf, maxSize, datagramOnly, now, e.version, &prepared, &header); err != nil {
 		prepared.Discard()
 		return nativePacketReceipt{}, err
 	}
 	view := prepared.View()
 	receipt := nativePacketReceipt{frames: view.Frames(), size: buf.Len() - start}
+	context := view.Context()
 	if e.bbr != nil && e.paceReservation && (ackhandler.HasAckElicitingFrames(view.Frames()) || len(view.StreamFrames()) != 0) {
 		e.pacingBytes += receipt.size
 	}
@@ -53,8 +50,9 @@ func (e *packetEmission) appendNativePacket(buf *packetBuffer, maxSize protocol.
 		prepared.Discard()
 		return nativePacketReceipt{}, err
 	}
-	// This lane selected path zero. Do not inspect view after recovery adopted it.
-	e.policy.noteEmissionRegistration()
+	// Do not inspect view after recovery adopted it. Path identity stays the
+	// constructed packet's; the CID receiver is resolved at the original point.
+	e.noteContextRegistration(context, header.destConnID)
 	return receipt, nil
 }
 

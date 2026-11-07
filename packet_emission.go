@@ -263,8 +263,8 @@ func (e *packetEmission) pacingDeadline() monotime.Time {
 // packet carries only the next queued DATAGRAM frame, and errNothingToPack
 // leaves a frame that doesn't fit queued.
 func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCount, datagramOnly bool, ecn protocol.ECN, now monotime.Time) (nativePacketReceipt, error) {
-	if e.usesPreparedPacket(datagramOnly) {
-		return e.appendNativePacket(buf, maxSize, ecn, now)
+	if e.local != nil {
+		return e.appendNativePacket(buf, maxSize, datagramOnly, ecn, now)
 	}
 	start := buf.Len()
 	var p shortHeaderPacket
@@ -423,8 +423,12 @@ func (e *packetEmission) registerPacket(p shortHeaderPacket, ecn protocol.ECN, n
 // A nonzero path's CID use belongs to that path, and path zero's rotation counts
 // only its own packets.
 func (e *packetEmission) noteRegistration(p shortHeaderPacket) {
-	if p.Context.PathID != 0 {
-		e.pathCredit.conn.connIDManager.notePathProbe(p.Context.PathID, p.DestConnID)
+	e.noteContextRegistration(p.Context, p.DestConnID)
+}
+
+func (e *packetEmission) noteContextRegistration(context ackhandler.PacketContext, destConnID protocol.ConnectionID) {
+	if context.PathID != 0 {
+		e.pathCredit.conn.connIDManager.notePathProbe(context.PathID, destConnID)
 		return
 	}
 	e.policy.noteEmissionRegistration()

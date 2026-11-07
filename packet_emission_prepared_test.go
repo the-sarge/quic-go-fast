@@ -33,7 +33,7 @@ func TestPreparedPackerMatchesValueBytes(t *testing.T) {
 		if preparedPath {
 			prepared := ackhandler.PreparePacket()
 			var header nativeHeaderFacts
-			require.NoError(t, tp.packer.appendPreparedPacket(buf, 1200, monotime.Now(), protocol.Version1, &prepared, &header))
+			require.NoError(t, tp.packer.appendPreparedPacket(nil, buf, 1200, false, monotime.Now(), protocol.Version1, &prepared, &header))
 			require.EqualValues(t, 42, header.packetNumber)
 			require.Same(t, ack, header.ack)
 			require.Same(t, stream, prepared.View().StreamFrames()[0].Frame)
@@ -268,8 +268,51 @@ func TestPreparedPackerSealRefusalRetainsPreparation(t *testing.T) {
 	var header nativeHeaderFacts
 	buf := getPacketBuffer()
 	defer buf.Release()
-	err := tp.packer.appendPreparedPacket(buf, 1200, monotime.Now(), protocol.Version1, &prepared, &header)
+	err := tp.packer.appendPreparedPacket(nil, buf, 1200, false, monotime.Now(), protocol.Version1, &prepared, &header)
 	require.ErrorIs(t, err, sentinel)
 	require.Same(t, frame, prepared.View().StreamFrames()[0].Frame)
 	// No PopPacketNumber expectation: a refused seal cannot commit the number.
+}
+
+func TestPreparedEmissionShortDatagramContinuation(t *testing.T) {
+	c := newEmissionTestConnection(t, true).conn
+	local, err := ackhandler.EnableLocalCompletions(c.sentPacketHandler)
+	require.NoError(t, err)
+	c.sentPacketHandler = local
+	var tokens []ackhandler.LocalCompletionToken
+	c.emission.local = &preparedTestLocal{onRegister: func(token ackhandler.LocalCompletionToken, _ bool) { tokens = append(tokens, token) }}
+	preparedPackets := 0
+	c.emission.policy = &preparedTestPolicy{
+		emissionPolicy: c.emission.policy,
+		onLog:          func(ackhandler.PreparedPacketView, nativeHeaderFacts) { preparedPackets++ },
+		onActivity:     func(ackhandler.PreparedPacketView) {},
+		onRegistration: func() {},
+	}
+	now := monotime.Now()
+	buf := getPacketBuffer()
+	defer buf.Release()
+	batch := newGSOBatch(1200, true)
+	for i := range 2 {
+		require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("equal short segments")}))
+		size, datagramOnly := batch.next()
+		require.Equal(t, i == 1, datagramOnly)
+		receipt, err := c.emission.appendPacket(buf, size, datagramOnly, protocol.ECNNon, now)
+		require.NoError(t, err)
+		require.True(t, batch.add(receipt.size, receipt.frames))
+	}
+	tooLarge := &wire.DatagramFrame{DataLenPresent: true, Data: make([]byte, 100)}
+	require.NoError(t, c.datagramQueue.Add(tooLarge))
+	limit, datagramOnly := batch.next()
+	before := buf.Len()
+	_, err = c.emission.appendPacket(buf, limit, datagramOnly, protocol.ECNNon, now)
+	require.ErrorIs(t, err, errNothingToPack)
+	require.Same(t, tooLarge, c.datagramQueue.Peek(), "a refused continuation retains queue ownership")
+	require.Equal(t, before, buf.Len())
+	nextPN, _ := local.PeekPacketNumber(protocol.Encryption1RTT)
+	require.EqualValues(t, 2, nextPN, "refusal commits no packet number")
+	require.Len(t, tokens, 2)
+	require.Equal(t, 2, preparedPackets, "the short DATAGRAM continuation transfers preparation-owned facts too")
+	for _, token := range tokens {
+		require.NoError(t, local.CompleteLocalPacket(token, ackhandler.LocalPacketUnsubmitted, now.Add(time.Millisecond)))
+	}
 }
