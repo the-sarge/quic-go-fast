@@ -12,7 +12,6 @@ import (
 
 type endpointDatagram struct {
 	data   []byte
-	oob    []byte
 	epoch  *responseEpoch
 	result chan endpointResult
 }
@@ -27,7 +26,7 @@ func (endpoint *nativeEndpoint) writeResponse(data []byte, address net.Addr, inf
 	}
 	request := endpointRequest{
 		destination: destination.AddrPort(),
-		datagram:    &endpointDatagram{data: slices.Clone(data), oob: info.OOB(), epoch: epoch},
+		members:     []endpointMember{{datagram: &endpointDatagram{data: slices.Clone(data), epoch: epoch}, oob: info.OOB()}},
 	}
 	return endpoint.offer(endpoint.stateless, 0, request)
 }
@@ -39,7 +38,7 @@ func newEndpointResponses(endpoint *nativeEndpoint) *endpointResponses {
 func (endpoint *nativeEndpoint) revokeResponse(epoch *responseEpoch) {
 	endpoint.do(func(state *endpointState) {
 		epoch.revoked.Store(true)
-		if state.current != nil && state.current.request.datagram != nil && !state.current.request.datagram.epoch.valid() {
+		if state.current != nil && !state.current.request.authorized() {
 			state.current.canceled.Store(true)
 		}
 	})
@@ -56,7 +55,7 @@ func (endpoint *nativeEndpoint) writePublic(data []byte, address net.Addr, epoch
 	completion := make(chan endpointResult, 1)
 	request := endpointRequest{
 		destination: destination.AddrPort(),
-		datagram:    &endpointDatagram{data: data, result: completion, epoch: epoch},
+		members:     []endpointMember{{datagram: &endpointDatagram{data: data, result: completion, epoch: epoch}}},
 	}
 	if err := endpoint.offer(endpoint.public, 0, request); err != nil {
 		if errors.Is(err, errEndpointCapacity) {
@@ -64,8 +63,9 @@ func (endpoint *nativeEndpoint) writePublic(data []byte, address net.Addr, epoch
 		}
 		return 0, err
 	}
-	result := <-completion
-	err := result.err
+	terminal := <-completion
+	result := terminal.members[0]
+	err := errors.Join(terminal.err, result.err)
 	if errors.Is(err, os.ErrDeadlineExceeded) {
 		err = errors.Join(err, ErrMultipathDeadlineV1, ErrMultipathBackpressureV1)
 	} else if errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.ENOBUFS) {

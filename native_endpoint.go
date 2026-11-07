@@ -60,26 +60,47 @@ type endpointIdentity struct {
 
 var nextNativeEndpoint atomic.Uint64
 
+// A member owns exactly one payload alternative. Packet buffers are released by
+// the endpoint; raw datagrams retain their separate public/stateless lifetime.
+// Geometry and credit belong to this member, never to the enclosing request.
+type endpointMember struct {
+	buffer     *packetBuffer
+	datagram   *endpointDatagram
+	oob        []byte
+	gsoSize    uint16
+	nativeGSO  bool
+	writeState *endpointWriteState
+	credit     *sendReservation
+}
+
 type endpointRequest struct {
 	identity    endpointIdentity
 	destination netip.AddrPort
-	buffers     []*packetBuffer
-	datagram    *endpointDatagram
+	members     []endpointMember
 	epoch       *responseEpoch // nil grants no additional revocation owner
 	deadline    time.Time      // zero selects admission+B; an earlier deadline is allowed
-	oob         []byte
-	gsoSize     uint16
-	nativeGSO   bool
-	writeState  *endpointWriteState
-	credit      *sendReservation
 }
 
-type endpointResult struct {
-	identity                         endpointIdentity
+type endpointMemberResult struct {
 	accepted, uncertain, unsubmitted int
 	bytes                            int
 	err                              error
-	returnedAt                       monotime.Time
+	returnedAt                       monotime.Time // native sequence return, or local terminal decision
+}
+
+type endpointResult struct {
+	identity endpointIdentity
+	members  []endpointMemberResult
+	err      error // deadline reset failure; never rewrites member facts
+}
+
+// failure derives the request failure without storing a second result authority.
+func (r endpointResult) failure() error {
+	err := r.err
+	for _, member := range r.members {
+		err = errors.Join(err, member.err)
+	}
+	return err
 }
 
 type endpointWriteState struct {
@@ -95,14 +116,81 @@ type endpointAdmission struct {
 
 // authorized reports whether every owner that can revoke this request permits it.
 func (request endpointRequest) authorized() bool {
-	return request.epoch.valid() && (request.datagram == nil || request.datagram.epoch.valid())
+	if !request.epoch.valid() {
+		return false
+	}
+	for _, member := range request.members {
+		if member.datagram != nil && !member.datagram.epoch.valid() {
+			return false
+		}
+	}
+	return true
 }
 
-func (request endpointRequest) packetCount() int {
-	if request.datagram != nil {
+// checkedSize is the single validator for admitted member geometry. It does not
+// consume payloads on refusal. Raw datagrams are singleton auxiliary requests.
+func (request endpointRequest) checkedSize(class endpointClass) (int, bool) {
+	if !request.destination.IsValid() || len(request.members) == 0 || len(request.members) > endpointBatch {
+		return 0, false
+	}
+	size := 0
+	for i, member := range request.members {
+		if member.datagram != nil {
+			if member.buffer != nil || len(request.members) != 1 || class < endpointStateless || member.gsoSize != 0 || member.nativeGSO || member.writeState != nil || member.credit != nil {
+				return 0, false
+			}
+			size += cap(member.datagram.data)
+			continue
+		}
+		buffer := member.buffer
+		if buffer == nil || buffer.refCount != 1 || len(buffer.Data) == 0 {
+			return 0, false
+		}
+		for _, earlier := range request.members[:i] {
+			if earlier.buffer == buffer || (member.credit != nil && earlier.credit == member.credit) {
+				return 0, false
+			}
+		}
+		size += cap(buffer.Data)
+	}
+	return size, size <= 1<<20
+}
+
+func (request endpointRequest) snapshot() endpointRequest {
+	request.members = slices.Clone(request.members)
+	for i := range request.members {
+		request.members[i].oob = slices.Clone(request.members[i].oob)
+	}
+	return request
+}
+
+// releasePayload follows the final native fence (or a decision never to submit).
+// Releasing all buffers first prevents a credit wake from reusing a live borrow.
+func (request endpointRequest) releasePayload() {
+	for _, member := range request.members {
+		if member.buffer != nil {
+			member.buffer.Release()
+		}
+	}
+	for _, member := range request.members {
+		member.credit.complete()
+	}
+}
+
+func (member endpointMember) datagrams() int {
+	if member.datagram != nil || member.gsoSize == 0 {
 		return 1
 	}
-	return len(request.buffers)
+	return (len(member.buffer.Data) + int(member.gsoSize) - 1) / int(member.gsoSize)
+}
+
+func (request endpointRequest) unsubmitted(err error) endpointResult {
+	result := endpointResult{members: make([]endpointMemberResult, len(request.members))}
+	now := monotime.Now()
+	for i, member := range request.members {
+		result.members[i] = endpointMemberResult{unsubmitted: member.datagrams(), err: err, returnedAt: now}
+	}
+	return result
 }
 
 // These are the native system boundary, not callbacks on the control path.
@@ -207,7 +295,6 @@ type endpointRecord struct {
 	class          endpointClass
 	bytes          int
 	request        endpointRequest
-	buffers        [endpointBatch]*packetBuffer
 	result         endpointResult
 }
 
@@ -382,27 +469,12 @@ func (e *nativeEndpoint) offer(p *endpointParticipant, lane int, request endpoin
 			return
 		}
 		err = errEndpointRequest
-		if lane < 0 || lane > 2 || request.identity.connection != p.id || !request.destination.IsValid() || request.packetCount() == 0 || request.packetCount() > endpointBatch {
+		if lane < 0 || lane > 2 || request.identity.connection != p.id || (p.class != endpointData && lane != 0) {
 			return
 		}
-		if request.datagram != nil && (len(request.buffers) != 0 || p.class < endpointStateless) {
+		n, valid := request.checkedSize(p.class)
+		if !valid {
 			return
-		}
-		if p.class != endpointData && lane != 0 {
-			return
-		}
-		n := 0
-		if request.datagram != nil {
-			n = cap(request.datagram.data)
-		}
-		for i, b := range request.buffers {
-			if b == nil || b.refCount != 1 || len(b.Data) == 0 {
-				return
-			}
-			if slices.Contains(request.buffers[:i], b) {
-				return
-			}
-			n += cap(b.Data)
 		}
 		var admission endpointAdmission
 		admission, err = s.admit(p, lane, n)
@@ -490,13 +562,7 @@ func (s *endpointState) hasCapacity(class endpointClass, size int) bool {
 
 func (s *endpointState) commit(admission endpointAdmission, request endpointRequest) {
 	record := &s.records[admission.index]
-	var size int
-	if request.datagram != nil {
-		size = cap(request.datagram.data)
-	}
-	for _, buffer := range request.buffers {
-		size += cap(buffer.Data)
-	}
+	size, _ := request.checkedSize(record.participant.class)
 	released := record.bytes - size
 	s.bytes -= released
 	s.classBytes[record.class] -= released
@@ -505,11 +571,8 @@ func (s *endpointState) commit(admission endpointAdmission, request endpointRequ
 		s.capacityGeneration++
 	}
 	record.reserved = false
-	record.request = request
+	record.request = request.snapshot()
 	record.request.identity.endpoint = s.endpoint.generation
-	record.request.oob = slices.Clone(request.oob)
-	copy(record.buffers[:], request.buffers)
-	record.request.buffers = record.buffers[:len(request.buffers)]
 	if request.deadline.IsZero() || request.deadline.After(admission.deadline) {
 		record.request.deadline = admission.deadline
 	}
@@ -664,9 +727,7 @@ func (s *endpointState) dropClosing(p *endpointParticipant) {
 		return
 	}
 	for _, closing := range p.closings {
-		for _, buffer := range closing.request.buffers {
-			buffer.Release()
-		}
+		closing.request.releasePayload()
 	}
 	p.closings = nil
 	s.closers = slices.DeleteFunc(s.closers, func(closer *endpointParticipant) bool { return closer == p })
@@ -724,24 +785,22 @@ func (s *endpointState) revoke(p *endpointParticipant) {
 func (s *endpointState) publish(index int, result endpointResult) {
 	r := &s.records[index]
 	result.identity = r.request.identity
-	datagram := r.request.datagram
-	for _, b := range r.request.buffers {
-		b.Release()
+	var datagram *endpointDatagram
+	for _, member := range r.request.members {
+		if member.datagram != nil {
+			datagram = member.datagram
+		}
 	}
-	r.request.credit.complete()
-	if result.returnedAt.IsZero() {
-		result.returnedAt = monotime.Now()
-	}
+	r.request.releasePayload()
 	s.count--
 	s.bytes -= r.bytes
 	s.classCount[r.class]--
 	s.classBytes[r.class] -= r.bytes
 	s.capacityGeneration++
-	if localEndpointBackpressure(result.err) {
+	if localEndpointBackpressure(result.failure()) {
 		r.participant.wait[r.lane].notBefore = time.Now().Add(endpointRetry)
 	}
 	r.request = endpointRequest{}
-	clear(r.buffers[:])
 	r.result, r.terminal = result, true
 	p := r.participant
 	if datagram != nil {
@@ -815,7 +874,7 @@ func (s *endpointState) run() {
 					err = errEndpointRevoked
 				}
 				s.queue = append(s.queue[:j], s.queue[j+1:]...)
-				s.publish(i, endpointResult{unsubmitted: r.request.datagrams(), err: err})
+				s.publish(i, r.request.unsubmitted(err))
 				continue
 			}
 			j++
@@ -891,9 +950,9 @@ func (s *endpointState) reconcileCurrent(now time.Time) {
 		return // still fenced; only the writer can acknowledge native return
 	}
 	if completion.fault {
-		s.fail(endpointFaultNative, completion.result.err)
+		s.fail(endpointFaultNative, completion.result.failure())
 	} else if !completion.returnedAt.Before(cutoff) {
-		s.fail(endpointFaultLateReturn, completion.result.err)
+		s.fail(endpointFaultLateReturn, completion.result.failure())
 	}
 	s.publish(token.index, completion.result)
 	s.current = nil
@@ -1097,37 +1156,28 @@ func (s *endpointState) fail(cause endpointFaultCause, err error) {
 func (e *nativeEndpoint) write(native endpointNativeIO) {
 	defer close(e.writer)
 	for token := range e.work {
-		r := token.request
-		result := endpointResult{unsubmitted: r.datagrams()}
+		var result endpointResult
 		fault := false
-		if err := native.SetWriteDeadline(r.deadline); err != nil {
-			result.err, fault = err, true
+		if err := native.SetWriteDeadline(token.request.deadline); err != nil {
+			result = token.request.unsubmitted(err)
+			fault = true
 		} else {
 			result = writeEndpointRequest(native, token)
-			fault = endpointFatalWrite(result.err)
+			fault = endpointFatalWrite(result.failure())
 		}
 		if err := native.SetWriteDeadline(time.Time{}); err != nil {
-			result.err, fault = errors.Join(result.err, err), true
+			result.err, fault = err, true
 		}
-		// Publication ends this token's native borrow. Do not access payload
-		// after Store: control may immediately release/reuse its storage.
-		result.returnedAt = monotime.Now()
-		token.completion.Store(&endpointWriteResult{result: result, fault: fault, returnedAt: result.returnedAt.ToTime()})
+		// This separate fact fences the entire native/deadline borrow. Member
+		// timestamps remain their actual sequence returns, including on reset error.
+		returnedAt := time.Now()
+		// Do not access token payload after Store: control can release it at once.
+		token.completion.Store(&endpointWriteResult{result: result, fault: fault, returnedAt: returnedAt})
 		select {
 		case e.returned <- struct{}{}:
 		default:
 		}
 	}
-}
-
-func (r endpointRequest) datagrams() int {
-	if r.datagram != nil {
-		return 1
-	}
-	if r.gsoSize != 0 && len(r.buffers) == 1 {
-		return (len(r.buffers[0].Data) + int(r.gsoSize) - 1) / int(r.gsoSize)
-	}
-	return len(r.buffers)
 }
 
 func endpointSubmissionAllowed(token *endpointToken) error {
@@ -1153,15 +1203,15 @@ func localEndpointBackpressure(err error) bool {
 	return errors.Is(err, os.ErrDeadlineExceeded) || errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.ENOBUFS)
 }
 
-func writeEndpointDatagram(native endpointNativeIO, token *endpointToken, data, oob []byte) (bool, error) {
+func writeEndpointDatagram(native endpointNativeIO, token *endpointToken, member endpointMember, data, oob []byte) (bool, error) {
 	if err := endpointSubmissionAllowed(token); err != nil {
 		return false, err
 	}
 	request := token.request
-	first := request.writeState != nil && !request.writeState.wroteFirstPacket
+	first := member.writeState != nil && !member.writeState.wroteFirstPacket
 	written, _, err := native.WriteMsgUDPAddrPort(data, oob, request.destination)
-	if request.writeState != nil {
-		request.writeState.wroteFirstPacket = true
+	if member.writeState != nil {
+		member.writeState.wroteFirstPacket = true
 	}
 	if first && endpointSendmsgError(err, syscall.EPERM) {
 		if denied := endpointSubmissionAllowed(token); denied != nil {
@@ -1182,15 +1232,32 @@ func endpointSendmsgError(err error, cause error) bool {
 
 func writeEndpointRequest(native endpointNativeIO, token *endpointToken) endpointResult {
 	request := token.request
-	result := endpointResult{unsubmitted: request.datagrams()}
-	if request.datagram != nil {
+	result := endpointResult{members: make([]endpointMemberResult, len(request.members))}
+	for i, member := range request.members {
+		result.members[i] = writeEndpointMember(native, token, member)
+		if result.members[i].err != nil {
+			// The untouched suffix has no native error or native-return time.
+			now := monotime.Now()
+			for j := i + 1; j < len(request.members); j++ {
+				result.members[j] = endpointMemberResult{unsubmitted: request.members[j].datagrams(), returnedAt: now}
+			}
+			break
+		}
+	}
+	return result
+}
+
+func writeEndpointMember(native endpointNativeIO, token *endpointToken, member endpointMember) (result endpointMemberResult) {
+	result.unsubmitted = member.datagrams()
+	defer func() { result.returnedAt = monotime.Now() }()
+	if member.datagram != nil {
 		if err := endpointSubmissionAllowed(token); err != nil {
 			result.err = err
 			return result
 		}
-		written, _, err := native.WriteMsgUDPAddrPort(request.datagram.data, request.datagram.oob, request.destination)
+		written, _, err := native.WriteMsgUDPAddrPort(member.datagram.data, member.oob, token.request.destination)
 		result.bytes = written
-		if err == nil && written == len(request.datagram.data) {
+		if err == nil && written == len(member.datagram.data) {
 			result.accepted, result.unsubmitted = 1, 0
 			return result
 		}
@@ -1203,43 +1270,40 @@ func writeEndpointRequest(native endpointNativeIO, token *endpointToken) endpoin
 		}
 		return result
 	}
-	for _, buffer := range request.buffers {
-		data := buffer.Data
-		segment := len(data)
-		if request.gsoSize != 0 {
-			segment = int(request.gsoSize)
-			if request.nativeGSO && request.writeState != nil && !request.writeState.gsoDisabled.Load() {
-				oob := appendUDPSegmentSizeMsg(slices.Clone(request.oob), request.gsoSize)
-				attempted, err := writeEndpointDatagram(native, token, data, oob)
-				if endpointSendmsgError(err, syscall.EIO) {
-					request.writeState.gsoDisabled.Store(true)
-				} else {
-					units := request.datagrams()
-					result.err = err
-					if err == nil {
-						result.accepted, result.unsubmitted = units, 0
-					} else if attempted && !errors.Is(err, syscall.EMSGSIZE) {
-						result.uncertain, result.unsubmitted = units, 0
-					}
-					return result
-				}
-			}
-		}
-		for len(data) != 0 {
-			length := min(segment, len(data))
-			attempted, err := writeEndpointDatagram(native, token, data[:length], request.oob)
-			if err != nil {
+	data := member.buffer.Data
+	segment := len(data)
+	if member.gsoSize != 0 {
+		segment = int(member.gsoSize)
+		if member.nativeGSO && member.writeState != nil && !member.writeState.gsoDisabled.Load() {
+			oob := appendUDPSegmentSizeMsg(slices.Clone(member.oob), member.gsoSize)
+			attempted, err := writeEndpointDatagram(native, token, member, data, oob)
+			if endpointSendmsgError(err, syscall.EIO) {
+				member.writeState.gsoDisabled.Store(true)
+			} else {
 				result.err = err
-				if attempted && !errors.Is(err, syscall.EMSGSIZE) {
-					result.uncertain++
-					result.unsubmitted--
+				if err == nil {
+					result.accepted, result.unsubmitted = member.datagrams(), 0
+				} else if attempted && !errors.Is(err, syscall.EMSGSIZE) {
+					result.uncertain, result.unsubmitted = member.datagrams(), 0
 				}
 				return result
 			}
-			result.accepted++
-			result.unsubmitted--
-			data = data[length:]
 		}
+	}
+	for len(data) != 0 {
+		length := min(segment, len(data))
+		attempted, err := writeEndpointDatagram(native, token, member, data[:length], member.oob)
+		if err != nil {
+			result.err = err
+			if attempted && !errors.Is(err, syscall.EMSGSIZE) {
+				result.uncertain++
+				result.unsubmitted--
+			}
+			return result
+		}
+		result.accepted++
+		result.unsubmitted--
+		data = data[length:]
 	}
 	return result
 }

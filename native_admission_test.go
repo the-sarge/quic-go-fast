@@ -26,7 +26,7 @@ func TestEndpointAuxiliaryAdmissionPreservesGrant(t *testing.T) {
 					synctest.Wait()
 				}
 				pending := endpointTestRequest(1, "persistent demand")
-				defer pending.buffers[0].Release()
+				defer pending.members[0].buffer.Release()
 				require.ErrorIs(t, e.offer(p, lane, pending), errEndpointCapacity)
 				_, ok := e.take(p)
 				require.True(t, ok)

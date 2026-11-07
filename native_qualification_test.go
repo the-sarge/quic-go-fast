@@ -83,7 +83,7 @@ func nativeQualRequest(id, registration uint64, destination netip.AddrPort, dead
 	return endpointRequest{
 		identity:    endpointIdentity{connection: id, registration: registration},
 		destination: destination,
-		buffers:     []*packetBuffer{endpointTestBuffer(data)},
+		members:     []endpointMember{{buffer: endpointTestBuffer(data)}},
 		deadline:    deadline,
 	}
 }
@@ -200,13 +200,13 @@ type nativeQualBlast struct {
 }
 
 func (b *nativeQualBlast) note(result endpointResult, deadline, seen time.Time) {
-	b.accepted[result.identity.path].Add(int64(result.accepted))
-	b.uncertain.Add(int64(result.uncertain))
-	if result.unsubmitted != 0 {
+	b.accepted[result.identity.path].Add(int64(result.members[0].accepted))
+	b.uncertain.Add(int64(result.members[0].uncertain))
+	if result.members[0].unsubmitted != 0 {
 		b.expired.Add(1)
 		return
 	}
-	returned := result.returnedAt.ToTime()
+	returned := result.members[0].returnedAt.ToTime()
 	nativeQualRaise(&b.overrun, int64(returned.Sub(deadline)))
 	nativeQualRaise(&b.publication, int64(seen.Sub(returned)))
 }
@@ -263,7 +263,7 @@ func (b *nativeQualBlast) participant(t *testing.T, e *nativeEndpoint, p *endpoi
 				}
 				if !errors.Is(err, errEndpointCapacity) {
 					t.Errorf("participant %d lane %d: %v", p.id, lane, err)
-					request.buffers[0].Release()
+					request.members[0].buffer.Release()
 					return
 				}
 				// Consuming only here leaves results pending, so participants
@@ -321,10 +321,10 @@ func TestNativeQualification(t *testing.T) {
 		offered := time.Now()
 		nativeQualOffer(t, e, p, nativeQualRequest(1, 1, destination, offered.Add(-time.Millisecond), "expired"))
 		expired, seen := nativeQualTake(t, e, p)
-		require.ErrorIs(t, expired.err, os.ErrDeadlineExceeded)
-		require.Equal(t, 1, expired.unsubmitted)
-		require.Zero(t, expired.accepted)
-		require.Zero(t, expired.uncertain)
+		require.ErrorIs(t, expired.failure(), os.ErrDeadlineExceeded)
+		require.Equal(t, 1, expired.members[0].unsubmitted)
+		require.Zero(t, expired.members[0].accepted)
+		require.Zero(t, expired.members[0].uncertain)
 		evidence.TimingMS["expiry"] = nativeQualMS(seen.Sub(offered))
 
 		// The first datagram the receiver sees is the successor's: the expired
@@ -333,10 +333,10 @@ func TestNativeQualification(t *testing.T) {
 		successor := time.Now()
 		nativeQualOffer(t, e, p, nativeQualRequest(1, 2, destination, successor.Add(nativeQualBudget), "successor"))
 		result, seen := nativeQualTake(t, e, p)
-		require.NoError(t, result.err)
-		require.Equal(t, 1, result.accepted)
+		require.NoError(t, result.failure())
+		require.Equal(t, 1, result.members[0].accepted)
 		require.Equal(t, "successor", nativeQualRead(t, receiver))
-		evidence.TimingMS["successor_publication"] = nativeQualMS(seen.Sub(result.returnedAt.ToTime()))
+		evidence.TimingMS["successor_publication"] = nativeQualMS(seen.Sub(result.members[0].returnedAt.ToTime()))
 		_, faulted := e.faultObservation()
 		require.False(t, faulted)
 	})
@@ -352,12 +352,12 @@ func TestNativeQualification(t *testing.T) {
 		deadline := time.Now().Add(nativeQualBudget)
 		evidence.Traversal = nativeQualStall(t, e, p, nativeQualRequest(1, 1, destination, deadline, "stalled"))
 		result, seen := nativeQualTake(t, e, p)
-		require.ErrorIs(t, result.err, os.ErrDeadlineExceeded)
-		require.Equal(t, 1, result.uncertain, "a native timeout never proves zero submission")
-		require.Zero(t, result.unsubmitted)
-		require.Zero(t, result.accepted)
-		evidence.TimingMS["injected_native_return"] = nativeQualMS(result.returnedAt.ToTime().Sub(deadline))
-		evidence.TimingMS["injected_publication"] = nativeQualMS(seen.Sub(result.returnedAt.ToTime()))
+		require.ErrorIs(t, result.failure(), os.ErrDeadlineExceeded)
+		require.Equal(t, 1, result.members[0].uncertain, "a native timeout never proves zero submission")
+		require.Zero(t, result.members[0].unsubmitted)
+		require.Zero(t, result.members[0].accepted)
+		evidence.TimingMS["injected_native_return"] = nativeQualMS(result.members[0].returnedAt.ToTime().Sub(deadline))
+		evidence.TimingMS["injected_publication"] = nativeQualMS(seen.Sub(result.members[0].returnedAt.ToTime()))
 		_, faulted := e.faultObservation()
 		require.False(t, faulted)
 	})
@@ -374,27 +374,27 @@ func TestNativeQualification(t *testing.T) {
 
 		deadline := time.Now().Add(nativeQualBudget)
 		retry := nativeQualRequest(1, 1, destination, deadline, "permission retry")
-		retry.writeState = &endpointWriteState{}
+		retry.members[0].writeState = &endpointWriteState{}
 		retried := nativeQualStall(t, e, p, retry)
 		result, _ := nativeQualTake(t, e, p)
-		require.ErrorIs(t, result.err, os.ErrDeadlineExceeded)
-		require.Equal(t, 1, result.uncertain)
-		evidence.TimingMS["injected_retry_return"] = nativeQualMS(result.returnedAt.ToTime().Sub(deadline))
+		require.ErrorIs(t, result.failure(), os.ErrDeadlineExceeded)
+		require.Equal(t, 1, result.members[0].uncertain)
+		evidence.TimingMS["injected_retry_return"] = nativeQualMS(result.members[0].returnedAt.ToTime().Sub(deadline))
 
 		time.Sleep(2 * endpointRetry)
 		deadline = time.Now().Add(nativeQualBudget)
 		fallback := nativeQualRequest(1, 2, destination, deadline, strings.Repeat("g", 300))
-		fallback.gsoSize, fallback.nativeGSO = 100, true
+		fallback.members[0].gsoSize, fallback.members[0].nativeGSO = 100, true
 		state := &endpointWriteState{}
-		fallback.writeState = state
+		fallback.members[0].writeState = state
 		fellBack := nativeQualStall(t, e, p, fallback)
 		result, _ = nativeQualTake(t, e, p)
-		require.ErrorIs(t, result.err, os.ErrDeadlineExceeded)
-		require.Equal(t, 1, result.uncertain, "only the attempted segment is uncertain")
-		require.Equal(t, 2, result.unsubmitted)
+		require.ErrorIs(t, result.failure(), os.ErrDeadlineExceeded)
+		require.Equal(t, 1, result.members[0].uncertain, "only the attempted segment is uncertain")
+		require.Equal(t, 2, result.members[0].unsubmitted)
 		require.True(t, state.gsoDisabled.Load())
 		require.EqualValues(t, 1, native.simulatedEIO.Load())
-		evidence.TimingMS["injected_fallback_return"] = nativeQualMS(result.returnedAt.ToTime().Sub(deadline))
+		evidence.TimingMS["injected_fallback_return"] = nativeQualMS(result.members[0].returnedAt.ToTime().Sub(deadline))
 		evidence.Traversal = retried && fellBack
 		evidence.Facts["simulated_gso_eio"] = native.simulatedEIO.Load()
 		_, faulted := e.faultObservation()
@@ -417,16 +417,16 @@ func TestNativeQualification(t *testing.T) {
 
 		queued, seen := nativeQualTake(t, e, p)
 		require.EqualValues(t, 2, queued.identity.registration, "the queued request expires first")
-		require.ErrorIs(t, queued.err, os.ErrDeadlineExceeded)
-		require.Equal(t, 1, queued.unsubmitted)
+		require.ErrorIs(t, queued.failure(), os.ErrDeadlineExceeded)
+		require.Equal(t, 1, queued.members[0].unsubmitted)
 		require.True(t, seen.Before(currentDeadline), "its expiry can't wait for the current request's return")
 		require.True(t, nativeQualWriterWaiting(), "the current request is still in native I/O")
 		evidence.TimingMS["injected_queued_expiry"] = nativeQualMS(seen.Sub(queuedDeadline))
 
 		current, _ := nativeQualTake(t, e, p)
 		require.EqualValues(t, 1, current.identity.registration)
-		require.Equal(t, 1, current.uncertain)
-		evidence.TimingMS["injected_current_return"] = nativeQualMS(current.returnedAt.ToTime().Sub(currentDeadline))
+		require.Equal(t, 1, current.members[0].uncertain)
+		evidence.TimingMS["injected_current_return"] = nativeQualMS(current.members[0].returnedAt.ToTime().Sub(currentDeadline))
 	})
 
 	nativeQualRun(t, "shutdown-join", func(t *testing.T, evidence *nativeQualEvidence) {

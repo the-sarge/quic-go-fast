@@ -132,7 +132,8 @@ func (e *nativeEndpoint) submit(admission endpointAdmission, request endpointReq
 			return
 		}
 		err = errEndpointRequest
-		if request.identity.connection != record.participant.id || !request.destination.IsValid() || len(request.buffers) != 1 || request.buffers[0] == nil || request.buffers[0].refCount != 1 || len(request.buffers[0].Data) == 0 || cap(request.buffers[0].Data) > record.bytes {
+		size, valid := request.checkedSize(record.participant.class)
+		if request.identity.connection != record.participant.id || !valid || size > record.bytes {
 			return
 		}
 		s.commit(admission, request)
@@ -170,13 +171,14 @@ func (e *nativeEndpoint) depositCloseUpTo(p *endpointParticipant, request endpoi
 			return
 		}
 		err = errEndpointRequest
-		if request.identity.connection != p.id || !request.destination.IsValid() || len(request.buffers) != 1 || request.buffers[0] == nil || request.buffers[0].refCount != 1 || len(request.buffers[0].Data) == 0 || cap(request.buffers[0].Data) > 64<<10 {
+		size, valid := request.checkedSize(p.class)
+		if request.identity.connection != p.id || !valid || len(request.members) != 1 || request.members[0].buffer == nil || size > 64<<10 {
 			return
 		}
 		if len(p.closings) == 0 {
 			s.closers = append(s.closers, p)
 		}
-		p.closings = append(p.closings, endpointClosing{request: request, size: cap(request.buffers[0].Data), deadline: time.Now().Add(s.budget)})
+		p.closings = append(p.closings, endpointClosing{request: request.snapshot(), size: size, deadline: time.Now().Add(s.budget)})
 		p.closeDeposited = true
 		err = nil
 	})
@@ -404,11 +406,11 @@ func (s *nativeOrdinarySender) Send(buffer *packetBuffer, segment uint16, ecn pr
 		epoch = credit.zeroEpoch()
 	}
 	request := endpointRequest{
-		identity: record.identity, destination: destination, buffers: []*packetBuffer{buffer},
-		deadline: record.admission.deadline, oob: packetOOB(base, destination, ecn), gsoSize: segment, nativeGSO: s.nativeGSO,
-		writeState: writeState, credit: metadata.credit, epoch: epoch,
+		identity: record.identity, destination: destination,
+		members:  []endpointMember{{buffer: buffer, oob: packetOOB(base, destination, ecn), gsoSize: segment, nativeGSO: s.nativeGSO, writeState: writeState, credit: metadata.credit}},
+		deadline: record.admission.deadline, epoch: epoch,
 	}
-	record.datagrams = request.datagrams()
+	record.datagrams = request.members[0].datagrams()
 	err := errEndpointRequest
 	if routed && (segment == 0 || record.count == record.datagrams) {
 		err = record.endpoint.submit(record.admission, request)
@@ -468,7 +470,7 @@ func (s *nativeOrdinarySender) sendClose(buffer *packetBuffer, ecn protocol.ECN)
 	}
 	err := s.endpoint.depositCloseUpTo(s.participant, endpointRequest{
 		identity:    endpointIdentity{connection: s.participant.id, generation: s.generation, pathGeneration: s.connection.pathGeneration, tuple: s.connection.pathGeneration},
-		destination: s.destination, buffers: []*packetBuffer{buffer}, oob: s.packetOOB(ecn), writeState: s.writeState,
+		destination: s.destination, members: []endpointMember{{buffer: buffer, oob: s.packetOOB(ecn), writeState: s.writeState}},
 	}, limit)
 	if err != nil {
 		buffer.Release()
@@ -495,7 +497,7 @@ func (s *nativeOrdinarySender) sendPathClose(buffer *packetBuffer, ecn protocol.
 	participant.endpoint.drain(participant)
 	err := participant.endpoint.depositCloseUpTo(participant, endpointRequest{
 		identity:    endpointIdentity{connection: participant.id, generation: s.generation, pathGeneration: route.context.TupleGeneration, tuple: route.context.TupleGeneration},
-		destination: destination, buffers: []*packetBuffer{buffer}, oob: packetOOB(route.info.OOB(), destination, ecn), writeState: &route.writeState,
+		destination: destination, members: []endpointMember{{buffer: buffer, oob: packetOOB(route.info.OOB(), destination, ecn), writeState: &route.writeState}},
 	}, pathCloseLimit)
 	if err != nil {
 		buffer.Release()
@@ -573,7 +575,7 @@ func (s *nativeOrdinarySender) sendProbe(buffer *packetBuffer, target *Transport
 	}
 	err := participant.endpoint.offer(participant, nativeProbeLane, endpointRequest{
 		identity:    endpointIdentity{connection: participant.id, generation: s.generation, pathGeneration: s.connection.pathGeneration, tuple: s.connection.pathGeneration},
-		destination: destination, buffers: []*packetBuffer{buffer}, oob: info.OOB(), epoch: epoch,
+		destination: destination, members: []endpointMember{{buffer: buffer, oob: info.OOB()}}, epoch: epoch,
 	})
 	if err == nil {
 		return nil
@@ -729,19 +731,26 @@ func (s *nativeOrdinarySender) reconcileFailure(participant *endpointParticipant
 // left can't end it or affect its replacement.
 func (s *nativeOrdinarySender) consumeParticipant(participant *endpointParticipant) {
 	for {
-		result, ok := participant.endpoint.take(participant)
+		terminal, ok := participant.endpoint.take(participant)
 		if !ok {
 			return
 		}
 		// A target's result can free the capacity the selected route is waiting for.
 		s.connection.scheduleSending()
-		identity := result.identity
+		identity := terminal.identity
 		identity.endpoint = 0
 		for index := range s.records {
 			record := &s.records[index]
 			if record.admission.serial == 0 || record.identity != identity {
 				continue
 			}
+			// Current producers are singleton callers. The endpoint's member vector
+			// is authoritative; the connection maps this member's datagrams to tokens.
+			if len(terminal.members) != 1 {
+				s.err = errors.Join(s.err, errEndpointRequest)
+				break
+			}
+			result := terminal.members[0]
 			if result.accepted < 0 || result.uncertain < 0 || result.unsubmitted < 0 || result.accepted+result.uncertain+result.unsubmitted != record.datagrams {
 				s.err = errors.Join(s.err, errEndpointRequest)
 				break
@@ -771,14 +780,15 @@ func (s *nativeOrdinarySender) consumeParticipant(participant *endpointParticipa
 			if credit := s.connection.pathCredit; credit != nil && credit.hasAdmission() {
 				credit.noteOutcome(protocol.PathID(identity.path), identity.tuple, result.accepted, result.uncertain, record.datagrams)
 			}
+			err := errors.Join(result.err, terminal.err)
 			if identity.generation < s.switchGeneration {
 				s.connection.scheduleSending()
-			} else if isSendMsgSizeErr(result.err) {
+			} else if isSendMsgSizeErr(err) {
 				if record.metadata.handshake && record.datagrams == 1 && record.bytes > protocol.MinInitialPacketSize {
 					s.connection.handshakeSendFeedback.publish(record.metadata.pathGeneration)
 				}
-			} else if result.err != nil && !localEndpointBackpressure(result.err) && !errors.Is(result.err, errEndpointRevoked) && !s.pathSendFailed(participant, identity, result.err) && !s.endpointOwnsResult(participant) {
-				s.err = errors.Join(s.err, result.err)
+			} else if err != nil && !localEndpointBackpressure(err) && !errors.Is(err, errEndpointRevoked) && !s.pathSendFailed(participant, identity, err) && !s.endpointOwnsResult(participant) {
+				s.err = errors.Join(s.err, err)
 			}
 			*record = ordinaryLocalRecord{}
 			break
