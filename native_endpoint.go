@@ -516,6 +516,11 @@ func (e *nativeEndpoint) exchange(p *endpointParticipant, request *endpointReque
 			s.capacityGeneration++
 		}
 		p.results = p.results[:0]
+		// A drain-only exchange still observes admission usability. Local staged
+		// work must not wait for a grant or its deadline after this owner closes.
+		if s.sealed || s.faulted || !s.valid(p) || p.draining {
+			return
+		}
 		err = nil
 		if request != nil {
 			err = s.offer(p, 0, *request)
@@ -819,6 +824,13 @@ func (s *endpointState) revoke(p *endpointParticipant) {
 	s.withdraw(p)
 	if s.current != nil && s.records[s.current.index].participant == p {
 		s.current.canceled.Store(true)
+	}
+	// Local producers can still own frozen requests, even while a current
+	// native borrow prevents retirement. Wake them to settle only local work.
+	p.notification.Add(1)
+	select {
+	case p.completed <- struct{}{}:
+	default:
 	}
 	s.retire(p)
 }

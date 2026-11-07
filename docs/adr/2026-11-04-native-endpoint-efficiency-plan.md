@@ -66,7 +66,7 @@ Native I/O, protection, sinks, callbacks, blocking waits, writer join and grant 
 
 ## Slice graph
 
-The new child issue fields are `pending` until this plan is merged and exact default-branch reachability is verified. Stable identities use the track prefix plus the slice ID. Withdrawn N5 is not reused. Six completed slices plus five remaining slices make eleven; six new child issues are created and existing N3 #1202 is reworked.
+The new child issue fields are `pending` until this plan is merged and exact default-branch reachability is verified. Stable identities use the track prefix plus the slice ID. Withdrawn N5 is not reused. Seven completed slices plus four remaining slices make eleven; six new child issues are created and existing N3 #1202 is reworked.
 
 | Slice | Current disposition / delivery | Genuine blockers | Transitional seam removed |
 | --- | --- | --- | --- |

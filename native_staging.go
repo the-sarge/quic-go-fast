@@ -50,7 +50,12 @@ func (s *nativeOrdinarySender) serviceParticipant(p *endpointParticipant) {
 		}
 		results, err := p.endpoint.exchange(p, request)
 		notified = false
-		if request != nil {
+		if errors.Is(err, net.ErrClosed) {
+			// The endpoint owns admitted requests through their native fence; only
+			// Building/Staged records can be settled on this terminal observation.
+			s.cancelLocal(p)
+		}
+		if request != nil && head.state == ordinaryStaged {
 			head.offered = true
 			if err == nil {
 				head.state = ordinaryEndpointOwned
