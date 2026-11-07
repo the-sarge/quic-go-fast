@@ -547,7 +547,7 @@ func TestLocalProbeRegistration(t *testing.T) {
 		before := h.bytesInFlight
 		registerPathProbe(t, h, now, probes.NewPingFrame(0))
 		require.Equal(t, before, h.bytesInFlight)
-		require.Empty(t, h.local.records, "no completion identity is retained")
+		require.Zero(t, h.local.owner.pending, "no completion identity is retained")
 		_, err := h.OnLossDetectionTimeout(now.Add(2 * pathProbePacketLossTimeout))
 		require.NoError(t, err)
 		require.Len(t, probes.Lost, 1)

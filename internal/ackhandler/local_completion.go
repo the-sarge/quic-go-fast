@@ -26,9 +26,14 @@ type LocalSentPacketHandler interface {
 
 // LocalCompletionToken identifies one registration, including its original epoch.
 // A copy conveys no protocol or native-buffer ownership. It can be consumed once.
+// The canonical allocation is never reused, so its pointer binds the epoch; the
+// handle carries no second epoch value that could disagree with that identity.
+// Retaining a copy can retain the canonical metadata after consumption; protocol
+// retirement clears the metadata's packet reference independently of token copies.
+// A registration shares a small GC allocation with at most seven neighbors, so a
+// retained copy can also retain their metadata after their own consumption.
 type LocalCompletionToken struct {
-	owner     *localCompletionOwner
-	id, epoch uint64
+	registration *localRegistration
 }
 
 type LocalPacketOutcome uint8
@@ -47,27 +52,56 @@ var (
 	errLocalPacketMode              = errors.New("unsupported local packet mode")
 )
 
-type localCompletionOwner struct{ next uint64 }
+type localCompletionOwner struct {
+	pending int // unconsumed tokens, including retired protocol packets
+	live    int // unconsumed tokens whose packet is still protocol-owned
+}
+
+const localRegistrationChunkSize = 8
 
 type localCompletions struct {
-	owner     localCompletionOwner
-	nextEpoch uint64
-	records   map[uint64]*localRegistration
-	closed    bool
-	ecn       *localECNEvidence
+	owner            localCompletionOwner
+	closed           bool
+	nextRegistration uint8
+	ecn              *localECNEvidence
+	registrationHead *[localRegistrationChunkSize]localRegistration
+}
+
+// allocateRegistration issues each slot once. Full chunks have no allocator
+// back-reference: only tokens, protocol packets and recovery evidence retain
+// them. The owner retains at most one 448-byte partial chunk (on 64-bit hosts).
+func (l *localCompletions) allocateRegistration() *localRegistration {
+	if l.registrationHead == nil {
+		l.registrationHead = new([localRegistrationChunkSize]localRegistration)
+	}
+	r := &l.registrationHead[l.nextRegistration]
+	l.nextRegistration++
+	if l.nextRegistration == localRegistrationChunkSize {
+		l.registrationHead = nil
+		l.nextRegistration = 0
+	}
+	return r
+}
+
+// localRegistrationEpoch binds one packet-number-space incarnation to its
+// completion owner. It is immutable, issued once, and contains no pointer back
+// to the packet-number space or its recovery history. Retained registrations
+// keep this identity alive across Retry, packet-space disposal and late return.
+type localRegistrationEpoch struct {
+	owner *localCompletionOwner
 }
 
 type localRegistration struct {
-	registeredAt  monotime.Time
+	epoch         *localRegistrationEpoch
 	packet        *packet // cleared at protocol retirement; never references native storage
 	pn            protocol.PacketNumber
-	level         protocol.EncryptionLevel
-	epoch         uint64
-	outcome       LocalPacketOutcome
+	registeredAt  monotime.Time
 	eligibleAt    monotime.Time
+	richOrdinal   uint64
+	level         protocol.EncryptionLevel
+	outcome       LocalPacketOutcome
 	acked         bool
 	earlyACK      bool
-	richOrdinal   uint64
 	timingMissing bool
 }
 
@@ -83,7 +117,13 @@ func EnableLocalCompletions(handler SentPacketHandler) (LocalSentPacketHandler, 
 	if !ok || h.local != nil || h.bytesSent != 0 || h.pathRoot != nil || len(h.paths) != 0 {
 		return nil, errLocalPacketMode
 	}
-	h.local = &localCompletions{records: make(map[uint64]*localRegistration)}
+	h.local = &localCompletions{}
+	for _, ps := range []*packetNumberSpace{h.initialPackets, h.handshakePackets, h.appDataPackets} {
+		if ps != nil {
+			ps.history.localPTOTracked = true
+			ps.history.refillLocalPTO()
+		}
+	}
 	if h.congestionEvents != nil {
 		h.congestionEvents.localRoute = true
 	}
@@ -162,14 +202,13 @@ func (h *sentPacketHandler) registerLocalPacket(context PacketContext, t monotim
 	if h.numTrackedPackets() >= protocol.MaxTrackedSentPackets {
 		return LocalCompletionToken{}, ErrLocalCompletionCapacity
 	}
-	if ps.localEpoch == 0 {
-		h.local.nextEpoch++
-		ps.localEpoch = h.local.nextEpoch
+	if ps.localEpoch == nil {
+		ps.localEpoch = &localRegistrationEpoch{owner: &h.local.owner}
 	}
-	h.local.owner.next++
-	token := LocalCompletionToken{owner: &h.local.owner, id: h.local.owner.next, epoch: ps.localEpoch}
-	r := &localRegistration{pn: pn, level: level, epoch: ps.localEpoch, registeredAt: t}
-	h.local.records[token.id] = r
+	r := h.local.allocateRegistration()
+	r.epoch, r.pn, r.level, r.registeredAt = ps.localEpoch, pn, level, t
+	h.local.owner.pending++
+	token := LocalCompletionToken{registration: r}
 	h.sentPacket(context, t, pn, largestAcked, streams, frames, level, ecn, size, mtu, false, r)
 	h.settleLocalUndo(t)
 	if ps.localUnregisteredPN == pn {
@@ -179,18 +218,19 @@ func (h *sentPacketHandler) registerLocalPacket(context PacketContext, t monotim
 }
 
 func (h *sentPacketHandler) CompleteLocalPacket(token LocalCompletionToken, outcome LocalPacketOutcome, returnedAt monotime.Time) error {
-	if h.local != nil && token.owner != &h.local.owner {
+	r := token.registration
+	if r == nil || r.epoch == nil {
+		return errLocalCompletionToken
+	}
+	owner := r.epoch.owner
+	if h.local != nil && owner != &h.local.owner {
 		for _, path := range h.paths {
-			if token.owner == &path.local.owner {
+			if path.local != nil && owner == &path.local.owner {
 				return path.CompleteLocalPacket(token, outcome, returnedAt)
 			}
 		}
 	}
-	if h.local == nil || token.owner != &h.local.owner {
-		return errLocalCompletionToken
-	}
-	r := h.local.records[token.id]
-	if r == nil || r.epoch != token.epoch {
+	if h.local == nil || owner != &h.local.owner || r.outcome != localPacketPending {
 		return errLocalCompletionToken
 	}
 	if outcome < LocalPacketAccepted || outcome > LocalPacketUnsubmitted || returnedAt.IsZero() || returnedAt.Before(r.registeredAt) {
@@ -199,12 +239,20 @@ func (h *sentPacketHandler) CompleteLocalPacket(token LocalCompletionToken, outc
 	// Completion can retire other local packets during its loss scan. Finalize
 	// held undo only after that scan and every ECN transition in this operation.
 	defer h.settleLocalUndo(returnedAt)
-	delete(h.local.records, token.id)
+	h.local.owner.pending--
+	if r.packet != nil {
+		h.local.owner.live--
+	}
 	if ps := h.getPacketNumberSpace(r.level); ps != nil && ps.localEpoch == r.epoch {
 		ps.history.completeLocal(r.pn)
 	}
 	r.outcome = outcome
 	r.eligibleAt = returnedAt
+	if r.packet != nil {
+		if ps := h.getPacketNumberSpace(r.level); ps != nil && ps.localEpoch == r.epoch {
+			ps.history.localPTOChanged(r.packet)
+		}
+	}
 	if r.acked && outcome == LocalPacketUnsubmitted {
 		return ErrLocalCompletionContradiction
 	}
@@ -250,6 +298,9 @@ func (h *sentPacketHandler) retireLocal(p *packet, acked bool) {
 			h.getPacketNumberSpace(r.level).history.qualifyLocal(r.pn)
 		}
 		r.acked = r.acked || acked
+		if r.outcome == localPacketPending && r.packet != nil {
+			h.local.owner.live--
+		}
 		r.packet = nil
 		if h.local.ecn != nil {
 			h.local.ecn.reconcileTerminal(h, r)
@@ -289,7 +340,7 @@ func (h *sentPacketHandler) unresolvedLocalOutsideHistory() int {
 	if h.local == nil {
 		return 0
 	}
-	n := len(h.local.records) - h.appDataPackets.history.numUnresolvedLocal
+	n := h.local.owner.pending - h.appDataPackets.history.numUnresolvedLocal
 	if h.initialPackets != nil {
 		n -= h.initialPackets.history.numUnresolvedLocal
 	}
@@ -300,15 +351,7 @@ func (h *sentPacketHandler) unresolvedLocalOutsideHistory() int {
 }
 
 func (h *sentPacketHandler) hasPendingLocal() bool {
-	if h.local == nil {
-		return false
-	}
-	for _, r := range h.local.records {
-		if r.packet != nil {
-			return true
-		}
-	}
-	return false
+	return h.local != nil && h.local.owner.live != 0
 }
 
 func (h *sentPacketHandler) localPTOTimeAndSpace() (monotime.Time, protocol.EncryptionLevel) {
@@ -319,12 +362,7 @@ func (h *sentPacketHandler) localPTOTimeAndSpace() (monotime.Time, protocol.Encr
 		if ps == nil || (l == protocol.Encryption1RTT && !h.handshakeConfirmed) {
 			continue
 		}
-		var latest monotime.Time
-		for _, p := range ps.history.Packets() {
-			if p.Outstanding() && p.networkEligible() && p.recoveryTime().After(latest) {
-				latest = p.recoveryTime()
-			}
-		}
+		latest := ps.history.latestLocalPTO()
 		if latest.IsZero() {
 			continue
 		}
@@ -343,6 +381,8 @@ func (h *sentPacketHandler) CloseLocal(now monotime.Time) {
 		return
 	}
 	h.local.closed = true
+	h.local.registrationHead = nil
+	h.local.nextRegistration = 0
 	if h.local.ecn != nil {
 		h.local.ecn.close()
 	}
@@ -358,12 +398,13 @@ func (h *sentPacketHandler) CloseLocal(now monotime.Time) {
 			h.retireLocal(p, false)
 			h.removeFromBytesInFlight(p)
 			p.Frames, p.StreamFrames = nil, nil
+			ps.history.localPTOChanged(p)
 		}
 	}
 	h.initialPackets, h.handshakePackets = nil, nil
 	h.appDataPackets = newPacketNumberSpace(0, true)
 	h.lostPackets.Reset()
-	h.ackCarriers = ackCarrierHistory{limit: h.ackCarriers.limit}
+	h.ackCarriers.reset()
 	h.numProbesToSend = 0
 	h.ptoMode = SendNone
 	h.congestion.OnPacketsDiscarded()

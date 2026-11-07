@@ -34,7 +34,7 @@ func (h *sentPacketHandler) AddPathWithRTT(id protocol.PathID, size protocol.Byt
 	path.initialPackets, path.handshakePackets = nil, nil
 	path.handshakeConfirmed, path.peerCompletedAddressValidation, path.peerAddressValidated = true, true, true
 	if h.local != nil {
-		path.local = &localCompletions{records: make(map[uint64]*localRegistration)}
+		path.local = &localCompletions{}
 		if h.local.ecn != nil && h.bbrECN == nil {
 			// Each path validates its own ECN, exactly as the root does.
 			path.local.ecn = &localECNEvidence{watermark: protocol.InvalidPacketNumber}
@@ -83,7 +83,7 @@ func (h *sentPacketHandler) PathQuiescent(id protocol.PathID) bool {
 	if path == nil {
 		return true
 	}
-	if path.local != nil && len(path.local.records) != 0 {
+	if path.local != nil && path.local.owner.pending != 0 {
 		return false
 	}
 	for _, p := range path.appDataPackets.history.Packets() {
