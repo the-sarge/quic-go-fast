@@ -13,7 +13,7 @@ import (
 )
 
 // exchange detaches the bounded immutable terminal FIFO and optionally admits one
-// exact frozen head in the same actor transaction. Refusal leaves payload ownership
+// exact frozen head in the same endpoint transaction. Refusal leaves payload ownership
 // with the producer. No callback or protocol processing runs under endpoint control.
 func (e *nativeEndpoint) exchange(p *endpointParticipant, request *endpointRequest) ([]endpointResult, error) {
 	var results []endpointResult
@@ -62,7 +62,7 @@ func (s *nativeOrdinarySender) serviceParticipant(p *endpointParticipant) {
 	if p == nil {
 		return
 	}
-	// Consume this participant's atomic hint before entering the actor. A later
+	// Consume this participant's atomic hint before entering endpoint control. A later
 	// publication leaves another hint even if the shared channel was coalesced.
 	notified := p.notification.Swap(0) != 0
 	ready := false

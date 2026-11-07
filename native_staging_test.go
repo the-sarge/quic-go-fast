@@ -143,23 +143,22 @@ func TestNativeEmptyCompletionDrainStaysQuiet(t *testing.T) {
 }
 
 func TestNativeQuietConsumeDoesNotPollEndpoint(t *testing.T) {
-	nativeOrdinaryTest(t, func(t *testing.T) {
-		_, sender, _ := nativeProbeRecoveryConnection(t, "reno")
-		entered, release, finished := make(chan struct{}), make(chan struct{}), make(chan struct{})
-		go func() { sender.endpoint.do(func(*endpointState) { close(entered); <-release }) }()
-		<-entered
-		go func() { _ = sender.consume(); close(finished) }()
-		synctest.Wait()
-		quiet := false
-		select {
-		case <-finished:
-			quiet = true
-		default:
-		}
-		close(release)
-		<-finished
-		require.True(t, quiet, "a quiet local drain must not wait for endpoint control")
-	})
+	_, sender, _ := nativeProbeRecoveryConnection(t, "reno")
+	entered, release, finished := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	go func() { sender.endpoint.do(func(*endpointState) { close(entered); <-release }) }()
+	<-entered
+	go func() { _ = sender.consume(); close(finished) }()
+	// Mutex waiters cannot become durably blocked in synctest. A real timeout
+	// preserves the quiet-drain assertion while endpoint control is unavailable.
+	quiet := false
+	select {
+	case <-finished:
+		quiet = true
+	case <-time.After(time.Second):
+	}
+	close(release)
+	<-finished
+	require.True(t, quiet, "a quiet local drain must not wait for endpoint control")
 }
 
 func TestNativeStagedFIFOHeadExpiryWithdrawsExactDemand(t *testing.T) {
