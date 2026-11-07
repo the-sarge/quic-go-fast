@@ -9910,3 +9910,32 @@ Final product head `4746e5a82ef8f090f08d7abfe7486873538f2747` passed the full Go
 ### Next
 
 Complete the post-merge journal/mirror reconciliation and dispatch [N11 #1240](https://github.com/the-sarge/quic-go-fast/issues/1240) after the verified [N8 #1238](https://github.com/the-sarge/quic-go-fast/issues/1238) and [N10 #1239](https://github.com/the-sarge/quic-go-fast/issues/1239) closures. The [program tracker (#646)](https://github.com/the-sarge/quic-go-fast/issues/646) and [native parent (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193) are the live frontier views. Whole-pipeline qualification remains with [N3 #1202](https://github.com/the-sarge/quic-go-fast/issues/1202), [R17 #1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and [R18 #1038](https://github.com/the-sarge/quic-go-fast/issues/1038); public activation remains gated by [R19 #1039](https://github.com/the-sarge/quic-go-fast/issues/1039).
+
+---
+
+## Reserved native packet protection (#1240) - 2026-11-07 12:08 EST
+
+**Main:** `897ac445eef0`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #1278 — Reserve ordinary protection on the native writer](https://github.com/the-sarge/quic-go-fast/pull/1278) for [N11 issue #1240](https://github.com/the-sarge/quic-go-fast/issues/1240) as `897ac445eef02927f1322049e6c089ebf98ef39a`. The connection reserves ordinary key policy synchronously and transfers an independent per-buffer immutable protection plan to the existing native writer. Unsupported/FIPS/Boring/path/long/coalesced/close construction remains synchronous, retries reuse ciphertext, and actual native return fences key/buffer disposal.
+
+### Completed
+
+The product PR includes the committed N11 completion and [N3 issue #1202](https://github.com/the-sarge/quic-go-fast/issues/1202) frontier transition: 10/11 native slices and 36/46 program slices complete. [N11 issue #1240](https://github.com/the-sarge/quic-go-fast/issues/1240) is closed. The accepted N11 contract remains plan revision `b5245d049c884f731ebf2e44e6da65f30cf5fc03`; the diagnostic prototype was implementation material rather than the production baseline.
+
+### Validation
+
+Certified final head `240cf2deb65a6b5a671b8bd37a9660f97cfc1124` on observed base `6954dec13d464b79b840f8b7c18831ab55c7ece5`; all 17 hosted checks passed before the guarded squash merge. Local evidence includes the full Go suite, one focused key/plan ownership race family, actual FIPS handshake/packer fallback, three-cipher v1/v2 equivalence and an independent RFC vector, affected vet/tidy/Go-fix, existing platform lint, and explicit Linux ordinarycost/nativequal plus affected build-tag compilation. [Preparation and bounded RAS receipts (PR #1278)](https://github.com/the-sarge/quic-go-fast/pull/1278#issuecomment-6710096793) preserve full-panel attempts, Fable usage failures, the initial Opus adjudication run-ID failure, and independent dispositions; no follow-up or unresolved stop remained.
+
+A hosted portability lint failure was corrected at the producer/build boundary. A later pre-existing intermittent native loopback path-switch timeout was preserved and diagnosed without a same-head rerun or infrastructure attribution. Its fixture now produces successor bytes independently of stream acceptance under the original deadline and validates every byte plus close/join behavior. This is not a runtime-fix claim. The [coordinator's final artifact review (PR #1278)](https://github.com/the-sarge/quic-go-fast/pull/1278#issuecomment-6710315715) confirmed runtime/configuration equivalence to the full-panel-reviewed candidate; the [diagnosis receipt (PR #1278)](https://github.com/the-sarge/quic-go-fast/pull/1278#issuecomment-6710295299) retains the limitation.
+
+### Decisions
+
+Keep capability limited to the source-proven concrete primitives and explicit canonical buffer/packet geometry. [Cost and source receipt (PR #1278)](https://github.com/the-sarge/quic-go-fast/pull/1278#issuecomment-6709808455) reports free-plan retention, independently retained old keys, allocator-class crossings and larger common emission frames. Moving work makes no CPU-reduction or combined-qualification claim.
+
+### Next
+
+[N3 issue #1202](https://github.com/the-sarge/quic-go-fast/issues/1202) is the next runtime frontier; [R17 issue #1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and [R18 issue #1038](https://github.com/the-sarge/quic-go-fast/issues/1038) retain N3's merged runtime/evidence dependency. Journal closure and mutable child/task/successor reconciliation follow this entry. [Endpoint parent issue #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) and [program tracker issue #646](https://github.com/the-sarge/quic-go-fast/issues/646) remain the live tracking surfaces.
