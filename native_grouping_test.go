@@ -3,6 +3,7 @@
 package quic
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"syscall"
@@ -188,11 +189,9 @@ func TestNativeGroupPartialConstructionKeepsEarlierMembers(t *testing.T) {
 func TestNativeGroupMixedMembersPreserveEarlierReceipt(t *testing.T) {
 	nativeOrdinaryTest(t, func(t *testing.T) {
 		tc, sender, socket := nativeProbeRecoveryConnection(t, "reno")
-		calls := 0
 		var acceptedAt monotime.Time
 		socket.result = func(data []byte) (int, error) {
-			calls++
-			if calls == 3 {
+			if bytes.Contains(data, []byte("failed singleton")) {
 				return 0, &os.SyscallError{Syscall: "sendmsg", Err: syscall.EMSGSIZE}
 			}
 			acceptedAt = monotime.Now()
@@ -217,7 +216,11 @@ func TestNativeGroupMixedMembersPreserveEarlierReceipt(t *testing.T) {
 		sender.finish()
 		synctest.Wait()
 		require.NoError(t, sender.consume())
-		require.Len(t, socket.writes, 3, "the final member remains unattempted")
+		require.GreaterOrEqual(t, len(socket.writes), 2)
+		require.Contains(t, string(socket.writes[len(socket.writes)-1].data), "failed singleton")
+		for _, write := range socket.writes {
+			require.NotContains(t, string(write.data), "untouched member", "the final member remains unattempted")
+		}
 		require.EqualValues(t, 2, sender.droppedDatagrams, "only proven-unsubmitted DATAGRAMs are dropped")
 		require.Equal(t, acceptedAt, receipt.acceptedAt(), "the successful member retains its own actual return time")
 	})
