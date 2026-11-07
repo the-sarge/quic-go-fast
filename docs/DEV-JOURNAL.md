@@ -9787,3 +9787,24 @@ Reviewed head `d630daa2b252469416245081e9c58dcffe080926` passed affected package
 ### Next
 
 At this entry, F9 #1223 product code is merged and its required journal/task reconciliation is finishing. Product PR #1266 already owns the committed completion, graph, accepted-criteria and frontier transitions. There is no unconditional implementation successor: F11 #1225 awaits the consumer comparison selecting its design, and F12 #1226 retains exact-commit consumer qualification, independent release #1111 and owner approval. [Jumbo packets program (#1215)](https://github.com/the-sarge/quic-go-fast/issues/1215) is the live coordination view. No new follow-up or material untraced effect was identified.
+
+---
+
+## Canonical native members landed - 2026-11-07 07:51 EST
+
+**Main:** `78e8538f37e0`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #1268 — Canonical native members and exact results](https://github.com/the-sarge/quic-go-fast/pull/1268), closing [N6 #1235](https://github.com/the-sarge/quic-go-fast/issues/1235), as `78e8538f37e032c96ba0a6836fad7a99c28c128c`. Ordinary/control, probe, close, public and stateless constructors now use canonical ordered native members with per-member GSO/OOB, certainty, errors and return times. A separate final-return fact fences the whole native/deadline borrow before all payload and credit release; raw public borrowed bytes retain their distinct lifetime. Actor and remote-reservation ownership remain for their successor slices. The product PR owns N6 completion and the N7 frontier transition in the normative plan and program index.
+
+### Validation
+
+Reviewed and certified feature head `c8a0e45cccbacb120fb0a7ff50c28cf5f8fcbd9b` against unchanged base `cbe49ec209e7819f56144e7aebc54f8d13eb0f26`. The timestamp regression failed before the migration and passed afterward; focused cases cover mixed GSO/ECN/OOB, partial middle failure with untouched tail, setup/reset failure, canceled multi-member borrow/credit, public zero-length/borrow and ordered ordinary receipt preservation. Final root tests passed (27.817 seconds), focused race passed (9.136 seconds), and vet, tidy-diff, Linux ordinarycost/nativequal compilation, whitespace and clean-tree checks passed. All 17 applicable hosted checks succeeded on the exact live head before match-head squash merge. No remote intermediate performance claim was made.
+
+The once-only parallel Standards/Spec preparation found no substantive issues. RAS run `20261107T124441-8c402f5c87e5b787327b0fc1` completed with zero findings: all four configured reviewers were attempted unchanged, three completed, and Fable reported its account limit; configured quorum and synthesis succeeded. No finding required verification, replacement review or follow-up. The [PR #1268 certification receipt](https://github.com/the-sarge/quic-go-fast/pull/1268#issuecomment-6707159220) retains exact evidence and the unavailable reviewer. Go 1.27.3/darwin-arm64 fixed endpoint-record storage was 159,744 → 75,776 bytes; dynamic canonical member/result rows grow with actual work, and this layout observation does not establish throughput.
+
+### Next
+
+At this entry's timestamp, the committed N track is 5/11 complete and the program is 31/46 complete. [N7 #1237](https://github.com/the-sarge/quic-go-fast/issues/1237) has no remaining open predecessor after N6, while [N9 #1236](https://github.com/the-sarge/quic-go-fast/issues/1236) continues independently. [Program #646](https://github.com/the-sarge/quic-go-fast/issues/646) and [parent #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) are the live frontier views. N3 #1202 and R17 #1037/R18 #1038 retain their combined native and product qualification obligations; public activation remains behind R19 #1039.
