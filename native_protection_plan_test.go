@@ -18,6 +18,9 @@ import (
 func nativeProtectionTestSealer(t *testing.T) handshake.ShortHeaderSealer {
 	t.Helper()
 	sealer, _ := nativeProtectionTestCrypto(t, protocol.Version1)
+	if !handshake.CanReservePacketProtection(sealer) {
+		t.Skip("runtime primitives do not provide the immutable capability")
+	}
 	return sealer
 }
 

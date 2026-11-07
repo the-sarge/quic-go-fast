@@ -19,8 +19,8 @@ import (
 
 func packetProtectionTestOwner(t *testing.T, suite uint16, version protocol.Version, recorder qlogwriter.Recorder) *updatableAEAD {
 	t.Helper()
-	if fips140.Enabled() {
-		t.Skip("deferred packet protection declines FIPS primitives")
+	if fips140.Enabled() || !packetProtectionRuntime {
+		t.Skip("deferred packet protection requires source-proven non-FIPS primitives")
 	}
 	a := newUpdatableAEAD(utils.NewRTTStats(), recorder, utils.DefaultLogger, version)
 	cs := getCipherSuite(suite)

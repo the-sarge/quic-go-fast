@@ -57,6 +57,9 @@ func (a *updatableAEAD) clearPacketProtection() {
 // packetProtectionPrimitives is a pure capability probe. It invokes no methods
 // on supplied interfaces and does not allocate or populate the owner's cache.
 func packetProtectionPrimitives(aead cipher.AEAD, header headerProtector) (*xorNonceAEAD, *aesHeaderProtector, *chachaHeaderProtector) {
+	if !packetProtectionRuntime {
+		return nil, nil, nil
+	}
 	wrapped, ok := aead.(*xorNonceAEAD)
 	if !ok || wrapped == nil || wrapped.protectionKind == packetProtectionUnsupported {
 		return nil, nil, nil

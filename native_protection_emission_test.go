@@ -54,6 +54,9 @@ func newNativeProtectionEmissionFixtureMode(t *testing.T, deferred bool) nativeP
 	q.pending = q.reserve(nil)
 	require.NotNil(t, q.pending)
 	sealer, opener := nativeProtectionTestCrypto(t, protocol.Version1)
+	if deferred && !handshake.CanReservePacketProtection(sealer) {
+		t.Skip("runtime primitives do not provide the immutable capability")
+	}
 	framer := NewMockFrameSource(gomock.NewController(t))
 	framer.EXPECT().HasData().Return(true).AnyTimes()
 	framer.EXPECT().Append(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
@@ -474,6 +477,9 @@ func TestNativeProtectionNaturalTurnUsesWriter(t *testing.T) {
 		tc, sender, socket := nativeProbeRecoveryConnection(t, "reno")
 		socket.hold = nativeProbeHoldAll
 		sealer, opener := nativeProtectionTestCrypto(t, protocol.Version1)
+		if !handshake.CanReservePacketProtection(sealer) {
+			t.Skip("runtime primitives do not provide the immutable capability")
+		}
 		sealing := NewMockSealingManager(gomock.NewController(t))
 		sealing.EXPECT().Get1RTTSealer().Return(sealer, nil).AnyTimes()
 		tc.conn.emission.packer.cryptoSetup = sealing
