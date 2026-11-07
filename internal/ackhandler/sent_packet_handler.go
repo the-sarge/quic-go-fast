@@ -371,12 +371,28 @@ func (h *sentPacketHandler) sentPacket(context PacketContext, t monotime.Time, p
 		panic("invalid path-zero packet context")
 	}
 	targets := snapshotAckTargets(largestAcked, frames, encLevel)
+	pnSpace := h.getPacketNumberSpace(encLevel)
+	priorInFlight := h.accountSentPacket(pnSpace, pn, size)
+
+	p := getPacket()
+	p.Context = context
+	p.Length = size
+	p.Frames = frames
+	p.LargestAcked = largestAcked
+	p.IsPathMTUProbePacket = isPathMTUProbePacket
+	p.isPathProbePacket = isPathProbePacket
+	h.initializeSentPacket(p, local, t, encLevel, streamFrames, targets)
+	h.publishSentPacket(pnSpace, p, pn, ecn, priorInFlight)
+}
+
+// accountSentPacket preserves the accounting and logger observation point for
+// both value and preparation-owned facts.
+func (h *sentPacketHandler) accountSentPacket(pnSpace *packetNumberSpace, pn protocol.PacketNumber, size protocol.ByteCount) protocol.ByteCount {
 	priorInFlight := h.bytesInFlight
 	h.bytesSent += size
 	h.connStats.BytesSent.Add(uint64(size))
 	h.connStats.PacketsSent.Add(1)
 
-	pnSpace := h.getPacketNumberSpace(encLevel)
 	if h.logger.Debug() && (pnSpace.history.HasOutstandingPackets() || pnSpace.history.HasOutstandingPathProbes()) {
 		for p := max(0, pnSpace.largestSent+1); p < pn; p++ {
 			h.logger.Debugf("Skipping packet number %d", p)
@@ -388,22 +404,26 @@ func (h *sentPacketHandler) sentPacket(context PacketContext, t monotime.Time, p
 		h.minPNToRelaxReordering = pn
 	}
 
-	p := getPacket()
-	p.Context = context
+	return priorInFlight
+}
+
+// initializeSentPacket binds recovery ownership after the accounting prelude.
+// Preparation keeps its original borrowed stream header until this point.
+func (h *sentPacketHandler) initializeSentPacket(p *packet, local *localRegistration, now monotime.Time, level protocol.EncryptionLevel, streams []StreamFrame, targets ackTargets) {
 	p.local = local
 	if local != nil {
 		local.packet = p
 		local.epoch.owner.live++
 	}
-	p.SendTime = t
-	p.EncryptionLevel = encLevel
-	p.Length = size
-	p.Frames = frames
-	p.LargestAcked = largestAcked
-	p.ackTargets = targets
-	p.StreamFrames = streamFrames
-	p.IsPathMTUProbePacket = isPathMTUProbePacket
-	p.isPathProbePacket = isPathProbePacket
+	p.SendTime, p.EncryptionLevel = now, level
+	p.StreamFrames, p.ackTargets = streams, targets
+}
+
+// publishSentPacket owns ordered callbacks, congestion/ECN and history effects.
+// Capture the original scalar arguments before callbacks can reenter recovery.
+func (h *sentPacketHandler) publishSentPacket(pnSpace *packetNumberSpace, p *packet, pn protocol.PacketNumber, ecn protocol.ECN, priorInFlight protocol.ByteCount) {
+	t, size, encLevel := p.SendTime, p.Length, p.EncryptionLevel
+	isPathProbePacket, local := p.isPathProbePacket, p.local
 	isAckEliciting := p.IsAckEliciting()
 
 	if isPathProbePacket {

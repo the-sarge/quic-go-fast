@@ -50,8 +50,7 @@ func TestEmissionCapturesPathZeroTupleBeforeRegistration(t *testing.T) {
 	c.emission.registerPacket(p, protocol.ECNUnsupported, now)
 	require.Equal(t, []ackhandler.PacketContext{{}}, h.contexts)
 	require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("new tuple")}))
-	p, _, err = c.emission.appendPacket(buf, 1200, true, protocol.ECNUnsupported, now)
+	_, err = c.emission.appendPacket(buf, 1200, true, protocol.ECNUnsupported, now)
 	require.NoError(t, err)
-	require.Equal(t, ackhandler.PacketContext{TupleGeneration: 1}, p.Context)
 	require.Equal(t, []ackhandler.PacketContext{{}, {TupleGeneration: 1}}, h.contexts)
 }

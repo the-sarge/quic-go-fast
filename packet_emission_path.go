@@ -123,7 +123,7 @@ func (e *packetEmission) steeredDatagram(now monotime.Time) emissionResult {
 	}
 	buf := getPacketBuffer()
 	ecn := e.selected().ECNMode(true)
-	if _, _, err := e.appendPacket(buf, e.packetSize(), true, ecn, now); err != nil {
+	if _, err := e.appendPacket(buf, e.packetSize(), true, ecn, now); err != nil {
 		buf.Release()
 		if err == errNothingToPack {
 			return emissionResult{}

@@ -3102,6 +3102,12 @@ func (c *Conn) noteEmissionActivity(p shortHeaderPacket, now monotime.Time) {
 	}
 }
 
+func (c *Conn) notePreparedEmissionActivity(p ackhandler.PreparedPacketView, now monotime.Time) {
+	if c.firstAckElicitingPacketAfterIdleSentTime.IsZero() && (len(p.StreamFrames()) > 0 || ackhandler.HasAckElicitingFrames(p.Frames())) {
+		c.firstAckElicitingPacketAfterIdleSentTime = now
+	}
+}
+
 func (c *Conn) emissionReceivePending() bool {
 	c.receivedPacketMx.Lock()
 	defer c.receivedPacketMx.Unlock()

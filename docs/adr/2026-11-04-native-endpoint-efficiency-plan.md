@@ -1,6 +1,6 @@
 # Native endpoint efficiency and admission implementation plan
 
-**Date:** 2026-11-05. **Status:** N6, N7 and N9 complete; 7/11 slices complete. **Identity:** `QGF-MP646-20261024-N`. **Parent:** [endpoint efficiency and admission (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193). **Program:** [multipath #646](2026-10-24-multipath-program.md). **Normative scope:** current outcome, boundaries, invariants, evidence, blockers and stops. **Audit history:** [replacement slice audit](../audits/2026-11-05-native-pipeline-slice-handoff.md), [pipeline diagnosis](../audits/2026-11-05-native-pipeline-diagnosis.md), [clean protection-placement feasibility receipt](../audits/2026-11-05-native-protection-placement-prototype.md), and [five-stack comparison for issue #1232](../audits/2026-11-05-send-pipeline-comparison-1232.md).
+**Date:** 2026-11-05. **Status:** N6, N7, N9 and N10 complete; 8/11 slices complete. **Identity:** `QGF-MP646-20261024-N`. **Parent:** [endpoint efficiency and admission (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193). **Program:** [multipath #646](2026-10-24-multipath-program.md). **Normative scope:** current outcome, boundaries, invariants, evidence, blockers and stops. **Audit history:** [replacement slice audit](../audits/2026-11-05-native-pipeline-slice-handoff.md), [pipeline diagnosis](../audits/2026-11-05-native-pipeline-diagnosis.md), [clean protection-placement feasibility receipt](../audits/2026-11-05-native-protection-placement-prototype.md), and [five-stack comparison for issue #1232](../audits/2026-11-05-send-pipeline-comparison-1232.md).
 
 ## Goal and accepted boundary
 
@@ -66,7 +66,7 @@ Native I/O, protection, sinks, callbacks, blocking waits, writer join and grant 
 
 ## Slice graph
 
-The new child issue fields are `pending` until this plan is merged and exact default-branch reachability is verified. Stable identities use the track prefix plus the slice ID. Withdrawn N5 is not reused. Seven completed slices plus four remaining slices make eleven; six new child issues are created and existing N3 #1202 is reworked.
+The new child issue fields are `pending` until this plan is merged and exact default-branch reachability is verified. Stable identities use the track prefix plus the slice ID. Withdrawn N5 is not reused. Eight completed slices plus three remaining slices make eleven; six new child issues are created and existing N3 #1202 is reworked.
 
 | Slice | Current disposition / delivery | Genuine blockers | Transitional seam removed |
 | --- | --- | --- | --- |
@@ -78,11 +78,11 @@ The new child issue fields are `pending` until this plan is merged and exact def
 | [N7](#n7) | Complete — singleton local staging and exact exchange ([PR #1272](https://github.com/the-sarge/quic-go-fast/pull/1272)) | N6 (complete) | Remote guessed reservation and query-driven result polling |
 | [N8](#n8) | Frontier — bounded natural-turn grouping ([#1238](https://github.com/the-sarge/quic-go-fast/issues/1238)) | N7 (complete) | Deliberate singleton construction restriction |
 | [N9](#n9) | Complete — canonical recovery storage and closed completion ([PR #1269](https://github.com/the-sarge/quic-go-fast/pull/1269)) | N4 (complete) | Duplicate registration projections in recovery |
-| [N10](#n10) | Frontier — preparation-owned construction facts | N9 (complete) | Aggregate metadata forwards into registration |
-| [N11](#n11) | New — immutable protection on native writer | N8, N10 | Eligible synchronous transform on connection |
+| [N10](#n10) | Complete — preparation-owned construction facts ([PR #1273](https://github.com/the-sarge/quic-go-fast/pull/1273)) | N9 (complete) | Aggregate metadata forwards into registration |
+| [N11](#n11) | New — immutable protection on native writer | N8, N10 (complete) | Eligible synchronous transform on connection |
 | [N3](#n3) | Rework existing #1202 — synchronized pump and combined qualification | N0, N1, N2, N4, N11 | Actor rendezvous and mandatory successor dispatch |
 
-N6 #1235, N7 #1237 and N9 #1236 are complete. N8 #1238 and N10 #1239 are independent frontier work in separate contexts/worktrees. Their source overlap requires reconciliation, not a convenience dependency. N11 joins the request and recovery branches. N3 consumes the complete chosen candidate, including N8/N10 transitively; its exact-head qualification edge is intentional even where a mutex rewrite could compile earlier. R17 #1037/R18 #1038 remain blocked by N3's merged runtime/evidence, not parent #1193. They can run independently after N3 but serialize shared-host occupancy. Parent #1193 remains open through all eleven children and full R18 qualification; #1141 retains its separate admission criteria without blocking its own qualification.
+N6 #1235, N7 #1237, N9 #1236 and N10 #1239 are complete. N8 #1238 is the current frontier; N11 #1240 still waits for N8 #1238. Independent request and recovery work uses separate contexts/worktrees and reconciles source overlap without a convenience dependency. N11 joins the request and recovery branches. N3 consumes the complete chosen candidate, including N8/N10 transitively; its exact-head qualification edge is intentional even where a mutex rewrite could compile earlier. R17 #1037/R18 #1038 remain blocked by N3's merged runtime/evidence, not parent #1193. They can run independently after N3 but serialize shared-host occupancy. Parent #1193 remains open through all eleven children and full R18 qualification; #1141 retains its separate admission criteria without blocking its own qualification.
 
 ## Shared slice contract and evidence
 
@@ -169,7 +169,7 @@ Complete in [PR #1227](https://github.com/the-sarge/quic-go-fast/pull/1227), chi
 <a id="n10"></a>
 ### N10 — Transfer preparation-owned construction facts into registration
 
-**Identity / child:** `QGF-MP646-20261024-N10`; [#1239](https://github.com/the-sarge/quic-go-fast/issues/1239), frontier. **Blocked by:** completed N9's validated canonical registration owner. **Delivers:** the real native singleton/group packer writes recovery facts into preparation-owned storage and transfers that storage to the validated registration operation, removing aggregate metadata forwards without changing registration order. This is active with the existing singleton caller and does not depend on staging/grouping.
+**Identity / child:** `QGF-MP646-20261024-N10`; [#1239](https://github.com/the-sarge/quic-go-fast/issues/1239), complete. **Blocked by:** completed N9's validated canonical registration owner. **Delivers:** the real native singleton/group packer writes recovery facts into preparation-owned storage and transfers that storage to the validated registration operation, removing aggregate metadata forwards without changing registration order. This is active with the existing singleton caller and does not depend on staging/grouping.
 
 **Owner / authority / seams:** preparation owns unregistered facts; validation consumes the handle once; one registration initializer/finalizer owns accounting, callbacks and publication. Invalid inputs leave the handle unconsumed. ACK-carrier post-callback writes use the actual resulting registration. Resolve the actual handler/local receiver freshly at the original callback observation points; do not introduce N11’s group/protection ticket in this slice. Clear pooled aliases at release. Synchronous sealing remains; N11 adds protection-plan ownership separately. No dormant second frame representation survives for the native path.
 
