@@ -79,7 +79,7 @@ func (r *localECNRecords) splice(start, end int, values []localECNRecord) {
 	if n > len(r.data) {
 		size := min(maxECNMarkRanges, max(8, max(n, 2*len(r.data))))
 		data := make([]localECNRecord, size)
-		for i := 0; i < start; i++ {
+		for i := range start {
 			data[i] = *r.at(i)
 		}
 		copy(data[start:], values)
@@ -96,7 +96,7 @@ func (r *localECNRecords) splice(start, end int, values []localECNRecord) {
 			for i := start - 1; i >= 0; i-- {
 				r.data[r.index(i+removed)] = *r.at(i)
 			}
-			for i := 0; i < removed; i++ {
+			for i := range removed {
 				r.data[r.index(i)] = localECNRecord{}
 			}
 			r.head = r.index(removed)
@@ -114,7 +114,7 @@ func (r *localECNRecords) splice(start, end int, values []localECNRecord) {
 			if nextHead < 0 {
 				nextHead += len(r.data)
 			}
-			for i := 0; i < start; i++ {
+			for i := range start {
 				target := nextHead + i
 				if target >= len(r.data) {
 					target -= len(r.data)

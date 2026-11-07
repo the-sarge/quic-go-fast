@@ -23,7 +23,7 @@ func TestLocalRegistrationIdentityAndLifetime(t *testing.T) {
 	_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pn)}, protocol.EncryptionInitial, now.Add(time.Millisecond))
 	require.NoError(t, err)
 	require.NoError(t, h.CompleteLocalPacket(old, LocalPacketAccepted, now.Add(time.Millisecond)))
-	for i := 0; i < 24; i++ {
+	for range 24 {
 		_, token := registerLocalTestPacket(t, h, now, protocol.EncryptionInitial, nil)
 		require.NotEqual(t, old, token)
 		require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now))
