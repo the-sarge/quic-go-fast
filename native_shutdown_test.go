@@ -771,7 +771,7 @@ func TestNativePathSwitch(t *testing.T) {
 		require.NoError(t, queue.consume())
 		require.Len(t, oldWrites, 1, "the old generation's queued request never reaches the socket")
 		for _, record := range queue.records {
-			require.Zero(t, record.admission.serial, "every record reconciled")
+			require.Equal(t, ordinaryFree, record.state, "every record reconciled")
 		}
 
 		// A late old-endpoint fault doesn't end a connection that left it.
@@ -827,7 +827,7 @@ func TestNativePathSwitchBack(t *testing.T) {
 		synctest.Wait()
 		require.NoError(t, queue.consume())
 		for _, record := range queue.records {
-			require.Zero(t, record.admission.serial)
+			require.Equal(t, ordinaryFree, record.state)
 		}
 		send("second visit")
 		require.NoError(t, queue.consume())

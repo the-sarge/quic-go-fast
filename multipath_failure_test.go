@@ -12,6 +12,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
@@ -105,7 +106,7 @@ func TestPathFailureReadLossSpares(t *testing.T) {
 		require.Equal(t, 0, f.targetBytes(t, targetSocket, 1), "the borrow is outstanding, so nothing is settled")
 		held := 0
 		for index := range sender.records {
-			if sender.records[index].admission.serial != 0 {
+			if sender.records[index].state != ordinaryFree {
 				held++
 			}
 		}
@@ -121,7 +122,7 @@ func TestPathFailureReadLossSpares(t *testing.T) {
 		}
 		heldPass(t, f.reliableFixture)
 		for index := range sender.records {
-			require.Zero(t, sender.records[index].admission.serial, "each record settles once")
+			require.Equal(t, ordinaryFree, sender.records[index].state, "each record settles once")
 		}
 		require.Equal(t, "uncertain", p.members[0].lastOutcome)
 		require.Equal(t, 1000, f.targetBytes(t, targetSocket, 1), "the survivor delivers the work")
@@ -225,7 +226,7 @@ func TestPathFailureNoSpinOrLateResult(t *testing.T) {
 		require.NoError(t, f.c.emission.consumeLocal(), "a late fatal result can't end the connection")
 		require.Nil(t, f.c.closeErr.Load())
 		for index := range sender.records {
-			require.Zero(t, sender.records[index].admission.serial)
+			require.Equal(t, ordinaryFree, sender.records[index].state)
 		}
 
 		// Nothing is left to wake the loop.
@@ -892,4 +893,57 @@ func TestPathFailureOutcomeOwnership(t *testing.T) {
 			require.ErrorIs(t, <-finished.done, errPathValidationTimeout)
 		})
 	})
+}
+
+func TestPathFailureSettlesRefusedStagedWork(t *testing.T) {
+	for _, cause := range []string{"endpoint fault", "read loss"} {
+		t.Run(cause, func(t *testing.T) {
+			nativeOrdinaryTest(t, func(t *testing.T) {
+				f, survivor := newTargetPathFixture(t)
+				sender := f.c.emission.local.(*nativeOrdinarySender)
+				origin := f.grantOrigin()
+				endpoint, participant := sender.endpoint, sender.participant
+				f.socket.hold = nativeProbeHoldAll
+				for range 4 {
+					require.NoError(t, endpoint.offer(participant, nativeProbeLane, endpointTestRequest(participant.id, "occupy native")))
+				}
+				synctest.Wait()
+				f.write(t, 1000)
+				f.queueDatagram(t, 100)
+				f.admissionFixture.pass(t)
+				head := sender.stagedHead(participant)
+				require.NotNil(t, head, "the complete request is refused without transfer")
+				require.True(t, head.offered)
+				deadline, buffer, token := head.deadline, head.request.members[0].buffer, head.packets[0].token
+				var borrowed *packetBuffer
+				endpoint.do(func(s *endpointState) { borrowed = s.current.request.members[0].buffer })
+				if cause == "endpoint fault" {
+					endpoint.do(func(s *endpointState) { s.fail(endpointFaultCause(0), errEndpointFault) })
+				} else {
+					origin.close(errReadLost)
+				}
+				synctest.Wait()
+				heldPass(t, f.reliableFixture)
+				require.True(t, monotime.Now().Before(deadline), "failover must not wait for the preparation budget")
+				require.Nil(t, sender.stagedHead(participant), "the unusable endpoint cannot retain unadmitted work")
+				require.Zero(t, buffer.refCount, "local ownership ends without waiting for the native borrow")
+				require.Equal(t, 1, borrowed.refCount, "an admitted native borrow stays fenced")
+				require.EqualValues(t, 1, sender.droppedDatagrams, "the frozen DATAGRAM is dropped exactly once")
+				require.Equal(t, 1000, f.targetBytes(t, survivor, 1), "reliable frames progress on the healthy endpoint")
+				f.on(survivor, func() {
+					require.Empty(t, reliableDatagrams(f.parseWrites(t, 1)), "a frozen DATAGRAM is never relabeled onto the survivor")
+				})
+				var waiting, granted bool
+				endpoint.do(func(s *endpointState) {
+					waiting = participant.wait[0].pending
+					granted = s.grant != nil && s.grant.participant == participant && s.grant.lane == 0
+				})
+				require.False(t, waiting)
+				require.False(t, granted)
+				require.NoError(t, sender.consume())
+				require.EqualValues(t, 1, sender.droppedDatagrams)
+				require.Error(t, sender.recovery.CompleteLocalPacket(token, ackhandler.LocalPacketUnsubmitted, monotime.Now()), "local settlement consumes the token once")
+			})
+		})
+	}
 }
