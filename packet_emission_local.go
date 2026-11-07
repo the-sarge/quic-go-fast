@@ -20,6 +20,7 @@ type localPacketSender interface {
 	routeUsable(*Transport) bool
 	reserveTarget(*Transport) error
 	finish()
+	reserveBuffer(protocol.ByteCount) bool
 	drain()
 	sendClose(*packetBuffer, protocol.ECN) error
 	sendPathClose(*packetBuffer, protocol.ECN, *pathRoute) error
@@ -99,4 +100,12 @@ func (e *packetEmission) localDeadline() monotime.Time {
 		return e.local.localDeadline()
 	}
 	return 0
+}
+
+func (e *packetEmission) reserveNativeBuffer(buf *packetBuffer) bool {
+	return e.local == nil || e.local.reserveBuffer(buf.Cap())
+}
+
+func (e *packetEmission) localPacketRoom() bool {
+	return e.local == nil || (*e.recovery).(ackhandler.LocalSentPacketHandler).CanRegisterLocalPackets(1)
 }

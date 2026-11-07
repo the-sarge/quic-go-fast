@@ -728,12 +728,16 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 			c.pathCredit.selectPrimaryPrivate(1)
 			socket.hold = func([]byte) bool { return true }
 			writeAsync(t, s, 1<<16)
+			// A pending receive ends each natural turn after one member, so this
+			// fixture reaches the record bound independently of grouping depth.
+			c.receivedPackets.PushBack(receivedPacket{})
 			for range 8 {
 				r.pass(t)
 				if c.emission.capacity() != nil {
 					break
 				}
 			}
+			c.receivedPackets.PopFront()
 			require.NotNil(t, c.emission.capacity(), "the target is saturated")
 
 			c.pathCredit.selectPrimaryPrivate(0)
@@ -868,12 +872,16 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 			c.pathCredit.selectPrimaryPrivate(1)
 			socket.hold = func([]byte) bool { return true }
 			writeAsync(t, s, 1<<16)
+			// A pending receive ends each natural turn after one member, so this
+			// fixture reaches the record bound independently of grouping depth.
+			c.receivedPackets.PushBack(receivedPacket{})
 			for range 8 {
 				r.pass(t)
 				if c.emission.capacity() != nil {
 					break
 				}
 			}
+			c.receivedPackets.PopFront()
 			require.NotNil(t, c.emission.capacity(), "the target is saturated")
 			require.NotEmpty(t, socket.writes)
 

@@ -291,6 +291,11 @@ func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCo
 func (e *packetEmission) withoutGSO(now monotime.Time) (result emissionResult) {
 	for {
 		buf := getPacketBufferForCeiling(packetCeiling(e.packetSize()))
+		if !e.reserveNativeBuffer(buf) {
+			buf.Release()
+			result.stop, result.available = emissionQueueFull, e.queue.Available()
+			return result
+		}
 		ecn := e.selected().ECNMode(true)
 		if _, err := e.appendPacket(buf, e.packetSize(), false, ecn, now); err != nil {
 			if err == errNothingToPack {
@@ -330,6 +335,11 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 	ecn := e.selected().ECNMode(true)
 	batch := newGSOBatch(maxSize, e.shortSegments)
 	for {
+		if buf.Len() == 0 && !e.reserveNativeBuffer(buf) {
+			buf.Release()
+			result.stop, result.available = emissionQueueFull, e.queue.Available()
+			return result
+		}
 		var done, more bool
 		limit, datagramOnly := batch.next()
 		receipt, err := e.appendPacket(buf, limit, datagramOnly, ecn, now)
@@ -355,6 +365,10 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 				result.stop = emissionRecoveryStop(mode)
 			}
 			done = mode != ackhandler.SendAny
+			if !e.localPacketRoom() {
+				result.stop, result.available = emissionQueueFull, e.queue.Available()
+				done = true
+			}
 		}
 		nextECN := e.selected().ECNMode(true)
 		if !done && more && nextECN == ecn && batch.fits(buf.Len(), byteLimit) {
@@ -571,6 +585,9 @@ func (e *packetEmission) sendProbePacket(sendMode ackhandler.SendMode, now monot
 }
 
 func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN, now monotime.Time) error {
+	if e.local != nil {
+		defer e.local.finish()
+	}
 	handed := false
 	defer func() {
 		if !handed {

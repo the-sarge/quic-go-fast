@@ -273,7 +273,13 @@ func TestPathMigrationExhaustedCredit(t *testing.T) {
 		socket.hold = nativeProbeHoldAll
 		p.selectPrimaryPrivate(1)
 		f.write(t, 6000)
-		f.pass(t)
+		// End turns at the receive barrier to occupy the backup's three
+		// available records without depending on singleton construction.
+		f.c.receivedPackets.PushBack(receivedPacket{})
+		for range 3 {
+			f.pass(t)
+		}
+		f.c.receivedPackets.PopFront()
 		p.selectPrimaryPrivate(0)
 		m.announceAt = monotime.Now()
 		f.socket.writes = nil

@@ -231,7 +231,7 @@ func TestNativeOrdinaryAcceptedReceiptSurvivesDeadlineResetFailure(t *testing.T)
 		found := false
 		for i := range queue.records {
 			if queue.records[i].state != ordinaryFree {
-				queue.records[i].metadata.terminalReceipts = []*pathAbandonReceipt{receipt}
+				queue.records[i].members[0].metadata.terminalReceipts = []*pathAbandonReceipt{receipt}
 				found = true
 			}
 		}

@@ -41,6 +41,15 @@ const (
 	ordinaryTerminalProcessing
 )
 
+// ordinaryLocalMember maps one native member to its ordered registration span.
+// It stays on the connection after payload ownership transfers to the endpoint.
+type ordinaryLocalMember struct {
+	end       int
+	datagrams int
+	metadata  sendMetadata
+	bytes     protocol.ByteCount
+}
+
 type ordinaryLocalRecord struct {
 	state       ordinaryLocalState
 	participant *endpointParticipant
@@ -53,8 +62,8 @@ type ordinaryLocalRecord struct {
 	packets     []ordinaryLocalPacket
 	count       int
 	datagrams   int
-	metadata    sendMetadata
-	bytes       protocol.ByteCount
+	members     []ordinaryLocalMember
+	backing     protocol.ByteCount
 }
 
 type nativeOrdinarySender struct {
@@ -190,8 +199,17 @@ func (s *nativeOrdinarySender) WouldBlock() bool {
 	if s.drained || s.closed || s.err != nil {
 		return true
 	}
+	if !s.recovery.CanRegisterLocalPackets(1) || !s.bufferRoom(0) {
+		s.finish()
+		return true
+	}
 	if s.pending != nil {
-		return false
+		identity := s.constructionIdentity(s.route)
+		identity.registration = s.pending.identity.registration
+		if identity == s.pending.identity {
+			return false
+		}
+		s.finish()
 	}
 	s.pending = s.reserve(s.route)
 	return s.pending == nil
@@ -217,10 +235,8 @@ func (s *nativeOrdinarySender) reserve(route *pathRoute) *ordinaryLocalRecord {
 			continue
 		}
 		s.sequence++
-		identity := endpointIdentity{connection: s.participant.id, generation: s.generation, pathGeneration: s.connection.pathGeneration, tuple: s.connection.pathGeneration, registration: s.sequence}
-		if route != nil {
-			identity.path, identity.pathGeneration, identity.tuple = uint64(route.context.PathID), route.context.TupleGeneration, route.context.TupleGeneration
-		}
+		identity := s.constructionIdentity(route)
+		identity.registration = s.sequence
 		*record = ordinaryLocalRecord{state: ordinaryBuilding, endpoint: participant.endpoint, participant: participant, identity: identity, deadline: monotime.Now().Add(participant.endpoint.budget)}
 		return record
 	}
@@ -305,7 +321,7 @@ func (s *nativeOrdinarySender) routeUsable(target *Transport) bool {
 }
 
 func (s *nativeOrdinarySender) register(token ackhandler.LocalCompletionToken, datagram bool) {
-	if s.pending == nil || s.pending.count == maxGSOSegments+3 {
+	if s.pending == nil || s.pending.count-s.pending.memberEnd() == maxGSOSegments+3 {
 		panic("local packet registration without reserved construction capacity")
 	}
 	s.pending.packets = append(s.pending.packets, ordinaryLocalPacket{token: token, datagram: datagram})
@@ -321,7 +337,6 @@ func (s *nativeOrdinarySender) Send(buffer *packetBuffer, segment uint16, ecn pr
 	if record == nil {
 		panic("local packet handoff without reserved construction capacity")
 	}
-	record.metadata, record.bytes = metadata, buffer.Len()
 	destination, base, writeState := s.destination, s.oob, s.writeState
 	var epoch *responseEpoch
 	routed := true
@@ -331,21 +346,24 @@ func (s *nativeOrdinarySender) Send(buffer *packetBuffer, segment uint16, ecn pr
 	} else if credit := s.connection.pathCredit; credit != nil {
 		epoch = credit.zeroEpoch()
 	}
-	request := endpointRequest{
-		identity: record.identity, destination: destination,
-		members:  []endpointMember{{buffer: buffer, oob: packetOOB(base, destination, ecn), gsoSize: segment, nativeGSO: s.nativeGSO, writeState: writeState, credit: metadata.credit}},
-		deadline: record.deadline.ToTime(), epoch: epoch,
+	member := endpointMember{buffer: buffer, oob: packetOOB(base, destination, ecn), gsoSize: segment, nativeGSO: s.nativeGSO, writeState: writeState, credit: metadata.credit}
+	if len(record.members) == 0 {
+		record.request = endpointRequest{identity: record.identity, destination: destination, deadline: record.deadline.ToTime(), epoch: epoch}
 	}
-	record.datagrams = request.members[0].datagrams()
-	record.request = request
-	record.state = ordinaryStaged
-	s.pending = nil
-	if !routed || (segment != 0 && record.count != record.datagrams) {
+	datagrams := member.datagrams()
+	packets := record.count - record.memberEnd()
+	record.request.members = append(record.request.members, member)
+	record.members = append(record.members, ordinaryLocalMember{end: record.count, datagrams: datagrams, metadata: metadata, bytes: buffer.Len()})
+	record.backing += buffer.Cap()
+	record.datagrams += datagrams
+	if !routed || record.request.destination != destination || record.request.epoch != epoch || (segment != 0 && packets != datagrams) {
 		s.err = errors.Join(s.err, errEndpointRequest)
 		s.settleLocal(record, errEndpointRequest)
 		return
 	}
-	s.serviceParticipant(record.participant)
+	if metadata.handshake || metadata.mtuProbe || len(metadata.terminalReceipts) != 0 {
+		s.finish()
+	}
 }
 
 func (s *nativeOrdinarySender) packetOOB(ecn protocol.ECN) []byte {
@@ -589,7 +607,23 @@ func (s *nativeOrdinarySender) finish() {
 	}
 	record := s.pending
 	s.pending = nil
-	s.settleLocal(record, nil)
+	// A failed buffer can have a registered prefix without a native member.
+	// Detach that suffix before handoff or callbacks can reenter this sender.
+	end := record.memberEnd()
+	failed := record.packets[end:record.count]
+	record.count, record.packets = end, record.packets[:end]
+	if len(record.members) == 0 {
+		*record = ordinaryLocalRecord{}
+	} else {
+		record.state = ordinaryStaged
+		s.serviceParticipant(record.participant)
+	}
+	for _, packet := range failed {
+		if packet.datagram {
+			s.droppedDatagrams++
+		}
+		s.completePacket(packet, ackhandler.LocalPacketUnsubmitted, monotime.Now(), false)
+	}
 }
 
 func (s *nativeOrdinarySender) consume() error {
@@ -679,54 +713,57 @@ func (s *nativeOrdinarySender) consumeResult(participant *endpointParticipant, t
 		if record.state != ordinaryEndpointOwned && record.state != ordinaryTerminalProcessing || record.identity != identity {
 			continue
 		}
-		// Current producers are singleton callers. The endpoint's member vector
-		// is authoritative; the connection maps this member's datagrams to tokens.
-		if len(terminal.members) != 1 {
+		if len(terminal.members) != len(record.members) {
 			s.err = errors.Join(s.err, errEndpointRequest)
 			break
 		}
 		record.state = ordinaryTerminalProcessing
-		result := terminal.members[0]
-		if result.accepted < 0 || result.uncertain < 0 || result.unsubmitted < 0 || result.accepted+result.uncertain+result.unsubmitted != record.datagrams {
-			s.err = errors.Join(s.err, errEndpointRequest)
-			break
-		}
-		if result.accepted == record.datagrams && result.err == nil {
-			for _, receipt := range record.metadata.terminalReceipts {
-				if receipt != nil {
-					receipt.publish(result.returnedAt)
+		start := 0
+		for memberIndex, member := range record.members {
+			result := terminal.members[memberIndex]
+			if result.accepted < 0 || result.uncertain < 0 || result.unsubmitted < 0 || result.accepted+result.uncertain+result.unsubmitted != member.datagrams {
+				s.err = errors.Join(s.err, errEndpointRequest)
+				break
+			}
+			if result.accepted == member.datagrams && result.err == nil {
+				for _, receipt := range member.metadata.terminalReceipts {
+					if receipt != nil {
+						receipt.publish(result.returnedAt)
+					}
 				}
 			}
-		}
-		if !s.completeAcceptedPackets(record.packets[:record.count], record.datagrams, result.accepted, result.err, result.returnedAt) {
-			for packetIndex, packet := range record.packets[:record.count] {
-				datagram := 0
-				if record.datagrams != 1 {
-					datagram = packetIndex
+			packets := record.packets[start:member.end]
+			start = member.end
+			if !s.completeAcceptedPackets(packets, member.datagrams, result.accepted, result.err, result.returnedAt) {
+				for packetIndex, packet := range packets {
+					datagram := 0
+					if member.datagrams != 1 {
+						datagram = packetIndex
+					}
+					outcome := ackhandler.LocalPacketUnsubmitted
+					if datagram < result.accepted {
+						outcome = ackhandler.LocalPacketAccepted
+					} else if datagram < result.accepted+result.uncertain {
+						outcome = ackhandler.LocalPacketUncertain
+					} else if packet.datagram {
+						s.droppedDatagrams++
+					}
+					s.completePacket(packet, outcome, result.returnedAt, isSendMsgSizeErr(result.err))
 				}
-				outcome := ackhandler.LocalPacketUnsubmitted
-				if datagram < result.accepted {
-					outcome = ackhandler.LocalPacketAccepted
-				} else if datagram < result.accepted+result.uncertain {
-					outcome = ackhandler.LocalPacketUncertain
-				} else if packet.datagram {
-					s.droppedDatagrams++
+			}
+			if credit := s.connection.pathCredit; credit != nil && credit.hasAdmission() {
+				credit.noteOutcome(protocol.PathID(identity.path), identity.tuple, result.accepted, result.uncertain, member.datagrams)
+			}
+			err := errors.Join(result.err, terminal.err)
+			if identity.generation < s.switchGeneration {
+				s.connection.scheduleSending()
+			} else if isSendMsgSizeErr(err) {
+				if member.metadata.handshake && member.datagrams == 1 && member.bytes > protocol.MinInitialPacketSize {
+					s.connection.handshakeSendFeedback.publish(member.metadata.pathGeneration)
 				}
-				s.completePacket(packet, outcome, result.returnedAt, isSendMsgSizeErr(result.err))
+			} else if err != nil && !localEndpointBackpressure(err) && !errors.Is(err, errEndpointRevoked) && !s.pathSendFailed(participant, identity, err) && !s.endpointOwnsResult(participant) {
+				s.err = errors.Join(s.err, err)
 			}
-		}
-		if credit := s.connection.pathCredit; credit != nil && credit.hasAdmission() {
-			credit.noteOutcome(protocol.PathID(identity.path), identity.tuple, result.accepted, result.uncertain, record.datagrams)
-		}
-		err := errors.Join(result.err, terminal.err)
-		if identity.generation < s.switchGeneration {
-			s.connection.scheduleSending()
-		} else if isSendMsgSizeErr(err) {
-			if record.metadata.handshake && record.datagrams == 1 && record.bytes > protocol.MinInitialPacketSize {
-				s.connection.handshakeSendFeedback.publish(record.metadata.pathGeneration)
-			}
-		} else if err != nil && !localEndpointBackpressure(err) && !errors.Is(err, errEndpointRevoked) && !s.pathSendFailed(participant, identity, err) && !s.endpointOwnsResult(participant) {
-			s.err = errors.Join(s.err, err)
 		}
 		*record = ordinaryLocalRecord{}
 		break
