@@ -9858,3 +9858,32 @@ Once-only parallel Standards/Spec preparation found zero findings. Initial RAS `
 ### Next
 
 At this entry's timestamp the committed N track is 7/11 complete and the program 33/46. [N8 #1238](https://github.com/the-sarge/quic-go-fast/issues/1238) has no remaining open predecessor; [N10 #1239](https://github.com/the-sarge/quic-go-fast/issues/1239) continues independently. [Program #646](https://github.com/the-sarge/quic-go-fast/issues/646) and [parent #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) remain the live frontier views. N3 #1202 and R17 #1037/R18 #1038 retain combined native/product qualification; public activation remains behind R19 #1039.
+
+---
+
+## Native construction facts transferred - 2026-11-07 09:44 EST
+
+**Main:** `86fd0223c156`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #1273 — Transfer native preparation facts into recovery registration](https://github.com/the-sarge/quic-go-fast/pull/1273), closing [N10 #1239](https://github.com/the-sarge/quic-go-fast/issues/1239), as `86fd0223c15658950ecf1d93bf0a590a2d630d2e`. Ordinary native scalar, GSO, bounded BBR and steered DATAGRAM append constructors now write the eventual recovery packet's facts into preparation-owned storage on path zero and admitted nonzero routes. Validated registration adopts that storage once before callbacks; refusal retains the handle. Shared initialization/publication preserves immediate registration, synchronous sealing, late ACK-carrier and DATAGRAM observations, fresh receiver lookup, path/CID attribution and pooled alias cleanup. Generic/nonlocal and dedicated protocol-specific value constructors remain supported. No grouping, protection ticket or recovery-policy change was introduced.
+
+The product PR owns N10 completion, the remaining N8 frontier and coupled count updates. It reconciles N7's merged singleton staging and journal without changing that predecessor's contract.
+
+### Validation
+
+Exact reviewed, source-verified and locally certified product code reached final head `5b0df877d94e4f37a9db887a7d2e102de33e24d7` on unchanged base `98b7f9c8cf07130ced6f4dc74c3258db20c75995`; the full tree equals the reachable squash merge. Full package tests, affected-package vet, tidy/Go fix/whitespace checks, lint and the accepted focused lifetime/native/path race passed. Linux ordinarycost/nativequal fixture compilation and Windows/OpenBSD interface compilation passed. All 17 applicable same-head hosted checks succeeded before guarded squash merge; the single silent watcher exited 0 and no same-head rerun occurred. The [PR #1273 certification and hosted receipt](https://github.com/the-sarge/quic-go-fast/pull/1273#issuecomment-6708348196) links the five workflow runs.
+
+Once-only parallel Standards/Spec preparation found zero findings. Initial RAS `20261107T141101-ecfdc218510d0e8d3c92abae` exposed ordinary native constructor exclusions; real short-DATAGRAM continuation and admitted-route tests went red before the central family repair. Exact-head source verification resolved it, and the one permitted replacement `20261107T143429-1afb63a73cc22429fc40fb6a` found no findings. Both reviews attempted the unchanged full configured panel: Fable hit its account limit, the other three plus synthesis met the existing quorum. The [PR #1273 source-verification receipt](https://github.com/the-sarge/quic-go-fast/pull/1273#issuecomment-6708204003) preserves the clear result and expected rejected cosmetic item.
+
+### Decisions
+
+The [PR #1273 independent dispositions](https://github.com/the-sarge/quic-go-fast/pull/1273#issuecomment-6708077899) and [constructor-family census](https://github.com/the-sarge/quic-go-fast/pull/1273#issuecomment-6708110895) retain one ordinary native preparation/registration owner across scalar, continuation and routed entries. Optional duplicate-comment cleanup was rejected as required work; no follow-up issue is warranted. No new review budget, maintained diagnostic gate or intermediate performance campaign was added.
+
+The [PR #1273 compiler/layout receipt](https://github.com/the-sarge/quic-go-fast/pull/1273#issuecomment-6708181274) records a 152-byte recovery packet, 32-byte preparation/view/receipt and 40-byte header/serialization facts. A reusable pooled preparation may retain one cleared 24-byte stream slot; grown backing is dropped. Production handles/header stay on the stack, and common value-path helper costs remain disclosed. These observations do not establish native Linux execution or throughput qualification.
+
+### Next
+
+At this entry's timestamp the committed N track is 8/11 complete and the program 34/46. [N8 #1238](https://github.com/the-sarge/quic-go-fast/issues/1238) is the current frontier; [N11 #1240](https://github.com/the-sarge/quic-go-fast/issues/1240) still waits for N8. [Program #646](https://github.com/the-sarge/quic-go-fast/issues/646) and [parent #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) remain the live frontier views. No surviving review follow-up or material untraced effect was identified. N3 #1202 and R17 #1037/R18 #1038 retain combined native/product qualification; public activation remains behind R19 #1039.
