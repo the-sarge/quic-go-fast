@@ -9831,3 +9831,30 @@ On the local 64-bit target, a token is 8 bytes, a registration 56, its eight-rec
 ### Next
 
 At this entry's timestamp, the committed N track is 6/11 complete and the program is 32/46 complete. [N10 #1239](https://github.com/the-sarge/quic-go-fast/issues/1239) has no remaining open predecessor after N9, while [N7 #1237](https://github.com/the-sarge/quic-go-fast/issues/1237) continues independently. [Program #646](https://github.com/the-sarge/quic-go-fast/issues/646) and [parent #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) remain the live frontier views. No surviving review follow-up or material untraced effect was identified. N3 #1202 and R17 #1037/R18 #1038 retain combined native and product qualification; public activation remains behind R19 #1039.
+
+---
+
+## Singleton native staging landed - 2026-11-07 09:22 EST
+
+**Main:** `9b436badf79f`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #1272 — Stage singleton native requests locally and exchange exact ownership](https://github.com/the-sarge/quic-go-fast/pull/1272), closing [N7 #1237](https://github.com/the-sarge/quic-go-fast/issues/1237), as `9b436badf79f295c863c87b0d20bb83a2113e1d4`. Ordinary native production now uses the existing four connection-owned records through Building, Staged, EndpointOwned and TerminalProcessing, reserves local construction capacity before packing, and transfers exact frozen singleton requests atomically. The original route/deadline, FIFO demand, spare endpoint record and event-driven detached terminal drain survive refusal, expiry, Retry, revoke and close. Probe release-on-refusal, deposited close obligations, public/stateless immediate admission and the unregistered baseline remain distinct supported routes. The actor and singleton constructor remain until their accepted successors.
+
+Fault and surviving read-loss sealing now settle locally owned requests promptly, allowing reliable work onto a healthy endpoint while frozen DATAGRAMs drop exactly once and admitted native buffers remain fenced. Ordinary-only exchange code has the same build-tag boundary as its caller; the atomic progress hint is consumed before exchange so a concurrent later publication remains pending. The product PR owns N7 completion, N8 frontier and coupled count corrections.
+
+### Validation
+
+Final source-verified and certified head `3bdbdc698c08c6bdfc3d80b1b05ae30a1f9a362a` used unchanged base `efcd1d5d799f2cc7ca940174f06262a1757d89d0`; its full tree equals the reachable squash merge. Full package tests passed (root 32.421 seconds), accepted focused race passed (8.837 seconds), vet/tidy/go-fix were clean, default/OpenBSD/Solaris lint reported zero issues, and Linux ordinarycost/nativequal plus Windows/OpenBSD interface compilation passed. All 17 applicable same-head hosted checks succeeded before match-head squash merge; the single silent watcher exited 0. The [PR #1272 hosted receipt](https://github.com/the-sarge/quic-go-fast/pull/1272#issuecomment-6708086891) links all five workflow runs.
+
+Once-only parallel Standards/Spec preparation found zero findings. Initial RAS `20261107T133531-97571bdea751183dd951f99a` accepted the staged-failure and count fixes; exact-head source verification resolved both. The one permitted replacement `20261107T135314-20df18a4a7681f2413ee00fa` required no immediate fix, and its synthetic revoked-head concern was rejected after tracing supported revocation/expiry entrypoints. A later hosted lint failure exposed unsupported-platform unused declarations; the narrow file/hint repair reproduced red→green, preserved the exchange body byte-for-byte, and passed renewed source verification and certification without another fresh review. No same-head CI rerun occurred. Both reviews attempted the unchanged full configured panel: Fable hit its account limit, the other three plus synthesis satisfied the existing quorum. [PR #1272 review and certification history](https://github.com/the-sarge/quic-go-fast/pull/1272#issuecomment-6708064663) retains the receipts.
+
+### Decisions
+
+[PR #1272 disposition history](https://github.com/the-sarge/quic-go-fast/pull/1272#issuecomment-6707743045) records the accepted fixes, rejected unused-helper cleanup and allocation observation deferred to existing [N3 #1202](https://github.com/the-sarge/quic-go-fast/issues/1202)/[R18 #1038](https://github.com/the-sarge/quic-go-fast/issues/1038) cost qualification. The allocation sites remain on the merged head; they establish churn, not measured product regression or an intermediate performance gate. No native/kernel/throughput qualification is claimed by this slice.
+
+### Next
+
+At this entry's timestamp the committed N track is 7/11 complete and the program 33/46. [N8 #1238](https://github.com/the-sarge/quic-go-fast/issues/1238) has no remaining open predecessor; [N10 #1239](https://github.com/the-sarge/quic-go-fast/issues/1239) continues independently. [Program #646](https://github.com/the-sarge/quic-go-fast/issues/646) and [parent #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) remain the live frontier views. N3 #1202 and R17 #1037/R18 #1038 retain combined native/product qualification; public activation remains behind R19 #1039.
