@@ -170,23 +170,6 @@ func (request endpointRequest) snapshot() endpointRequest {
 	return request
 }
 
-// releasePayload follows the final native fence (or a decision never to submit).
-// Releasing all buffers first prevents a credit wake from reusing a live borrow.
-func (request endpointRequest) releasePayload() {
-	for i := range request.members {
-		member := &request.members[i]
-		plan := member.protection
-		member.protection = nil
-		plan.release()
-		if member.buffer != nil {
-			member.buffer.Release()
-		}
-	}
-	for _, member := range request.members {
-		member.credit.complete()
-	}
-}
-
 func (member endpointMember) datagrams() int {
 	if member.datagram != nil || member.gsoSize == 0 {
 		return 1
