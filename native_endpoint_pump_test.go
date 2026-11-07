@@ -14,7 +14,9 @@ func TestNativeEndpointSynchronousControl(t *testing.T) {
 	e := startNativeEndpoint(endpointTestNative{}, time.Second, nil)
 	defer func() { <-e.stop() }()
 	allocations := testing.AllocsPerRun(10, func() {
-		require.False(t, e.quarantined())
+		quarantined := false
+		e.do(func(s *endpointState) { quarantined = s.faulted || s.sealed })
+		require.False(t, quarantined)
 	})
 	require.Zero(t, allocations, "a local endpoint query needs no command/ack rendezvous")
 }

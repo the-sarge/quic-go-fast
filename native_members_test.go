@@ -151,6 +151,9 @@ func TestNativeEndpointMemberBorrowAndCreditSurviveCancellation(t *testing.T) {
 		for _, member := range request.members {
 			require.Zero(t, member.buffer.refCount)
 		}
+		// Terminal visibility precedes detached credit return. Join every
+		// reservation's cleanup before inspecting the local credit owner.
+		synctest.Wait()
 		require.Zero(t, credit.pending)
 		<-credit.available
 	})
