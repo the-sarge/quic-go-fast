@@ -12,6 +12,39 @@ import (
 	"github.com/quic-go/quic-go/internal/protocol"
 )
 
+// exchange detaches the bounded immutable terminal FIFO and optionally admits one
+// exact frozen head in the same actor transaction. Refusal leaves payload ownership
+// with the producer. No callback or protocol processing runs under endpoint control.
+func (e *nativeEndpoint) exchange(p *endpointParticipant, request *endpointRequest) ([]endpointResult, error) {
+	var results []endpointResult
+	err := net.ErrClosed
+	e.do(func(s *endpointState) {
+		if p == nil || p.endpoint != e {
+			return
+		}
+		if len(p.results) != 0 {
+			results = make([]endpointResult, 0, len(p.results))
+		}
+		for _, i := range p.results {
+			results = append(results, s.records[i].result)
+			s.records[i] = endpointRecord{}
+			p.retained--
+			s.capacityGeneration++
+		}
+		p.results = p.results[:0]
+		// A drain-only exchange still observes admission usability. Local staged
+		// work must not wait for a grant or its deadline after this owner closes.
+		if s.sealed || s.faulted || !s.valid(p) || p.draining {
+			return
+		}
+		err = nil
+		if request != nil {
+			err = s.offer(p, 0, *request)
+		}
+	})
+	return results, err
+}
+
 // stagedHead is the sole ordinary demand owner for one endpoint participant.
 // A later local record may be built for another route, but cannot pass this head.
 func (s *nativeOrdinarySender) stagedHead(p *endpointParticipant) *ordinaryLocalRecord {
@@ -29,15 +62,15 @@ func (s *nativeOrdinarySender) serviceParticipant(p *endpointParticipant) {
 	if p == nil {
 		return
 	}
-	generation := p.notification.Load()
-	notified := generation != p.observed
+	// Consume this participant's atomic hint before entering the actor. A later
+	// publication leaves another hint even if the shared channel was coalesced.
+	notified := p.notification.Swap(0) != 0
 	ready := false
 	select {
 	case <-p.ready:
 		ready = true
 	default:
 	}
-	p.observed = generation
 	// At most four records exist; this loop can only advance to a different head.
 	for range len(s.records) + 1 {
 		head := s.stagedHead(p)
@@ -149,11 +182,11 @@ func (s *nativeOrdinarySender) localDeadline() monotime.Time {
 	return deadline
 }
 
-// progress is event driven. The monotonic hint also covers a select that already
+// progress is event driven. The atomic hint also covers a select that already
 // consumed the shared wake, without polling an endpoint for terminal facts.
 func (s *nativeOrdinarySender) progress(p *endpointParticipant) {
 	head := s.stagedHead(p)
-	if p.notification.Load() != p.observed || (head != nil && !head.offered) {
+	if p.notification.Load() != 0 || (head != nil && !head.offered) {
 		s.serviceParticipant(p)
 	}
 }

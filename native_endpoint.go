@@ -250,7 +250,6 @@ type endpointParticipant struct {
 	retired      chan struct{}
 	class        endpointClass
 	notification atomic.Uint64 // coalesced progress hint, never admission authority
-	observed     uint64        // connection-owned notification generation
 	// The fields below belong exclusively to endpoint control.
 	active                     bool
 	retained                   int
@@ -494,39 +493,6 @@ func (s *endpointState) offer(p *endpointParticipant, lane int, request endpoint
 		s.commit(admission, request)
 	}
 	return err
-}
-
-// exchange detaches the bounded immutable terminal FIFO and optionally admits one
-// exact frozen head in the same actor transaction. Refusal leaves payload ownership
-// with the producer. No callback or protocol processing runs under endpoint control.
-func (e *nativeEndpoint) exchange(p *endpointParticipant, request *endpointRequest) ([]endpointResult, error) {
-	var results []endpointResult
-	err := net.ErrClosed
-	e.do(func(s *endpointState) {
-		if p == nil || p.endpoint != e {
-			return
-		}
-		if len(p.results) != 0 {
-			results = make([]endpointResult, 0, len(p.results))
-		}
-		for _, i := range p.results {
-			results = append(results, s.records[i].result)
-			s.records[i] = endpointRecord{}
-			p.retained--
-			s.capacityGeneration++
-		}
-		p.results = p.results[:0]
-		// A drain-only exchange still observes admission usability. Local staged
-		// work must not wait for a grant or its deadline after this owner closes.
-		if s.sealed || s.faulted || !s.valid(p) || p.draining {
-			return
-		}
-		err = nil
-		if request != nil {
-			err = s.offer(p, 0, *request)
-		}
-	})
-	return results, err
 }
 
 func (s *endpointState) admit(p *endpointParticipant, lane, size int) (endpointAdmission, error) {
