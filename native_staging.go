@@ -244,12 +244,12 @@ func (r *ordinaryLocalRecord) memberEnd() int {
 // bufferRoom counts all local states, including endpoint-owned payloads whose
 // member descriptors have transferred. A path never owns over 32 buffers and the
 // connection never owns over 4 MiB, even while another endpoint is blocked.
-func (s *nativeOrdinarySender) bufferRoom(capacity protocol.ByteCount) bool {
+func (s *nativeOrdinarySender) bufferRoom(route *pathRoute, capacity protocol.ByteCount) bool {
 	var backing protocol.ByteCount
 	buffers := 0
 	path := uint64(0)
-	if s.route != nil {
-		path = uint64(s.route.context.PathID)
+	if route != nil {
+		path = uint64(route.context.PathID)
 	}
 	for i := range s.records {
 		r := &s.records[i]
@@ -270,7 +270,7 @@ func (s *nativeOrdinarySender) reserveBuffer(capacity protocol.ByteCount) bool {
 	if s.pending != nil && (len(s.pending.members) == endpointBatch || s.pending.backing+capacity > 1<<20) {
 		s.finish()
 	}
-	return !s.WouldBlock() && s.bufferRoom(capacity)
+	return !s.WouldBlock() && s.bufferRoom(s.route, capacity)
 }
 
 func (s *nativeOrdinarySender) constructionIdentity(route *pathRoute) endpointIdentity {

@@ -713,6 +713,71 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 			clear(sender.records[:])
 		})
 	})
+	t.Run("buffer saturation rejects steering before primary capacity", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newAdmissionFixture(t, protocol.PerspectiveClient)
+			f.supplyPeerCIDs(t)
+			target, socket, _ := newTarget(t, f)
+			t.Cleanup(socket.release)
+			open(t, f, target, socket)
+			c, r := f.c, &reliableFixture{admissionFixture: f}
+			s := stream(t, f)
+			sender := c.emission.local.(*nativeOrdinarySender)
+			sender.nativeGSO = false
+			r.setPathMTU(1, 1400)
+			c.pathCredit.selectPrimaryPrivate(1)
+			// Real ACKs grow the target's congestion allowance beyond 32 packets.
+			// This makes the buffer bound reachable through ordinary emission.
+			writeAsync(t, s, 64<<10)
+			warmed := 0
+			for range 16 {
+				r.pass(t)
+				original := f.socket
+				f.socket = socket
+				writes := r.parseWrites(t, 1)
+				f.socket = original
+				warmed += reliableBytes(writes)
+				time.Sleep(time.Millisecond)
+				r.ackPath(t, 1, 0, writes)
+				socket.writes = nil
+				time.Sleep(10 * time.Millisecond)
+				if warmed == 64<<10 {
+					break
+				}
+			}
+			require.Equal(t, 64<<10, warmed)
+			socket.hold = nativeProbeHoldAll
+			writeAsync(t, s, 128<<10)
+			r.pass(t)
+			buffers, records := 0, 0
+			for i := range sender.records {
+				record := &sender.records[i]
+				if record.state != ordinaryFree && record.identity.path == 1 {
+					buffers += len(record.members)
+					records++
+				}
+			}
+			require.Equal(t, 32, buffers, "real target members reach the existing buffer allowance")
+			require.Less(t, records, 3, "buffer pressure is independent of the spare-record bound")
+			c.pathCredit.selectPrimaryPrivate(0)
+			r.queueDatagram(t, 1300)
+			f.socket.writes = nil
+			require.Nil(t, c.emission.capacity(), "an exhausted fitting candidate cannot block primary capacity")
+			r.pass(t)
+			require.Positive(t, reliableBytes(r.parseWrites(t, 0)))
+			require.NotNil(t, c.datagramQueue.Peek(), "the frozen choice does not destructively extract the waiting DATAGRAM")
+			require.Zero(t, c.datagramQueue.sendDrops.Load())
+			socket.hold = nil
+			socket.release()
+			synctest.Wait()
+			require.NoError(t, sender.consume())
+			r.pass(t)
+			require.Nil(t, c.datagramQueue.Peek(), "the DATAGRAM progresses once the fitting route has buffer room")
+			for i := range sender.records {
+				require.Equal(t, ordinaryFree, sender.records[i].state)
+			}
+		})
+	})
 	t.Run("a saturated fitting endpoint holds the DATAGRAM, not the chosen route", func(t *testing.T) {
 		nativeOrdinaryTest(t, func(t *testing.T) {
 			f := newAdmissionFixture(t, protocol.PerspectiveClient)

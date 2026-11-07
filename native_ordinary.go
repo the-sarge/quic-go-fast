@@ -199,7 +199,7 @@ func (s *nativeOrdinarySender) WouldBlock() bool {
 	if s.drained || s.closed || s.err != nil {
 		return true
 	}
-	if !s.recovery.CanRegisterLocalPackets(1) || !s.bufferRoom(0) {
+	if !s.recovery.CanRegisterLocalPackets(1) || !s.bufferRoom(s.route, 0) {
 		s.finish()
 		return true
 	}
@@ -226,7 +226,7 @@ func (s *nativeOrdinarySender) reserve(route *pathRoute) *ordinaryLocalRecord {
 		return nil
 	}
 	participant := s.participantOf(route)
-	if participant == nil || s.routeSaturated(participant.endpoint) {
+	if participant == nil || s.routeSaturated(participant.endpoint) || !s.bufferRoom(route, 0) {
 		return nil
 	}
 	for i := range s.records {
@@ -294,11 +294,11 @@ func (s *nativeOrdinarySender) useRoute(route *pathRoute) {
 }
 
 func (s *nativeOrdinarySender) steer(route *pathRoute) bool {
-	if s.drained || s.closed || s.err != nil {
+	if s.drained || s.closed || s.err != nil || !s.bufferRoom(route, 0) {
 		return false
 	}
 	if s.route == route && s.pending != nil {
-		return true
+		return !s.WouldBlock()
 	}
 	s.finish()
 	record := s.reserve(route)
