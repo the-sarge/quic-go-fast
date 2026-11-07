@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sync/atomic"
 
+	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/quic-go/quic-go/qlog"
@@ -121,53 +122,79 @@ func (c *Conn) logShortHeaderPacketWithDatagramPayloadChecksum(p shortHeaderPack
 	if c.logger.Debug() && !isCoalesced {
 		c.logger.Debugf("-> Sending packet %d (%d bytes) for connection %s, 1-RTT (ECN: %s)", p.PacketNumber, size, c.logID, ecn)
 	}
-	// quic-go logging
 	if c.logger.Debug() {
-		wire.LogShortHeader(c.logger, p.DestConnID, p.PacketNumber, p.PacketNumberLen, p.KeyPhase)
-		if p.Ack != nil {
-			wire.LogFrame(c.logger, p.Ack, true)
-		}
-		for _, f := range p.Frames {
-			wire.LogFrame(c.logger, f.Frame, true)
-		}
-		for _, f := range p.StreamFrames {
-			wire.LogFrame(c.logger, f.Frame, true)
-		}
+		c.logShortHeaderFrames(p)
 	}
-
-	// tracing
 	if c.qlogger != nil {
-		numFrames := len(p.Frames) + len(p.StreamFrames)
-		if p.Ack != nil {
-			numFrames++
-		}
-		fs := make([]qlog.Frame, 0, numFrames)
-		if p.Ack != nil {
-			fs = append(fs, toQlogFrame(p.Ack))
-		}
-		for _, f := range p.Frames {
-			fs = append(fs, toQlogFrame(f.Frame))
-		}
-		for _, f := range p.StreamFrames {
-			fs = append(fs, toQlogFrame(f.Frame))
-		}
-		c.qlogger.RecordEvent(qlog.PacketSent{
-			Header: qlog.PacketHeader{
-				PacketType:       qlog.PacketType1RTT,
-				KeyPhaseBit:      p.KeyPhase,
-				PacketNumber:     p.PacketNumber,
-				Version:          c.version,
-				DestConnectionID: p.DestConnID,
-			},
-			Raw: qlog.RawInfo{
-				Length:        int(size),
-				PayloadLength: int(size - wire.ShortHeaderLen(p.DestConnID, p.PacketNumberLen)),
-			},
-			Path:                    c.qlogPath(p.Context.PathID, p.Context.TupleGeneration),
-			DatagramPayloadChecksum: datagramPayloadChecksum,
-			Frames:                  fs,
-			ECN:                     toQlogECN(ecn),
-		})
+		c.qlogShortHeaderPacket(p, ecn, size, datagramPayloadChecksum)
+	}
+}
+
+func (c *Conn) logShortHeaderFrames(p shortHeaderPacket) {
+	wire.LogShortHeader(c.logger, p.DestConnID, p.PacketNumber, p.PacketNumberLen, p.KeyPhase)
+	if p.Ack != nil {
+		wire.LogFrame(c.logger, p.Ack, true)
+	}
+	for _, f := range p.Frames {
+		wire.LogFrame(c.logger, f.Frame, true)
+	}
+	for _, f := range p.StreamFrames {
+		wire.LogFrame(c.logger, f.Frame, true)
+	}
+}
+
+func (c *Conn) qlogShortHeaderPacket(p shortHeaderPacket, ecn protocol.ECN, size protocol.ByteCount, datagramPayloadChecksum qlog.DatagramPayloadChecksum) {
+	numFrames := len(p.Frames) + len(p.StreamFrames)
+	if p.Ack != nil {
+		numFrames++
+	}
+	fs := make([]qlog.Frame, 0, numFrames)
+	if p.Ack != nil {
+		fs = append(fs, toQlogFrame(p.Ack))
+	}
+	for _, f := range p.Frames {
+		fs = append(fs, toQlogFrame(f.Frame))
+	}
+	for _, f := range p.StreamFrames {
+		fs = append(fs, toQlogFrame(f.Frame))
+	}
+	c.qlogger.RecordEvent(qlog.PacketSent{
+		Header: qlog.PacketHeader{
+			PacketType:       qlog.PacketType1RTT,
+			KeyPhaseBit:      p.KeyPhase,
+			PacketNumber:     p.PacketNumber,
+			Version:          c.version,
+			DestConnectionID: p.DestConnID,
+		},
+		Raw: qlog.RawInfo{
+			Length:        int(size),
+			PayloadLength: int(size - wire.ShortHeaderLen(p.DestConnID, p.PacketNumberLen)),
+		},
+		Path:                    c.qlogPath(p.Context.PathID, p.Context.TupleGeneration),
+		DatagramPayloadChecksum: datagramPayloadChecksum,
+		Frames:                  fs,
+		ECN:                     toQlogECN(ecn),
+	})
+}
+
+func preparedLoggingPacket(p ackhandler.PreparedPacketView, header nativeHeaderFacts) shortHeaderPacket {
+	return shortHeaderPacket{
+		Context: p.Context(), PacketNumber: header.packetNumber,
+		Frames: p.Frames(), StreamFrames: p.StreamFrames(), Ack: header.ack,
+		Length: p.Length(), DestConnID: header.destConnID,
+		PacketNumberLen: header.packetNumberLen, KeyPhase: header.keyPhase,
+	}
+}
+
+func (c *Conn) logPreparedShortHeaderPacket(p ackhandler.PreparedPacketView, header nativeHeaderFacts, ecn protocol.ECN, size protocol.ByteCount) {
+	if c.logger.Debug() {
+		c.logger.Debugf("-> Sending packet %d (%d bytes) for connection %s, 1-RTT (ECN: %s)", header.packetNumber, size, c.logID, ecn)
+	}
+	if c.logger.Debug() {
+		c.logShortHeaderFrames(preparedLoggingPacket(p, header))
+	}
+	if c.qlogger != nil {
+		c.qlogShortHeaderPacket(preparedLoggingPacket(p, header), ecn, size, 0)
 	}
 }
 

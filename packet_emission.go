@@ -66,7 +66,9 @@ type emissionPolicy interface {
 	maxPacketSize() protocol.ByteCount
 	logPathProbe(shortHeaderPacket, net.Addr, protocol.ByteCount, qlog.DatagramPayloadChecksum)
 	logShortHeaderPacket(shortHeaderPacket, protocol.ECN, protocol.ByteCount)
+	logPreparedShortHeaderPacket(ackhandler.PreparedPacketView, nativeHeaderFacts, protocol.ECN, protocol.ByteCount)
 	noteEmissionActivity(shortHeaderPacket, monotime.Time)
+	notePreparedEmissionActivity(ackhandler.PreparedPacketView, monotime.Time)
 	noteEmissionRegistration()
 	emissionReceivePending() bool
 	logCoalescedPacket(*coalescedPacket, protocol.ECN)
@@ -260,7 +262,10 @@ func (e *packetEmission) pacingDeadline() monotime.Time {
 // appendPacket packs, logs and registers one packet. With datagramOnly, the
 // packet carries only the next queued DATAGRAM frame, and errNothingToPack
 // leaves a frame that doesn't fit queued.
-func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCount, datagramOnly bool, ecn protocol.ECN, now monotime.Time) (shortHeaderPacket, protocol.ByteCount, error) {
+func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCount, datagramOnly bool, ecn protocol.ECN, now monotime.Time) (nativePacketReceipt, error) {
+	if e.usesPreparedPacket(datagramOnly) {
+		return e.appendNativePacket(buf, maxSize, ecn, now)
+	}
 	start := buf.Len()
 	var p shortHeaderPacket
 	var err error
@@ -270,7 +275,7 @@ func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCo
 		p, err = e.packer.appendPacket(e.route, buf, false, maxSize, now, e.version)
 	}
 	if err != nil {
-		return shortHeaderPacket{}, 0, err
+		return nativePacketReceipt{}, err
 	}
 	size := buf.Len() - start
 	if e.bbr != nil && e.paceReservation && (p.IsAckEliciting() || len(p.StreamFrames) != 0) {
@@ -278,16 +283,16 @@ func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCo
 	}
 	e.policy.logShortHeaderPacket(p, ecn, size)
 	if err := e.registerPacket(p, ecn, now); err != nil {
-		return shortHeaderPacket{}, 0, err
+		return nativePacketReceipt{}, err
 	}
-	return p, size, nil
+	return nativePacketReceipt{frames: p.Frames, size: size}, nil
 }
 
 func (e *packetEmission) withoutGSO(now monotime.Time) (result emissionResult) {
 	for {
 		buf := getPacketBufferForCeiling(packetCeiling(e.packetSize()))
 		ecn := e.selected().ECNMode(true)
-		if _, _, err := e.appendPacket(buf, e.packetSize(), false, ecn, now); err != nil {
+		if _, err := e.appendPacket(buf, e.packetSize(), false, ecn, now); err != nil {
 			if err == errNothingToPack {
 				buf.Release()
 				return result
@@ -327,7 +332,7 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 	for {
 		var done, more bool
 		limit, datagramOnly := batch.next()
-		p, size, err := e.appendPacket(buf, limit, datagramOnly, ecn, now)
+		receipt, err := e.appendPacket(buf, limit, datagramOnly, ecn, now)
 		if err != nil {
 			if err != errNothingToPack {
 				buf.Release()
@@ -342,7 +347,7 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 			// size only ends the batch; whatever is queued starts the next one.
 			done = !datagramOnly
 		} else {
-			more = batch.add(size, p.Frames)
+			more = batch.add(receipt.size, receipt.frames)
 			mode := e.selected().SendMode(now)
 			if mode == ackhandler.SendPacingLimited {
 				result.stop, result.deadline = emissionPaced, e.pacingDeadline()

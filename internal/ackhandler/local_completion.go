@@ -180,41 +180,75 @@ func (h *sentPacketHandler) RegisterLocalPathProbe(context PacketContext, t mono
 	return nil
 }
 
-func (h *sentPacketHandler) registerLocalPacket(context PacketContext, t monotime.Time, pn, largestAcked protocol.PacketNumber, streams []StreamFrame, frames []Frame, level protocol.EncryptionLevel, ecn protocol.ECN, size protocol.ByteCount, mtu bool) (LocalCompletionToken, error) {
+func (h *sentPacketHandler) validateLocalPacket(context PacketContext, t monotime.Time, pn protocol.PacketNumber, level protocol.EncryptionLevel, ecn protocol.ECN, size protocol.ByteCount) (*sentPacketHandler, *packetNumberSpace, error) {
 	if h.local == nil || h.local.closed || (ecn != protocol.ECNNon && ecn != protocol.ECNUnsupported && (h.local.ecn == nil || level != protocol.Encryption1RTT || (ecn != protocol.ECT0 && ecn != protocol.ECT1))) {
-		return LocalCompletionToken{}, errLocalPacketMode
+		return nil, nil, errLocalPacketMode
 	}
 	if context.PathID != h.pathID {
 		if path := h.path(context.PathID); path != nil && level == protocol.Encryption1RTT {
-			return path.registerLocalPacket(context, t, pn, largestAcked, streams, frames, level, ecn, size, mtu)
+			return path.validateLocalPacket(context, t, pn, level, ecn, size)
 		}
-		return LocalCompletionToken{}, errLocalPacketMode
+		return nil, nil, errLocalPacketMode
 	}
 	if level != protocol.EncryptionInitial && level != protocol.EncryptionHandshake && level != protocol.Encryption0RTT && level != protocol.Encryption1RTT {
-		return LocalCompletionToken{}, errLocalPacketMode
+		return nil, nil, errLocalPacketMode
 	}
 	ps := h.getPacketNumberSpace(level)
 	if !h.validPacketContext(context, level) || ps == nil || t.IsZero() || size <= 0 || pn < 0 || (ps.history.highestPacketNumber != protocol.InvalidPacketNumber && pn != ps.history.highestPacketNumber+1) {
-		return LocalCompletionToken{}, errLocalPacketMode
+		return nil, nil, errLocalPacketMode
 	}
 	// Reserve against the shared history/tombstone budget before any accounting,
 	// callback, or ownership transfer. A removed interior slot still counts once.
 	if h.numTrackedPackets() >= protocol.MaxTrackedSentPackets {
-		return LocalCompletionToken{}, ErrLocalCompletionCapacity
+		return nil, nil, ErrLocalCompletionCapacity
 	}
+	return h, ps, nil
+}
+
+func (h *sentPacketHandler) newLocalRegistration(ps *packetNumberSpace, pn protocol.PacketNumber, level protocol.EncryptionLevel, now monotime.Time) *localRegistration {
 	if ps.localEpoch == nil {
 		ps.localEpoch = &localRegistrationEpoch{owner: &h.local.owner}
 	}
 	r := h.local.allocateRegistration()
-	r.epoch, r.pn, r.level, r.registeredAt = ps.localEpoch, pn, level, t
+	r.epoch, r.pn, r.level, r.registeredAt = ps.localEpoch, pn, level, now
 	h.local.owner.pending++
-	token := LocalCompletionToken{registration: r}
-	h.sentPacket(context, t, pn, largestAcked, streams, frames, level, ecn, size, mtu, false, r)
-	h.settleLocalUndo(t)
+	return r
+}
+
+func (h *sentPacketHandler) finishLocalRegistration(ps *packetNumberSpace, pn protocol.PacketNumber, now monotime.Time) {
+	h.settleLocalUndo(now)
 	if ps.localUnregisteredPN == pn {
 		ps.localUnregisteredPN = protocol.InvalidPacketNumber
 	}
-	return token, nil
+}
+
+func (h *sentPacketHandler) registerLocalPacket(context PacketContext, t monotime.Time, pn, largestAcked protocol.PacketNumber, streams []StreamFrame, frames []Frame, level protocol.EncryptionLevel, ecn protocol.ECN, size protocol.ByteCount, mtu bool) (LocalCompletionToken, error) {
+	h, ps, err := h.validateLocalPacket(context, t, pn, level, ecn, size)
+	if err != nil {
+		return LocalCompletionToken{}, err
+	}
+	r := h.newLocalRegistration(ps, pn, level, t)
+	h.sentPacket(context, t, pn, largestAcked, streams, frames, level, ecn, size, mtu, false, r)
+	h.finishLocalRegistration(ps, pn, t)
+	return LocalCompletionToken{registration: r}, nil
+}
+
+func (h *sentPacketHandler) registerPreparedPacket(prepared *PacketPreparation, now monotime.Time, pn protocol.PacketNumber, ecn protocol.ECN) (LocalCompletionToken, error) {
+	p := prepared.p
+	h, ps, err := h.validateLocalPacket(p.Context, now, pn, protocol.Encryption1RTT, ecn, p.Length)
+	if err != nil {
+		return LocalCompletionToken{}, err
+	}
+	r := h.newLocalRegistration(ps, pn, protocol.Encryption1RTT, now)
+	streams := prepared.streams
+	prepared.p, prepared.streams = nil, nil
+	// Capture ACK targets before the original accounting/logger callback point.
+	targets := snapshotAckTargets(p.LargestAcked, p.Frames, protocol.Encryption1RTT)
+	priorInFlight := h.accountSentPacket(ps, pn, p.Length)
+	h.initializeSentPacket(p, r, now, protocol.Encryption1RTT, streams, targets)
+	h.publishSentPacket(ps, p, pn, ecn, priorInFlight)
+	h.finishLocalRegistration(ps, pn, now)
+	return LocalCompletionToken{registration: r}, nil
 }
 
 func (h *sentPacketHandler) CompleteLocalPacket(token LocalCompletionToken, outcome LocalPacketOutcome, returnedAt monotime.Time) error {
