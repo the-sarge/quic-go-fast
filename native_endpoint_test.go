@@ -11,8 +11,44 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNativeEndpointMemberReturnPrecedesDeadlineReset(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		reset := make(chan struct{})
+		var nativeReturn monotime.Time
+		e := startNativeEndpoint(endpointTestNative{
+			send: func(data []byte) (int, error) {
+				nativeReturn = monotime.Now()
+				return len(data), nil
+			},
+			deadline: func(deadline time.Time) error {
+				if deadline.IsZero() {
+					<-reset
+				}
+				return nil
+			},
+		}, time.Second, nil)
+		defer func() { <-e.stop() }()
+		p, err := e.attach(1)
+		require.NoError(t, err)
+		request := endpointTestRequest(1, "native bytes")
+		buffer := request.members[0].buffer
+		require.NoError(t, e.offer(p, 0, request))
+		synctest.Wait()
+		_, ok := e.take(p)
+		require.False(t, ok, "member return does not end the whole request borrow")
+		require.Equal(t, 1, buffer.refCount)
+		time.Sleep(2 * time.Millisecond)
+		close(reset)
+		<-p.completed
+		result, ok := e.take(p)
+		require.True(t, ok)
+		require.Equal(t, nativeReturn, result.members[0].returnedAt, "native member time excludes deadline reset")
+	})
+}
 
 type endpointTestNative struct {
 	deadline func(time.Time) error
@@ -37,7 +73,7 @@ func (n endpointTestNative) WriteMsgUDPAddrPort(b, _ []byte, _ netip.AddrPort) (
 func endpointTestRequest(id uint64, data ...string) endpointRequest {
 	r := endpointRequest{identity: endpointIdentity{connection: id, generation: 7, pathGeneration: 5, tuple: 3}, destination: netip.MustParseAddrPort("127.0.0.1:1234")}
 	for _, value := range data {
-		r.buffers = append(r.buffers, endpointTestBuffer(value))
+		r.members = append(r.members, endpointMember{buffer: endpointTestBuffer(value)})
 	}
 	return r
 }
@@ -61,8 +97,8 @@ func TestNativeEndpointQueuedExpiry(t *testing.T) {
 		time.Sleep(6 * time.Millisecond)
 		result, ok := e.take(p)
 		require.True(t, ok, "queued expiry must not wait for native return")
-		require.Equal(t, 1, result.unsubmitted)
-		require.ErrorIs(t, result.err, os.ErrDeadlineExceeded)
+		require.Equal(t, 1, result.members[0].unsubmitted)
+		require.ErrorIs(t, result.failure(), os.ErrDeadlineExceeded)
 		<-p.ready
 		// Another expiry invalidates this already-issued grant until the floor
 		// elapses. A stale wakeup must not authorize another immediate transfer.
@@ -106,12 +142,12 @@ func TestNativeEndpointClaimRevocation(t *testing.T) {
 		require.NotSame(t, p, fresh)
 		r := endpointTestRequest(1, "stale")
 		require.Error(t, e.offer(p, 0, r))
-		r.buffers[0].Release()
+		r.members[0].buffer.Release()
 		require.NoError(t, e.offer(fresh, 0, endpointTestRequest(1, "fresh")))
 		<-fresh.completed
 		result, ok := e.take(fresh)
 		require.True(t, ok)
-		require.Equal(t, 1, result.accepted)
+		require.Equal(t, 1, result.members[0].accepted)
 	})
 }
 
@@ -121,8 +157,8 @@ func TestNativeEndpointSubmissionFacts(t *testing.T) {
 		err                    error
 		uncertain, unsubmitted int
 	}{
-		{"uncertain", os.ErrDeadlineExceeded, 1, 1},
-		{"rejected", syscall.EMSGSIZE, 0, 2},
+		{"uncertain", os.ErrDeadlineExceeded, 1, 0},
+		{"rejected", syscall.EMSGSIZE, 0, 1},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -141,10 +177,18 @@ func TestNativeEndpointSubmissionFacts(t *testing.T) {
 				<-p.completed
 				result, ok := e.take(p)
 				require.True(t, ok)
-				require.Equal(t, 1, result.accepted)
-				require.Equal(t, test.uncertain, result.uncertain)
-				require.Equal(t, test.unsubmitted, result.unsubmitted)
-				require.ErrorIs(t, result.err, test.err)
+				require.Equal(t, 1, result.members[0].accepted)
+				require.Len(t, result.members, 3)
+				require.Equal(t, test.uncertain, result.members[1].uncertain)
+				require.Equal(t, test.unsubmitted, result.members[1].unsubmitted)
+				require.Equal(t, 1, result.members[2].unsubmitted)
+				require.NoError(t, result.members[0].err)
+				require.ErrorIs(t, result.members[1].err, test.err)
+				require.NoError(t, result.members[2].err, "middle failure is not the untouched tail's error")
+				for _, member := range result.members {
+					require.False(t, member.returnedAt.IsZero())
+				}
+				require.ErrorIs(t, result.failure(), test.err)
 				require.Equal(t, 2, attempts, "neither accepted prefix nor uncertain attempt may be replayed")
 			})
 		})
@@ -241,8 +285,8 @@ func TestNativeEndpointReturnAtWatchdogBoundary(t *testing.T) {
 			result, ok := e.take(p)
 			require.True(t, ok)
 			require.Equal(t, uint64(11), result.identity.registration)
-			require.Equal(t, 1, result.accepted)
-			require.NoError(t, result.err)
+			require.Equal(t, 1, result.members[0].accepted)
+			require.NoError(t, result.failure())
 			select {
 			case <-e.fault:
 				t.Fatal("control latency was classified as native overrun")
@@ -255,7 +299,7 @@ func TestNativeEndpointReturnAtWatchdogBoundary(t *testing.T) {
 			result, ok = e.take(p)
 			require.True(t, ok)
 			require.Equal(t, uint64(22), result.identity.registration)
-			require.Equal(t, 1, result.accepted)
+			require.Equal(t, 1, result.members[0].accepted)
 			_, ok = e.take(p)
 			require.False(t, ok, "coalesced wakeups cannot duplicate a terminal result")
 		})
@@ -273,8 +317,8 @@ func TestNativeEndpointReturnAtWatchdogBoundary(t *testing.T) {
 		synctest.Wait()
 		result, ok := e.take(p)
 		require.True(t, ok)
-		require.Equal(t, 1, result.accepted, "quarantine must preserve the actual native acceptance")
-		require.NoError(t, result.err)
+		require.Equal(t, 1, result.members[0].accepted, "quarantine must preserve the actual native acceptance")
+		require.NoError(t, result.failure())
 		select {
 		case <-e.fault:
 		default:
@@ -288,7 +332,7 @@ func endpointTestLargeRequest(id uint64) endpointRequest {
 	for range endpointBatch {
 		b := getLargePacketBuffer()
 		b.Data = append(b.Data, 1)
-		r.buffers = append(r.buffers, b)
+		r.members = append(r.members, endpointMember{buffer: b})
 	}
 	return r
 }
@@ -331,7 +375,7 @@ func TestNativeEndpointFairLargeAdmission(t *testing.T) {
 		require.NoError(t, err)
 		smallRequest := endpointTestRequest(5, "small")
 		require.ErrorIs(t, e.offer(small, 0, smallRequest), errEndpointCapacity, "small arrivals cannot overtake selected large request")
-		defer smallRequest.buffers[0].Release()
+		defer smallRequest.members[0].buffer.Release()
 		e.cancelReadiness(small, 0) // producer withdraws its still-owned work
 		time.Sleep(10100 * time.Microsecond)
 		require.ErrorIs(t, e.offer(large, 0, r), errEndpointCapacity, "an accumulating grant must also respect the timeout floor")
@@ -363,7 +407,7 @@ func TestNativeEndpointStalledConsumer(t *testing.T) {
 			synctest.Wait()
 		}
 		r := endpointTestRequest(1, "refused")
-		defer r.buffers[0].Release()
+		defer r.members[0].buffer.Release()
 		require.ErrorIs(t, e.offer(p, 0, r), errEndpointCapacity)
 		other, err := e.attach(2)
 		require.NoError(t, err)
@@ -371,11 +415,11 @@ func TestNativeEndpointStalledConsumer(t *testing.T) {
 		<-other.completed
 		result, ok := e.take(other)
 		require.True(t, ok)
-		require.Equal(t, 1, result.accepted)
+		require.Equal(t, 1, result.members[0].accepted)
 		for range 4 {
 			result, ok = e.take(p)
 			require.True(t, ok)
-			require.Equal(t, 1, result.accepted)
+			require.Equal(t, 1, result.members[0].accepted)
 		}
 		_, ok = e.take(p)
 		require.False(t, ok)
@@ -404,15 +448,15 @@ func TestNativeEndpointExpiredClaimAndNextDeadline(t *testing.T) {
 		<-p.completed
 		result, ok := e.take(p)
 		require.True(t, ok)
-		require.ErrorIs(t, result.err, os.ErrDeadlineExceeded)
-		require.Equal(t, 1, result.unsubmitted)
+		require.ErrorIs(t, result.failure(), os.ErrDeadlineExceeded)
+		require.Equal(t, 1, result.members[0].unsubmitted)
 		require.Zero(t, writes)
 		time.Sleep(time.Millisecond)
 		require.NoError(t, e.offer(p, 0, endpointTestRequest(1, "fresh")))
 		<-p.completed
 		result, ok = e.take(p)
 		require.True(t, ok)
-		require.Equal(t, 1, result.accepted)
+		require.Equal(t, 1, result.members[0].accepted)
 		require.Len(t, deadlines, 4)
 		require.True(t, deadlines[1].IsZero())
 		require.True(t, deadlines[2].After(deadlines[0]))
@@ -471,15 +515,15 @@ func TestNativeEndpointClassAndParticipantLimits(t *testing.T) {
 		for _, p := range []*endpointParticipant{first, e.stateless, e.public} {
 			r := endpointTestRequest(p.id, "overflow")
 			require.ErrorIs(t, e.offer(p, 0, r), errEndpointCapacity)
-			r.buffers[0].Release()
+			r.members[0].buffer.Release()
 		}
 		tooMany := endpointTestRequest(first.id)
 		for range endpointBatch + 1 {
-			tooMany.buffers = append(tooMany.buffers, endpointTestBuffer("oversize batch"))
+			tooMany.members = append(tooMany.members, endpointMember{buffer: endpointTestBuffer("oversize batch")})
 		}
 		require.ErrorIs(t, e.offer(first, 0, tooMany), errEndpointRequest)
-		for _, b := range tooMany.buffers {
-			b.Release()
+		for _, member := range tooMany.members {
+			member.buffer.Release()
 		}
 	})
 }
@@ -512,7 +556,7 @@ func TestNativeEndpointCompletionPool(t *testing.T) {
 		<-p.completed
 		result, ok := e.take(p)
 		require.True(t, ok)
-		require.Equal(t, 1, result.accepted)
+		require.Equal(t, 1, result.members[0].accepted)
 	})
 }
 
@@ -527,7 +571,7 @@ func TestNativeEndpointReadinessLease(t *testing.T) {
 			require.NoError(t, e.offer(p, 0, endpointTestRequest(1, "queued")))
 		}
 		r := endpointTestRequest(1, "paused producer")
-		defer r.buffers[0].Release()
+		defer r.members[0].buffer.Release()
 		require.ErrorIs(t, e.offer(p, 0, r), errEndpointCapacity)
 		permits <- struct{}{}
 		<-p.completed
@@ -557,7 +601,7 @@ func TestNativeEndpointReadinessLease(t *testing.T) {
 		owned := true
 		defer func() {
 			if owned {
-				retry.buffers[0].Release()
+				retry.members[0].buffer.Release()
 			}
 		}()
 		require.ErrorIs(t, e.offer(p, 0, retry), errEndpointCapacity)
@@ -601,8 +645,8 @@ func TestNativeEndpointDeadlineFailure(t *testing.T) {
 		<-p.completed
 		result, ok := e.take(p)
 		require.True(t, ok)
-		require.ErrorIs(t, result.err, net.ErrClosed)
-		require.Equal(t, 1, result.unsubmitted)
+		require.ErrorIs(t, result.failure(), net.ErrClosed)
+		require.Equal(t, 1, result.members[0].unsubmitted)
 		require.Zero(t, writes)
 		select {
 		case <-e.fault:
@@ -673,7 +717,7 @@ func TestNativeEndpointConstructionDomain(t *testing.T) {
 	defer func() { <-second.stop() }()
 	r := endpointTestRequest(1, "old endpoint")
 	require.Error(t, second.offer(p, 0, r))
-	r.buffers[0].Release()
+	r.members[0].buffer.Release()
 }
 
 func TestNativeEndpointUDP(t *testing.T) {
@@ -691,15 +735,15 @@ func TestNativeEndpointUDP(t *testing.T) {
 	require.NoError(t, err)
 	r := endpointRequest{destination: receiver.LocalAddr().(*net.UDPAddr).AddrPort(), identity: endpointIdentity{connection: 17, path: 1, tuple: 2, registration: 3}}
 	r.identity.endpoint = e.generation
-	r.buffers = append(r.buffers, endpointTestBuffer("endpoint"))
+	r.members = append(r.members, endpointMember{buffer: endpointTestBuffer("endpoint")})
 	require.NoError(t, e.offer(p, 0, r))
 	<-p.completed
 	result, ok := e.take(p)
 	require.True(t, ok)
 	require.Equal(t, r.identity, result.identity)
-	require.Equal(t, 1, result.accepted)
-	require.Zero(t, result.uncertain)
-	require.NoError(t, result.err)
+	require.Equal(t, 1, result.members[0].accepted)
+	require.Zero(t, result.members[0].uncertain)
+	require.NoError(t, result.failure())
 	require.Equal(t, r.identity, (<-diagnostic).identity)
 	require.NoError(t, receiver.SetReadDeadline(time.Now().Add(time.Second)))
 	var data [32]byte

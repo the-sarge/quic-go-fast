@@ -204,6 +204,45 @@ func TestNativeOrdinarySegmentPrefix(t *testing.T) {
 	}
 }
 
+func TestNativeOrdinaryAcceptedReceiptSurvivesDeadlineResetFailure(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		tc := newEmissionTestConnection(t, true)
+		c := tc.conn
+		var nativeReturn monotime.Time
+		e := startNativeEndpoint(endpointTestNative{
+			send: func(data []byte) (int, error) {
+				nativeReturn = monotime.Now()
+				return len(data), nil
+			},
+			deadline: func(deadline time.Time) error {
+				if deadline.IsZero() {
+					time.Sleep(time.Millisecond)
+					return os.ErrDeadlineExceeded
+				}
+				return nil
+			},
+		}, time.Second, nil)
+		require.NoError(t, c.useNativeOrdinary(e, netip.MustParseAddrPort("1.2.3.4:4321"), packetInfo{}))
+		queue := c.emission.local.(*nativeOrdinarySender)
+		defer func() { queue.Close(); <-e.stop() }()
+		require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("accepted")}))
+		require.NoError(t, c.emission.send(monotime.Now(), true).err)
+		receipt := &pathAbandonReceipt{}
+		found := false
+		for i := range queue.records {
+			if queue.records[i].admission.serial != 0 {
+				queue.records[i].metadata.terminalReceipts = []*pathAbandonReceipt{receipt}
+				found = true
+			}
+		}
+		require.True(t, found)
+		<-queue.participant.completed
+		_ = queue.consume() // the reset faults the endpoint after member acceptance
+		require.False(t, nativeReturn.IsZero())
+		require.Equal(t, nativeReturn, receipt.acceptedAt(), "later request failure cannot erase the accepted member receipt")
+	})
+}
+
 func TestNativeOrdinaryTerminalLifetime(t *testing.T) {
 	register := func(t *testing.T, c *Conn, frames []ackhandler.Frame) {
 		t.Helper()
@@ -259,7 +298,7 @@ func TestNativeOrdinaryTerminalLifetime(t *testing.T) {
 				e.do(func(state *endpointState) {
 					require.Equal(t, 4, queue.participant.retained)
 					require.LessOrEqual(t, state.bytes, 4<<20)
-					borrowed = state.current.request.buffers[0]
+					borrowed = state.current.request.members[0].buffer
 				})
 				token := queue.records[0].packets[0].token
 				switch lifecycle {

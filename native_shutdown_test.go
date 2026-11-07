@@ -323,7 +323,7 @@ func TestNativeCloseObligation(t *testing.T) {
 	address := netip.MustParseAddrPort("127.0.0.1:1234")
 	closeRequest := func(id uint64) (endpointRequest, *packetBuffer) {
 		buffer := endpointTestBuffer("close")
-		return endpointRequest{identity: endpointIdentity{connection: id}, destination: address, buffers: []*packetBuffer{buffer}}, buffer
+		return endpointRequest{identity: endpointIdentity{connection: id}, destination: address, members: []endpointMember{{buffer: buffer}}}, buffer
 	}
 	// occupy fills the connection-control class behind one blocked native call.
 	occupy := func(t *testing.T, e *nativeEndpoint) {
@@ -617,7 +617,7 @@ func TestNativeTransportCloseWaitsForDepositedClose(t *testing.T) {
 			p, err := e.attach(1)
 			require.NoError(t, err)
 			e.drain(p)
-			request := endpointRequest{identity: endpointIdentity{connection: 1}, destination: netip.MustParseAddrPort("127.0.0.1:1234"), buffers: []*packetBuffer{endpointTestBuffer("close")}}
+			request := endpointRequest{identity: endpointIdentity{connection: 1}, destination: netip.MustParseAddrPort("127.0.0.1:1234"), members: []endpointMember{{buffer: endpointTestBuffer("close")}}}
 			require.NoError(t, e.depositClose(p, request))
 
 			start := time.Now()
@@ -897,16 +897,16 @@ func TestNativeSealStopsCapturedProducers(t *testing.T) {
 		synctest.Wait()
 
 		// Queued work resolves as unsubmitted, once, while the current borrow stays.
-		require.Zero(t, queued.buffers[0].refCount)
-		require.EqualValues(t, 1, current.buffers[0].refCount)
+		require.Zero(t, queued.members[0].buffer.refCount)
+		require.EqualValues(t, 1, current.members[0].buffer.refCount)
 
 		// Everything captured before the seal is refused, and refusal keeps
 		// ownership with the producer.
 		late := endpointTestRequest(1, "late")
 		require.ErrorIs(t, e.submit(prepared, late), net.ErrClosed)
 		require.ErrorIs(t, e.offer(p, 0, late), net.ErrClosed)
-		require.EqualValues(t, 1, late.buffers[0].refCount)
-		late.buffers[0].Release()
+		require.EqualValues(t, 1, late.members[0].buffer.refCount)
+		late.members[0].buffer.Release()
 		require.ErrorIs(t, child.send(nil, nil, []byte("late response"), nativeShutdownAddress, packetInfo{}), net.ErrClosed)
 
 		// A post-close public write neither dispatches nor initializes.
@@ -917,7 +917,7 @@ func TestNativeSealStopsCapturedProducers(t *testing.T) {
 
 		close(release)
 		require.NoError(t, transport.waitNativeIOStopped(t.Context()))
-		require.Zero(t, current.buffers[0].refCount)
+		require.Zero(t, current.members[0].buffer.refCount)
 		require.Equal(t, 1, writes)
 	})
 }

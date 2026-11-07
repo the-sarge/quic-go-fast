@@ -793,8 +793,8 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 			if err != nil {
 				require.ErrorIs(t, err, errEndpointCapacity)
 				endpoint.cancelReadiness(other, 0)
-				for _, buffer := range request.buffers {
-					buffer.Release()
+				for _, member := range request.members {
+					member.buffer.Release()
 				}
 				break
 			}
@@ -857,7 +857,7 @@ func TestPathReliableTargetTransportRoute(t *testing.T) {
 
 			other := others[len(others)-1]
 			request := endpointTestRequest(other.id, "other")
-			defer request.buffers[0].Release()
+			defer request.members[0].buffer.Release()
 			require.ErrorIs(t, endpoint.offer(other, 0, request), errEndpointCapacity)
 			_, granted = waiting(endpoint, other)
 			require.True(t, granted, "the next waiter has the turn at once")
