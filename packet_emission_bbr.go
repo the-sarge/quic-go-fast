@@ -180,6 +180,10 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 		buf.Release()
 		buf = getGSOPacketBuffer(size)
 	}
+	if !e.reserveNativeBuffer(buf) {
+		buf.Release()
+		return emissionResult{stop: emissionQueueFull, available: e.queue.Available()}
+	}
 	ecn := (*e.recovery).ECNMode(true)
 	// The reservation covers whole maximum-size packets; handoff resizes it to
 	// the physical bytes, so shorter segments release the remainder.
@@ -203,7 +207,7 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 		}
 		more := batch.add(receipt.size, receipt.frames)
 		mode, allowance := (*e.recovery).(boundedRecovery).SendAllowance(now)
-		if !gso || !more || !batch.fits(buf.Len(), limit) || mode != ackhandler.SendAny || allowance < size || (*e.recovery).ECNMode(true) != ecn {
+		if !e.localPacketRoom() || !gso || !more || !batch.fits(buf.Len(), limit) || mode != ackhandler.SendAny || allowance < size || (*e.recovery).ECNMode(true) != ecn {
 			break
 		}
 	}

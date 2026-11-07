@@ -233,3 +233,60 @@ func (s *nativeOrdinarySender) cancelZero() {
 		}
 	}
 }
+
+func (r *ordinaryLocalRecord) memberEnd() int {
+	if len(r.members) == 0 {
+		return 0
+	}
+	return r.members[len(r.members)-1].end
+}
+
+// bufferRoom counts all local states, including endpoint-owned payloads whose
+// member descriptors have transferred. A path never owns over 32 buffers and the
+// connection never owns over 4 MiB, even while another endpoint is blocked.
+func (s *nativeOrdinarySender) bufferRoom(route *pathRoute, capacity protocol.ByteCount) bool {
+	var backing protocol.ByteCount
+	buffers := 0
+	path := uint64(0)
+	if route != nil {
+		path = uint64(route.context.PathID)
+	}
+	for i := range s.records {
+		r := &s.records[i]
+		if r.state == ordinaryFree {
+			continue
+		}
+		backing += r.backing
+		if r.identity.path == path {
+			buffers += len(r.members)
+		}
+	}
+	return buffers < endpointBatch && backing+capacity <= 4<<20
+}
+
+// reserveBuffer checks the actual pool tier before destructive construction.
+// Reaching a request bound seals it without waiting for future work.
+func (s *nativeOrdinarySender) reserveBuffer(capacity protocol.ByteCount) bool {
+	if s.pending != nil && (len(s.pending.members) == endpointBatch || s.pending.backing+capacity > 1<<20) {
+		s.finish()
+	}
+	return !s.WouldBlock() && s.bufferRoom(s.route, capacity)
+}
+
+func (s *nativeOrdinarySender) constructionIdentity(route *pathRoute) endpointIdentity {
+	identity := endpointIdentity{connection: s.participant.id, generation: s.generation, pathGeneration: s.connection.pathGeneration, tuple: s.connection.pathGeneration}
+	if route != nil {
+		identity.path, identity.pathGeneration, identity.tuple = uint64(route.context.PathID), route.context.TupleGeneration, route.context.TupleGeneration
+	}
+	return identity
+}
+
+func (s *nativeOrdinarySender) constructionEpoch() *responseEpoch {
+	if s.route != nil {
+		return s.route.epoch
+	}
+	if credit := s.connection.pathCredit; credit != nil {
+		return credit.zeroEpoch()
+	}
+	return nil
+}
