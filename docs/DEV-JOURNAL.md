@@ -9808,3 +9808,26 @@ The once-only parallel Standards/Spec preparation found no substantive issues. R
 ### Next
 
 At this entry's timestamp, the committed N track is 5/11 complete and the program is 31/46 complete. [N7 #1237](https://github.com/the-sarge/quic-go-fast/issues/1237) has no remaining open predecessor after N6, while [N9 #1236](https://github.com/the-sarge/quic-go-fast/issues/1236) continues independently. [Program #646](https://github.com/the-sarge/quic-go-fast/issues/646) and [parent #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) are the live frontier views. N3 #1202 and R17 #1037/R18 #1038 retain their combined native and product qualification obligations; public activation remains behind R19 #1039.
+
+---
+
+## Canonical local recovery landed - 2026-11-07 08:23 EST
+
+**Main:** `75e41f3b7b8b`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #1269 — Canonical recovery facts and closed member completion](https://github.com/the-sarge/quic-go-fast/pull/1269), closing [N9 #1236](https://github.com/the-sarge/quic-go-fast/issues/1236), as `75e41f3b7b8b994ab1b6a91672ad9a6ea0587371`. Recovery now issues one never-reused canonical registration identity, maintains independent pending-token and live-packet counts, and owns exact packet-distance ranks and eager PTO evidence. The native singleton consumer attempts a whole-span accepted completion only after callback-free preflight; unsupported members and observers keep ordered scalar completion. Old Retry/history readers and N4 capacity accounting are preserved. The product PR owns N9 completion and the N10 frontier transition while retaining merged N6 facts.
+
+### Validation
+
+Reviewed and certified feature head `7dfb2ad065754457ac22b155f8cfe29c8360411f` against unchanged base `bdedf352557deacdef7982613bf2d6b237d248e4`. Early-ACK/Retry characterizations preceded implementation; token identity and reentrant ACK-carrier reset regressions failed before their fixes. Added coverage includes accepted-span/scalar equivalence with changed RTT and ECN, atomic refusal, old readers, canonical count lifetimes, rank boundaries/trim/reset and eager maximum refill. Final affected tests passed (recovery 23.199 seconds, root 28.675 seconds), focused race passed (3.702/6.451 seconds), and vet, tidy-diff, formatting, full go-fix, whitespace and Linux ordinarycost fixture compilation passed. All 17 applicable hosted checks succeeded on the exact live head before match-head squash merge. No throughput workload or qualification claim was added.
+
+The one parallel Standards/Spec preparation pass found zero issues. Initial RAS run `20261107T130010-d00e2781c955814ba2f81c6a` and permitted replacement `20261107T131246-7c38b9f2e4c12911a42d5c6b` each found zero scoped findings. Each launched all four configured reviewers unchanged; three completed and Fable reported its account limit, satisfying the existing configured quorum and synthesis semantics. The replacement followed four mechanical integer-range loop spellings required by the first head's hosted go-fix check; no same-head CI rerun, finding verification or extra review round occurred. The [PR #1269 final review/certification receipt](https://github.com/the-sarge/quic-go-fast/pull/1269#issuecomment-6707459466) preserves this history and the unavailable reviewer.
+
+On the local 64-bit target, a token is 8 bytes, a registration 56, its eight-record chunk 448 and the unchanged recovery packet 152. Fresh chunks and epochs are GC-managed; the native token array stays on the stack. A retained holder can retain seven neighbors and the owner/partial chunk; arbitrary retained consumed token copies are not a bounded-memory claim. Removing the eager maximum may refold O(H) history. These are layout/lifetime observations, not performance certification.
+
+### Next
+
+At this entry's timestamp, the committed N track is 6/11 complete and the program is 32/46 complete. [N10 #1239](https://github.com/the-sarge/quic-go-fast/issues/1239) has no remaining open predecessor after N9, while [N7 #1237](https://github.com/the-sarge/quic-go-fast/issues/1237) continues independently. [Program #646](https://github.com/the-sarge/quic-go-fast/issues/646) and [parent #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) remain the live frontier views. No surviving review follow-up or material untraced effect was identified. N3 #1202 and R17 #1037/R18 #1038 retain combined native and product qualification; public activation remains behind R19 #1039.
