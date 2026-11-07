@@ -17,7 +17,8 @@ type localECNEvidence struct {
 	possible, confirmed        congestion.ECNCounts
 	constraints                []localECNConstraint
 	frontier                   protocol.PacketNumber
-	records, scratch           []localECNRecord
+	records                    localECNRecords
+	scratch                    []localECNRecord
 	receipts                   []wire.AckRange
 	watermark                  protocol.PacketNumber
 	reported                   congestion.ECNCounts
@@ -82,46 +83,49 @@ type localECNRecord struct {
 }
 
 func (e *localECNEvidence) search(pn protocol.PacketNumber) int {
-	i, _ := slices.BinarySearchFunc(e.records, pn, func(r localECNRecord, p protocol.PacketNumber) int {
-		if r.last < p {
-			return -1
-		}
-		if r.pn > p {
-			return 1
-		}
+	// First logical range whose last packet is not below pn.
+	n := e.records.len()
+	if n == 0 || e.records.at(0).last >= pn {
 		return 0
-	})
-	return i
+	}
+	// Ordered local returns normally settle the first singleton immediately
+	// after a confirmed prefix. These comparisons are exact for any sequence;
+	// arbitrary late facts still use the same lower-bound search.
+	if n == 1 || e.records.at(1).last >= pn {
+		return 1
+	}
+	lo, hi := 2, n
+	for lo < hi {
+		mid := int(uint(lo+hi) >> 1)
+		if e.records.at(mid).last < pn {
+			lo = mid + 1
+		} else {
+			hi = mid
+		}
+	}
+	return lo
 }
 
 func (e *localECNEvidence) find(pn protocol.PacketNumber) *localECNRecord {
 	i := e.search(pn)
-	if i == len(e.records) || e.records[i].pn > pn {
+	if i == e.records.len() || e.records.at(i).pn > pn {
 		return nil
 	}
-	return &e.records[i]
+	return e.records.at(i)
 }
 
-func extendsLocalECNRange(a, b localECNRecord) bool {
+func extendsLocalECNRange(a, b *localECNRecord) bool {
 	return a.registration == nil && b.registration == nil && a.last+1 == b.pn && a.mark == b.mark && a.testing == b.testing && a.acked == b.acked && a.lost == b.lost
 }
 
 // Only the two neighbours can become mergeable when a singleton is settled.
 func (e *localECNEvidence) coalesce(pn protocol.PacketNumber) {
-	i := e.search(pn)
-	if i > 0 && extendsLocalECNRange(e.records[i-1], e.records[i]) {
-		e.records[i-1].last = e.records[i].last
-		e.records = slices.Delete(e.records, i, i+1)
-		i--
-	}
-	if i+1 < len(e.records) && extendsLocalECNRange(e.records[i], e.records[i+1]) {
-		e.records[i].last = e.records[i+1].last
-		e.records = slices.Delete(e.records, i+1, i+2)
-	}
+	// Generic qualification may invoke an observer. Resolve again after it.
+	e.records.coalesceAt(e.search(pn))
 }
 
 func (e *localECNEvidence) appendScratch(h *sentPacketHandler, r localECNRecord) bool {
-	if n := len(e.scratch); n > 0 && extendsLocalECNRange(e.scratch[n-1], r) {
+	if n := len(e.scratch); n > 0 && extendsLocalECNRange(&e.scratch[n-1], &r) {
 		e.scratch[n-1].last = r.last
 		return true
 	}
@@ -138,23 +142,14 @@ func (e *localECNEvidence) appendScratch(h *sentPacketHandler, r localECNRecord)
 	return true
 }
 
-// Rewrites use the same range ceiling and relocate the unaffected suffix once.
+// Rewrites retain the same logical range ceiling. Moving representation storage
+// does not consume, duplicate or defer any recovery effect.
 func (e *localECNEvidence) splice(h *sentPacketHandler, start, end int) bool {
-	old, n := len(e.records), len(e.records)-(end-start)+len(e.scratch)
-	if n > maxECNMarkRanges {
+	if e.records.len()-(end-start)+len(e.scratch) > maxECNMarkRanges {
 		e.fail(h)
 		return false
 	}
-	if n > cap(e.records) {
-		records := make([]localECNRecord, old, min(maxECNMarkRanges, max(n, 2*cap(e.records))))
-		copy(records, e.records)
-		e.records = records
-	}
-	e.records = e.records[:max(n, old)]
-	copy(e.records[start+len(e.scratch):], e.records[end:old])
-	copy(e.records[start:], e.scratch)
-	clear(e.records[n:])
-	e.records = e.records[:n]
+	e.records.splice(start, end, e.scratch)
 	clear(e.scratch)
 	e.scratch = e.scratch[:0]
 	return true
@@ -168,7 +163,7 @@ func (h *sentPacketHandler) registerLocalECN(r *localRegistration, mark protocol
 		return
 	}
 	e.frontier = r.pn
-	if len(e.records) == maxECNMarkRanges {
+	if e.records.len() == maxECNMarkRanges {
 		e.fail(h)
 		return
 	}
@@ -192,12 +187,7 @@ func (h *sentPacketHandler) registerLocalECN(r *localRegistration, mark protocol
 			tracker.numSentECT1--
 		}
 	}
-	if len(e.records) == cap(e.records) {
-		records := make([]localECNRecord, len(e.records), min(maxECNMarkRanges, max(8, 2*cap(e.records))))
-		copy(records, e.records)
-		e.records = records
-	}
-	e.records = append(e.records, localECNRecord{registration: r, pn: r.pn, last: r.pn, mark: mark, testing: testing})
+	e.records.append(localECNRecord{registration: r, pn: r.pn, last: r.pn, mark: mark, testing: testing})
 	if mark == protocol.ECT0 {
 		e.possible.ECT0++
 	}
@@ -304,6 +294,32 @@ func (h *sentPacketHandler) completeLocalECN(reg *localRegistration, now monotim
 	}
 }
 
+// completeLocalAcceptedECN is only for the closed accepted-member span. Its
+// caller proves a live 1-RTT Accepted identity, no pending report and no callback
+// in qualification. Generic completion must resolve again after its observers.
+func (h *sentPacketHandler) completeLocalAcceptedECN(reg *localRegistration) {
+	e := h.local.ecn
+	if e == nil || e.failed || e.closed {
+		return
+	}
+	i := e.search(reg.pn)
+	if i == e.records.len() {
+		return
+	}
+	r := e.records.at(i)
+	if r.pn > reg.pn || r.registration != reg {
+		return
+	}
+	e.qualify(h, r)
+	// Failure clears record storage. Testing failure alone changes the tracker,
+	// not this ledger, and still requires the ordinary coalescing/recheck order.
+	if e.failed {
+		return
+	}
+	e.records.coalesceAt(i)
+	e.recheckTesting(h)
+}
+
 func (e *localECNEvidence) releaseTest(h *sentPacketHandler, pn protocol.PacketNumber) {
 	if b := h.bbrECN; b != nil {
 		for i := uint64(0); i < b.testingSent; i++ {
@@ -333,7 +349,7 @@ func (e *localECNEvidence) fail(h *sentPacketHandler) {
 	} else if t, ok := h.ecnTracker.(*ecnTracker); ok {
 		t.state = ecnStateFailed
 	}
-	e.records = nil
+	e.records = localECNRecords{}
 	e.scratch = nil
 	e.receipts = nil
 	e.constraints = nil
@@ -342,7 +358,7 @@ func (e *localECNEvidence) fail(h *sentPacketHandler) {
 
 func (e *localECNEvidence) close() {
 	e.closed = true
-	e.records = nil
+	e.records = localECNRecords{}
 	e.scratch = nil
 	e.receipts = nil
 	e.constraints = nil
@@ -375,9 +391,9 @@ func (e *localECNEvidence) lost(h *sentPacketHandler, pn protocol.PacketNumber) 
 	// Loss splits a settled range at one packet, preserving exact-once testing
 	// loss accounting without restoring a per-packet completion identity.
 	i := e.search(pn)
-	start, end := max(0, i-1), min(len(e.records), i+2)
+	start, end := max(0, i-1), min(e.records.len(), i+2)
 	for j := start; j < end; j++ {
-		part := e.records[j]
+		part := *e.records.at(j)
 		if j != i {
 			if !e.appendScratch(h, part) {
 				return
@@ -436,12 +452,13 @@ func (e *localECNEvidence) feedback(h *sentPacketHandler, ack *wire.AckFrame, pr
 	// Rewrite only overlapping ranges and immediate neighbours. ACK ranges are
 	// parser-owned, descending and non-overlapping; both cursors advance once.
 	start, end := e.search(ack.LowestAcked()), e.search(ack.LargestAcked()+1)
-	if end < len(e.records) && e.records[end].pn <= ack.LargestAcked() {
+	if end < e.records.len() && e.records.at(end).pn <= ack.LargestAcked() {
 		end++
 	}
-	start, end = max(0, start-1), min(len(e.records), end+1)
+	start, end = max(0, start-1), min(e.records.len(), end+1)
 	j := len(ack.AckRanges) - 1
-	for _, r := range e.records[start:end] {
+	for recordIndex := start; recordIndex < end; recordIndex++ {
+		r := *e.records.at(recordIndex)
 		for j >= 0 && ack.AckRanges[j].Largest < r.pn {
 			j--
 		}
@@ -614,8 +631,8 @@ func (e *localECNEvidence) apply(h *sentPacketHandler, priorInFlight protocol.By
 	// report span follow the existing ECN ledger retirement rule; unresolved
 	// transmissions retain their identity regardless of the reported span.
 	n := 0
-	for n < len(e.records) {
-		r := &e.records[n]
+	for n < e.records.len() {
+		r := e.records.at(n)
 		if r.registration != nil {
 			break
 		}
@@ -625,9 +642,7 @@ func (e *localECNEvidence) apply(h *sentPacketHandler, priorInFlight protocol.By
 		}
 		n++
 	}
-	copy(e.records, e.records[n:])
-	clear(e.records[len(e.records)-n:])
-	e.records = e.records[:len(e.records)-n]
+	e.records.splice(0, n, nil)
 }
 
 // Local Reno alone needs to coordinate its existing undo receipts with delayed
@@ -642,7 +657,7 @@ func (h *sentPacketHandler) localRenoECN() *localECNEvidence {
 
 func (h *sentPacketHandler) settleLocalUndo(now monotime.Time) {
 	e := h.localRenoECN()
-	if e == nil {
+	if e == nil || len(h.lostPackets.lostPackets) == 0 {
 		return
 	}
 	h.expireLostPackets(now.Add(-3 * h.rttStats.PTO(false)))

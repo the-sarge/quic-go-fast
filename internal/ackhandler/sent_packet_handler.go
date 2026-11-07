@@ -36,7 +36,7 @@ const pathProbePacketLossTimeout = time.Second
 const maxOutstandingPathProbes = 32
 
 type packetNumberSpace struct {
-	localEpoch uint64
+	localEpoch *localRegistrationEpoch
 	history    sentPacketHistory
 	pns        packetNumberGenerator
 	// A private producer retains this consumed PN until registration succeeds.
@@ -393,6 +393,7 @@ func (h *sentPacketHandler) sentPacket(context PacketContext, t monotime.Time, p
 	p.local = local
 	if local != nil {
 		local.packet = p
+		local.epoch.owner.live++
 	}
 	p.SendTime = t
 	p.EncryptionLevel = encLevel
@@ -1064,6 +1065,12 @@ func (h *sentPacketHandler) lossDelay(level protocol.EncryptionLevel) time.Durat
 func (h *sentPacketHandler) detectLostPackets(now monotime.Time, encLevel protocol.EncryptionLevel) {
 	pnSpace := h.getPacketNumberSpace(encLevel)
 	pnSpace.lossTime = 0
+	// The physical prefix includes holes and path-probe placeholders. Until an
+	// ACK reaches that prefix, no packet can enter the existing loss scan.
+	lowest := pnSpace.history.LowestPacketNumber()
+	if pnSpace.largestAcked == protocol.InvalidPacketNumber || lowest == protocol.InvalidPacketNumber || lowest > pnSpace.largestAcked {
+		return
+	}
 	lossDelay := h.lossDelay(encLevel)
 
 	// Packets sent before this time are deemed lost.
@@ -1483,6 +1490,11 @@ func (h *sentPacketHandler) queueFramesForRetransmission(p *packet) {
 	}
 	p.StreamFrames = nil
 	p.Frames = nil
+	if h.local != nil {
+		if ps := h.getPacketNumberSpace(p.EncryptionLevel); ps != nil {
+			ps.history.localPTOChanged(p)
+		}
+	}
 }
 
 func (h *sentPacketHandler) ResetForRetry(now monotime.Time) {
@@ -1492,7 +1504,7 @@ func (h *sentPacketHandler) ResetForRetry(now monotime.Time) {
 	localRTTEligible := true
 	h.congestion.OnPacketsDiscarded()
 	h.lostPackets.Reset()
-	h.ackCarriers = ackCarrierHistory{limit: h.ackCarriers.limit}
+	h.ackCarriers.reset()
 	h.resetCongestionCapture(false)
 	h.bytesInFlight = 0
 	var firstPacketSendTime monotime.Time

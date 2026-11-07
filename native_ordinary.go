@@ -762,20 +762,22 @@ func (s *nativeOrdinarySender) consumeParticipant(participant *endpointParticipa
 					}
 				}
 			}
-			for packetIndex, packet := range record.packets[:record.count] {
-				datagram := 0
-				if record.datagrams != 1 {
-					datagram = packetIndex
+			if !s.completeAcceptedPackets(record.packets[:record.count], record.datagrams, result.accepted, result.err, result.returnedAt) {
+				for packetIndex, packet := range record.packets[:record.count] {
+					datagram := 0
+					if record.datagrams != 1 {
+						datagram = packetIndex
+					}
+					outcome := ackhandler.LocalPacketUnsubmitted
+					if datagram < result.accepted {
+						outcome = ackhandler.LocalPacketAccepted
+					} else if datagram < result.accepted+result.uncertain {
+						outcome = ackhandler.LocalPacketUncertain
+					} else if packet.datagram {
+						s.droppedDatagrams++
+					}
+					s.completePacket(packet, outcome, result.returnedAt, isSendMsgSizeErr(result.err))
 				}
-				outcome := ackhandler.LocalPacketUnsubmitted
-				if datagram < result.accepted {
-					outcome = ackhandler.LocalPacketAccepted
-				} else if datagram < result.accepted+result.uncertain {
-					outcome = ackhandler.LocalPacketUncertain
-				} else if packet.datagram {
-					s.droppedDatagrams++
-				}
-				s.completePacket(packet, outcome, result.returnedAt, isSendMsgSizeErr(result.err))
 			}
 			if credit := s.connection.pathCredit; credit != nil && credit.hasAdmission() {
 				credit.noteOutcome(protocol.PathID(identity.path), identity.tuple, result.accepted, result.uncertain, record.datagrams)

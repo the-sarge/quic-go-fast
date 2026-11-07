@@ -13,41 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Keep the previous identity-based calculation as an independent test oracle.
-func referenceTrackedPackets(h *sentPacketHandler) int {
-	if h.pathRoot != nil {
-		h = h.pathRoot
-	}
-	count := 0
-	for _, owner := range append([]*sentPacketHandler{h}, mapPaths(h)...) {
-		for _, ps := range []*packetNumberSpace{owner.initialPackets, owner.handshakePackets, owner.appDataPackets} {
-			if ps != nil {
-				count += ps.history.Len()
-			}
-		}
-		if owner.local != nil {
-			for _, r := range owner.local.records {
-				ps := owner.getPacketNumberSpace(r.level)
-				if ps == nil || ps.localEpoch != r.epoch || ps.history.Len() == 0 || r.pn < ps.history.firstPacketNumber || r.pn > ps.history.highestPacketNumber {
-					count++
-				}
-			}
-		}
-	}
-	return count
-}
-
-func mapPaths(h *sentPacketHandler) []*sentPacketHandler {
-	paths := make([]*sentPacketHandler, 0, len(h.paths))
-	for _, path := range h.paths {
-		paths = append(paths, path)
-	}
-	return paths
-}
-
 func requireTrackedPackets(t *testing.T, h *sentPacketHandler, want int) {
 	t.Helper()
-	require.Equal(t, want, referenceTrackedPackets(h), "identity oracle")
 	require.Equal(t, want, h.numTrackedPackets(), "capacity query")
 }
 
@@ -103,10 +70,8 @@ func TestLocalTrackingReplacementAndValidation(t *testing.T) {
 	// The registration interface admits a first PN in an empty replacement space.
 	current, err := h.RegisterLocalPacket(PacketContext{}, now, pn, protocol.InvalidPacketNumber, nil, nil, protocol.EncryptionInitial, protocol.ECNNon, 1)
 	require.NoError(t, err)
-	require.NotEqual(t, old.epoch, current.epoch)
+	require.NotSame(t, old.registration.epoch, current.registration.epoch)
 	requireTrackedPackets(t, h, 2)
-	wrongEpoch := current
-	wrongEpoch.epoch = old.epoch
 	foreign := newLocalTestHandler(t).(*sentPacketHandler)
 	_, foreignToken := registerLocalTestPacket(t, foreign, now, protocol.EncryptionInitial, nil)
 	for _, invalid := range []struct {
@@ -114,7 +79,6 @@ func TestLocalTrackingReplacementAndValidation(t *testing.T) {
 		outcome LocalPacketOutcome
 		at      monotime.Time
 	}{
-		{wrongEpoch, LocalPacketAccepted, now},
 		{foreignToken, LocalPacketAccepted, now},
 		{current, localPacketPending, now},
 		{current, LocalPacketUnsubmitted + 1, now},

@@ -91,6 +91,7 @@ type retiredAckCarrier struct {
 type ackCarrierHistory struct {
 	carriers []retiredAckCarrier
 	limit    int
+	epoch    uint64 // distinguishes replacement populations during callbacks
 }
 
 const maxRetiredAckCarriers = 64
@@ -109,21 +110,48 @@ func (h *ackCarrierHistory) add(pn protocol.PacketNumber, expires monotime.Time,
 	h.carriers = append(h.carriers, retiredAckCarrier{pn: pn, expires: expires, targets: targets, local: local})
 }
 
+// reset invalidates an in-progress traversal while preserving the configured cap.
+func (h *ackCarrierHistory) reset() {
+	h.carriers = nil
+	h.epoch++
+}
+
 func (h *ackCarrierHistory) acknowledge(ack *wire.AckFrame, now monotime.Time, apply func(protocol.PathID, protocol.PacketNumber)) {
-	h.carriers = slices.DeleteFunc(h.carriers, func(c retiredAckCarrier) bool {
-		if !now.Before(c.expires) {
-			return true
+	if len(h.carriers) == 0 {
+		return
+	}
+	h.acknowledgeRetained(ack, now, apply)
+}
+
+func (h *ackCarrierHistory) acknowledgeRetained(ack *wire.AckFrame, now monotime.Time, apply func(protocol.PathID, protocol.PacketNumber)) {
+	// Callbacks may reset, append to, or recursively acknowledge this history.
+	// Visit only the original population, removing a carrier before calling out.
+	// A reset must also distinguish an identical replacement from the old record.
+	var original [maxRetiredAckCarriers]retiredAckCarrier
+	count := copy(original[:], h.carriers)
+	epoch := h.epoch
+	for _, c := range original[:count] {
+		if h.epoch != epoch {
+			return
 		}
-		if !ack.AcksPacket(c.pn) {
-			return false
+		expired := !now.Before(c.expires)
+		if !expired && !ack.AcksPacket(c.pn) {
+			continue
+		}
+		index := slices.Index(h.carriers, c)
+		if index < 0 {
+			continue // an earlier callback already removed or evicted this carrier
+		}
+		h.carriers = slices.Delete(h.carriers, index, index+1)
+		if expired {
+			continue
 		}
 		if c.local != nil {
 			if c.local.outcome == LocalPacketUnsubmitted {
-				return true
+				continue
 			}
 			c.local.acked = true
 		}
 		c.targets.apply(apply)
-		return true
-	})
+	}
 }

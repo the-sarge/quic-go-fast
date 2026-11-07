@@ -5,6 +5,7 @@ import (
 	"iter"
 	"slices"
 
+	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	list "github.com/quic-go/quic-go/internal/utils/linkedlist"
 )
@@ -12,11 +13,16 @@ import (
 const maxSkippedPackets = 4
 
 type sentPacketHistory struct {
-	packets        []*packet
-	skippedPackets []protocol.PacketNumber
+	// Exact local PTO evidence, owned by this history.
+	// Queries and additions are O(1); removing the winner eagerly refills in O(H).
+	// Repeated adversarial winner removals can still cost O(H²).
+	localPTOTracked bool
+	localPTOWinner  *packet
+	packets         []*packet
+	skippedPackets  []protocol.PacketNumber
 	// Derived local evidence, bounded by the retained history span. Pending and
 	// proven-unsubmitted PNs do not contribute to packet-distance recovery.
-	unqualifiedLocal []protocol.PacketNumber
+	unqualifiedLocal localPacketRanks
 	// Unresolved token membership follows physical slots, including interior holes.
 	// It is independent of packet-distance qualification and allocated only locally.
 	unresolvedLocal    []bool
@@ -70,10 +76,16 @@ func (h *sentPacketHistory) SkippedPacket(pn protocol.PacketNumber) {
 
 func (h *sentPacketHistory) SentPacket(pn protocol.PacketNumber, p *packet) {
 	h.checkSequentialPacketNumberUse(pn)
-	if p.local != nil {
-		h.unqualifiedLocal = append(h.unqualifiedLocal, pn)
-	}
 	h.appendPacket(p, p.local != nil)
+	if p.local != nil {
+		h.unqualifiedLocal.exclude(pn)
+	}
+	if p.local != nil && !h.localPTOTracked {
+		h.localPTOTracked = true
+		h.refillLocalPTO()
+	} else {
+		h.localPTOChanged(p)
+	}
 	if p.Outstanding() {
 		h.numOutstanding++
 	}
@@ -198,6 +210,9 @@ func (h *sentPacketHistory) Remove(pn protocol.PacketNumber) error {
 		}
 	}
 	h.packets[idx] = nil
+	if p == h.localPTOWinner {
+		h.refillLocalPTO()
+	}
 	// clean up all skipped packets directly before this packet number
 	var hasPacketBefore bool
 	for idx > 0 {
@@ -239,10 +254,11 @@ func (h *sentPacketHistory) releaseRetained() {
 	}
 	clear(h.packets)
 	h.packets = h.packets[:0]
+	h.localPTOWinner = nil
 	clear(h.unresolvedLocal)
 	h.unresolvedLocal = h.unresolvedLocal[:0]
 	h.numUnresolvedLocal = 0
-	h.unqualifiedLocal = nil
+	h.unqualifiedLocal = localPacketRanks{}
 	h.numOutstanding = 0
 	h.firstPacketNumber = protocol.InvalidPacketNumber
 }
@@ -279,8 +295,7 @@ func (h *sentPacketHistory) cleanupStart() {
 				h.unresolvedLocal = h.unresolvedLocal[i:]
 			}
 			h.firstPacketNumber += protocol.PacketNumber(i)
-			first, _ := slices.BinarySearch(h.unqualifiedLocal, h.firstPacketNumber)
-			h.unqualifiedLocal = h.unqualifiedLocal[first:]
+			h.unqualifiedLocal.pruneBelow(h.firstPacketNumber)
 			return
 		}
 		if h.unresolvedLocal != nil && h.unresolvedLocal[i] {
@@ -291,7 +306,7 @@ func (h *sentPacketHistory) cleanupStart() {
 	h.packets = h.packets[:0]
 	h.unresolvedLocal = h.unresolvedLocal[:0]
 	h.firstPacketNumber = protocol.InvalidPacketNumber
-	h.unqualifiedLocal = h.unqualifiedLocal[:0]
+	h.unqualifiedLocal.reset()
 }
 
 func (h *sentPacketHistory) LowestPacketNumber() protocol.PacketNumber {
@@ -317,6 +332,9 @@ func (h *sentPacketHistory) DeclareLost(pn protocol.PacketNumber) {
 		}
 	}
 	h.packets[idx] = nil
+	if p == h.localPTOWinner {
+		h.refillLocalPTO()
+	}
 	if idx == 0 {
 		h.cleanupStart()
 	}
@@ -329,12 +347,10 @@ func (h *sentPacketHistory) DeclareLost(pn protocol.PacketNumber) {
 // so this function is not guaranteed to return the correct result after a while.
 func (h *sentPacketHistory) Difference(a, b protocol.PacketNumber) protocol.PacketNumber {
 	diff := a - b
-	if a > b && len(h.unqualifiedLocal) > 0 {
-		first, _ := slices.BinarySearch(h.unqualifiedLocal, b+1)
-		// An ordinary packet qualifies when ACKed, but a path probe's number stays
-		// excluded, so a is excluded too if it's still listed.
-		last, _ := slices.BinarySearch(h.unqualifiedLocal, a+1)
-		diff -= protocol.PacketNumber(last - first)
+	if a > b {
+		// Ordinary ACK qualification clears its bit; a path probe remains
+		// excluded, so the upper endpoint is inclusive for local evidence.
+		diff -= h.unqualifiedLocal.between(b, a)
 	}
 	if len(h.skippedPackets) == 0 {
 		return diff
@@ -351,15 +367,55 @@ func (h *sentPacketHistory) Difference(a, b protocol.PacketNumber) protocol.Pack
 }
 
 // excludeFromDistance keeps a number with no transmission fact out of packet
-// distance. Packet numbers register in order, so the slice stays sorted.
+// distance. The projection never changes physical history membership.
 func (h *sentPacketHistory) excludeFromDistance(pn protocol.PacketNumber) {
-	h.unqualifiedLocal = append(h.unqualifiedLocal, pn)
+	h.unqualifiedLocal.exclude(pn)
 }
 
 // qualifyLocal admits accepted/uncertain completion or authenticated transmission
 // exactly once. Logical ACK qualification does not release its completion token.
 func (h *sentPacketHistory) qualifyLocal(pn protocol.PacketNumber) {
-	if i, found := slices.BinarySearch(h.unqualifiedLocal, pn); found {
-		h.unqualifiedLocal = slices.Delete(h.unqualifiedLocal, i, i+1)
+	h.unqualifiedLocal.qualify(pn)
+}
+
+// latestLocalPTO is a pure observation. Alarm derivation, RTT/backoff and every
+// existing eager timer update stay in the handler.
+func (h *sentPacketHistory) latestLocalPTO() monotime.Time {
+	if h.localPTOWinner == nil {
+		return 0
+	}
+	return h.localPTOWinner.recoveryTime()
+}
+
+// localPTOChanged follows a change to canonical packet eligibility before any
+// externally observable callback. Retiring a registration alone does not change
+// this summary: a packet remains evidence until history removal or frame clear.
+func (h *sentPacketHistory) localPTOChanged(p *packet) {
+	if !h.localPTOTracked || p == nil {
+		return
+	}
+	if p == h.localPTOWinner {
+		h.refillLocalPTO()
+		return
+	}
+	if !p.Outstanding() || !p.networkEligible() || !p.recoveryTime().After(0) {
+		return
+	}
+	// Equal maxima are interchangeable. Favor the last encountered packet so
+	// ascending ACK retirement of equal-time group members avoids extra refills.
+	if h.localPTOWinner == nil || !p.recoveryTime().Before(h.localPTOWinner.recoveryTime()) {
+		h.localPTOWinner = p
+	}
+}
+
+func (h *sentPacketHistory) refillLocalPTO() {
+	h.localPTOWinner = nil
+	for _, p := range h.packets {
+		if p == nil || !p.Outstanding() || !p.networkEligible() || !p.recoveryTime().After(0) {
+			continue
+		}
+		if h.localPTOWinner == nil || !p.recoveryTime().Before(h.localPTOWinner.recoveryTime()) {
+			h.localPTOWinner = p
+		}
 	}
 }
