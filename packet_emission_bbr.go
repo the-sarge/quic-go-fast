@@ -14,7 +14,7 @@ type boundedRecovery interface {
 	SendAllowance(monotime.Time) (ackhandler.SendMode, protocol.ByteCount)
 }
 
-func (e *packetEmission) handoff(buf *packetBuffer, gso uint16, ecn protocol.ECN, metadata sendMetadata) {
+func (e *packetEmission) handoff(buf *packetBuffer, gso uint16, ecn protocol.ECN, metadata sendMetadata, protection *nativeProtectionConstruction) {
 	// The run loop stamps every handoff, including Reno and discovery probes.
 	metadata.pathGeneration = e.policy.sendPathGeneration()
 
@@ -34,6 +34,10 @@ func (e *packetEmission) handoff(buf *packetBuffer, gso uint16, ecn protocol.ECN
 	}
 	metadata.terminalReceipts = e.terminalReceipts
 	e.terminalReceipts = nil
+	if protection.hasPlan() {
+		protection.send(e, buf, gso, ecn, metadata)
+		return
+	}
 	e.queue.Send(buf, gso, ecn, metadata)
 }
 
@@ -184,15 +188,18 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 		buf.Release()
 		return emissionResult{stop: emissionQueueFull, available: e.queue.Available()}
 	}
+	var protection nativeProtectionConstruction
+	protection.begin(e, buf)
 	ecn := (*e.recovery).ECNMode(true)
 	// The reservation covers whole maximum-size packets; handoff resizes it to
 	// the physical bytes, so shorter segments release the remainder.
 	batch := newGSOBatch(size, e.shortSegments)
 	for {
 		next, datagramOnly := batch.next()
-		receipt, err := e.appendPacket(buf, next, datagramOnly, ecn, now)
+		receipt, err := e.appendPacketProtected(buf, next, datagramOnly, ecn, now, &protection)
 		if err != nil {
 			if err != errNothingToPack || buf.Len() == 0 {
+				protection.discard()
 				buf.Release()
 				if err == errNothingToPack {
 					err = nil
@@ -211,7 +218,7 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 			break
 		}
 	}
-	e.handoff(buf, batch.gsoSize(), ecn, sendMetadata{})
+	e.handoff(buf, batch.gsoSize(), ecn, sendMetadata{}, &protection)
 	// Continue as Reno's receive-yield stop does: the connection makes its next
 	// full pass (close, receive, timers, capacity) without a scheduling token,
 	// timer re-arm or select between consecutive datagrams.

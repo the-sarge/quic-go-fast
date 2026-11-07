@@ -625,6 +625,10 @@ func (p *packetPacker) appendPacket(
 // appendPreparedPacket writes ordinary native facts into the sole preparation.
 // Header facts remain stack-owned by emission and expire before registration.
 func (p *packetPacker) appendPreparedPacket(route *pathRoute, buf *packetBuffer, maxPacketSize protocol.ByteCount, datagramOnly bool, now monotime.Time, v protocol.Version, prepared *ackhandler.PacketPreparation, header *nativeHeaderFacts) error {
+	return p.appendPreparedPacketProtected(route, buf, maxPacketSize, datagramOnly, now, v, prepared, header, nil)
+}
+
+func (p *packetPacker) appendPreparedPacketProtected(route *pathRoute, buf *packetBuffer, maxPacketSize protocol.ByteCount, datagramOnly bool, now monotime.Time, v protocol.Version, prepared *ackhandler.PacketPreparation, header *nativeHeaderFacts, protection *nativeProtectionConstruction) error {
 	if datagramOnly && p.datagramQueue == nil {
 		return errNothingToPack
 	}
@@ -632,6 +636,7 @@ func (p *packetPacker) appendPreparedPacket(route *pathRoute, buf *packetBuffer,
 	if err != nil {
 		return err
 	}
+	protection.observeSealer(sealer)
 	var datagram *wire.DatagramFrame
 	if datagramOnly {
 		datagram = p.datagramQueue.Peek()
@@ -668,11 +673,17 @@ func (p *packetPacker) appendPreparedPacket(route *pathRoute, buf *packetBuffer,
 	if generation, ok := seal.sealer.(interface{ KeyGeneration() protocol.KeyPhase }); ok {
 		prepared.SetKeyGeneration(generation.KeyGeneration())
 	}
-	raw, err := p.encryptPacket(buf.Data[seal.bufferStart:], seal.sealer, pn, seal.payloadOffset, protocol.ByteCount(pnLen))
+	deferred, err := protection.reserve(seal.sealer, pn, seal.bufferStart, int(seal.payloadOffset), pnLen, int(seal.length))
 	if err != nil {
 		return err
 	}
-	buf.Data = buf.Data[:seal.bufferStart+len(raw)]
+	if !deferred {
+		raw, err := p.encryptPacket(buf.Data[seal.bufferStart:], seal.sealer, pn, seal.payloadOffset, protocol.ByteCount(pnLen))
+		if err != nil {
+			return err
+		}
+		buf.Data = buf.Data[:seal.bufferStart+len(raw)]
+	}
 
 	numbers, err = p.packetNumbersOn(context.PathID)
 	if err != nil {

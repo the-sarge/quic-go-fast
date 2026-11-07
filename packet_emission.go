@@ -263,9 +263,14 @@ func (e *packetEmission) pacingDeadline() monotime.Time {
 // packet carries only the next queued DATAGRAM frame, and errNothingToPack
 // leaves a frame that doesn't fit queued.
 func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCount, datagramOnly bool, ecn protocol.ECN, now monotime.Time) (nativePacketReceipt, error) {
+	return e.appendPacketProtected(buf, maxSize, datagramOnly, ecn, now, nil)
+}
+
+func (e *packetEmission) appendPacketProtected(buf *packetBuffer, maxSize protocol.ByteCount, datagramOnly bool, ecn protocol.ECN, now monotime.Time, protection *nativeProtectionConstruction) (nativePacketReceipt, error) {
 	if e.local != nil {
-		return e.appendNativePacket(buf, maxSize, datagramOnly, ecn, now)
+		return e.appendNativePacket(buf, maxSize, datagramOnly, ecn, now, protection)
 	}
+	protection.synchronous()
 	start := buf.Len()
 	var p shortHeaderPacket
 	var err error
@@ -296,17 +301,21 @@ func (e *packetEmission) withoutGSO(now monotime.Time) (result emissionResult) {
 			result.stop, result.available = emissionQueueFull, e.queue.Available()
 			return result
 		}
+		var protection nativeProtectionConstruction
+		protection.begin(e, buf)
 		ecn := e.selected().ECNMode(true)
-		if _, err := e.appendPacket(buf, e.packetSize(), false, ecn, now); err != nil {
+		if _, err := e.appendPacketProtected(buf, e.packetSize(), false, ecn, now, &protection); err != nil {
 			if err == errNothingToPack {
+				protection.discard()
 				buf.Release()
 				return result
 			}
+			protection.discard()
 			buf.Release()
 			result.err = err // Storage is reclaimed; protocol registration is not refunded.
 			return result
 		}
-		e.handoff(buf, 0, ecn, sendMetadata{})
+		e.handoff(buf, 0, ecn, sendMetadata{}, &protection)
 		result.progress = true
 		if e.queue.WouldBlock() {
 			result.stop, result.available = emissionQueueFull, e.queue.Available()
@@ -334,22 +343,28 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 	byteLimit := gsoPacketSendLimit(maxSize)
 	ecn := e.selected().ECNMode(true)
 	batch := newGSOBatch(maxSize, e.shortSegments)
+	var protection nativeProtectionConstruction
 	for {
 		if buf.Len() == 0 && !e.reserveNativeBuffer(buf) {
 			buf.Release()
 			result.stop, result.available = emissionQueueFull, e.queue.Available()
 			return result
 		}
+		if buf.Len() == 0 {
+			protection.begin(e, buf)
+		}
 		var done, more bool
 		limit, datagramOnly := batch.next()
-		receipt, err := e.appendPacket(buf, limit, datagramOnly, ecn, now)
+		receipt, err := e.appendPacketProtected(buf, limit, datagramOnly, ecn, now, &protection)
 		if err != nil {
 			if err != errNothingToPack {
+				protection.discard()
 				buf.Release()
 				result.err = err
 				return result
 			}
 			if buf.Len() == 0 {
+				protection.discard()
 				buf.Release()
 				return result
 			}
@@ -374,7 +389,7 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 		if !done && more && nextECN == ecn && batch.fits(buf.Len(), byteLimit) {
 			continue
 		}
-		e.handoff(buf, batch.gsoSize(), ecn, sendMetadata{})
+		e.handoff(buf, batch.gsoSize(), ecn, sendMetadata{}, &protection)
 		result.progress = true
 		if done {
 			return result
@@ -532,7 +547,7 @@ func (e *packetEmission) maybeSendAckOnlyPacket(now monotime.Time, confirmed boo
 		buf.Release()
 		return false, err
 	}
-	e.handoff(buf, 0, ecn, sendMetadata{})
+	e.handoff(buf, 0, ecn, sendMetadata{}, nil)
 	return true, nil
 }
 
@@ -659,7 +674,7 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 	} else {
 		e.policy.noteEmissionRegistration()
 	}
-	e.handoff(packet.buffer, 0, ecn, e.policy.coalescedSendMetadata(hasHandshakePacket))
+	e.handoff(packet.buffer, 0, ecn, e.policy.coalescedSendMetadata(hasHandshakePacket), nil)
 	handed = true
 	return nil
 }
@@ -806,7 +821,7 @@ func (e *packetEmission) mtuProbe(finder *mtuFinder, now monotime.Time) emission
 	if handler, ok := ping.Handler.(*mtuFinderAckHandler); ok && e.local != nil {
 		e.local.registerMTUProbe(handler)
 	}
-	e.handoff(buf, 0, ecn, sendMetadata{mtuProbe: true})
+	e.handoff(buf, 0, ecn, sendMetadata{mtuProbe: true}, nil)
 	return emissionResult{progress: true}
 }
 

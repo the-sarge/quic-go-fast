@@ -24,11 +24,11 @@ type nativePacketReceipt struct {
 	size   protocol.ByteCount
 }
 
-func (e *packetEmission) appendNativePacket(buf *packetBuffer, maxSize protocol.ByteCount, datagramOnly bool, ecn protocol.ECN, now monotime.Time) (nativePacketReceipt, error) {
+func (e *packetEmission) appendNativePacket(buf *packetBuffer, maxSize protocol.ByteCount, datagramOnly bool, ecn protocol.ECN, now monotime.Time, protection *nativeProtectionConstruction) (nativePacketReceipt, error) {
 	start := buf.Len()
 	prepared := ackhandler.PreparePacket()
 	var header nativeHeaderFacts
-	if err := e.packer.appendPreparedPacket(e.route, buf, maxSize, datagramOnly, now, e.version, &prepared, &header); err != nil {
+	if err := e.packer.appendPreparedPacketProtected(e.route, buf, maxSize, datagramOnly, now, e.version, &prepared, &header, protection); err != nil {
 		prepared.Discard()
 		return nativePacketReceipt{}, err
 	}
@@ -53,6 +53,7 @@ func (e *packetEmission) appendNativePacket(buf *packetBuffer, maxSize protocol.
 	// Do not inspect view after recovery adopted it. Path identity stays the
 	// constructed packet's; the CID receiver is resolved at the original point.
 	e.noteContextRegistration(context, header.destConnID)
+	protection.registeredPacket()
 	return receipt, nil
 }
 

@@ -37,9 +37,10 @@ func newHeaderProtector(suite cipherSuite, trafficSecret []byte, isLongHeader bo
 }
 
 type aesHeaderProtector struct {
-	mask         [16]byte // AES always has a 16 byte block size
-	block        cipher.Block
-	isLongHeader bool
+	mask           [16]byte // AES always has a 16 byte block size
+	block          cipher.Block
+	isLongHeader   bool
+	protectionKind packetProtectionKind
 }
 
 var _ headerProtector = &aesHeaderProtector{}
@@ -50,9 +51,17 @@ func newAESHeaderProtector(suite cipherSuite, trafficSecret []byte, isLongHeader
 	if err != nil {
 		panic(fmt.Sprintf("error creating new AES cipher: %s", err))
 	}
+	kind := packetProtectionUnsupported
+	switch suite.ID {
+	case tls.TLS_AES_128_GCM_SHA256:
+		kind = packetProtectionAES128
+	case tls.TLS_AES_256_GCM_SHA384:
+		kind = packetProtectionAES256
+	}
 	return &aesHeaderProtector{
-		block:        block,
-		isLongHeader: isLongHeader,
+		block:          block,
+		isLongHeader:   isLongHeader,
+		protectionKind: kind,
 	}
 }
 
@@ -82,8 +91,9 @@ func (p *aesHeaderProtector) apply(sample []byte, firstByte *byte, hdrBytes []by
 type chachaHeaderProtector struct {
 	mask [5]byte
 
-	key          [32]byte
-	isLongHeader bool
+	key            [32]byte
+	isLongHeader   bool
+	protectionKind packetProtectionKind
 }
 
 var _ headerProtector = &chachaHeaderProtector{}
@@ -92,7 +102,8 @@ func newChaChaHeaderProtector(suite cipherSuite, trafficSecret []byte, isLongHea
 	hpKey := hkdfExpandLabel(suite.Hash, trafficSecret, []byte{}, hkdfLabel, suite.KeyLen)
 
 	p := &chachaHeaderProtector{
-		isLongHeader: isLongHeader,
+		isLongHeader:   isLongHeader,
+		protectionKind: packetProtectionChaCha,
 	}
 	copy(p.key[:], hpKey)
 	return p

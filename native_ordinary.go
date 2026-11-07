@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
+	"github.com/quic-go/quic-go/internal/handshake"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 )
@@ -97,11 +98,12 @@ type nativeOrdinarySender struct {
 	origin *endpointParticipant
 	// faultHanded means the registry holds an endpoint fault. The fault channel then
 	// goes quiet, and every later fault wakes the connection through completed.
-	faultHanded bool
-	sequence    uint64
-	deferred    []*ordinaryLocalRecord
-	consuming   bool
-	processing  bool
+	faultHanded       bool
+	sequence          uint64
+	deferred          []*ordinaryLocalRecord
+	consuming         bool
+	processing        bool
+	protectionScratch *handshake.PacketProtectionScratch
 }
 
 type nativeOrdinaryConn struct {
@@ -333,6 +335,10 @@ func (s *nativeOrdinarySender) registerMTUProbe(handler *mtuFinderAckHandler) {
 }
 
 func (s *nativeOrdinarySender) Send(buffer *packetBuffer, segment uint16, ecn protocol.ECN, metadata sendMetadata) {
+	s.sendProtected(buffer, segment, ecn, metadata, nil)
+}
+
+func (s *nativeOrdinarySender) sendProtected(buffer *packetBuffer, segment uint16, ecn protocol.ECN, metadata sendMetadata, protection *nativeProtectionPlan) {
 	record := s.pending
 	if record == nil {
 		panic("local packet handoff without reserved construction capacity")
@@ -344,7 +350,7 @@ func (s *nativeOrdinarySender) Send(buffer *packetBuffer, segment uint16, ecn pr
 		destination, routed = nativeDestination(route.addr)
 		base, writeState = route.info.OOB(), &route.writeState
 	}
-	member := endpointMember{buffer: buffer, oob: packetOOB(base, destination, ecn), gsoSize: segment, nativeGSO: s.nativeGSO, writeState: writeState, credit: metadata.credit}
+	member := endpointMember{buffer: buffer, protection: protection, oob: packetOOB(base, destination, ecn), gsoSize: segment, nativeGSO: s.nativeGSO, writeState: writeState, credit: metadata.credit}
 	if len(record.members) == 0 {
 		record.request = endpointRequest{identity: record.identity, destination: destination, deadline: record.deadline.ToTime(), epoch: epoch}
 	}
