@@ -1,0 +1,26 @@
+# R17 independent interoperability receipt
+
+[R17 — Complete the independent interoperability matrix (#1037)](https://github.com/the-sarge/quic-go-fast/issues/1037) is implemented by [PR #1284](https://github.com/the-sarge/quic-go-fast/pull/1284), under [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program #646](https://github.com/the-sarge/quic-go-fast/issues/646). Authority is the exact R17 section of `docs/adr/2026-10-24-multipath-reno-plan.md` at accepted plan commit `30e47b84215bc629c3a9286070b28dc0e3c2169e`. Completion/frontier statements in the product change are merge-time facts: the independent job must pass for the certified exact head before merge.
+
+## Receipt location and identity
+
+The required [independent peer job](../../.github/workflows/multipath-interop.yml) publishes the authoritative execution receipt as `matrix-result.json`, the 16 per-case `attempt.json` / `result.json` pairs, raw `go-test.jsonl`, peer logs, image/container inspections and setup/environment files in its `multipath-interop-<head>-<attempt>` artifact. [PR #1284](https://github.com/the-sarge/quic-go-fast/pull/1284) owns the exact-head certification, review and hosted-run links. Those actual execution IDs and results are retained with the run rather than predicted in this source document.
+
+Every case binds the exact PR source commit/tree, resulting image ID, Go version, actual kernel, picoquic/PicoTLS pins, peer/test binary hashes and fixture source hashes. The workflow records the hosted runner environment, native architecture, Docker identity, base-image inspection and installed packages. A mismatched source/build/kernel receipt, missing case, duplicate, skip or failure invalidates the aggregate. All actual setup and failed attempts remain charged under the scoped owner waiver; no cumulative replacement cap or repeat-until-pass campaign is added.
+
+## Fixed evidence boundary
+
+| Evidence | Inventory and guarantee |
+| --- | --- |
+| Independent peer | Eight accepted scenarios in each endpoint role, exactly 16 expected instances; example-level draft-21 QUIC v1 evidence on native hosted Linux amd64 and Go 1.27.3. |
+| Negotiated zero | Literal absent/zero/positive transport-parameter vectors in both roles, ACK/PATH_ACK(0) vectors, and one controlled self-to-self V1 constructor exchange. These supply no independent instances. |
+| Source checks | Focused runner/accounting red/green regressions; all 65 existing/focused Python tests; ordinary root Go tests; Linux amd64 matrix cross-compilation; affected-package vet; dependency tidy diff; workflow lint; strict C syntax/API declaration checks; whitespace/link checks. |
+| Operational bounds | One peer/image build within 1200 seconds; each role/adapter 30 seconds, Go 90 seconds, runner 120 seconds and outer container 150 seconds. The workflow stops at the first failure. |
+
+The [fixture guide](../../interop/multipath/README.md#independent-interoperability-matrix) maps each named scenario to its observations. The required job executes the original R17 campaign after review and local certification; draft pushes and documentation-only changes start no matrix. No duplicate manual 16-case campaign precedes it.
+
+## Owners and limits
+
+The transport integration suite owns the maintained job, scenario driver and receipts; retirement requires equivalent independent coverage or feature removal. `peer.c` supplies bounded application callbacks and opaque UDP forwarding/conditioning against the same pinned library. Picoquic retains all peer QUIC parsing, protection, recovery and path authority. The Go fixture uses the accepted V1 config/transport/path surface under the one existing internal activation guard. Cancellation joins the peer and returns native grants through their existing APIs. No runtime feature or public activation is introduced.
+
+Picoquic `01e124ebdf9fc50df307e01e71f2744471ddc470` with PicoTLS `bfa67875982afc4c24f21e146cef4747fa189c2f` remains the independent peer. Its positive-only multipath negotiation cannot establish the negotiated-zero oracle; the separately named normative and controlled evidence covers that gap without claiming independent interoperability. The cases do not claim universal draft conformance, arbitrary peers, every key-update direction, Internet failure-detection timing, unqualified platforms, performance qualification or public activation. [R18 (#1038)](https://github.com/the-sarge/quic-go-fast/issues/1038) still owns ordinary costs, and [R19 (#1039)](https://github.com/the-sarge/quic-go-fast/issues/1039) remains blocked until that evidence is complete.
