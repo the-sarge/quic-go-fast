@@ -7,7 +7,7 @@
 | Track | Normative plan | Parent | Slices | Current state |
 | --- | --- | --- | ---: | --- |
 | E — native endpoint | [Endpoint plan](2026-10-24-multipath-endpoint-plan.md) | [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012) | 9 | 9/9 complete; N3 supplies affected combined native requalification |
-| R — Reno primary/backup | [Reno plan](2026-10-24-multipath-reno-plan.md) | [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013) | 20 | 18/20 complete; R17 #1037 is complete; R18 #1038 is blocked pending [ordinary-latency repair #1285](https://github.com/the-sarge/quic-go-fast/issues/1285); R19 #1039 still requires R18 qualification |
+| R — Reno primary/backup | [Reno plan](2026-10-24-multipath-reno-plan.md) | [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013) | 20 | 18/20 complete; R17 #1037 is complete; R18 #1038 is blocked pending [ordinary-latency repair #1285](https://github.com/the-sarge/quic-go-fast/issues/1285); R19 #1039 still requires R18 #1038 qualification |
 | B — BBR/aggregation | [BBR plan](2026-10-24-multipath-bbr-plan.md) | [#1014](https://github.com/the-sarge/quic-go-fast/issues/1014) | 6 | 0/6; B1 #1040 retains R19 #1039 and Q2 #599 prerequisites |
 | N — endpoint efficiency/admission | [Efficiency and pipeline plan](2026-11-04-native-endpoint-efficiency-plan.md) | [#1193](https://github.com/the-sarge/quic-go-fast/issues/1193) | 11 | 11/11 implementation slices complete; N3 #1202 supplies combined native/STREAM diagnostics; parent #1193 awaits full R18 #1038 qualification |
 
