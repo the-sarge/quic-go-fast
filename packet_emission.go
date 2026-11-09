@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"runtime"
 	"slices"
 	"sync"
 
@@ -222,6 +223,12 @@ func (e *packetEmission) sendAny(now monotime.Time, confirmed bool) emissionResu
 }
 
 func (e *packetEmission) advance(now monotime.Time, gso bool) emissionResult {
+	return e.advanceForPlatform(now, gso, runtime.GOOS == "linux")
+}
+
+// The platform fact is explicit so the real constructor can be characterized on
+// another host without a mutable production override.
+func (e *packetEmission) advanceForPlatform(now monotime.Time, gso, linux bool) emissionResult { //nolint:unparam,nolintlint // Production supplies the OS fact; tests exercise Linux construction on other hosts.
 	if e.pathCredit != nil && e.pathCredit.needsReceipt() {
 		gso = false // no accepted-prefix ambiguity for terminal control datagrams
 	}
@@ -234,6 +241,9 @@ func (e *packetEmission) advance(now monotime.Time, gso bool) emissionResult {
 	}
 	if gso {
 		return e.withGSO(now)
+	}
+	if linux && e.local != nil && e.route == nil && e.pathCredit == nil && e.bbr == nil && len(e.terminalReceipts) == 0 && e.local.canSoftwareSegment() {
+		return e.withSoftwareSegments(now)
 	}
 	return e.withoutGSO(now)
 }

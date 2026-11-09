@@ -205,12 +205,40 @@ func ordinaryCostCloseCause(conn *Conn) (string, bool) {
 	return err.Error(), ordinaryCostTimeoutClose(err)
 }
 
-func ordinaryCostCPU() time.Duration {
+type ordinaryCostUsage struct {
+	UserCPUNS                  int64 `json:"user_cpu_ns"`
+	SystemCPUNS                int64 `json:"system_cpu_ns"`
+	VoluntaryContextSwitches   int64 `json:"voluntary_context_switches"`
+	InvoluntaryContextSwitches int64 `json:"involuntary_context_switches"`
+}
+
+func (usage ordinaryCostUsage) cpu() time.Duration {
+	return time.Duration(usage.UserCPUNS + usage.SystemCPUNS)
+}
+
+func (usage ordinaryCostUsage) since(start ordinaryCostUsage) ordinaryCostUsage {
+	return ordinaryCostUsage{
+		UserCPUNS: usage.UserCPUNS - start.UserCPUNS, SystemCPUNS: usage.SystemCPUNS - start.SystemCPUNS,
+		VoluntaryContextSwitches:   usage.VoluntaryContextSwitches - start.VoluntaryContextSwitches,
+		InvoluntaryContextSwitches: usage.InvoluntaryContextSwitches - start.InvoluntaryContextSwitches,
+	}
+}
+
+type ordinaryCostWindowRusage struct {
+	Start ordinaryCostUsage `json:"start"`
+	End   ordinaryCostUsage `json:"end"`
+	Delta ordinaryCostUsage `json:"delta"`
+}
+
+func ordinaryCostRusage() ordinaryCostUsage {
 	var usage syscall.Rusage
 	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &usage); err != nil {
 		panic(err)
 	}
-	return time.Duration(usage.Utime.Nano() + usage.Stime.Nano())
+	return ordinaryCostUsage{
+		UserCPUNS: usage.Utime.Nano(), SystemCPUNS: usage.Stime.Nano(),
+		VoluntaryContextSwitches: usage.Nvcsw, InvoluntaryContextSwitches: usage.Nivcsw,
+	}
 }
 
 var ordinaryCostHWM = regexp.MustCompile(`VmHWM:\s+(\d+) kB`)
@@ -453,6 +481,7 @@ type ordinaryCostServerResult struct {
 	Granted                     bool                            `json:"granted"`
 	GSOCapable                  bool                            `json:"gso_capable"`
 	WindowCPU                   float64                         `json:"window_cpu_s"`
+	WindowRusage                ordinaryCostWindowRusage        `json:"window_rusage"`
 	RSSAt20S                    uint64                          `json:"rss_kb_at_20s"`
 	RSSEnd                      uint64                          `json:"rss_kb_end"`
 	HeapInuseEnd                uint64                          `json:"heap_inuse_end"`
@@ -496,13 +525,15 @@ func ordinaryCostRunServer(t testing.TB, spec ordinaryCostSpec) *ordinaryCostSer
 		ApplicationSendCallBoundary: "elapsed Stream.Write / SendDatagram call time; neither native return nor peer delivery",
 	}
 	time.Sleep(time.Until(line.window))
-	cpuStart := ordinaryCostCPU()
+	usageStart := ordinaryCostRusage()
 	sampleAt := min(ordinaryCostMemorySample, line.end.Sub(line.window)/3)
 	time.Sleep(time.Until(line.window.Add(sampleAt)))
 	result.RSSAt20S, err = ordinaryCostRSSHighWater()
 	require.NoError(t, err)
 	time.Sleep(time.Until(line.end))
-	result.WindowCPU = (ordinaryCostCPU() - cpuStart).Seconds()
+	usageEnd := ordinaryCostRusage()
+	result.WindowCPU = (usageEnd.cpu() - usageStart.cpu()).Seconds()
+	result.WindowRusage = ordinaryCostWindowRusage{Start: usageStart, End: usageEnd, Delta: usageEnd.since(usageStart)}
 	result.RSSEnd, err = ordinaryCostRSSHighWater()
 	require.NoError(t, err)
 	result.HeapInuseEnd = ordinaryCostHeapInuse()
@@ -563,10 +594,11 @@ type ordinaryCostFloodResult struct {
 }
 
 type ordinaryCostClientResult struct {
-	Go        string                    `json:"go"`
-	WindowCPU float64                   `json:"window_cpu_s"`
-	Flows     []*ordinaryCostFlowResult `json:"flows"`
-	Flood     *ordinaryCostFloodResult  `json:"flood,omitempty"`
+	Go           string                    `json:"go"`
+	WindowCPU    float64                   `json:"window_cpu_s"`
+	WindowRusage ordinaryCostWindowRusage  `json:"window_rusage"`
+	Flows        []*ordinaryCostFlowResult `json:"flows"`
+	Flood        *ordinaryCostFloodResult  `json:"flood,omitempty"`
 }
 
 // ordinaryCostFlow is one client connection's receiving side.
@@ -794,9 +826,14 @@ func ordinaryCostRunClient(t testing.TB, spec ordinaryCostSpec) *ordinaryCostCli
 		}()
 	}
 	time.Sleep(time.Until(line.window))
-	cpuStart := ordinaryCostCPU()
+	usageStart := ordinaryCostRusage()
 	sampling.Wait()
-	result := &ordinaryCostClientResult{Go: runtime.Version(), WindowCPU: (ordinaryCostCPU() - cpuStart).Seconds()}
+	goVersion := runtime.Version()
+	usageEnd := ordinaryCostRusage()
+	result := &ordinaryCostClientResult{
+		Go: goVersion, WindowCPU: (usageEnd.cpu() - usageStart.cpu()).Seconds(),
+		WindowRusage: ordinaryCostWindowRusage{Start: usageStart, End: usageEnd, Delta: usageEnd.since(usageStart)},
+	}
 
 	// Stay connected through the server's end-of-run reading, then close.
 	for i, flow := range flows {
@@ -894,6 +931,22 @@ func TestOrdinaryCostHistogram(t *testing.T) {
 func TestOrdinaryCostAccounting(t *testing.T) {
 	require.Empty(t, ordinaryCostSeries(nil))
 	require.Equal(t, []uint64{5, 0, 7}, ordinaryCostSeries([]uint64{10, 15, 15, 22}))
+	usageStart := ordinaryCostUsage{UserCPUNS: 2e9, SystemCPUNS: 3e9, VoluntaryContextSwitches: 11, InvoluntaryContextSwitches: 7}
+	usageEnd := ordinaryCostUsage{UserCPUNS: 5e9, SystemCPUNS: 7e9, VoluntaryContextSwitches: 17, InvoluntaryContextSwitches: 7}
+	window := ordinaryCostWindowRusage{Start: usageStart, End: usageEnd, Delta: usageEnd.since(usageStart)}
+	require.Equal(t, ordinaryCostUsage{UserCPUNS: 3e9, SystemCPUNS: 4e9, VoluntaryContextSwitches: 6}, window.Delta)
+	require.Equal(t, 7*time.Second, usageEnd.cpu()-usageStart.cpu())
+	for _, result := range []any{ordinaryCostServerResult{WindowRusage: window}, ordinaryCostClientResult{WindowRusage: window}} {
+		encoded, err := json.Marshal(result)
+		require.NoError(t, err)
+		var fields map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(encoded, &fields))
+		require.JSONEq(t, `{
+			"start":{"user_cpu_ns":2000000000,"system_cpu_ns":3000000000,"voluntary_context_switches":11,"involuntary_context_switches":7},
+			"end":{"user_cpu_ns":5000000000,"system_cpu_ns":7000000000,"voluntary_context_switches":17,"involuntary_context_switches":7},
+			"delta":{"user_cpu_ns":3000000000,"system_cpu_ns":4000000000,"voluntary_context_switches":6,"involuntary_context_switches":0}
+		}`, string(fields["window_rusage"]))
+	}
 
 	request := ordinaryCostRequest{kind: ordinaryCostStream, label: 1, rate: 1 << 40}
 	decoded := ordinaryCostDecode(request.encode())
@@ -952,6 +1005,19 @@ func TestOrdinaryCostCells(t *testing.T) {
 				client := ordinaryCostRunClient(t, spec)
 				server := <-servers
 				require.NotNil(t, server)
+				for _, result := range []struct {
+					cpu   float64
+					usage ordinaryCostWindowRusage
+				}{{server.WindowCPU, server.WindowRusage}, {client.WindowCPU, client.WindowRusage}} {
+					for _, usage := range []ordinaryCostUsage{result.usage.Start, result.usage.End, result.usage.Delta} {
+						require.GreaterOrEqual(t, usage.UserCPUNS, int64(0))
+						require.GreaterOrEqual(t, usage.SystemCPUNS, int64(0))
+						require.GreaterOrEqual(t, usage.VoluntaryContextSwitches, int64(0))
+						require.GreaterOrEqual(t, usage.InvoluntaryContextSwitches, int64(0))
+					}
+					require.Equal(t, result.usage.End.since(result.usage.Start), result.usage.Delta)
+					require.Equal(t, result.cpu, result.usage.Delta.cpu().Seconds())
+				}
 
 				require.Equal(t, profile == "opted-in", server.Granted)
 				require.Equal(t, profile == "opted-in", server.Joined)

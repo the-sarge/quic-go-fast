@@ -3,6 +3,7 @@
 package quic
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"iter"
@@ -10,6 +11,7 @@ import (
 	"net/netip"
 	"os"
 	"slices"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -161,29 +163,35 @@ func (request endpointRequest) checkedSize(class endpointClass) (int, bool) {
 	return size, size <= 1<<20
 }
 
-func (request endpointRequest) snapshot() endpointRequest {
-	request.members = slices.Clone(request.members)
+func (request endpointRequest) snapshot() endpointRequest { //nolint:unused,nolintlint // Ordinary native callers are limited to darwin, linux and freebsd.
+	return request.snapshotInto(nil)
+}
+
+// snapshotInto copies across owners even when members supplies cleared private
+// storage from an earlier request. Neither descriptors nor caller OOB are shared.
+func (request endpointRequest) snapshotInto(members []endpointMember) endpointRequest {
+	if request.members == nil {
+		return request
+	}
+	if members == nil || cap(members) < len(request.members) {
+		// Exact logical capacity keeps a maximum-size request within the private
+		// retention bound even when its allocation occupies a larger size class.
+		members = make([]endpointMember, len(request.members))
+	} else {
+		members = members[:len(request.members)]
+	}
+	copy(members, request.members)
+	request.members = members
 	for i := range request.members {
+		// The writer only borrows OOB; GSO appends to private scratch. Keep one
+		// endpoint-owned clone per equal run without sharing any caller bytes.
+		if i != 0 && len(request.members[i].oob) != 0 && bytes.Equal(request.members[i].oob, request.members[i-1].oob) {
+			request.members[i].oob = request.members[i-1].oob
+			continue
+		}
 		request.members[i].oob = slices.Clone(request.members[i].oob)
 	}
 	return request
-}
-
-// releasePayload follows the final native fence (or a decision never to submit).
-// Releasing all buffers first prevents a credit wake from reusing a live borrow.
-func (request endpointRequest) releasePayload() {
-	for i := range request.members {
-		member := &request.members[i]
-		plan := member.protection
-		member.protection = nil
-		plan.release()
-		if member.buffer != nil {
-			member.buffer.Release()
-		}
-	}
-	for _, member := range request.members {
-		member.credit.complete()
-	}
 }
 
 func (member endpointMember) datagrams() int {
@@ -217,9 +225,11 @@ type endpointDiagnostic struct {
 type nativeEndpoint struct {
 	generation        uint64
 	budget            time.Duration // immutable local preparation budget
-	commands          chan func(*endpointState)
-	work              chan *endpointToken
-	returned          chan struct{}
+	mutex             sync.Mutex
+	state             *endpointState
+	work              chan struct{} // enqueue/park hint; never carries a claim
+	progress          chan struct{}
+	halt              chan struct{}
 	writer            chan struct{} // closed when the writer can no longer touch the socket
 	done              chan struct{} // closed once, after writer, to return write authority
 	fault             chan struct{}
@@ -310,13 +320,33 @@ type endpointRecord struct {
 	result         endpointResult
 }
 
+// clearRequest follows the final native fence (or a decision never to submit)
+// and payload release. Empty backing retains no payload, identity or authority.
+func (r *endpointRecord) clearRequest() {
+	members := r.request.members
+	clear(members[:cap(members)])
+	r.request = endpointRequest{}
+	if cap(members) <= endpointBatch {
+		r.request.members = members[:0]
+	}
+}
+
+// reset ends the record's existing reservation or result lifetime. Only bounded,
+// fully cleared descriptor storage remains with this same canonical record.
+func (r *endpointRecord) reset() {
+	r.clearRequest()
+	members := r.request.members
+	*r = endpointRecord{request: endpointRequest{members: members}}
+}
+
 type endpointToken struct {
 	index    int
-	request  endpointRequest
+	request  *endpointRequest // canonical current record, fenced through actual return
 	canceled atomic.Bool
 	// The writer publishes once, after all native/deadline operations. The
 	// immutable fact is authoritative even while its wakeup is still pending.
 	completion atomic.Pointer[endpointWriteResult]
+	fact       endpointWriteResult
 }
 
 type endpointWriteResult struct {
@@ -334,7 +364,8 @@ type endpointState struct {
 	queue                              []int
 	current                            *endpointToken
 	count, bytes                       int
-	sealed, faulted                    bool
+	sealed, faulted, terminal          bool
+	credits                            []*sendReservation // detached and returned outside control
 	classCount, classBytes             [4]int
 	grant                              *endpointGrant
 	admissionCursor, serviceCursor     [4]int
@@ -356,21 +387,22 @@ func startNativeEndpoint(native endpointNativeIO, budget time.Duration, sink fun
 	e := &nativeEndpoint{
 		budget:     budget,
 		generation: nextNativeEndpoint.Add(1),
-		commands:   make(chan func(*endpointState)), work: make(chan *endpointToken, 1),
-		returned: make(chan struct{}, 1), writer: make(chan struct{}), done: make(chan struct{}), fault: make(chan struct{}),
-		diagnostics: make(chan endpointDiagnostic, 128),
+		work:       make(chan struct{}, 1), progress: make(chan struct{}, 1), halt: make(chan struct{}),
+		writer: make(chan struct{}), done: make(chan struct{}), fault: make(chan struct{}),
 	}
-	go func() {
-		for d := range e.diagnostics {
-			if sink != nil {
+	if sink != nil {
+		e.diagnostics = make(chan endpointDiagnostic, 128)
+		go func() {
+			for d := range e.diagnostics {
 				sink(d)
 			}
-		}
-	}()
+		}()
+	}
 	s := &endpointState{
 		endpoint: e, budget: budget, queue: make([]int, 0, endpointRequests),
 		occupied: make([]*endpointParticipant, 0, endpointParticipants+2),
 	}
+	e.state = s
 	for i, class := range []endpointClass{endpointStateless, endpointPublic} {
 		p := newEndpointParticipant(e, 0, endpointParticipants+i, class)
 		s.install(p)
@@ -385,6 +417,17 @@ func startNativeEndpoint(native endpointNativeIO, budget time.Duration, sink fun
 	return e
 }
 
+func (e *nativeEndpoint) emitDiagnostic(d endpointDiagnostic) {
+	if e.diagnostics == nil {
+		return
+	}
+	select {
+	case e.diagnostics <- d:
+	default:
+		e.dropped.Add(1)
+	}
+}
+
 func newEndpointParticipant(e *nativeEndpoint, id uint64, slot int, class endpointClass) *endpointParticipant {
 	return &endpointParticipant{
 		endpoint: e, id: id, slot: slot, class: class, active: true,
@@ -392,13 +435,61 @@ func newEndpointParticipant(e *nativeEndpoint, id uint64, slot int, class endpoi
 	}
 }
 
-// do waits only for serialized control, never for native I/O or a consumer.
+// do is one synchronous transaction under the endpoint's sole state owner.
+// Native operations, credit locks and the final socket-grant callback never run here.
 func (e *nativeEndpoint) do(f func(*endpointState)) {
-	ack := make(chan struct{})
+	e.mutex.Lock()
+	s := e.state
+	if !s.terminal {
+		s.advance(time.Now())
+		f(s)
+		s.advance(time.Now())
+		s.wakeWriter()
+		e.notifyProgress()
+	}
+	e.unlock()
+}
+
+// nativeWorkEmpty observes canonical native supply, not admission or serviceability.
+// Even a published return stays busy until the existing owner reconciles current.
+func (e *nativeEndpoint) nativeWorkEmpty(p *endpointParticipant) bool { //nolint:unused,nolintlint // Ordinary native staging is limited to darwin, linux and freebsd.
+	e.mutex.Lock()
+	s := e.state
+	empty := !s.sealed && !s.faulted && !s.terminal && s.valid(p) && !p.draining && s.current == nil && len(s.queue) == 0
+	e.mutex.Unlock()
+	return empty
+}
+
+func (e *nativeEndpoint) notifyProgress() {
 	select {
-	case e.commands <- func(s *endpointState) { f(s); close(ack) }:
-		<-ack
-	case <-e.done:
+	case e.progress <- struct{}{}:
+	default:
+	}
+}
+
+// unlock detaches credit returns before dropping control. Buffer/plan disposal
+// uses only concrete pool operations; credit completion takes a separate lock.
+func (e *nativeEndpoint) unlock() {
+	credits := e.state.credits
+	e.state.credits = nil
+	e.mutex.Unlock()
+	for _, credit := range credits {
+		credit.complete()
+	}
+}
+
+func (s *endpointState) releasePayload(request endpointRequest) {
+	for i := range request.members {
+		member := &request.members[i]
+		plan := member.protection
+		member.protection = nil
+		plan.release()
+		if member.buffer != nil {
+			member.buffer.Release()
+		}
+		if member.credit != nil {
+			s.credits = append(s.credits, member.credit)
+		}
 	}
 }
 
@@ -556,7 +647,11 @@ func (s *endpointState) admit(p *endpointParticipant, lane, size int) (endpointA
 		}
 		s.nextAdmission++
 		admission := endpointAdmission{index: index, serial: s.nextAdmission, deadline: now.Add(s.budget)}
-		s.records[index] = endpointRecord{used: true, reserved: true, serial: admission.serial, participant: p, lane: lane, class: class, bytes: size}
+		record := &s.records[index]
+		*record = endpointRecord{
+			used: true, reserved: true, serial: admission.serial, participant: p, lane: lane, class: class, bytes: size,
+			request: endpointRequest{members: record.request.members},
+		}
 		s.count++
 		s.bytes += size
 		s.classCount[class]++
@@ -590,7 +685,7 @@ func (s *endpointState) commit(admission endpointAdmission, request endpointRequ
 		s.capacityGeneration++
 	}
 	record.reserved = false
-	record.request = request.snapshot()
+	record.request = request.snapshotInto(record.request.members)
 	record.request.identity.endpoint = s.endpoint.generation
 	if request.deadline.IsZero() || request.deadline.After(admission.deadline) {
 		record.request.deadline = admission.deadline
@@ -609,7 +704,7 @@ func (s *endpointState) cancelAdmission(admission endpointAdmission) {
 	s.classBytes[record.class] -= record.bytes
 	record.participant.retained--
 	s.capacityGeneration++
-	*record = endpointRecord{}
+	record.reset()
 }
 
 func (e *nativeEndpoint) take(p *endpointParticipant) (endpointResult, bool) {
@@ -622,7 +717,7 @@ func (e *nativeEndpoint) take(p *endpointParticipant) (endpointResult, bool) {
 		i := p.results[0]
 		p.results = p.results[1:]
 		result, ok = s.records[i].result, true
-		s.records[i] = endpointRecord{}
+		s.records[i].reset()
 		p.retained--
 		s.capacityGeneration++
 		// A connection's participants can share this channel, so control only
@@ -747,7 +842,7 @@ func (s *endpointState) dropClosing(p *endpointParticipant) {
 		return
 	}
 	for _, closing := range p.closings {
-		closing.request.releasePayload()
+		s.releasePayload(closing.request)
 	}
 	p.closings = nil
 	s.closers = slices.DeleteFunc(s.closers, func(closer *endpointParticipant) bool { return closer == p })
@@ -781,7 +876,7 @@ func (s *endpointState) withdraw(p *endpointParticipant) {
 		s.releaseGrant()
 	}
 	for _, i := range p.results {
-		s.records[i] = endpointRecord{}
+		s.records[i].reset()
 		p.retained--
 	}
 	p.results = p.results[:0]
@@ -819,7 +914,7 @@ func (s *endpointState) publish(index int, result endpointResult) {
 			datagram = member.datagram
 		}
 	}
-	r.request.releasePayload()
+	s.releasePayload(r.request)
 	s.count--
 	s.bytes -= r.bytes
 	s.classCount[r.class]--
@@ -828,25 +923,21 @@ func (s *endpointState) publish(index int, result endpointResult) {
 	if localEndpointBackpressure(result.failure()) {
 		r.participant.wait[r.lane].notBefore = time.Now().Add(endpointRetry)
 	}
-	r.request = endpointRequest{}
+	r.clearRequest()
 	r.result, r.terminal = result, true
 	p := r.participant
 	if datagram != nil {
 		if datagram.result != nil {
 			datagram.result <- result
 		}
-		select {
-		case s.endpoint.diagnostics <- endpointDiagnostic{identity: result.identity, kind: 1}:
-		default:
-			s.endpoint.dropped.Add(1)
-		}
-		*r = endpointRecord{}
+		s.endpoint.emitDiagnostic(endpointDiagnostic{identity: result.identity, kind: 1})
+		r.reset()
 		p.retained--
 		s.retire(p)
 		return
 	}
 	if !p.active || p.draining {
-		*r = endpointRecord{}
+		r.reset()
 		p.retained--
 		s.finishDrain(p)
 		s.retire(p)
@@ -858,105 +949,117 @@ func (s *endpointState) publish(index int, result endpointResult) {
 	case p.completed <- struct{}{}:
 	default:
 	}
-	select {
-	case s.endpoint.diagnostics <- endpointDiagnostic{identity: result.identity, kind: 1}:
-	default:
-		s.endpoint.dropped.Add(1)
+	s.endpoint.emitDiagnostic(endpointDiagnostic{identity: result.identity, kind: 1})
+}
+
+// advance reconciles immutable returns and time-based state without claiming
+// work. Every caller holds the same mutex; only the writer chooses a native turn.
+func (s *endpointState) advance(now time.Time) {
+	s.reconcileCurrent(now)
+	if s.sealed {
+		for _, p := range s.participants {
+			if p != nil && p.active {
+				s.revoke(p)
+			}
+		}
+	}
+	for j := 0; j < len(s.queue); {
+		i := s.queue[j]
+		r := &s.records[i]
+		revoked := r.revoked || !r.request.authorized()
+		if s.faulted || !r.participant.active || revoked || !now.Before(r.request.deadline) {
+			err := os.ErrDeadlineExceeded
+			if s.faulted {
+				err = errEndpointFault
+			}
+			if !r.participant.active || revoked {
+				err = errEndpointRevoked
+			}
+			s.queue = append(s.queue[:j], s.queue[j+1:]...)
+			s.publish(i, r.request.unsubmitted(err))
+			continue
+		}
+		j++
+	}
+	if s.sealed && s.current != nil {
+		s.current.canceled.Store(true)
+	}
+	s.chooseGrant(now)
+	s.serviceClosers(now)
+}
+
+func (s *endpointState) wakeWriter() {
+	if !s.terminal && s.current == nil && len(s.queue) != 0 {
+		select {
+		case s.endpoint.work <- struct{}{}:
+		default:
+		}
 	}
 }
 
+func (s *endpointState) nextWake(now time.Time) (next time.Time) {
+	if s.current != nil && !s.faulted {
+		next = s.current.request.deadline.Add(endpointTolerance)
+	}
+	if s.grant != nil && !s.grant.expires.IsZero() {
+		next = earlierEndpointTime(next, s.grant.expires)
+	}
+	if s.grant == nil && !s.sealed && !s.faulted {
+		for p := range s.occupiedParticipants(0) {
+			for _, w := range p.wait {
+				if w.pending && w.notBefore.After(now) {
+					next = earlierEndpointTime(next, w.notBefore)
+				}
+			}
+		}
+	}
+	for _, i := range s.queue {
+		next = earlierEndpointTime(next, s.records[i].request.deadline)
+	}
+	for _, p := range s.closers {
+		next = earlierEndpointTime(next, p.closings[0].deadline)
+	}
+	return next
+}
+
+// run alone owns timer arming and terminal join. A wake arriving after the
+// deadline snapshot must remain pending until the next reconciliation.
 func (s *endpointState) run() {
 	e := s.endpoint
-	defer close(e.done)
-	defer func() {
-		// run exits with no token outstanding, so this involves no native
-		// operation. Diagnostic sinks stay outside the join.
-		<-e.writer
-		if e.stopped != nil {
-			e.stopped()
-		}
-	}()
-	defer close(e.diagnostics)
-	defer close(e.work)
 	timer := time.NewTimer(time.Hour)
 	defer timer.Stop()
 	for {
+		e.mutex.Lock()
 		now := time.Now()
-		s.reconcileCurrent(now)
-		if s.sealed {
-			for _, p := range s.participants {
-				if p != nil && p.active {
-					s.revoke(p)
-				}
-			}
-		}
-		for j := 0; j < len(s.queue); {
-			i := s.queue[j]
-			r := &s.records[i]
-			revoked := r.revoked || !r.request.authorized()
-			if s.faulted || !r.participant.active || revoked || !now.Before(r.request.deadline) {
-				err := os.ErrDeadlineExceeded
-				if s.faulted {
-					err = errEndpointFault
-				}
-				if !r.participant.active || revoked {
-					err = errEndpointRevoked
-				}
-				s.queue = append(s.queue[:j], s.queue[j+1:]...)
-				s.publish(i, r.request.unsubmitted(err))
-				continue
-			}
-			j++
-		}
-		if s.sealed && s.current != nil {
-			s.current.canceled.Store(true)
-		}
+		s.advance(now)
 		if s.sealed && s.current == nil && len(s.queue) == 0 {
+			s.terminal = true
+			close(e.halt)
+			stopped := e.stopped
+			e.unlock()
+			<-e.writer
+			if e.diagnostics != nil {
+				close(e.diagnostics)
+			}
+			if stopped != nil {
+				stopped()
+			}
+			close(e.done)
 			return
 		}
-		s.chooseGrant(now)
-		s.serviceClosers(now)
-		if s.current == nil && len(s.queue) != 0 {
-			j := s.chooseService()
-			i := s.queue[j]
-			s.queue = append(s.queue[:j], s.queue[j+1:]...)
-			s.current = &endpointToken{index: i, request: s.records[i].request}
-			e.work <- s.current
-		}
+		s.wakeWriter()
+		next := s.nextWake(now)
+		e.unlock()
 		var wake <-chan time.Time
-		var next time.Time
-		if s.current != nil && !s.faulted {
-			next = s.current.request.deadline.Add(endpointTolerance)
-		}
-		if s.grant != nil && !s.grant.expires.IsZero() {
-			next = earlierEndpointTime(next, s.grant.expires)
-		}
-		if s.grant == nil && !s.sealed && !s.faulted {
-			for p := range s.occupiedParticipants(0) {
-				for _, w := range p.wait {
-					if w.pending && w.notBefore.After(now) {
-						next = earlierEndpointTime(next, w.notBefore)
-					}
-				}
-			}
-		}
-		for _, i := range s.queue {
-			next = earlierEndpointTime(next, s.records[i].request.deadline)
-		}
-		for _, p := range s.closers {
-			next = earlierEndpointTime(next, p.closings[0].deadline)
-		}
 		if !next.IsZero() {
 			timer.Reset(time.Until(next))
 			wake = timer.C
+		} else {
+			timer.Stop()
 		}
 		select {
 		case <-wake:
-		case command := <-e.commands:
-			command(s)
-		case <-e.returned:
-			// Coalesced notification only. The next reconciliation reads the
-			// current token's fact, never a result carried by an old wakeup.
+		case <-e.progress:
 		}
 	}
 }
@@ -984,6 +1087,8 @@ func (s *endpointState) reconcileCurrent(now time.Time) {
 		s.fail(endpointFaultLateReturn, completion.result.failure())
 	}
 	s.publish(token.index, completion.result)
+	// A retained fact must not retain the canonical record after its handoff.
+	token.request = nil
 	s.current = nil
 }
 
@@ -1187,17 +1292,48 @@ func (s *endpointState) fail(cause endpointFaultCause, err error) {
 	}
 }
 
+// claim takes one fair turn only after reconciling authorization, expiry and
+// native facts at the request boundary. No private successor chain is retained.
+func (s *endpointState) claim() *endpointToken {
+	if s.terminal || s.sealed || s.faulted || s.current != nil || len(s.queue) == 0 {
+		return nil
+	}
+	j := s.chooseService()
+	i := s.queue[j]
+	s.queue = append(s.queue[:j], s.queue[j+1:]...)
+	s.current = &endpointToken{index: i, request: &s.records[i].request}
+	return s.current
+}
+
 func (e *nativeEndpoint) write(native endpointNativeIO) {
 	defer close(e.writer)
 	var scratch handshake.PacketProtectionScratch
-	for token := range e.work {
+	var oobScratch [128]byte
+	e.mutex.Lock()
+	for {
+		s := e.state
+		s.advance(time.Now())
+		token := s.claim()
+		if token == nil {
+			e.notifyProgress() // timer/terminal owner must observe the parked boundary
+			e.unlock()
+			select {
+			case <-e.halt:
+				return
+			case <-e.work:
+			}
+			e.mutex.Lock()
+			continue
+		}
+		e.notifyProgress() // independent watchdog observes this new claim
+		e.unlock()
 		var result endpointResult
 		fault := false
 		if err := native.SetWriteDeadline(token.request.deadline); err != nil {
 			result = token.request.unsubmitted(err)
 			fault = true
 		} else {
-			result = writeEndpointRequestWithScratch(native, token, &scratch)
+			result = writeEndpointRequestWithScratch(native, token, &scratch, oobScratch[:0])
 			fault = endpointFatalWrite(result.failure())
 		}
 		if err := native.SetWriteDeadline(time.Time{}); err != nil {
@@ -1207,10 +1343,13 @@ func (e *nativeEndpoint) write(native endpointNativeIO) {
 		// timestamps remain their actual sequence returns, including on reset error.
 		returnedAt := time.Now()
 		// Do not access token payload after Store: control can release it at once.
-		token.completion.Store(&endpointWriteResult{result: result, fault: fault, returnedAt: returnedAt})
-		select {
-		case e.returned <- struct{}{}:
-		default:
+		token.fact = endpointWriteResult{result: result, fault: fault, returnedAt: returnedAt}
+		token.completion.Store(&token.fact)
+		// A failed reconciliation attempt notifies independent progress before
+		// waiting on control. Publication is never coupled to lock acquisition.
+		if !e.mutex.TryLock() {
+			e.notifyProgress()
+			e.mutex.Lock()
 		}
 	}
 }
@@ -1242,7 +1381,7 @@ func writeEndpointDatagram(native endpointNativeIO, token *endpointToken, member
 	if err := endpointSubmissionAllowed(token); err != nil {
 		return false, err
 	}
-	request := token.request
+	request := *token.request
 	first := member.writeState != nil && !member.writeState.wroteFirstPacket
 	written, _, err := native.WriteMsgUDPAddrPort(data, oob, request.destination)
 	if member.writeState != nil {
@@ -1265,11 +1404,11 @@ func endpointSendmsgError(err error, cause error) bool {
 	return ok && system.Syscall == "sendmsg" && errors.Is(system.Err, cause)
 }
 
-func writeEndpointRequestWithScratch(native endpointNativeIO, token *endpointToken, scratch *handshake.PacketProtectionScratch) endpointResult {
-	request := token.request
+func writeEndpointRequestWithScratch(native endpointNativeIO, token *endpointToken, scratch *handshake.PacketProtectionScratch, oobScratch []byte) endpointResult {
+	request := *token.request
 	result := endpointResult{members: make([]endpointMemberResult, len(request.members))}
 	for i, member := range request.members {
-		result.members[i] = writeEndpointMember(native, token, member, scratch)
+		result.members[i] = writeEndpointMember(native, token, member, scratch, oobScratch)
 		if result.members[i].err != nil {
 			// The untouched suffix has no native error or native-return time.
 			now := monotime.Now()
@@ -1282,7 +1421,7 @@ func writeEndpointRequestWithScratch(native endpointNativeIO, token *endpointTok
 	return result
 }
 
-func writeEndpointMember(native endpointNativeIO, token *endpointToken, member endpointMember, scratch *handshake.PacketProtectionScratch) (result endpointMemberResult) {
+func writeEndpointMember(native endpointNativeIO, token *endpointToken, member endpointMember, scratch *handshake.PacketProtectionScratch, oobScratch []byte) (result endpointMemberResult) {
 	result.unsubmitted = member.datagrams()
 	defer func() { result.returnedAt = monotime.Now() }()
 	if member.datagram != nil {
@@ -1317,7 +1456,9 @@ func writeEndpointMember(native endpointNativeIO, token *endpointToken, member e
 	if member.gsoSize != 0 {
 		segment = int(member.gsoSize)
 		if member.nativeGSO && member.writeState != nil && !member.writeState.gsoDisabled.Load() {
-			oob := appendUDPSegmentSizeMsg(slices.Clone(member.oob), member.gsoSize)
+			// The sole writer reuses this private copy only after the native call
+			// and EPERM retry return. Oversize append allocations stay temporary.
+			oob := appendUDPSegmentSizeMsg(append(oobScratch[:0], member.oob...), member.gsoSize)
 			attempted, err := writeEndpointDatagram(native, token, member, data, oob)
 			if endpointSendmsgError(err, syscall.EIO) {
 				member.writeState.gsoDisabled.Store(true)
