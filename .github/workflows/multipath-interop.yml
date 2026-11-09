@@ -1,8 +1,8 @@
-name: R17 diagnostic only — NOT qualification
+name: Independent multipath interoperability
 
 on:
   pull_request:
-    types: [synchronize]
+    types: [opened, reopened, synchronize, ready_for_review]
     paths-ignore:
       - '**.md'
       - '**.mdx'
@@ -19,11 +19,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  diagnostic-only:
-    if: ${{ github.event.pull_request.draft && github.head_ref == 'codex/r17-1037-qualification-20261109' }}
+  independent-peer:
+    if: ${{ !github.event.pull_request.draft }}
     # Native hosted amd64, independent of the shared qualification/performance host.
     runs-on: ubuntu-24.04
-    # Temporary D1: one setup <=1200 s + one case <=150 s; no qualification.
+    # Setup 1200 s + 17 separately bounded 150 s invocations + artifact cleanup.
     timeout-minutes: 65
     defaults:
       run:
@@ -68,25 +68,8 @@ jobs:
           container=$(docker create --network none qgf-r17)
           trap 'docker rm -f "$container" > /dev/null' EXIT
           docker cp "$container:/src/build-packages.txt" "$RESULTS_DIR"/build-packages.txt
-      - name: Diagnose one affected cell — NOT qualification
+      - name: Execute the fixed 16 cases and separate zero vectors
         run: |
-          python3 - <<'PY'
-          import hashlib, json, os, subprocess
-          from pathlib import Path
-          root = Path(os.environ["RESULTS_DIR"])
-          (root / "diagnostic-not-qualification.json").write_text(json.dumps({
-              "stage": "R17D1", "qualification": False,
-              "candidate": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
-              "tree": subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], text=True).strip(),
-              "image": (root / "image-id.txt").read_text().strip(),
-              "expected": ["TestPicoquicMultipathMatrix/abandon-reopen-late-feedback/client"],
-              "builds": 1, "zero_invocations": 0, "prior_runs": [42648012706, 42653036958],
-              "bounds_seconds": {"build": 1200, "role": 30, "go": 90, "runner": 120, "container": 150},
-              "source_sha256": {name: hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in (
-                  "interop/multipath/peer.c", "interop/multipath/run.py", "interop/multipath/Dockerfile",
-                  "multipath_picoquic_matrix_test.go", "multipath_picoquic_diagnostic_test.go")},
-          }, indent=2) + "\n")
-          PY
           image=$(cat "$RESULTS_DIR"/image-id.txt)
           container=
           current=
@@ -107,7 +90,6 @@ jobs:
             container=$(docker create --platform linux/amd64 --network none \
               --user "$(id -u):$(id -g)" \
               -e QGF_IMAGE_ID="$image" -e PYTHONDONTWRITEBYTECODE=1 \
-              -e QGF_R17_DIAGNOSTIC=abandon-client-v1 \
               -e HOME=/tmp -e GOCACHE=/tmp/go-build -e GOPATH=/tmp/go \
               -v "$RESULTS_DIR:/results" "$image" \
               --binary /usr/local/bin/qgf-r17-peer --test-binary /src/peer-matrix.test \
@@ -119,12 +101,18 @@ jobs:
             mv "$current/run/"* "$current/"
             rmdir "$current/run"
           }
-          run_case diagnostic-abandon/client --matrix --scenario abandon-reopen-late-feedback --role client
+          for scenario in useful-transfer absent-negotiation path-zero-ack key-update-silent-path status-backup-failover abandon-reopen-late-feedback same-id-migration-rebinding unequal-mtu-invalid-frame; do
+            for role in client server; do
+              run_case "$scenario/$role" --matrix --scenario "$scenario" --role "$role"
+            done
+          done
+          run_case negotiated-zero --zero-vectors
+          python3 -B interop/multipath/run.py --validate-matrix --output "$RESULTS_DIR"
       - name: Retain all attempts and raw peer evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
         with:
-          name: r17-diagnostic-NOT-qualification-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          name: multipath-interop-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/multipath-interop/
           if-no-files-found: error
           retention-days: 90
