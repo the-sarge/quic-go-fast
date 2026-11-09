@@ -88,7 +88,9 @@ jobs:
             mkdir -p "$current"
             # The runner owns a fresh child directory; outer logs survive a timeout.
             container=$(docker create --platform linux/amd64 --network none \
+              --user "$(id -u):$(id -g)" \
               -e QGF_IMAGE_ID="$image" -e PYTHONDONTWRITEBYTECODE=1 \
+              -e HOME=/tmp -e GOCACHE=/tmp/go-build -e GOPATH=/tmp/go \
               -v "$RESULTS_DIR:/results" "$image" \
               --binary /usr/local/bin/qgf-r17-peer --test-binary /src/peer-matrix.test \
               --output "/results/$relative/run" "$@")

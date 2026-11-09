@@ -42,7 +42,7 @@ Each row runs once with quic-go-fast as client and once as server. Missing, dupl
 | `path-zero-ack` | Literal ACK and PATH_ACK vectors both acknowledge packet zero; decoded 1-RTT events identify both forms and useful transfer continues. |
 | `key-update-silent-path` | The independent peer starts a key update on path zero while path one sends and receives no packets, then useful data resumes on path one. |
 | `status-backup-failover` | Backup/available status crosses the wire; useful traffic initially stays off the backup, then survives the original client's endpoint failure or path-zero packet loss through path one. |
-| `abandon-reopen-late-feedback` | Path one retires, a new wire ID replaces it, and an encrypted peer packet held before retirement arrives after replacement while useful transfer continues. |
+| `abandon-reopen-late-feedback` | Path one retires and a new wire ID replaces it. The old encrypted packet is replayed, with decoded, duplicate or retired routing/key-reclamation disposition observed at existing owners; an explicit late PATH_ACK(1) arrives on a live carrier and useful replacement transfer continues. |
 | `same-id-migration-rebinding` | A client calls `MigrateV1`, or the independent client undergoes NAT rebinding; wire ID and packet-number continuity survive a changed tuple without adding a third protocol path. |
 | `unequal-mtu-invalid-frame` | Path-specific PMTU discovery converges across unequal UDP payload limits; a literal PATH_STATUS_BACKUP for a never-granted ID causes the expected protocol violation. |
 
@@ -64,6 +64,8 @@ python3 -B interop/multipath/run.py --validate-matrix --output /results
 ```
 
 Each role context and the C adapter are bounded at 30 seconds; the Go test timeout remains 90 seconds, the runner remains 120 seconds, and each outer container remains 150 seconds. Build/setup has the inherited 1200-second bound. There is no longer monolithic matrix timeout. A failed operation, unavailable prerequisite or unresolved identity mismatch stops the invocation and retains its evidence; do not repeat until passing. Cancellation kills and joins the runner's process group, and Go cleanup cancels and joins its peer before returning the granted sockets.
+
+Case containers run as the artifact owner's UID/GID with writable temporary HOME and Go cache locations, so retained 0700 peer directories remain readable after success or failure. The unequal-MTU case observes completion on the existing connection-owned finder, because a final lost probe can finish discovery without emitting a qlog Done update; all construction and path/lifecycle operations still use V1 APIs. Useful-traffic assertions wait for asynchronous trace consumption. Replay observations correlate the controlled packet's size with the existing connection/transport reception or drop events in this isolated single-peer case; they make no universal packet-correlation or retention-order claim. ACK(0), PATH_ACK(0), late PATH_ACK(1) and the invalid-path frame are literal controlled vectors protected and packetized by the pinned peer library.
 
 This is example-level evidence for these fixed scenarios, pins and venue. It does not claim universal draft conformance, arbitrary peer support, all key-update directions, Internet failure timing or other platforms. The early ordinary and smoke receipts remain historical evidence. The transport integration suite owns this maintained fixture; retire it only with equivalent independent coverage or feature removal.
 

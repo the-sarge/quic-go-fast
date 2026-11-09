@@ -108,12 +108,21 @@ static int command(driver_t *d, uint64_t stream_id, const unsigned char *bytes, 
     case 'H':
         d->hold = 1;
         break;
+    case 'Q': {
+        /* Typed fixture metadata: the size of the one opaque held datagram. */
+        const unsigned char size[] = {(unsigned char)(d->held_length >> 8), (unsigned char)d->held_length};
+        return picoquic_add_to_stream(d->cnx, stream_id, size, sizeof(size), 1);
+    }
     case 'R':
         if (d->held_length == 0) return -1;
         if (sendto(d->sockets[d->held_socket], d->held, d->held_length, 0,
                    (struct sockaddr *)&d->held_to, sizeof(struct sockaddr_in)) != (ssize_t)d->held_length) return -1;
         fprintf(stdout, "replayed path-one packet %zu bytes\n", d->held_length);
         d->held_length = 0;
+        /* Explicit late feedback targets retired path one through a live
+         * protected carrier. Packet zero was sent before path retirement. */
+        const unsigned char late_ack[] = {0x3e, 1, 0, 0, 0, 0};
+        ret = picoquic_queue_misc_frame(d->cnx, late_ack, sizeof(late_ack), 1, picoquic_packet_context_application);
         break;
     case 'N':
         /* NAT changes the socket mapping; picoquic retains its original

@@ -38,4 +38,6 @@ COPY . .
 RUN go test -c -tags=picoquic -o /src/peer-control.test ./integrationtests/self
 RUN go test -c -tags=picoquic -o /src/peer-smoke.test .
 RUN cp /src/peer-smoke.test /src/peer-matrix.test
+RUN PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest discover -s interop/multipath -p test_run.py && \
+    go test -tags=picoquic -run='^TestPicoquicMatrix(AwaitsTraceConsumption|ReplayDispositions|MTUFinalLossObservation)$' -count=1 .
 ENTRYPOINT ["python3", "interop/multipath/run.py", "--binary", "/usr/local/bin/picoquicdemo"]
