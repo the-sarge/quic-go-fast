@@ -275,6 +275,7 @@ static int run(driver_t *d)
                 if (picoquic_incoming_packet(d->quic, packet->bytes, packet->length,
                         (struct sockaddr *)&packet->from, (struct sockaddr *)&packet->local,
                         0, 0, picoquic_get_quic_time(d->quic)) != 0) return gate_failed(d, "incoming packet API");
+                if (d->failed || d->closed) return gate_failed(d, "connection ended during drain");
             }
             d->gate_armed = 0;
             d->gate_released = 1;
