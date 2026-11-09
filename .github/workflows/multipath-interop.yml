@@ -1,4 +1,4 @@
-name: R17D2 diagnostic — NOT QUALIFICATION
+name: Independent multipath interoperability
 
 on:
   pull_request:
@@ -20,11 +20,10 @@ concurrency:
 
 jobs:
   independent-peer:
-    name: R17D2 MTU server — NOT QUALIFICATION
-    if: ${{ github.event.pull_request.draft && github.event.action == 'synchronize' && github.event.pull_request.head.ref == 'codex/r17-1037-qualification-20261109' }}
+    if: ${{ !github.event.pull_request.draft }}
     # Native hosted amd64, independent of the shared qualification/performance host.
     runs-on: ubuntu-24.04
-    # Temporary D2 only: one build and one original cell; not qualification.
+    # Setup 1200 s + 17 separately bounded 150 s invocations + artifact cleanup.
     timeout-minutes: 65
     defaults:
       run:
@@ -69,7 +68,7 @@ jobs:
           container=$(docker create --network none qgf-r17)
           trap 'docker rm -f "$container" > /dev/null' EXIT
           docker cp "$container:/src/build-packages.txt" "$RESULTS_DIR"/build-packages.txt
-      - name: R17D2 one original MTU server case — NOT QUALIFICATION
+      - name: Execute the fixed 16 cases and separate zero vectors
         run: |
           image=$(cat "$RESULTS_DIR"/image-id.txt)
           container=
@@ -91,7 +90,6 @@ jobs:
             container=$(docker create --platform linux/amd64 --network none \
               --user "$(id -u):$(id -g)" \
               -e QGF_IMAGE_ID="$image" -e PYTHONDONTWRITEBYTECODE=1 \
-              -e QGF_R17_DIAGNOSTIC=mtu-server-v1 \
               -e HOME=/tmp -e GOCACHE=/tmp/go-build -e GOPATH=/tmp/go \
               -v "$RESULTS_DIR:/results" "$image" \
               --binary /usr/local/bin/qgf-r17-peer --test-binary /src/peer-matrix.test \
@@ -103,13 +101,18 @@ jobs:
             mv "$current/run/"* "$current/"
             rmdir "$current/run"
           }
-          printf '%s\n' 'R17D2 diagnostic only; zero vectors and aggregate UNRUN' > "$RESULTS_DIR"/diagnostic-only.txt
-          run_case diagnostic-mtu/server --matrix --scenario unequal-mtu-invalid-frame --role server
+          for scenario in useful-transfer absent-negotiation path-zero-ack key-update-silent-path status-backup-failover abandon-reopen-late-feedback same-id-migration-rebinding unequal-mtu-invalid-frame; do
+            for role in client server; do
+              run_case "$scenario/$role" --matrix --scenario "$scenario" --role "$role"
+            done
+          done
+          run_case negotiated-zero --zero-vectors
+          python3 -B interop/multipath/run.py --validate-matrix --output "$RESULTS_DIR"
       - name: Retain all attempts and raw peer evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
         with:
-          name: R17D2-NOT-QUALIFICATION-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          name: multipath-interop-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/multipath-interop/
           if-no-files-found: error
           retention-days: 90

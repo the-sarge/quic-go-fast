@@ -18,7 +18,7 @@ RUN git init -q && git remote add origin https://github.com/private-octopus/pico
     test "$(git rev-parse HEAD)" = 01e124ebdf9fc50df307e01e71f2744471ddc470 && \
     printf '%s\n' 'add_executable(qgf-r17-peer /src/r17-peer.c)' \
       'target_include_directories(qgf-r17-peer PRIVATE ${PTLS_INCLUDE_DIRS})' \
-      'target_link_libraries(qgf-r17-peer PRIVATE picoquic-log picoquic-core)' >> CMakeLists.txt && \
+      'target_link_libraries(qgf-r17-peer PRIVATE picoquic-core)' >> CMakeLists.txt && \
     cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPICOQUIC_FETCH_PTLS=ON \
       -DPICOQUIC_FETCH_PTLS_TAG=bfa67875982afc4c24f21e146cef4747fa189c2f -DBUILD_TESTING=OFF && \
     test "$(git -C build/_deps/picotls-src rev-parse HEAD)" = bfa67875982afc4c24f21e146cef4747fa189c2f && \
