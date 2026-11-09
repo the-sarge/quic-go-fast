@@ -642,6 +642,12 @@ func TestMultipathOpenSnapshotsAndAbandon(t *testing.T) {
 // no ID is consumed and no route exists. This is R9's deferred target question.
 func TestMultipathOpenRefusesTargetUnharmed(t *testing.T) {
 	p := newMultipathPair(t)
+	full := grantedTransport(t)
+	require.NoError(t, full.init(false))
+	for id := range uint64(endpointParticipants) {
+		_, err := nativeTransportEndpoint(full).attach(id + 1)
+		require.NoError(t, err)
+	}
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 	_, err := p.client.OpenPathV1(ctx, nil, p.serverAddr)
@@ -667,12 +673,6 @@ func TestMultipathOpenRefusesTargetUnharmed(t *testing.T) {
 	require.ErrorIs(t, err, ErrMultipathUnsupportedV1)
 	require.Nil(t, mismatched.handlers, "the refused target never started")
 	// A full endpoint refuses at once, for open and for a move, with no routes.
-	full := grantedTransport(t)
-	require.NoError(t, full.init(false))
-	for id := range uint64(endpointParticipants) {
-		_, err := nativeTransportEndpoint(full).attach(id + 1)
-		require.NoError(t, err)
-	}
 	_, err = p.client.OpenPathV1(ctx, full, p.serverAddr)
 	require.ErrorIs(t, err, ErrMultipathResourceLimitV1)
 	require.ErrorIs(t, p.client.PathsV1()[0].MigrateV1(ctx, full), ErrMultipathResourceLimitV1)
