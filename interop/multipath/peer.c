@@ -4,6 +4,7 @@
  */
 #include "picoquic.h"
 #include "picoquic_utils.h"
+#include "picoquic_qlog.h"
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -55,7 +56,35 @@ typedef struct {
     size_t gate_count;
     uint64_t gate_stream;
     gated_datagram_t gate[TUPLE_GATE_LIMIT];
+    int diagnostic, diagnostic_quality_observed;
+    uint64_t diagnostic_prepared, diagnostic_empty, diagnostic_incoming, diagnostic_sent, diagnostic_dropped;
 } driver_t;
+
+/* Temporary [R17D2] outer metadata; no protocol state is read here. */
+static void diagnostic_summary(driver_t *d, const char *boundary)
+{
+    if (d->diagnostic) fprintf(stdout, "[R17D2] %s prepared %llu empty %llu incoming %llu sent %llu dropped %llu\n",
+        boundary, (unsigned long long)d->diagnostic_prepared, (unsigned long long)d->diagnostic_empty,
+        (unsigned long long)d->diagnostic_incoming, (unsigned long long)d->diagnostic_sent,
+        (unsigned long long)d->diagnostic_dropped);
+}
+
+static void diagnostic_quality(driver_t *d)
+{
+    for (uint64_t path = 0; path < 2; path++) {
+        picoquic_path_quality_t quality = {0};
+        struct sockaddr_storage local = {0}, remote = {0};
+        int status = picoquic_get_path_quality(d->cnx, path, &quality);
+        int local_status = picoquic_get_path_addr(d->cnx, path, 1, &local);
+        int remote_status = picoquic_get_path_addr(d->cnx, path, 2, &remote);
+        fprintf(stdout, "[R17D2] public quality path %llu status %d cwin %llu flight %llu sent %llu lost %llu timer-losses %llu pacing %llu rtt %llu local-status %d local-family %d local-port %u remote-status %d remote-family %d remote-port %u\n",
+            (unsigned long long)path, status, (unsigned long long)quality.cwin, (unsigned long long)quality.bytes_in_transit,
+            (unsigned long long)quality.sent, (unsigned long long)quality.lost, (unsigned long long)quality.timer_losses,
+            (unsigned long long)quality.pacing_rate, (unsigned long long)quality.rtt, local_status, local.ss_family,
+            local.ss_family == AF_INET ? ntohs(((struct sockaddr_in *)&local)->sin_port) : 0,
+            remote_status, remote.ss_family, remote.ss_family == AF_INET ? ntohs(((struct sockaddr_in *)&remote)->sin_port) : 0);
+    }
+}
 
 static int gate_failed(driver_t *d, const char *reason)
 {
@@ -108,7 +137,22 @@ static int command(driver_t *d, uint64_t stream_id, const unsigned char *bytes, 
         return 0;
     case 'E':
         if (path != 255) ret = picoquic_set_stream_path_affinity(d->cnx, stream_id, path);
-        if (ret == 0) return picoquic_add_to_stream(d->cnx, stream_id, bytes + 2, length - 2, 1);
+        if (d->diagnostic) fprintf(stdout, "[R17D2] E affinity time %llu stream %llu path %u request %zu response %zu status %d\n",
+            (unsigned long long)now, (unsigned long long)stream_id, path, length, length - 2, ret);
+        if (ret == 0) {
+            ret = picoquic_add_to_stream(d->cnx, stream_id, bytes + 2, length - 2, 1);
+            if (d->diagnostic) {
+                fprintf(stdout, "[R17D2] E queue time %llu stream %llu path %u status %d\n",
+                    (unsigned long long)picoquic_get_quic_time(d->quic), (unsigned long long)stream_id, path, ret);
+                /* One public observation at the returned-to-zero request. The
+                 * quality getter refreshes observer thresholds, not eligibility. */
+                if (!d->diagnostic_quality_observed && d->is_client && d->limit_mtu && path == 0) {
+                    d->diagnostic_quality_observed = 1;
+                    diagnostic_quality(d);
+                }
+            }
+            return ret;
+        }
         break;
     case 'O':
         if (d->open_pending) return -1;
@@ -257,6 +301,7 @@ static int callback(picoquic_cnx_t *cnx, uint64_t stream_id, uint8_t *bytes, siz
         fprintf(stdout, "closed local %llu remote %llu\n", (unsigned long long)picoquic_get_local_error(cnx),
                 (unsigned long long)picoquic_get_remote_error(cnx));
         d->closed = 1;
+        diagnostic_summary(d, "close callback");
         break;
     default:
         break;
@@ -292,12 +337,22 @@ static int run(driver_t *d)
             int if_index = 0;
             picoquic_cnx_t *last = NULL;
             picoquic_connection_id_t log_id;
-            if (picoquic_prepare_next_packet(d->quic, picoquic_get_quic_time(d->quic), buffer, sizeof(buffer), &length,
-                                            &to, &from, &if_index, &log_id, &last) != 0) return -1;
+            int prepared = picoquic_prepare_next_packet(d->quic, picoquic_get_quic_time(d->quic), buffer, sizeof(buffer), &length,
+                                            &to, &from, &if_index, &log_id, &last);
+            if (d->diagnostic) {
+                d->diagnostic_prepared++;
+                if (length == 0) d->diagnostic_empty++;
+                if (prepared != 0) fprintf(stdout, "[R17D2] prepare status %d length %zu\n", prepared, length);
+            }
+            if (prepared != 0) return -1;
             if (length == 0) break;
             int socket_index = 0;
             for (int i = 0; i < 3; i++) if (same_address(&from, &d->addresses[i])) socket_index = i;
             uint64_t path = d->cnx ? packet_path(d, &from, &to) : 0;
+            if (d->diagnostic) fprintf(stdout, "[R17D2] prepared time %llu call %llu status %d length %zu address-path %llu socket %d local-port %u remote-port %u connection %d\n",
+                (unsigned long long)picoquic_get_quic_time(d->quic), (unsigned long long)d->diagnostic_prepared, prepared,
+                length, (unsigned long long)path, socket_index, ntohs(((struct sockaddr_in *)&from)->sin_port),
+                ntohs(((struct sockaddr_in *)&to)->sin_port), last != NULL);
             if (d->rebind && socket_index == 1) socket_index = 2;
             if (d->blackhole_zero && path == 0) continue;
             if (d->hold && path == 1) {
@@ -309,9 +364,19 @@ static int run(driver_t *d)
                 fprintf(stdout, "held path-one packet %zu bytes\n", length);
                 continue;
             }
-            if (d->limit_mtu && path == 1 && length > 1280) { d->mtu_drops++; continue; }
-            if (sendto(d->sockets[socket_index], buffer, length, 0,
-                       (struct sockaddr *)&to, sizeof(struct sockaddr_in)) != (ssize_t)length) return -1;
+            if (d->limit_mtu && path == 1 && length > 1280) {
+                d->mtu_drops++;
+                if (d->diagnostic) { d->diagnostic_dropped++; fprintf(stdout, "[R17D2] outgoing conditioner drop path %llu length %zu\n", (unsigned long long)path, length); }
+                continue;
+            }
+            ssize_t sent = sendto(d->sockets[socket_index], buffer, length, 0,
+                       (struct sockaddr *)&to, sizeof(struct sockaddr_in));
+            if (d->diagnostic) {
+                d->diagnostic_sent++;
+                fprintf(stdout, "[R17D2] send call %llu address-path %llu socket %d length %zu returned %zd errno %d\n",
+                    (unsigned long long)d->diagnostic_prepared, (unsigned long long)path, socket_index, length, sent, sent < 0 ? errno : 0);
+            }
+            if (sent != (ssize_t)length) return -1;
         }
         struct pollfd fds[3];
         for (int i = 0; i < 3; i++) { fds[i].fd = d->sockets[i]; fds[i].events = POLLIN; fds[i].revents = 0; }
@@ -323,7 +388,10 @@ static int run(driver_t *d)
             struct sockaddr_storage from = {0};
             socklen_t from_length = sizeof(from);
             ssize_t length = recvfrom(d->sockets[i], buffer, sizeof(buffer), d->gate_armed ? MSG_TRUNC : 0, (struct sockaddr *)&from, &from_length);
-            if (length < 0) return -1;
+            if (length < 0) {
+                if (d->diagnostic) fprintf(stdout, "[R17D2] recv socket %d returned %zd errno %d\n", i, length, errno);
+                return -1;
+            }
             if (d->gate_armed && (size_t)length > sizeof(buffer)) return gate_failed(d, "oversized or truncated datagram");
             int virtual_socket = d->rebind && i == 2 ? 1 : i;
             struct sockaddr_storage local = {0};
@@ -339,13 +407,24 @@ static int run(driver_t *d)
             }
             uint64_t path = d->cnx ? packet_path(d, &local, &from) : 0;
             if (d->blackhole_zero && path == 0) continue;
-            if (d->limit_mtu && path == 1 && length > 1280) { d->mtu_drops++; continue; }
-            if (picoquic_incoming_packet(d->quic, buffer, (size_t)length, (struct sockaddr *)&from,
+            if (d->limit_mtu && path == 1 && length > 1280) {
+                d->mtu_drops++;
+                if (d->diagnostic) { d->diagnostic_dropped++; fprintf(stdout, "[R17D2] incoming conditioner drop path %llu length %zd\n", (unsigned long long)path, length); }
+                continue;
+            }
+            int incoming = picoquic_incoming_packet(d->quic, buffer, (size_t)length, (struct sockaddr *)&from,
                                         (struct sockaddr *)&d->addresses[virtual_socket], 0, 0,
-                                        picoquic_get_quic_time(d->quic)) != 0) return -1;
+                                        picoquic_get_quic_time(d->quic));
+            if (d->diagnostic) {
+                d->diagnostic_incoming++;
+                fprintf(stdout, "[R17D2] incoming time %llu socket %d address-path %llu length %zd status %d\n",
+                    (unsigned long long)picoquic_get_quic_time(d->quic), i, (unsigned long long)path, length, incoming);
+            }
+            if (incoming != 0) return -1;
         }
     }
     fprintf(stdout, "driver closed %d failed %d mtu-drops %d\n", d->closed, d->failed, d->mtu_drops);
+    diagnostic_summary(d, "loop end");
     return d->closed && !d->failed ? 0 : -1;
 }
 
@@ -358,6 +437,8 @@ int main(int argc, char **argv)
     if (d == NULL) return 2;
     int client = strcmp(argv[1], "client") == 0;
     d->is_client = client;
+    const char *diagnostic = getenv("QGF_R17_DIAGNOSTIC");
+    d->diagnostic = diagnostic != NULL && strcmp(diagnostic, "mtu-server-v1") == 0;
     for (int i = 0; i < 3; i++) {
         d->sockets[i] = socket(AF_INET, SOCK_DGRAM, 0);
         d->addresses[i].sin_family = AF_INET;
@@ -370,6 +451,13 @@ int main(int argc, char **argv)
     d->quic = picoquic_create(1, client ? NULL : argv[4], client ? NULL : argv[5], argv[6], ALPN,
                               callback, d, NULL, NULL, NULL, picoquic_current_time(), NULL, NULL, NULL, 0);
     if (d->quic == NULL) return 2;
+    if (d->diagnostic) {
+        int status = picoquic_set_qlog(d->quic, ".");
+        fprintf(stdout, "[R17D2] public qlog registration status %d; file creation and buffered tail not guaranteed\n", status);
+        if (status != 0) return 2;
+        picoquic_set_log_level(d->quic, 1);
+        fprintf(stdout, "[R17D2] public log level 1 called (void API); buffered tail still not guaranteed\n");
+    }
     picoquic_set_client_cert_verification_policy(d->quic, 1);
     picoquic_enable_path_callbacks_default(d->quic, 1);
     picoquic_tp_t tp = *picoquic_get_default_tp(d->quic);
@@ -389,6 +477,7 @@ int main(int argc, char **argv)
     fprintf(stdout, "Waiting for packets.\n");
     int ret = run(d);
     picoquic_free(d->quic);
+    if (d->diagnostic) fprintf(stdout, "[R17D2] normal picoquic_free returned; no private flush or shutdown added\n");
     for (int i = 0; i < 3; i++) close(d->sockets[i]);
     free(d);
     return ret == 0 ? 0 : 1;
