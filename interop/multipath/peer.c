@@ -309,7 +309,6 @@ int main(int argc, char **argv)
     if (d->quic == NULL) return 2;
     picoquic_set_client_cert_verification_policy(d->quic, 1);
     picoquic_enable_path_callbacks_default(d->quic, 1);
-    picoquic_set_default_congestion_algorithm_by_name(d->quic, "reno");
     picoquic_tp_t tp = *picoquic_get_default_tp(d->quic);
     tp.initial_max_path_id = atoi(argv[7]) ? 1 : 0;
     tp.max_datagram_frame_size = 1500;

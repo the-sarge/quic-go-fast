@@ -136,8 +136,8 @@ func (s *matrixSession) echo(id byte) {
 	payload := bytes.Repeat([]byte("R17 fixed useful STREAM\n"), 1024)
 	require.Equal(s.t, payload, s.exchange('E', id, payload))
 	if id != 255 {
-		// This later exchange is also a recorder-consumption boundary for
-		// earlier path traffic, before a phase takes counter baselines.
+		// Await recorder-visible STREAM progress on the selected path. The
+		// scenario separately checks its observed silence window.
 		require.NoError(s.t, s.trace.wait(s.ctx, func() bool {
 			sent, received := s.trace.traffic(uint64(id))
 			return sent.Stream > sentBefore.Stream && received.Stream > receivedBefore.Stream
