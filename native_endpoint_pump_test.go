@@ -71,10 +71,15 @@ func TestNativeEndpointWriterContinuationWithoutProgress(t *testing.T) {
 	// The writer has no private chain now; a later enqueue must wake its park.
 	require.NoError(t, e.offer(p, 0, endpointTestRequest(1, "after park")))
 	require.Equal(t, "after park", <-writes)
-	<-p.completed
-	result, ok := e.take(p)
-	require.True(t, ok)
-	require.NoError(t, result.failure())
+	for {
+		<-p.completed // A coalesced hint can remain from the initial result drain.
+		result, ok := e.take(p)
+		if !ok {
+			continue
+		}
+		require.NoError(t, result.failure())
+		break
+	}
 }
 
 func TestNativeEndpointFailedReentryNotifiesProgress(t *testing.T) {
