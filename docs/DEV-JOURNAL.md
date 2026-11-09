@@ -9939,3 +9939,31 @@ Keep capability limited to the source-proven concrete primitives and explicit ca
 ### Next
 
 [N3 issue #1202](https://github.com/the-sarge/quic-go-fast/issues/1202) is the next runtime frontier; [R17 issue #1037](https://github.com/the-sarge/quic-go-fast/issues/1037) and [R18 issue #1038](https://github.com/the-sarge/quic-go-fast/issues/1038) retain N3's merged runtime/evidence dependency. Journal closure and mutable child/task/successor reconciliation follow this entry. [Endpoint parent issue #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) and [program tracker issue #646](https://github.com/the-sarge/quic-go-fast/issues/646) remain the live tracking surfaces.
+
+---
+
+## Native endpoint control qualification landed - 2026-11-09 07:43 EST
+
+**Main:** `a4fb8bc746c9`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #1280 — Synchronize native endpoint control and hand off software prefixes sooner](https://github.com/the-sarge/quic-go-fast/pull/1280) as `a4fb8bc746c9e40c5fa43fe5059951d1d197c2cc`, completing [N3 (#1202)](https://github.com/the-sarge/quic-go-fast/issues/1202). One synchronized endpoint owner and fair writer continuation replace command/ack mutation. Dense software construction retains natural grouping behind busy native supply; an advisory canonical empty-supply observation can offer a completed prefix and return to Conn before further packing. Existing admission, per-packet policy order, physical/count/byte bounds, ordered callbacks and final native/deadline-reset fences remain binding. Software protection stays synchronous on Conn; hardware-GSO retains its reserved writer consumer under the [published N3/N8 contract](adr/2026-11-04-native-endpoint-efficiency-plan.md#n3).
+
+### Validation
+
+The original final inventory passed: two native builds and all 12 E6 cases across Go 1.26.10 and 1.27.3, with maximum uninstrumented service time 1.365981 ms against 20 ms; both required original 10-second warmup/60-second STREAM cells passed every unchanged criterion. GSO-off ran native→control and GSO-on ran control→native in separate bounded custody turns.
+
+| GSO | Goodput native/control | CPU/useful native/control | Echo p99 control/native | Original echo ceiling |
+| --- | ---: | ---: | ---: | ---: |
+| Off | 1.075835866 | 0.898234636 | 1835.007 / 2621.439 µs | 2835.007 µs |
+| On | 1.057549959 | 1.094956150 | 655.359 / 950.271 µs | 1655.359 µs |
+
+The GSO-on CPU ratio has a close 0.0050438505 margin below 1.10. The off control p99 was higher than earlier valid failures; all absolute comparators and failures remain retained, without a universal or exact causal speedup claim. On packet loss was 509 control/834 native, within the original criterion; write errors, drops and empty seconds were zero. [The final qualification receipt for N3 (#1202)](https://github.com/the-sarge/quic-go-fast/issues/1202#issuecomment-6738965619) preserves eligibility, raw evidence and verified custody release.
+
+Ordinary results retain actual E55 source `6de99b224cf0b3ca9fc738e7f06b113f19231a9f` and binary `28bce68f72fb365c25c821862ebf8a68017fcde7453b777ebe552fc3c69a04d1`; native qualification retains source `c2e0055158619bd06a312eb29311258b89db9cb2`. The E55→c2e byte-equality bridge is historical. Final head `ad6d4500aca7eff4211ed6aa90251ed6882fb034` adds only compiler-ignored platform-lint comments plus a dependency test correction comparing matched legal PN histories. Independent standard-Go-scanner proof preserved production tokens, physical positions and compiler directives; the changed dependency test is excluded from root nativequal/ordinarycost binaries. New affected ackhandler tests/vet, tidy and relevant local lint passed. [The accepted amended-applicability receipt for N3 (#1202)](https://github.com/the-sarge/quic-go-fast/issues/1202#issuecomment-6740052110) records that bridge without claiming whole-source/action-hash or amended-binary byte identity. All 17 hosted jobs passed on exact head ad6d4500 before guarded squash merge against unchanged main ce241160; historical review receipts retain their original heads and scope.
+
+### Next
+
+At this entry’s timestamp the committed N implementation is 11/11 complete and the program 37/46. [R17 (#1037)](https://github.com/the-sarge/quic-go-fast/issues/1037) and [R18 (#1038)](https://github.com/the-sarge/quic-go-fast/issues/1038) are the next independent qualification frontier after lifecycle closure. [Endpoint parent (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193), [admission parent (#1141)](https://github.com/the-sarge/quic-go-fast/issues/1141) and [program tracker (#646)](https://github.com/the-sarge/quic-go-fast/issues/646) remain the live views; parents retain their independent criteria. [R19 (#1039)](https://github.com/the-sarge/quic-go-fast/issues/1039), [Q2 (#599)](https://github.com/the-sarge/quic-go-fast/issues/599) and [B1 (#1040)](https://github.com/the-sarge/quic-go-fast/issues/1040) retain activation holds.
