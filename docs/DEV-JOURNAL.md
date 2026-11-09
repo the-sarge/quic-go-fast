@@ -9992,3 +9992,28 @@ The [approved plan and delegated decision for issue #1288](https://github.com/th
 ### Next
 
 At this entry's timestamp, the product is merged and its separate journal closure is pending. The coordinator will reconcile [issue #1288](https://github.com/the-sarge/quic-go-fast/issues/1288), its task mirror and the actual base for the separately scoped continuation correction [issue #1286](https://github.com/the-sarge/quic-go-fast/issues/1286) / [PR #1287](https://github.com/the-sarge/quic-go-fast/pull/1287). [Program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) and [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) remain the live frontier views; this standalone maintained-test repair changes no audited-slice count or public activation decision.
+
+---
+
+## Completion hint test repair landed (#1286) - 2026-11-09 14:13 EST
+
+**Main:** `663845e5b5e9`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #1287 — Tolerate stale endpoint completion hints (#1286)](https://github.com/the-sarge/quic-go-fast/pull/1287) as `663845e5b5e93a0673f24231fd5f3493cda0a6ae`. The existing `TestNativeEndpointWriterContinuationWithoutProgress` now waits for an authoritative result after completion hints, returning to a blocking receive when a stale/coalesced hint yields no result. Both initial native-write observations, the original result drain, the real writer without a progress goroutine, the later enqueue and writer-join cleanup remain intact. Only the test's final wait changed; production notification and result semantics remain unchanged.
+
+### Validation
+
+Fresh exact-head certification on `f2bff1857fddb98b82fd30a83f412c3558b965b5` passed one focused test, one focused race run, the containing package, `go vet .`, `go mod tidy -diff` and whitespace checks on Go 1.27.3 darwin/arm64. Fresh parallel Standards and Spec preparation each reported zero findings. RAS run `20261109T170457-977a2554110c84ea2125f449` dispatched all four configured reviewers; three completed and approved, Fable hit its provider usage limit, and the configured quorum was satisfied with zero findings. No fix verification or replacement review was indicated. The rebased patch was byte-identical to the reviewed patch, with unchanged native source/fixture and review context; the prior reviews remained applicable while exact-head local/hosted certification was refreshed.
+
+All 17 applicable hosted jobs and all five workflows succeeded on attempt 3 at that exact head before the guarded squash merge against unchanged main `5adf0d65a697eda0674dd31b1f191b020e229f11`. The [unit workflow for PR #1287](https://github.com/the-sarge/quic-go-fast/actions/runs/42671480045/attempts/3) includes successful macOS Go 1.26.10 execution. Two prior GitHub internal-server-error attempts remain retained; their partial or absent jobs were not treated as certification. The [post-mitigation execution direction for issue #1286](https://github.com/the-sarge/quic-go-fast/issues/1286#issuecomment-6748675956) and [serialized integration grant for issue #1286](https://github.com/the-sarge/quic-go-fast/issues/1286#issuecomment-6748932353) preserve the bounded recovery path. The product merge has the certified candidate's exact tree.
+
+### Decisions
+
+The [verified brief for issue #1286](https://github.com/the-sarge/quic-go-fast/issues/1286#issuecomment-6745757661) and [exact delegated plan approval for issue #1286](https://github.com/the-sarge/quic-go-fast/issues/1286#issuecomment-6746079766) retain the captured assertion failure and source-supported stale-hint counterexample as the initial signal. No failing scheduler trace, production race, lost result, deterministic parked-state oracle or exhaustive stability claim was established. The independent API-test context repair in [issue #1288](https://github.com/the-sarge/quic-go-fast/issues/1288), [product PR #1289](https://github.com/the-sarge/quic-go-fast/pull/1289) and [journal PR #1290](https://github.com/the-sarge/quic-go-fast/pull/1290) supplied this repair's current base without widening its one-site scope.
+
+### Next
+
+At this entry's timestamp the product is merged and this separate journal lifecycle is active. Root retains shared issue/task reconciliation. [Program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646), [native parent #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) and [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) remain the live frontier views. This standalone maintained-test repair changes no audited-slice count, reopens no completed N3 #1202 work and does not discharge [R17 #1037](https://github.com/the-sarge/quic-go-fast/issues/1037) / [PR #1284](https://github.com/the-sarge/quic-go-fast/pull/1284), [R18 #1038](https://github.com/the-sarge/quic-go-fast/issues/1038) or the separate runtime repair [issue #1285](https://github.com/the-sarge/quic-go-fast/issues/1285).
