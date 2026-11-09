@@ -30,6 +30,7 @@ type localPacketSender interface {
 	reserveBuffer(protocol.ByteCount) localBufferReservation
 	canSoftwareSegment() bool
 	softwarePacketRoom() bool
+	finishPrefixWhenNativeEmpty() bool
 	drain()
 	sendClose(*packetBuffer, protocol.ECN) error
 	sendPathClose(*packetBuffer, protocol.ECN, *pathRoute) error

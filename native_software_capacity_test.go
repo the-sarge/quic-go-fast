@@ -45,9 +45,16 @@ func TestNativeSoftwarePhysicalWindowUsesNaturalGrouping(t *testing.T) {
 		warmNativeSoftwareRecovery(t, tc, sender)
 		socket.hold = nativeProbeHoldAll
 		queueNativeSoftwareStream(t, tc.conn)
-		result := tc.conn.emission.advanceForPlatform(monotime.Now(), false, true)
-		require.NoError(t, result.err)
-		sender.finish()
+		var result emissionResult
+		for range len(sender.records) + 1 {
+			result = tc.conn.emission.advanceForPlatform(monotime.Now(), false, true)
+			require.NoError(t, result.err)
+			sender.finish() // normal emission ends every actual opportunity
+			if !result.retry {
+				break
+			}
+		}
+		require.False(t, result.retry, "existing policy or canonical records bound these real retries")
 		var packets, datagrams, buffers, records int
 		for i := range sender.records {
 			r := &sender.records[i]
@@ -64,7 +71,8 @@ func TestNativeSoftwarePhysicalWindowUsesNaturalGrouping(t *testing.T) {
 		require.Greater(t, datagrams, endpointBatch, "available physical storage is not a separate packet-equivalent budget")
 		require.Equal(t, packets, datagrams, "each short-header datagram was immediately registered")
 		require.EqualValues(t, packets+3*endpointBatch, tc.conn.connStats.PacketsSent.Load())
-		require.Equal(t, 1, records, "one natural request retains its physical members")
+		require.Greater(t, records, 1, "an empty-supply prefix is followed by busy natural grouping")
+		require.LessOrEqual(t, records, len(sender.records))
 		require.Greater(t, buffers, records)
 		// Real SendMode may stop on a partial final buffer. Its decision is
 		// retained; storage density is not permission to bypass congestion.

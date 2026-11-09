@@ -85,6 +85,7 @@ func (e *packetEmission) withSoftwareSegments(now monotime.Time) (result emissio
 			return result
 		}
 		more := batch.add(receipt.size, receipt.frames) && batch.fits(buf.Len(), gsoPacketSendLimit(size))
+		resourceFull := !more && receipt.size == size // full-size stops use the existing byte/segment bound
 		if !more {
 			flush()
 		}
@@ -108,6 +109,16 @@ func (e *packetEmission) withSoftwareSegments(now monotime.Time) (result emissio
 		if e.policy.emissionReceivePending() {
 			flush()
 			result.stop, result.deadline = emissionReceivePending, deadlineSendImmediately
+			return result
+		}
+		if resourceFull && e.local.finishPrefixWhenNativeEmpty() {
+			// Finish can settle callbacks. Return through the current receiver;
+			// no earlier packet-policy observation authorizes another pack.
+			if e.local != nil && !e.local.softwarePacketRoom() {
+				result.stop, result.available = emissionQueueFull, e.queue.Available()
+			} else {
+				result.retry = true
+			}
 			return result
 		}
 	}

@@ -38,21 +38,37 @@ func TestNativeSoftwareNaturalTurnGroupsBeforeAdmission(t *testing.T) {
 		manager.EXPECT().Get1RTTSealer().Return(sealer, nil).AnyTimes()
 		c.emission.packer.cryptoSetup = manager
 		resetEntered, releaseReset := make(chan struct{}), make(chan struct{})
+		busyEntered, releaseBusy := make(chan struct{}), make(chan struct{})
+		var busyOnce sync.Once
+		resets := 0
 		var once sync.Once
 		var sent [][]byte
 		endpoint := startNativeEndpoint(endpointTestNative{
 			send: func(data []byte) (int, error) {
+				if bytes.Equal(data, []byte("busy service")) {
+					return len(data), nil
+				}
 				sent = append(sent, bytes.Clone(data))
 				return len(data), nil
 			},
 			deadline: func(deadline time.Time) error {
-				if deadline.IsZero() {
+				if !deadline.IsZero() {
+					busyOnce.Do(func() { close(busyEntered); <-releaseBusy })
+					return nil
+				}
+				resets++
+				if resets == 2 {
 					once.Do(func() { close(resetEntered); <-releaseReset })
 				}
 				return nil
 			},
 		}, 100*time.Millisecond, nil)
 		t.Cleanup(func() {
+			select {
+			case <-releaseBusy:
+			default:
+				close(releaseBusy)
+			}
 			select {
 			case <-releaseReset:
 			default:
@@ -63,6 +79,10 @@ func TestNativeSoftwareNaturalTurnGroupsBeforeAdmission(t *testing.T) {
 		require.NoError(t, c.useNativeOrdinary(endpoint, nativeProbePeer, packetInfo{}))
 		sender := c.emission.local.(*nativeOrdinarySender)
 		t.Cleanup(sender.Close)
+		busy, err := endpoint.attach(sender.participant.id ^ (uint64(1) << 63))
+		require.NoError(t, err)
+		require.NoError(t, endpoint.offer(busy, 0, endpointTestRequest(busy.id, "busy service")))
+		<-busyEntered // an actual current deadline borrow, not an invented busy flag
 		observed := false
 		c.emission.policy = nativeNaturalTurnPolicy{emissionPolicy: c, inspect: func() {
 			for i := range sender.records {
@@ -113,6 +133,7 @@ func TestNativeSoftwareNaturalTurnGroupsBeforeAdmission(t *testing.T) {
 		}
 		require.Len(t, expected, r.count)
 		sender.finish()
+		close(releaseBusy)
 		<-resetEntered
 		synctest.Wait()
 		require.Equal(t, expected, sent)

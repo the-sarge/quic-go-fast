@@ -450,6 +450,16 @@ func (e *nativeEndpoint) do(f func(*endpointState)) {
 	e.unlock()
 }
 
+// nativeWorkEmpty observes canonical native supply, not admission or serviceability.
+// Even a published return stays busy until the existing owner reconciles current.
+func (e *nativeEndpoint) nativeWorkEmpty(p *endpointParticipant) bool {
+	e.mutex.Lock()
+	s := e.state
+	empty := !s.sealed && !s.faulted && !s.terminal && s.valid(p) && !p.draining && s.current == nil && len(s.queue) == 0
+	e.mutex.Unlock()
+	return empty
+}
+
 func (e *nativeEndpoint) notifyProgress() {
 	select {
 	case e.progress <- struct{}{}:

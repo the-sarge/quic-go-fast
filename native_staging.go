@@ -367,3 +367,17 @@ func (request endpointRequest) releasePayload() {
 		member.credit.complete()
 	}
 }
+
+// finishPrefixWhenNativeEmpty reports only this call's actual finish action.
+// The query grants nothing, and finish runs after endpoint control is released.
+func (s *nativeOrdinarySender) finishPrefixWhenNativeEmpty() bool {
+	r := s.pending
+	if s.closed || s.drained || s.err != nil || r == nil || r.state != ordinaryBuilding || len(r.members) == 0 || r.count != r.memberEnd() || !s.canSoftwareSegment() {
+		return false
+	}
+	if !r.participant.endpoint.nativeWorkEmpty(r.participant) {
+		return false
+	}
+	s.finish()
+	return true
+}
