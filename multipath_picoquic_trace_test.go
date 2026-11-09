@@ -4,8 +4,11 @@ package quic
 
 import (
 	"context"
+	"errors"
+	"slices"
 	"sync"
 
+	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/qlog"
 	"github.com/quic-go/quic-go/qlogwriter"
 )
@@ -17,6 +20,88 @@ type matrixPathTraffic struct {
 
 type matrixReplayEvidence struct {
 	Decoded, Duplicate, UnknownCID, KeysUnavailable uint64
+}
+
+type matrixCIDTransmission struct {
+	PacketNumber protocol.PacketNumber
+	Sequence     uint64
+}
+
+type matrixCIDReceipt struct {
+	sent        []matrixCIDTransmission
+	acks        []qlog.AckFrame
+	ranges      int
+	retirePrior uint64
+	witness     *matrixCIDTransmission
+	err         error
+}
+
+func (r *matrixCIDReceipt) record(event qlogwriter.Event) {
+	if r.err != nil {
+		return
+	}
+	switch e := event.(type) {
+	case qlog.PacketSent:
+		if e.Path == nil || e.Path.PathID != 0 || e.Header.PacketType != qlog.PacketType1RTT || e.Header.PacketNumber == protocol.InvalidPacketNumber {
+			return
+		}
+		for _, frame := range e.Frames {
+			cid, ok := frame.Frame.(*qlog.PathNewConnectionIDFrame)
+			if !ok || cid.PathID != 2 {
+				continue
+			}
+			r.retirePrior = max(r.retirePrior, cid.RetirePriorTo)
+			if r.witness != nil {
+				if r.witness.Sequence < r.retirePrior {
+					r.err = errors.New("CID2 retirement invalidated receipt")
+				}
+				continue
+			}
+			candidate := matrixCIDTransmission{PacketNumber: e.Header.PacketNumber, Sequence: cid.SequenceNumber}
+			if slices.Contains(r.sent, candidate) {
+				continue
+			}
+			if len(r.sent) == 64 {
+				r.err = errors.New("CID2 receipt exceeded 64 transmissions")
+				return
+			}
+			r.sent = append(r.sent, candidate)
+		}
+	case qlog.PacketReceived:
+		if r.witness != nil || e.Path == nil || e.Path.PathID != 0 || e.Header.PacketType != qlog.PacketType1RTT {
+			return
+		}
+		for _, frame := range e.Frames {
+			ack, ok := frame.Frame.(*qlog.AckFrame)
+			if !ok || ack.PathID != 0 || len(ack.AckRanges) == 0 {
+				continue
+			}
+			if r.ranges+len(ack.AckRanges) > 256 {
+				r.err = errors.New("CID2 receipt exceeded 256 ACK ranges")
+				return
+			}
+			copied := *ack
+			copied.AckRanges = slices.Clone(ack.AckRanges)
+			r.acks = append(r.acks, copied)
+			r.ranges += len(copied.AckRanges)
+		}
+	}
+	if r.witness != nil {
+		return
+	}
+	// Either recorder callback may arrive first. Only a positive join of typed
+	// path-zero application-space facts establishes this fixture prerequisite.
+	for _, candidate := range r.sent {
+		if candidate.Sequence < r.retirePrior {
+			continue
+		}
+		for _, ack := range r.acks {
+			if ack.AcksPacket(candidate.PacketNumber) {
+				r.witness = &candidate
+				return
+			}
+		}
+	}
 }
 
 // The existing qlog event owner supplies decoded identities. This recorder
@@ -31,6 +116,7 @@ type matrixTrace struct {
 	acks           map[uint64]uint64
 	replay         map[int]matrixReplayEvidence
 	changed        chan struct{}
+	cidReceipt     *matrixCIDReceipt
 }
 
 func newMatrixTrace() *matrixTrace {
@@ -47,6 +133,9 @@ func (m *matrixTrace) tracer(context.Context, bool, ConnectionID) qlogwriter.Tra
 func (m *matrixTrace) RecordEvent(event qlogwriter.Event) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.cidReceipt != nil {
+		m.cidReceipt.record(event)
+	}
 	var path *qlog.PathIdentity
 	var header qlog.PacketHeader
 	var frames []qlog.Frame
@@ -146,6 +235,35 @@ func (m *matrixTrace) wait(ctx context.Context, ready func() bool) error {
 		}
 	}
 	return nil
+}
+
+func (m *matrixTrace) cidReceiptStatus() (matrixCIDTransmission, bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.cidReceipt == nil {
+		return matrixCIDTransmission{}, false, errors.New("CID2 receipt is disabled")
+	}
+	if m.cidReceipt.err != nil {
+		return matrixCIDTransmission{}, false, m.cidReceipt.err
+	}
+	if m.cidReceipt.witness == nil {
+		return matrixCIDTransmission{}, false, nil
+	}
+	return *m.cidReceipt.witness, true, nil
+}
+
+func (m *matrixTrace) waitCIDReceipt(ctx context.Context) (matrixCIDTransmission, error) {
+	for {
+		witness, ready, err := m.cidReceiptStatus()
+		if err != nil || ready {
+			return witness, err
+		}
+		select {
+		case <-m.changed:
+		case <-ctx.Done():
+			return matrixCIDTransmission{}, ctx.Err()
+		}
+	}
 }
 
 func (m *matrixTrace) replayEvidence(length int) matrixReplayEvidence {

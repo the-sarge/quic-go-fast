@@ -56,7 +56,7 @@ func matrixTransport(t *testing.T, lastIPByte byte, trace *matrixTrace) *Transpo
 	return tr
 }
 
-func newMatrixSession(t *testing.T, role string, negotiated bool) *matrixSession {
+func newMatrixSession(t *testing.T, role string, negotiated, cidReceipt bool) *matrixSession {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	t.Cleanup(cancel)
@@ -67,6 +67,9 @@ func newMatrixSession(t *testing.T, role string, negotiated bool) *matrixSession
 	require.NoError(t, err)
 	roots, leaf := writeSmokeCertificates(t, dir)
 	trace := newMatrixTrace()
+	if cidReceipt {
+		trace.cidReceipt = &matrixCIDReceipt{}
+	}
 	s := &matrixSession{t: t, ctx: ctx, role: role, dir: dir, trace: trace, primary: matrixTransport(t, 1, trace)}
 	conf := &Config{Versions: []Version{Version1}, EnableDatagrams: true, MaxIdleTimeout: 10 * time.Second, Tracer: s.trace.tracer}
 	require.NoError(t, conf.ConfigureMultipathV1(true, 2, "primary-backup"))
@@ -188,6 +191,103 @@ func (s *matrixSession) open(id uint32) *Path {
 	return s.path(id)
 }
 
+// Only the independent-server replacement example conditions CID receipt
+// before delivering the new tuple. It makes no arbitrary-reordering claim.
+func (s *matrixSession) openReplacementWithCIDReceipt() {
+	s.t.Helper()
+	transport := matrixTransport(s.t, 3, s.trace)
+	local := transport.Conn.LocalAddr().(*net.UDPAddr)
+	payload := append([]byte(nil), local.IP.To4()...)
+	payload = binary.BigEndian.AppendUint16(payload, uint16(local.Port))
+	require.Equal(s.t, []byte("OK"), s.exchange('G', 2, payload))
+	ctx, cancel := context.WithCancelCause(s.ctx)
+	type openResult struct {
+		path *Path
+		err  error
+	}
+	result := make(chan openResult, 1)
+	stopped := make(chan struct{})
+	go func() {
+		defer close(stopped)
+		path, err := s.conn.OpenPathV1(ctx, transport, s.remote)
+		if err != nil {
+			cancel(err)
+		}
+		result <- openResult{path: path, err: err}
+	}()
+	var opened openResult
+	joined := false
+	defer func() {
+		cancel(nil)
+		if !joined {
+			opened = <-result
+		}
+		<-stopped
+		s.t.Logf("replacement V1 caller joined: %v", opened.err)
+	}()
+	for {
+		_, ready, err := s.trace.cidReceiptStatus()
+		require.NoError(s.t, err)
+		if ready {
+			break
+		}
+		select {
+		case opened = <-result:
+			joined = true
+			require.NoError(s.t, opened.err)
+		case <-s.trace.changed:
+		case <-ctx.Done():
+			require.NoError(s.t, context.Cause(ctx))
+		}
+	}
+	require.NoError(s.t, context.Cause(ctx))
+	witness, ready, err := s.trace.cidReceiptStatus()
+	require.NoError(s.t, err)
+	require.True(s.t, ready)
+	s.t.Logf("CID2 processing receipt: path-zero 1-RTT packet %d sequence %d", witness.PacketNumber, witness.Sequence)
+	response, err := s.releaseTupleGate(ctx)
+	require.NoError(s.t, err)
+	require.Equal(s.t, []byte("OK"), response)
+	if !joined {
+		opened = <-result
+		joined = true
+	}
+	require.NoError(s.t, opened.err)
+	id, err := opened.path.PathIDV1()
+	require.NoError(s.t, err)
+	require.Equal(s.t, uint32(2), id)
+	s.path(2)
+}
+
+func (s *matrixSession) releaseTupleGate(ctx context.Context) ([]byte, error) {
+	stream, err := s.conn.OpenStreamSync(ctx)
+	if err != nil {
+		return nil, err
+	}
+	canceled := make(chan struct{})
+	stop := context.AfterFunc(ctx, func() {
+		stream.CancelRead(0)
+		stream.CancelWrite(0)
+		close(canceled)
+	})
+	defer func() {
+		if !stop() {
+			<-canceled
+		}
+	}()
+	deadline, _ := ctx.Deadline()
+	if err := stream.SetDeadline(deadline); err != nil {
+		return nil, err
+	}
+	if _, err := stream.Write([]byte{'g', 2}); err != nil {
+		return nil, err
+	}
+	if err := stream.Close(); err != nil {
+		return nil, err
+	}
+	return io.ReadAll(stream)
+}
+
 func (s *matrixSession) prefer(id uint32) {
 	s.t.Helper()
 	require.NoError(s.t, s.path(id).SetLocalUseV1("active"))
@@ -256,7 +356,7 @@ func TestPicoquicMultipathMatrix(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			for _, role := range []string{"client", "server"} {
 				t.Run(role, func(t *testing.T) {
-					s := newMatrixSession(t, role, test.name != "absent-negotiation")
+					s := newMatrixSession(t, role, test.name != "absent-negotiation", test.name == "abandon-reopen-late-feedback" && role == "client")
 					test.run(s)
 					s.finish()
 				})
@@ -388,7 +488,11 @@ func matrixAbandonReopen(s *matrixSession) {
 	require.Positive(s.t, heldSize, "the peer retained one opaque datagram")
 	s.prefer(0)
 	require.NoError(s.t, old.AbandonV1(0))
-	s.open(2)
+	if s.role == "client" {
+		s.openReplacementWithCIDReceipt()
+	} else {
+		s.open(2)
+	}
 	s.prefer(2)
 	s.echo(2)
 	before := s.trace.replayEvidence(heldSize)

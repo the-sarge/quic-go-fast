@@ -40,6 +40,168 @@ func TestPicoquicMatrixAwaitsTraceConsumption(t *testing.T) {
 	})
 }
 
+func TestPicoquicMatrixCIDReceipt(t *testing.T) {
+	sent := func(pn protocol.PacketNumber, sequence, retire uint64) qlog.PacketSent {
+		return qlog.PacketSent{Header: qlog.PacketHeader{PacketType: qlog.PacketType1RTT, PacketNumber: pn}, Path: &qlog.PathIdentity{PathID: 0}, Frames: []qlog.Frame{{Frame: &qlog.PathNewConnectionIDFrame{PathID: 2, SequenceNumber: sequence, RetirePriorTo: retire}}}}
+	}
+	ack := func(pn protocol.PacketNumber) qlog.PacketReceived {
+		return qlog.PacketReceived{Header: qlog.PacketHeader{PacketType: qlog.PacketType1RTT}, Path: &qlog.PathIdentity{PathID: 0}, Frames: []qlog.Frame{{Frame: &qlog.AckFrame{AckRanges: []qlog.AckRange{{Smallest: pn, Largest: pn}}}}}}
+	}
+	trace := func() *matrixTrace {
+		m := newMatrixTrace()
+		m.cidReceipt = &matrixCIDReceipt{}
+		return m
+	}
+	for _, test := range []struct {
+		name   string
+		events []qlogwriter.Event
+		wantPN protocol.PacketNumber
+	}{
+		{"sent then ACK", []qlogwriter.Event{sent(100, 1, 0), ack(100)}, 100},
+		{"ACK recorder first", []qlogwriter.Event{ack(100), sent(100, 1, 0)}, 100},
+		{"later transmission acknowledged", []qlogwriter.Event{sent(100, 1, 0), sent(101, 1, 0), ack(101)}, 101},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			m := trace()
+			for _, event := range test.events {
+				m.RecordEvent(event)
+			}
+			witness, ready, err := m.cidReceiptStatus()
+			require.NoError(t, err)
+			require.True(t, ready)
+			require.Equal(t, test.wantPN, witness.PacketNumber)
+			require.Equal(t, uint64(1), witness.Sequence)
+		})
+	}
+	t.Run("unrelated evidence", func(t *testing.T) {
+		wrongTarget := ack(100)
+		wrongTarget.Frames[0].Frame.(*qlog.AckFrame).PathID = 1
+		wrongTarget.Frames[0].Frame.(*qlog.AckFrame).HasPathID = true
+		wrongCarrier := ack(100)
+		wrongCarrier.Path = &qlog.PathIdentity{PathID: 1}
+		handshake := ack(100)
+		handshake.Header.PacketType = qlog.PacketTypeHandshake
+		missingCarrier := ack(100)
+		missingCarrier.Path = nil
+		empty := ack(100)
+		empty.Frames[0].Frame.(*qlog.AckFrame).AckRanges = nil
+		gap := ack(99)
+		gap.Frames[0].Frame.(*qlog.AckFrame).AckRanges = []qlog.AckRange{{Smallest: 101, Largest: 101}, {Smallest: 99, Largest: 99}}
+		for _, event := range []qlogwriter.Event{wrongTarget, wrongCarrier, handshake, missingCarrier, empty, gap, qlog.PacketSent{Header: ack(100).Header, Path: ack(100).Path, Frames: ack(100).Frames}, qlog.PacketDropped{Header: ack(100).Header}} {
+			m := trace()
+			m.RecordEvent(sent(100, 1, 0))
+			m.RecordEvent(event)
+			_, ready, err := m.cidReceiptStatus()
+			require.NoError(t, err)
+			require.False(t, ready, "%T supplies no matching ACK", event)
+		}
+		for _, event := range []qlogwriter.Event{sent(100, 1, 0), ack(100)} {
+			m := trace()
+			m.RecordEvent(event)
+			_, ready, err := m.cidReceiptStatus()
+			require.NoError(t, err)
+			require.False(t, ready, "both observations are required")
+		}
+		m := trace()
+		other := sent(100, 1, 0)
+		other.Frames[0].Frame.(*qlog.PathNewConnectionIDFrame).PathID = 1
+		m.RecordEvent(other)
+		m.RecordEvent(ack(100))
+		_, ready, err := m.cidReceiptStatus()
+		require.NoError(t, err)
+		require.False(t, ready)
+		for _, alter := range []func(*qlog.PacketSent){
+			func(e *qlog.PacketSent) { e.Path = nil },
+			func(e *qlog.PacketSent) { e.Path.PathID = 1 },
+			func(e *qlog.PacketSent) { e.Header.PacketType = qlog.PacketTypeHandshake },
+			func(e *qlog.PacketSent) { e.Header.PacketNumber = protocol.InvalidPacketNumber },
+		} {
+			m := trace()
+			event := sent(100, 1, 0)
+			alter(&event)
+			m.RecordEvent(event)
+			m.RecordEvent(ack(100))
+			_, ready, err := m.cidReceiptStatus()
+			require.NoError(t, err)
+			require.False(t, ready)
+		}
+	})
+	t.Run("copied ACK and explicit path zero", func(t *testing.T) {
+		m := trace()
+		event := ack(100)
+		frame := event.Frames[0].Frame.(*qlog.AckFrame)
+		frame.HasPathID = true
+		m.RecordEvent(event)
+		frame.AckRanges[0] = qlog.AckRange{Smallest: 200, Largest: 200}
+		m.RecordEvent(sent(100, 1, 0))
+		_, ready, err := m.cidReceiptStatus()
+		require.NoError(t, err)
+		require.True(t, ready, "producer range reuse cannot change copied evidence")
+	})
+	t.Run("copied transmission and superseded candidate", func(t *testing.T) {
+		m := trace()
+		event := sent(100, 1, 0)
+		m.RecordEvent(event)
+		event.Frames[0].Frame.(*qlog.PathNewConnectionIDFrame).SequenceNumber = 200
+		m.RecordEvent(sent(101, 2, 2))
+		m.RecordEvent(ack(100))
+		_, ready, err := m.cidReceiptStatus()
+		require.NoError(t, err)
+		require.False(t, ready, "acknowledged old sequence is below the observed cutoff")
+		m.RecordEvent(ack(101))
+		witness, ready, err := m.cidReceiptStatus()
+		require.NoError(t, err)
+		require.True(t, ready)
+		require.Equal(t, uint64(2), witness.Sequence)
+	})
+	t.Run("retirement invalidates earlier witness", func(t *testing.T) {
+		m := trace()
+		m.RecordEvent(sent(100, 1, 0))
+		m.RecordEvent(ack(100))
+		m.RecordEvent(sent(101, 2, 2))
+		_, ready, err := m.cidReceiptStatus()
+		require.ErrorContains(t, err, "retirement")
+		require.False(t, ready)
+	})
+	t.Run("bounded receipt fails closed", func(t *testing.T) {
+		for _, kind := range []string{"transmissions", "ACK ranges"} {
+			m := trace()
+			limit := 64
+			if kind == "ACK ranges" {
+				limit = 256
+			}
+			for i := 0; i <= limit; i++ {
+				if kind == "transmissions" {
+					m.RecordEvent(sent(protocol.PacketNumber(i), 1, 0))
+				} else {
+					m.RecordEvent(ack(protocol.PacketNumber(i)))
+				}
+			}
+			m.RecordEvent(sent(100, 1, 0))
+			m.RecordEvent(ack(100))
+			_, ready, err := m.cidReceiptStatus()
+			require.ErrorContains(t, err, kind)
+			require.False(t, ready)
+		}
+	})
+	t.Run("waiter consumes receipt or cancellation", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			m := trace()
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+			defer cancel()
+			done := make(chan error, 1)
+			go func() { _, err := m.waitCIDReceipt(ctx); done <- err }()
+			m.RecordEvent(ack(100))
+			m.RecordEvent(sent(100, 1, 0))
+			require.NoError(t, <-done)
+			m = trace()
+			cancel()
+			_, err := m.waitCIDReceipt(ctx)
+			require.ErrorIs(t, err, context.Canceled)
+		})
+	})
+}
+
 func TestPicoquicMatrixAuthenticatedKeyTransition(t *testing.T) {
 	received := func(phase qlog.KeyPhaseBit) qlog.PacketReceived {
 		return qlog.PacketReceived{Header: qlog.PacketHeader{PacketType: qlog.PacketType1RTT, KeyPhaseBit: phase}, Path: &qlog.PathIdentity{PathID: 0}}

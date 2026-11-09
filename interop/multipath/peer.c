@@ -17,6 +17,7 @@
 #define COMMAND_LIMIT 65536
 #define STREAM_LIMIT 64
 #define ALPN "qgf-r17"
+#define TUPLE_GATE_LIMIT 64
 
 typedef struct {
     uint64_t id;
@@ -24,6 +25,12 @@ typedef struct {
     unsigned char bytes[COMMAND_LIMIT];
     int used;
 } command_t;
+
+typedef struct {
+    unsigned char bytes[PICOQUIC_MAX_PACKET_SIZE];
+    size_t length;
+    struct sockaddr_storage from, local;
+} gated_datagram_t;
 
 typedef struct {
     picoquic_quic_t *quic;
@@ -43,7 +50,19 @@ typedef struct {
     unsigned char datagram[1500];
     size_t datagram_length;
     uint64_t datagram_path;
+    int is_client, gate_armed, gate_released, gate_release_pending;
+    struct sockaddr_in gate_from;
+    size_t gate_count;
+    uint64_t gate_stream;
+    gated_datagram_t gate[TUPLE_GATE_LIMIT];
 } driver_t;
+
+static int gate_failed(driver_t *d, const char *reason)
+{
+    fprintf(stderr, "tuple gate failed: %s retained %zu\n", reason, d->gate_count);
+    d->failed = 1;
+    return -1;
+}
 
 static int same_address(const struct sockaddr_storage *a, const struct sockaddr_in *b)
 {
@@ -71,6 +90,22 @@ static int command(driver_t *d, uint64_t stream_id, const unsigned char *bytes, 
     uint64_t now = picoquic_get_quic_time(d->quic);
     fprintf(stdout, "command %c path %u\n", op, path);
     switch (op) {
+    case 'G':
+        if (d->is_client || path != 2 || length != 8 || d->gate_armed || d->gate_released) return gate_failed(d, "invalid arm");
+        d->gate_from.sin_family = AF_INET;
+        memcpy(&d->gate_from.sin_addr.s_addr, bytes + 2, 4);
+        memcpy(&d->gate_from.sin_port, bytes + 6, 2);
+        if (d->gate_from.sin_addr.s_addr != htonl(0x7f000003u) || d->gate_from.sin_port == 0) return gate_failed(d, "invalid replacement tuple");
+        d->gate_armed = 1;
+        fprintf(stdout, "tuple gate armed replacement port %u capacity %d\n", ntohs(d->gate_from.sin_port), TUPLE_GATE_LIMIT);
+        break;
+    case 'g':
+        if (d->is_client || path != 2 || length != 2 || !d->gate_armed || d->gate_release_pending) return gate_failed(d, "invalid release");
+        /* Do not reenter picoquic from its stream callback. The loop owns
+         * FIFO delivery and acknowledges this RPC only after it drains. */
+        d->gate_release_pending = 1;
+        d->gate_stream = stream_id;
+        return 0;
     case 'E':
         if (path != 255) ret = picoquic_set_stream_path_affinity(d->cnx, stream_id, path);
         if (ret == 0) return picoquic_add_to_stream(d->cnx, stream_id, bytes + 2, length - 2, 1);
@@ -233,6 +268,22 @@ static int run(driver_t *d)
 {
     uint64_t deadline = picoquic_get_quic_time(d->quic) + 30000000;
     while (!d->closed && !d->failed && picoquic_get_quic_time(d->quic) < deadline) {
+        if (d->gate_release_pending) {
+            fprintf(stdout, "tuple gate releasing %zu datagrams\n", d->gate_count);
+            for (size_t i = 0; i < d->gate_count; i++) {
+                gated_datagram_t *packet = &d->gate[i];
+                if (picoquic_incoming_packet(d->quic, packet->bytes, packet->length,
+                        (struct sockaddr *)&packet->from, (struct sockaddr *)&packet->local,
+                        0, 0, picoquic_get_quic_time(d->quic)) != 0) return gate_failed(d, "incoming packet API");
+            }
+            d->gate_armed = 0;
+            d->gate_released = 1;
+            d->gate_release_pending = 0;
+            const unsigned char ok[] = {'O', 'K'};
+            if (picoquic_add_to_stream(d->cnx, d->gate_stream, ok, sizeof(ok), 1) != 0) return gate_failed(d, "release response API");
+            fprintf(stdout, "tuple gate drained %zu datagrams; API statuses zero\n", d->gate_count);
+            d->gate_count = 0;
+        }
         uint8_t buffer[PICOQUIC_MAX_PACKET_SIZE];
         for (int batch = 0; batch < 64; batch++) {
             struct sockaddr_storage to = {0}, from = {0};
@@ -270,11 +321,21 @@ static int run(driver_t *d)
             if (!(fds[i].revents & POLLIN)) continue;
             struct sockaddr_storage from = {0};
             socklen_t from_length = sizeof(from);
-            ssize_t length = recvfrom(d->sockets[i], buffer, sizeof(buffer), 0, (struct sockaddr *)&from, &from_length);
+            ssize_t length = recvfrom(d->sockets[i], buffer, sizeof(buffer), d->gate_armed ? MSG_TRUNC : 0, (struct sockaddr *)&from, &from_length);
             if (length < 0) return -1;
+            if (d->gate_armed && (size_t)length > sizeof(buffer)) return gate_failed(d, "oversized or truncated datagram");
             int virtual_socket = d->rebind && i == 2 ? 1 : i;
             struct sockaddr_storage local = {0};
             memcpy(&local, &d->addresses[virtual_socket], sizeof(struct sockaddr_in));
+            if (d->gate_armed && i == 0 && same_address(&from, &d->gate_from)) {
+                if (length == 0 || d->gate_count == TUPLE_GATE_LIMIT) return gate_failed(d, "empty datagram or capacity overflow");
+                gated_datagram_t *packet = &d->gate[d->gate_count++];
+                memcpy(packet->bytes, buffer, (size_t)length);
+                packet->length = (size_t)length;
+                packet->from = from;
+                packet->local = local;
+                continue;
+            }
             uint64_t path = d->cnx ? packet_path(d, &local, &from) : 0;
             if (d->blackhole_zero && path == 0) continue;
             if (d->limit_mtu && path == 1 && length > 1280) { d->mtu_drops++; continue; }
@@ -295,6 +356,7 @@ int main(int argc, char **argv)
     driver_t *d = calloc(1, sizeof(*d));
     if (d == NULL) return 2;
     int client = strcmp(argv[1], "client") == 0;
+    d->is_client = client;
     for (int i = 0; i < 3; i++) {
         d->sockets[i] = socket(AF_INET, SOCK_DGRAM, 0);
         d->addresses[i].sin_family = AF_INET;
