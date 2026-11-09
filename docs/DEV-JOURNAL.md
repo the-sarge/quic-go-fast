@@ -9967,3 +9967,28 @@ Ordinary results retain actual E55 source `6de99b224cf0b3ca9fc738e7f06b113f19231
 ### Next
 
 At this entry’s timestamp the committed N implementation is 11/11 complete and the program 37/46. [R17 (#1037)](https://github.com/the-sarge/quic-go-fast/issues/1037) and [R18 (#1038)](https://github.com/the-sarge/quic-go-fast/issues/1038) are the next independent qualification frontier after lifecycle closure. [Endpoint parent (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193), [admission parent (#1141)](https://github.com/the-sarge/quic-go-fast/issues/1141) and [program tracker (#646)](https://github.com/the-sarge/quic-go-fast/issues/646) remain the live views; parents retain their independent criteria. [R19 (#1039)](https://github.com/the-sarge/quic-go-fast/issues/1039), [Q2 (#599)](https://github.com/the-sarge/quic-go-fast/issues/599) and [B1 (#1040)](https://github.com/the-sarge/quic-go-fast/issues/1040) retain activation holds.
+
+---
+
+## Moved saturation setup before the path API context (#1288) - 2026-11-09 12:48 EST
+
+**Main:** `b1a195400e61`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #1289 — Prepare full target before path API context](https://github.com/the-sarge/quic-go-fast/pull/1289) for [issue #1288](https://github.com/the-sarge/quic-go-fast/issues/1288) as `b1a195400e611b2c79b8c65b8c6fa26076f8c241`. `TestMultipathOpenRefusesTargetUnharmed` now constructs, initializes and fills the same real target before starting its existing ten-second API context. The unchanged six-line block moved; API/assertion order, context cancellation, full 4,096-participant capacity, activation and cleanup remain intact. No production code changed.
+
+### Validation
+
+Exact product head `69334939dc5df3dad762b0a88a6fcaa0058bedd3` passed the existing focused test, its focused race run, the containing package, `go vet ./...`, `go mod tidy -diff`, formatting and whitespace checks once. [The local receipt for PR #1289](https://github.com/the-sarge/quic-go-fast/pull/1289#issuecomment-6746950026) records commands and results. [Fresh parallel preparation for PR #1289](https://github.com/the-sarge/quic-go-fast/pull/1289#issuecomment-6747047451) returned zero Standards and zero Spec findings. [RAS and final local certification for PR #1289](https://github.com/the-sarge/quic-go-fast/pull/1289#issuecomment-6747122701) retain initial run `20261109T173916-daf5e9a3dc03420f7fc51430`: all four configured reviewers attempted, three completed, Fable hit its provider usage limit, and the configured minimum of two was satisfied. The synthesis had zero findings; no fix verification, replacement review or deferred item remained.
+
+[All 17 hosted checks for PR #1289](https://github.com/the-sarge/quic-go-fast/pull/1289#issuecomment-6747144684) succeeded on that exact head across the existing unit, integration, lint, cross-compilation and interop workflows. The [Ubuntu Go 1.26.10 unit job for PR #1289](https://github.com/the-sarge/quic-go-fast/actions/runs/42665852999/job/129329171982) passed ordinary and race execution. The base stayed `e03293e75f5cc1fdaeaa172421f53d46f20891b3` through the guarded squash merge; the product commit was verified on remote main. No CI watcher or same-head rerun was needed.
+
+### Decisions
+
+The [approved plan and delegated decision for issue #1288](https://github.com/the-sarge/quic-go-fast/issues/1288#issuecomment-6746856027) retain the actual [race failure on PR #1287](https://github.com/the-sarge/quic-go-fast/actions/runs/42660459625/job/129310315199) and independent source ordering defect as the initial signal. The captured log does not establish where time was spent. The supported outcome is that saturation preparation no longer consumes the operation context; no recovered historical timing cause, universal scheduling stability, changed cancellation precedence or qualification result is claimed.
+
+### Next
+
+At this entry's timestamp, the product is merged and its separate journal closure is pending. The coordinator will reconcile [issue #1288](https://github.com/the-sarge/quic-go-fast/issues/1288), its task mirror and the actual base for the separately scoped continuation correction [issue #1286](https://github.com/the-sarge/quic-go-fast/issues/1286) / [PR #1287](https://github.com/the-sarge/quic-go-fast/pull/1287). [Program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) and [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) remain the live frontier views; this standalone maintained-test repair changes no audited-slice count or public activation decision.
