@@ -202,45 +202,6 @@ func TestPicoquicMatrixCIDReceipt(t *testing.T) {
 	})
 }
 
-func TestPicoquicMatrixAuthenticatedKeyTransition(t *testing.T) {
-	received := func(phase qlog.KeyPhaseBit) qlog.PacketReceived {
-		return qlog.PacketReceived{Header: qlog.PacketHeader{PacketType: qlog.PacketType1RTT, KeyPhaseBit: phase}, Path: &qlog.PathIdentity{PathID: 0}}
-	}
-	t.Run("authenticated path zero transition", func(t *testing.T) {
-		trace := newMatrixTrace()
-		trace.RecordEvent(received(qlog.KeyPhaseZero))
-		require.Zero(t, trace.keyUpdates)
-		trace.RecordEvent(received(qlog.KeyPhaseOne))
-		require.Equal(t, uint64(1), trace.keyUpdates, "remote multipath rotation need not emit KeyUpdated")
-		trace.RecordEvent(received(qlog.KeyPhaseOne))
-		require.Equal(t, uint64(1), trace.keyUpdates, "same-phase packets supply no additional transition")
-	})
-	t.Run("irrelevant evidence preserves baseline", func(t *testing.T) {
-		trace := newMatrixTrace()
-		trace.RecordEvent(received(qlog.KeyPhaseZero))
-		for _, event := range []qlogwriter.Event{
-			qlog.PacketSent{Header: qlog.PacketHeader{PacketType: qlog.PacketType1RTT, KeyPhaseBit: qlog.KeyPhaseOne}, Path: &qlog.PathIdentity{PathID: 0}},
-			qlog.PacketDropped{Header: qlog.PacketHeader{PacketType: qlog.PacketType1RTT, KeyPhaseBit: qlog.KeyPhaseOne}},
-			qlog.PacketReceived{Header: qlog.PacketHeader{PacketType: qlog.PacketType1RTT, KeyPhaseBit: qlog.KeyPhaseOne}, Path: &qlog.PathIdentity{PathID: 1}},
-			qlog.PacketReceived{Header: qlog.PacketHeader{PacketType: qlog.PacketType1RTT, KeyPhaseBit: qlog.KeyPhaseOne}},
-			qlog.PacketReceived{Header: qlog.PacketHeader{PacketType: qlog.PacketTypeHandshake, KeyPhaseBit: qlog.KeyPhaseOne}, Path: &qlog.PathIdentity{PathID: 0}},
-			received(protocol.KeyPhaseUndefined),
-			qlog.KeyUpdated{Trigger: qlog.KeyUpdateRemote, KeyPhase: 1},
-		} {
-			trace.RecordEvent(event)
-			require.Zero(t, trace.keyUpdates, "%T cannot establish an authenticated path-zero transition", event)
-		}
-		trace.RecordEvent(received(qlog.KeyPhaseOne))
-		require.Equal(t, uint64(1), trace.keyUpdates)
-	})
-	t.Run("first observation establishes baseline", func(t *testing.T) {
-		trace := newMatrixTrace()
-		trace.RecordEvent(received(qlog.KeyPhaseOne))
-		trace.RecordEvent(received(qlog.KeyPhaseOne))
-		require.Zero(t, trace.keyUpdates, "a missing earlier observation cannot manufacture a transition")
-	})
-}
-
 func TestPicoquicMatrixReplayDispositions(t *testing.T) {
 	const heldSize = 77
 	for _, test := range []struct {

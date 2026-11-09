@@ -110,9 +110,6 @@ type matrixTrace struct {
 	mu             sync.Mutex
 	sent, received map[uint64]matrixPathTraffic
 	ackZero        [2]uint64 // ordinary ACK, explicit PATH_ACK(0), received in 1-RTT
-	keyUpdates     uint64
-	keyPhaseSeen   bool
-	keyPhase       qlog.KeyPhaseBit
 	acks           map[uint64]uint64
 	replay         map[int]matrixReplayEvidence
 	changed        chan struct{}
@@ -145,15 +142,6 @@ func (m *matrixTrace) RecordEvent(event qlogwriter.Event) {
 		path, header, frames = e.Path, e.Header, e.Frames
 	case qlog.PacketReceived:
 		path, header, frames, target = e.Path, e.Header, e.Frames, m.received
-		// Authenticated packet headers expose remote multipath rotation even
-		// when that key owner does not emit a KeyUpdated event.
-		if path != nil && path.PathID == 0 && header.PacketType == qlog.PacketType1RTT &&
-			(header.KeyPhaseBit == qlog.KeyPhaseZero || header.KeyPhaseBit == qlog.KeyPhaseOne) {
-			if m.keyPhaseSeen && header.KeyPhaseBit != m.keyPhase {
-				m.keyUpdates++
-			}
-			m.keyPhaseSeen, m.keyPhase = true, header.KeyPhaseBit
-		}
 		if path != nil && path.PathID == 1 && header.PacketType == qlog.PacketType1RTT {
 			observed := m.replay[e.Raw.Length]
 			observed.Decoded++

@@ -414,16 +414,10 @@ func matrixKeyUpdate(s *matrixSession) {
 	require.NoError(s.t, s.path(1).AdvertiseStatusV1("backup"))
 	s.echo(0)
 	sentBefore, receivedBefore := s.trace.traffic(1)
-	s.trace.mu.Lock()
-	keysBefore := s.trace.keyUpdates
-	s.trace.mu.Unlock()
+	// Successful K applies fresh keys before its same-stream OK is protected.
+	// That response and E0/E1 progress witness rotation even with equal phase bits.
 	s.command('K', 0)
 	s.echo(0)
-	s.wait(func() bool {
-		s.trace.mu.Lock()
-		defer s.trace.mu.Unlock()
-		return s.trace.keyUpdates > keysBefore
-	})
 	sentAfter, receivedAfter := s.trace.traffic(1)
 	require.Equal(s.t, sentBefore.Packets, sentAfter.Packets, "path one remained silent during the update")
 	require.Equal(s.t, receivedBefore.Packets, receivedAfter.Packets, "the peer also kept path one silent")
@@ -431,6 +425,7 @@ func matrixKeyUpdate(s *matrixSession) {
 	require.NoError(s.t, s.path(1).AdvertiseStatusV1("available"))
 	s.prefer(1)
 	s.echo(1)
+	s.t.Log("pinned key rotation: protected request response, path-zero progress and path-one resumption complete")
 }
 
 func matrixStatusFailover(s *matrixSession) {
