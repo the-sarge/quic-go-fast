@@ -260,3 +260,92 @@ func TestPicoquicMatrixMTUFinalLossObservation(t *testing.T) {
 	require.Equal(t, uint32(1278), size)
 	require.True(t, complete, "the owner completed discovery even though its last qlog update did not")
 }
+
+func TestPicoquicMatrixMTUProgress(t *testing.T) {
+	t.Run("already complete", func(t *testing.T) {
+		count, err := matrixMTUProgress(t.Context(), nil, func() bool { return true }, func() { t.Fatal("no progress is needed") })
+		require.NoError(t, err)
+		require.Zero(t, count)
+	})
+	t.Run("pending owner needs paced traffic without trace wake", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+			defer cancel()
+			start, previous := time.Now(), time.Now()
+			calls := 0
+			count, err := matrixMTUProgress(ctx, nil, func() bool { return calls == 3 }, func() {
+				require.GreaterOrEqual(t, time.Since(previous), matrixMTUProgressInterval)
+				previous = time.Now()
+				calls++
+			})
+			require.NoError(t, err)
+			require.Equal(t, 3, count)
+			require.Equal(t, 3*matrixMTUProgressInterval, time.Since(start))
+		})
+	})
+	t.Run("notifications cannot amplify traffic", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+			defer cancel()
+			changed := make(chan struct{}, 64)
+			for range cap(changed) {
+				changed <- struct{}{}
+			}
+			start := time.Now()
+			calls := 0
+			count, err := matrixMTUProgress(ctx, changed, func() bool { return calls > 0 }, func() {
+				require.GreaterOrEqual(t, time.Since(start), matrixMTUProgressInterval)
+				calls++
+			})
+			require.NoError(t, err)
+			require.Equal(t, 1, count)
+		})
+	})
+	t.Run("completion notification requires no pulse", func(t *testing.T) {
+		changed := make(chan struct{}, 1)
+		changed <- struct{}{}
+		checks := 0
+		count, err := matrixMTUProgress(t.Context(), changed, func() bool { checks++; return checks == 2 }, func() { t.Fatal("completed owner needs no traffic") })
+		require.NoError(t, err)
+		require.Zero(t, count)
+	})
+	t.Run("completed owner without notification needs no pulse", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+			defer cancel()
+			checks := 0
+			count, err := matrixMTUProgress(ctx, nil, func() bool { checks++; return checks == 2 }, func() { t.Fatal("timer must recheck completion first") })
+			require.NoError(t, err)
+			require.Zero(t, count)
+		})
+	})
+	t.Run("canceled context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		count, err := matrixMTUProgress(ctx, nil, func() bool { return false }, func() { t.Fatal("cancellation forbids progress") })
+		require.ErrorIs(t, err, context.Canceled)
+		require.Zero(t, count)
+	})
+	t.Run("deadline stops pending work", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 250*time.Millisecond)
+			defer cancel()
+			calls := 0
+			count, err := matrixMTUProgress(ctx, nil, func() bool { return false }, func() { calls++ })
+			require.ErrorIs(t, err, context.DeadlineExceeded)
+			require.Equal(t, 2, count)
+			require.Equal(t, count, calls)
+		})
+	})
+	t.Run("finite exchange cap", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 31*time.Second)
+			defer cancel()
+			calls := 0
+			count, err := matrixMTUProgress(ctx, nil, func() bool { return false }, func() { calls++ })
+			require.ErrorContains(t, err, "300 exchanges")
+			require.Equal(t, matrixMTUProgressLimit, count)
+			require.Equal(t, count, calls)
+		})
+	})
+}

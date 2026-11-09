@@ -326,6 +326,18 @@ func (s *matrixSession) mtuComplete(id protocol.PathID) bool {
 	return complete
 }
 
+func (s *matrixSession) finishMTU(id protocol.PathID) {
+	s.t.Helper()
+	payload := bytes.Repeat([]byte{byte(id), 'M', 'T', 'U'}, 64)
+	count, err := matrixMTUProgress(s.ctx, s.trace.changed, func() bool {
+		return s.mtuComplete(id)
+	}, func() {
+		require.Equal(s.t, payload, s.exchange('E', byte(id), payload))
+	})
+	require.NoError(s.t, err)
+	s.t.Logf("path %d MTU owner complete after %d progress exchanges", id, count)
+}
+
 func (s *matrixSession) finish() {
 	s.t.Helper()
 	require.NoError(s.t, s.conn.CloseWithError(0, "R17 case complete"))
@@ -540,10 +552,10 @@ func matrixMTUInvalid(s *matrixSession) {
 	s.datagram(1)
 	// The selected path owns the discovery timer; an idle backup's timer is
 	// suspended. Finish each path's discovery while it is selected.
-	s.wait(func() bool { return s.mtuComplete(1) })
+	s.finishMTU(1)
 	s.prefer(0)
 	s.echo(0)
-	s.wait(func() bool { return s.mtuComplete(0) })
+	s.finishMTU(0)
 	zero, err := s.path(0).StateV1()
 	require.NoError(s.t, err)
 	one, err := s.path(1).StateV1()

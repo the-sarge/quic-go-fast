@@ -7,6 +7,7 @@ import (
 	"errors"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/qlog"
@@ -289,4 +290,48 @@ func matrixMTUState(finder *mtuFinder) (uint32, bool) {
 		return 0, false
 	}
 	return uint32(finder.CurrentSize()), finder.done()
+}
+
+const (
+	matrixMTUProgressInterval = 100 * time.Millisecond
+	matrixMTUProgressLimit    = 300
+)
+
+func matrixMTUProgress(ctx context.Context, changed <-chan struct{}, complete func() bool, progress func()) (int, error) {
+	ticker := time.NewTicker(matrixMTUProgressInterval)
+	defer ticker.Stop()
+	count := 0
+	for {
+		if err := ctx.Err(); err != nil {
+			return count, err
+		}
+		done := complete()
+		if err := ctx.Err(); err != nil {
+			return count, err
+		}
+		if done {
+			return count, nil
+		}
+		if count == matrixMTUProgressLimit {
+			return count, errors.New("MTU progress exceeded 300 exchanges")
+		}
+		select {
+		case <-changed:
+		case <-ctx.Done():
+			return count, ctx.Err()
+		case <-ticker.C:
+			if err := ctx.Err(); err != nil {
+				return count, err
+			}
+			done := complete()
+			if err := ctx.Err(); err != nil {
+				return count, err
+			}
+			if done {
+				return count, nil
+			}
+			progress()
+			count++
+		}
+	}
 }
