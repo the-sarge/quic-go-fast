@@ -41,7 +41,7 @@ func matrixTransport(t *testing.T, lastIPByte byte, trace *matrixTrace) *Transpo
 	require.NoError(t, err)
 	tr := &Transport{Conn: socket, ConnectionIDLength: 8}
 	if trace != nil {
-		tr.Tracer = trace
+		tr.Tracer = matrixDiagnosticTransport(t, trace, socket.LocalAddr().String())
 	}
 	require.NoError(t, tr.ConfigureMultipathIOV1(100*time.Millisecond))
 	t.Cleanup(func() {
@@ -68,13 +68,14 @@ func newMatrixSession(t *testing.T, role string, negotiated bool) *matrixSession
 	roots, leaf := writeSmokeCertificates(t, dir)
 	trace := newMatrixTrace()
 	s := &matrixSession{t: t, ctx: ctx, role: role, dir: dir, trace: trace, primary: matrixTransport(t, 1, trace)}
-	conf := &Config{Versions: []Version{Version1}, EnableDatagrams: true, MaxIdleTimeout: 10 * time.Second, Tracer: s.trace.tracer}
+	conf := &Config{Versions: []Version{Version1}, EnableDatagrams: true, MaxIdleTimeout: 10 * time.Second, Tracer: matrixDiagnosticTracer(dir, s.trace)}
 	require.NoError(t, conf.ConfigureMultipathV1(true, 2, "primary-backup"))
 	cert, key, ca := filepath.Join(dir, "cert.pem"), filepath.Join(dir, "key.pem"), filepath.Join(dir, "ca.pem")
 	mp := "1"
 	if !negotiated {
 		mp = "0"
 	}
+	matrixDiagnosticPeerStatus(t, s)
 	if role == "client" {
 		reserved, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 		require.NoError(t, err)

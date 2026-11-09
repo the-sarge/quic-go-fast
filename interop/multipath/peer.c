@@ -3,6 +3,8 @@
  * two-byte command header is private fixture application data, not QUIC.
  */
 #include "picoquic.h"
+#include "picoquic_qlog.h"
+#include "picoquic_unified_log.h" /* Temporary [R17D1] same-pin private logger seam. */
 #include "picoquic_utils.h"
 
 #include <arpa/inet.h>
@@ -33,7 +35,7 @@ typedef struct {
     uint64_t paths[8];
     size_t path_count;
     command_t commands[STREAM_LIMIT];
-    int closed, failed, rebind, hold, limit_mtu, mtu_drops, blackhole_zero;
+    int closed, failed, rebind, hold, limit_mtu, mtu_drops, blackhole_zero, diagnostic;
     int open_pending;
     uint64_t open_stream;
     unsigned char held[PICOQUIC_MAX_PACKET_SIZE];
@@ -44,6 +46,29 @@ typedef struct {
     size_t datagram_length;
     uint64_t datagram_path;
 } driver_t;
+
+/* Temporary [R17D1] outer metadata. No QUIC bytes are interpreted here. */
+static void diagnostic_io(driver_t *d, const char *operation, int status, int socket_index,
+                          ssize_t length, const struct sockaddr_storage *local,
+                          const struct sockaddr_storage *remote, int saved_errno)
+{
+    if (!d->diagnostic) return;
+    char local_ip[INET_ADDRSTRLEN] = "?", remote_ip[INET_ADDRSTRLEN] = "?";
+    unsigned int local_port = 0, remote_port = 0;
+    if (local != NULL && local->ss_family == AF_INET) {
+        const struct sockaddr_in *v4 = (const struct sockaddr_in *)local;
+        (void)inet_ntop(AF_INET, &v4->sin_addr, local_ip, sizeof(local_ip));
+        local_port = ntohs(v4->sin_port);
+    }
+    if (remote != NULL && remote->ss_family == AF_INET) {
+        const struct sockaddr_in *v4 = (const struct sockaddr_in *)remote;
+        (void)inet_ntop(AF_INET, &v4->sin_addr, remote_ip, sizeof(remote_ip));
+        remote_port = ntohs(v4->sin_port);
+    }
+    fprintf(stderr, "[R17D1] time_us=%llu op=%s status=%d errno=%d socket=%d local=%s:%u remote=%s:%u length=%zd\n",
+            (unsigned long long)picoquic_get_quic_time(d->quic), operation, status, saved_errno,
+            socket_index, local_ip, local_port, remote_ip, remote_port, length);
+}
 
 static int same_address(const struct sockaddr_storage *a, const struct sockaddr_in *b)
 {
@@ -240,8 +265,11 @@ static int run(driver_t *d)
             int if_index = 0;
             picoquic_cnx_t *last = NULL;
             picoquic_connection_id_t log_id;
-            if (picoquic_prepare_next_packet(d->quic, picoquic_get_quic_time(d->quic), buffer, sizeof(buffer), &length,
-                                            &to, &from, &if_index, &log_id, &last) != 0) return -1;
+            int prepared = picoquic_prepare_next_packet(d->quic, picoquic_get_quic_time(d->quic), buffer, sizeof(buffer), &length,
+                                                        &to, &from, &if_index, &log_id, &last);
+            if (prepared != 0 || length != 0) diagnostic_io(d, "prepare", prepared, -1, (ssize_t)length, &from, &to, 0);
+            if (d->diagnostic && prepared == 0 && length > 0 && d->cnx != NULL && !d->closed) picoquic_log_flush(d->cnx);
+            if (prepared != 0) return -1;
             if (length == 0) break;
             int socket_index = 0;
             for (int i = 0; i < 3; i++) if (same_address(&from, &d->addresses[i])) socket_index = i;
@@ -258,29 +286,41 @@ static int run(driver_t *d)
                 continue;
             }
             if (d->limit_mtu && path == 1 && length > 1280) { d->mtu_drops++; continue; }
-            if (sendto(d->sockets[socket_index], buffer, length, 0,
-                       (struct sockaddr *)&to, sizeof(struct sockaddr_in)) != (ssize_t)length) return -1;
+            ssize_t sent = sendto(d->sockets[socket_index], buffer, length, 0,
+                                  (struct sockaddr *)&to, sizeof(struct sockaddr_in));
+            diagnostic_io(d, "sendto", sent == (ssize_t)length ? 0 : -1, socket_index, sent, &from, &to, sent < 0 ? errno : 0);
+            if (sent != (ssize_t)length) return -1;
         }
         struct pollfd fds[3];
         for (int i = 0; i < 3; i++) { fds[i].fd = d->sockets[i]; fds[i].events = POLLIN; fds[i].revents = 0; }
         int64_t delay = picoquic_get_next_wake_delay(d->quic, picoquic_get_quic_time(d->quic), 10000);
         int ready = poll(fds, 3, (int)((delay + 999) / 1000));
-        if (ready < 0 && errno != EINTR) return -1;
+        if (ready < 0 && errno != EINTR) {
+            diagnostic_io(d, "poll", ready, -1, 0, NULL, NULL, errno);
+            return -1;
+        }
         for (int i = 0; i < 3; i++) {
             if (!(fds[i].revents & POLLIN)) continue;
             struct sockaddr_storage from = {0};
             socklen_t from_length = sizeof(from);
             ssize_t length = recvfrom(d->sockets[i], buffer, sizeof(buffer), 0, (struct sockaddr *)&from, &from_length);
-            if (length < 0) return -1;
+            if (length < 0) {
+                diagnostic_io(d, "recvfrom", -1, i, length, NULL, &from, errno);
+                return -1;
+            }
             int virtual_socket = d->rebind && i == 2 ? 1 : i;
             struct sockaddr_storage local = {0};
             memcpy(&local, &d->addresses[virtual_socket], sizeof(struct sockaddr_in));
+            diagnostic_io(d, "recvfrom", 0, i, length, &local, &from, 0);
             uint64_t path = d->cnx ? packet_path(d, &local, &from) : 0;
             if (d->blackhole_zero && path == 0) continue;
             if (d->limit_mtu && path == 1 && length > 1280) { d->mtu_drops++; continue; }
-            if (picoquic_incoming_packet(d->quic, buffer, (size_t)length, (struct sockaddr *)&from,
-                                        (struct sockaddr *)&d->addresses[virtual_socket], 0, 0,
-                                        picoquic_get_quic_time(d->quic)) != 0) return -1;
+            int incoming = picoquic_incoming_packet(d->quic, buffer, (size_t)length, (struct sockaddr *)&from,
+                                                   (struct sockaddr *)&d->addresses[virtual_socket], 0, 0,
+                                                   picoquic_get_quic_time(d->quic));
+            diagnostic_io(d, "incoming", incoming, i, length, &local, &from, 0);
+            if (d->diagnostic && incoming == 0 && d->cnx != NULL && !d->closed) picoquic_log_flush(d->cnx);
+            if (incoming != 0) return -1;
         }
     }
     fprintf(stdout, "driver closed %d failed %d mtu-drops %d\n", d->closed, d->failed, d->mtu_drops);
@@ -294,6 +334,8 @@ int main(int argc, char **argv)
     setbuf(stdout, NULL);
     driver_t *d = calloc(1, sizeof(*d));
     if (d == NULL) return 2;
+    const char *diagnostic = getenv("QGF_R17_DIAGNOSTIC");
+    d->diagnostic = diagnostic != NULL && strcmp(diagnostic, "abandon-client-v1") == 0;
     int client = strcmp(argv[1], "client") == 0;
     for (int i = 0; i < 3; i++) {
         d->sockets[i] = socket(AF_INET, SOCK_DGRAM, 0);
@@ -307,6 +349,10 @@ int main(int argc, char **argv)
     d->quic = picoquic_create(1, client ? NULL : argv[4], client ? NULL : argv[5], argv[6], ALPN,
                               callback, d, NULL, NULL, NULL, picoquic_current_time(), NULL, NULL, NULL, 0);
     if (d->quic == NULL) return 2;
+    if (d->diagnostic) {
+        int qlog_status = picoquic_set_qlog(d->quic, ".");
+        fprintf(stderr, "[R17D1] qlog registration status=%d; standard buffering/close unchanged\n", qlog_status);
+    }
     picoquic_set_client_cert_verification_policy(d->quic, 1);
     picoquic_enable_path_callbacks_default(d->quic, 1);
     picoquic_tp_t tp = *picoquic_get_default_tp(d->quic);
@@ -325,7 +371,9 @@ int main(int argc, char **argv)
     }
     fprintf(stdout, "Waiting for packets.\n");
     int ret = run(d);
+    if (d->diagnostic) fprintf(stderr, "[R17D1] run returned=%d; freeing standard peer context\n", ret);
     picoquic_free(d->quic);
+    if (d->diagnostic) fprintf(stderr, "[R17D1] standard peer context freed\n");
     for (int i = 0; i < 3; i++) close(d->sockets[i]);
     free(d);
     return ret == 0 ? 0 : 1;
