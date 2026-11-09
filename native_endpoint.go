@@ -163,7 +163,7 @@ func (request endpointRequest) checkedSize(class endpointClass) (int, bool) {
 	return size, size <= 1<<20
 }
 
-func (request endpointRequest) snapshot() endpointRequest {
+func (request endpointRequest) snapshot() endpointRequest { //nolint:unused,nolintlint // Ordinary native callers are limited to darwin, linux and freebsd.
 	return request.snapshotInto(nil)
 }
 
@@ -452,7 +452,7 @@ func (e *nativeEndpoint) do(f func(*endpointState)) {
 
 // nativeWorkEmpty observes canonical native supply, not admission or serviceability.
 // Even a published return stays busy until the existing owner reconciles current.
-func (e *nativeEndpoint) nativeWorkEmpty(p *endpointParticipant) bool {
+func (e *nativeEndpoint) nativeWorkEmpty(p *endpointParticipant) bool { //nolint:unused,nolintlint // Ordinary native staging is limited to darwin, linux and freebsd.
 	e.mutex.Lock()
 	s := e.state
 	empty := !s.sealed && !s.faulted && !s.terminal && s.valid(p) && !p.draining && s.current == nil && len(s.queue) == 0

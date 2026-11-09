@@ -228,7 +228,7 @@ func (e *packetEmission) advance(now monotime.Time, gso bool) emissionResult {
 
 // The platform fact is explicit so the real constructor can be characterized on
 // another host without a mutable production override.
-func (e *packetEmission) advanceForPlatform(now monotime.Time, gso, linux bool) emissionResult {
+func (e *packetEmission) advanceForPlatform(now monotime.Time, gso, linux bool) emissionResult { //nolint:unparam,nolintlint // Production supplies the OS fact; tests exercise Linux construction on other hosts.
 	if e.pathCredit != nil && e.pathCredit.needsReceipt() {
 		gso = false // no accepted-prefix ambiguity for terminal control datagrams
 	}

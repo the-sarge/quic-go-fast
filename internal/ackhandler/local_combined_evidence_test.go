@@ -42,12 +42,27 @@ func TestE07LocalPTOCurrentEvidence(t *testing.T) {
 }
 
 func TestE07AcceptedECNPhases(t *testing.T) {
-	for _, active := range []bool{false, true} {
-		t.Run(map[bool]string{false: "unknown", true: "active"}[active], func(t *testing.T) {
-			newState := func() (*sentPacketHandler, []LocalCompletionToken, monotime.Time) {
+	for _, tc := range []struct {
+		name          string
+		active        bool
+		firstSkip     protocol.PacketNumber
+		packetNumbers []protocol.PacketNumber
+	}{
+		{"unknown/contiguous", false, 32, []protocol.PacketNumber{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}},
+		{"unknown/gap", false, 14, []protocol.PacketNumber{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15}},
+		{"active/contiguous", true, 32, []protocol.PacketNumber{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
+		{"active/gap", true, 15, []protocol.PacketNumber{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			active := tc.active
+			newState := func() (*sentPacketHandler, []LocalCompletionToken, monotime.Time, []protocol.PacketNumber) {
 				local, err := NewLocalSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, true, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger)
 				require.NoError(t, err)
 				h := local.(*sentPacketHandler)
+				// Match legal PN histories; ECN ranges must not merge across a skip.
+				// Any later randomly chosen skip lies beyond this finite fixture.
+				h.appDataPackets.pns.(*skippingPacketNumberGenerator).nextToSkip = tc.firstSkip
+				var packetNumbers []protocol.PacketNumber
 				now := monotime.Time(time.Second)
 				h.DropPackets(protocol.EncryptionInitial, now)
 				h.DropPackets(protocol.EncryptionHandshake, now)
@@ -56,6 +71,7 @@ func TestE07AcceptedECNPhases(t *testing.T) {
 					pn := h.PopPacketNumber(protocol.Encryption1RTT)
 					token, err := h.RegisterLocalPacket(PacketContext{}, now, pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, protocol.ECT0, 1200)
 					require.NoError(t, err)
+					packetNumbers = append(packetNumbers, pn)
 					return token
 				}
 				require.Equal(t, protocol.ECT0, h.ECNMode(true))
@@ -82,10 +98,12 @@ func TestE07AcceptedECNPhases(t *testing.T) {
 					require.Equal(t, ecnStateUnknown, h.ecnTracker.(*ecnTracker).state)
 					require.Equal(t, 2, h.local.ecn.testingPending)
 				}
-				return h, tokens[12:], returned
+				return h, tokens[12:], returned, packetNumbers
 			}
-			fast, tokens, returned := newState()
-			scalar, scalarTokens, scalarReturned := newState()
+			fast, tokens, returned, fastPNs := newState()
+			scalar, scalarTokens, scalarReturned, scalarPNs := newState()
+			require.Equal(t, tc.packetNumbers, fastPNs)
+			require.Equal(t, fastPNs, scalarPNs)
 			require.True(t, TryCompleteLocalAcceptedPackets(fast, tokens, returned))
 			for _, token := range scalarTokens {
 				require.NoError(t, scalar.CompleteLocalPacket(token, LocalPacketAccepted, scalarReturned))
