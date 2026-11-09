@@ -1343,6 +1343,9 @@ func (h *sentPacketHandler) numTrackedPackets() int {
 		root = h.pathRoot
 	}
 	count := root.localTrackedPackets()
+	if len(root.paths) == 0 {
+		return count
+	}
 	for _, path := range root.paths {
 		count += path.localTrackedPackets()
 	}

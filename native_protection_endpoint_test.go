@@ -100,7 +100,7 @@ func TestNativeProtectionEndpointRetriesReuseCiphertext(t *testing.T) {
 			defer request.releasePayload()
 			plan, buffer := plans[0], plans[0].buffer
 			request.members[0].nativeGSO = mode == "GSO EIO"
-			token := &endpointToken{request: request}
+			token := &endpointToken{request: &request}
 			if mode == "revoked after transform" {
 				var scratch handshake.PacketProtectionScratch
 				plan.protectAll(&scratch)
@@ -308,5 +308,6 @@ func TestNativeProtectionEndpointUnclaimedDisposal(t *testing.T) {
 // Direct writer fixtures supply their own scratch; production keeps one per writer.
 func writeEndpointRequest(native endpointNativeIO, token *endpointToken) endpointResult {
 	var scratch handshake.PacketProtectionScratch
-	return writeEndpointRequestWithScratch(native, token, &scratch)
+	var oobScratch [128]byte
+	return writeEndpointRequestWithScratch(native, token, &scratch, oobScratch[:0])
 }

@@ -27,7 +27,7 @@ func (e *nativeEndpoint) exchange(p *endpointParticipant, request *endpointReque
 		}
 		for _, i := range p.results {
 			results = append(results, s.records[i].result)
-			s.records[i] = endpointRecord{}
+			s.records[i].reset()
 			p.retained--
 			s.capacityGeneration++
 		}
@@ -92,7 +92,9 @@ func (s *nativeOrdinarySender) serviceParticipant(p *endpointParticipant) {
 			head.offered = true
 			if err == nil {
 				head.state = ordinaryEndpointOwned
-				head.request = endpointRequest{} // endpoint now owns the only payload reference
+				// Commit cloned the descriptors and OOB. Retain only cleared private
+				// backing; the endpoint now owns the only payload reference.
+				head.clearRequest()
 			} else if !errors.Is(err, errEndpointCapacity) {
 				s.settleLocal(head, err)
 			}
@@ -109,6 +111,42 @@ func (s *nativeOrdinarySender) serviceParticipant(p *endpointParticipant) {
 	}
 }
 
+// clearRequest runs after snapshot transfer, never on a refused Staged request.
+// Empty private backing carries no payload or authority.
+func (r *ordinaryLocalRecord) clearRequest() {
+	members := r.request.members
+	clear(members[:cap(members)])
+	r.request = endpointRequest{}
+	if cap(members) <= endpointBatch {
+		r.request.members = members[:0]
+	}
+}
+
+// freeRecord is called only at the existing final Free transitions, after all
+// terminal facts and callback-capable release/completion work return. Read the
+// headers here, not before callbacks: Close must never have its backing restored.
+func (s *nativeOrdinarySender) freeRecord(r *ordinaryLocalRecord) {
+	packets, members, requestMembers := r.packets, r.members, r.request.members
+	clear(packets[:cap(packets)])
+	clear(members[:cap(members)])
+	clear(requestMembers[:cap(requestMembers)])
+	*r = ordinaryLocalRecord{}
+	if s.closed {
+		return
+	}
+	// These cap empty-storage retention only. Construction and admission retain
+	// their original limits, and a larger allocation is simply discarded.
+	if cap(packets) <= endpointBatch*(maxGSOSegments+3) {
+		r.packets = packets[:0]
+	}
+	if cap(members) <= endpointBatch {
+		r.members = members[:0]
+	}
+	if cap(requestMembers) <= endpointBatch {
+		r.request.members = requestMembers[:0]
+	}
+}
+
 func (s *nativeOrdinarySender) settleLocal(r *ordinaryLocalRecord, err error) {
 	if r.state != ordinaryBuilding && r.state != ordinaryStaged {
 		return
@@ -117,7 +155,7 @@ func (s *nativeOrdinarySender) settleLocal(r *ordinaryLocalRecord, err error) {
 		if s.pending == r {
 			s.pending = nil
 		}
-		*r = ordinaryLocalRecord{}
+		s.freeRecord(r)
 		return
 	}
 	p := r.participant
@@ -143,7 +181,7 @@ func (s *nativeOrdinarySender) settleLocal(r *ordinaryLocalRecord, err error) {
 	if err != nil && !errors.Is(err, net.ErrClosed) && !errors.Is(err, errEndpointRevoked) && !errors.Is(err, os.ErrDeadlineExceeded) {
 		s.err = errors.Join(s.err, err)
 	}
-	*r = ordinaryLocalRecord{}
+	s.freeRecord(r)
 	s.connection.scheduleSending()
 }
 
@@ -266,11 +304,33 @@ func (s *nativeOrdinarySender) bufferRoom(route *pathRoute, capacity protocol.By
 
 // reserveBuffer checks the actual pool tier before destructive construction.
 // Reaching a request bound seals it without waiting for future work.
-func (s *nativeOrdinarySender) reserveBuffer(capacity protocol.ByteCount) bool {
+func (s *nativeOrdinarySender) reserveBuffer(capacity protocol.ByteCount) (result localBufferReservation) {
 	if s.pending != nil && (len(s.pending.members) == endpointBatch || s.pending.backing+capacity > 1<<20) {
 		s.finish()
+		result.finished = true
 	}
-	return !s.WouldBlock() && s.bufferRoom(s.route, capacity)
+	blocked, finished := s.wouldBlock()
+	result.finished = result.finished || finished
+	result.available = !blocked && s.bufferRoom(s.route, capacity)
+	return result
+}
+
+func (s *nativeOrdinarySender) canSoftwareSegment() bool {
+	return s.connection.handshakeConfirmed && s.generation == 1 && s.scalarPacketAllowance()
+}
+
+func (s *nativeOrdinarySender) scalarPacketAllowance() bool {
+	conn, ok := s.connection.conn.(*nativeOrdinaryConn)
+	// The underlying capability cannot turn false through this native writer:
+	// its EIO latch is separate. A replacement is excluded, as are routed paths.
+	return ok && s.switchGeneration == 0 && s.origin == s.participant && s.route == nil && s.connection.pathCredit == nil && s.connection.emission.bbr == nil && len(s.connection.emission.terminalReceipts) == 0 &&
+		!conn.sendConn.capabilities().GSO && !conn.writeState.gsoDisabled.Load()
+}
+
+// softwarePacketRoom must not seal an unhanded buffer. Actual pool capacity is
+// reserved before construction; handed members retain their charge until Free.
+func (s *nativeOrdinarySender) softwarePacketRoom() bool {
+	return !s.closed && !s.drained && s.err == nil && s.recovery.CanRegisterLocalPackets(1) && s.bufferRoom(s.route, 0)
 }
 
 func (s *nativeOrdinarySender) constructionIdentity(route *pathRoute) endpointIdentity {

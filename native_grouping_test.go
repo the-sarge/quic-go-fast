@@ -51,7 +51,7 @@ func TestNativeNaturalTurnGroupsRealEmission(t *testing.T) {
 
 func appendNativeGroupMember(t *testing.T, tc *testConnection, sender *nativeOrdinarySender, buf *packetBuffer, payload string, ecn protocol.ECN, metadata sendMetadata) {
 	t.Helper()
-	require.True(t, sender.reserveBuffer(buf.Cap()))
+	require.True(t, sender.reserveBuffer(buf.Cap()).available)
 	require.NoError(t, tc.conn.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte(payload)}))
 	_, err := tc.conn.emission.appendPacket(buf, 1200, false, ecn, monotime.Now())
 	require.NoError(t, err)
@@ -89,14 +89,18 @@ func TestNativeGroupBarriersAndBounds(t *testing.T) {
 					sender.useRoute(&pathRoute{})
 				case "tuple":
 					tc.conn.pathGeneration++
-					require.True(t, sender.reserveBuffer(protocol.MaxPacketBufferSize))
+					reservation := sender.reserveBuffer(protocol.MaxPacketBufferSize)
+					require.True(t, reservation.available)
+					require.True(t, reservation.finished)
 					require.NotSame(t, r, sender.pending, "tuple identity changes seal the old builder")
 				case "control":
 					appendNativeGroupMember(t, tc, sender, getPacketBuffer(), "control barrier", protocol.ECNNon, sendMetadata{handshake: true})
 				case "member bound":
 					require.True(t, sender.WouldBlock(), "path buffer bound prevents destructive construction")
 				case "backing bound":
-					require.True(t, sender.reserveBuffer(protocol.MaxCoalescedPacketBufferSize))
+					reservation := sender.reserveBuffer(protocol.MaxCoalescedPacketBufferSize)
+					require.True(t, reservation.available)
+					require.True(t, reservation.finished)
 					require.NotSame(t, r, sender.pending, "the next pool tier exceeds the first request's 1 MiB backing bound")
 				}
 				require.Equal(t, ordinaryEndpointOwned, r.state)
@@ -157,7 +161,7 @@ func TestNativeGroupPartialConstructionKeepsEarlierMembers(t *testing.T) {
 		tc, sender, socket := nativeProbeRecoveryConnection(t, "reno")
 		appendNativeGroupMember(t, tc, sender, getPacketBuffer(), "completed earlier member", protocol.ECNNon, sendMetadata{})
 		failed := getLargePacketBuffer()
-		require.True(t, sender.reserveBuffer(failed.Cap()))
+		require.True(t, sender.reserveBuffer(failed.Cap()).available)
 		require.NoError(t, tc.conn.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("registered failed-buffer prefix")}))
 		_, err := tc.conn.emission.appendPacket(failed, 1200, false, protocol.ECNNon, monotime.Now())
 		require.NoError(t, err)
@@ -198,7 +202,7 @@ func TestNativeGroupMixedMembersPreserveEarlierReceipt(t *testing.T) {
 			return len(data), nil
 		}
 		buf := getLargePacketBuffer()
-		require.True(t, sender.reserveBuffer(buf.Cap()))
+		require.True(t, sender.reserveBuffer(buf.Cap()).available)
 		var segment protocol.ByteCount
 		for range 2 {
 			require.NoError(t, tc.conn.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("same size")}))
@@ -262,7 +266,9 @@ func TestNativeGroupEpochBarrierOnAdmittedRoute(t *testing.T) {
 		appendNativeGroupMember(t, f.tc, sender, getPacketBuffer(), "old epoch", protocol.ECNNon, sendMetadata{})
 		old := sender.pending
 		sender.route.epoch = &responseEpoch{}
-		require.True(t, sender.reserveBuffer(protocol.MaxPacketBufferSize))
+		reservation := sender.reserveBuffer(protocol.MaxPacketBufferSize)
+		require.True(t, reservation.available)
+		require.True(t, reservation.finished)
 		require.Equal(t, ordinaryEndpointOwned, old.state)
 		require.NotSame(t, old, sender.pending)
 		sender.finish()

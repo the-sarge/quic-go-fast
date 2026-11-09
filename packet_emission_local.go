@@ -8,6 +8,13 @@ import (
 	"github.com/quic-go/quic-go/internal/protocol"
 )
 
+// localBufferReservation reports only this synchronous reservation's action.
+// finished never survives the call or duplicates a capacity owner.
+type localBufferReservation struct {
+	available bool
+	finished  bool
+}
+
 type localPacketSender interface {
 	sender
 	register(ackhandler.LocalCompletionToken, bool)
@@ -20,7 +27,9 @@ type localPacketSender interface {
 	routeUsable(*Transport) bool
 	reserveTarget(*Transport) error
 	finish()
-	reserveBuffer(protocol.ByteCount) bool
+	reserveBuffer(protocol.ByteCount) localBufferReservation
+	canSoftwareSegment() bool
+	softwarePacketRoom() bool
 	drain()
 	sendClose(*packetBuffer, protocol.ECN) error
 	sendPathClose(*packetBuffer, protocol.ECN, *pathRoute) error
@@ -103,7 +112,7 @@ func (e *packetEmission) localDeadline() monotime.Time {
 }
 
 func (e *packetEmission) reserveNativeBuffer(buf *packetBuffer) bool {
-	return e.local == nil || e.local.reserveBuffer(buf.Cap())
+	return e.local == nil || e.local.reserveBuffer(buf.Cap()).available
 }
 
 func (e *packetEmission) localPacketRoom() bool {

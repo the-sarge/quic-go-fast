@@ -311,13 +311,12 @@ func (h *sentPacketHandler) completeLocalAcceptedECN(reg *localRegistration) {
 		return
 	}
 	e.qualify(h, r)
-	// Failure clears record storage. Testing failure alone changes the tracker,
-	// not this ledger, and still requires the ordinary coalescing/recheck order.
+	// The closed accepted span reaches qualify's deferred testing recheck.
+	// Failure clears records; otherwise coalescing changes no testing input.
 	if e.failed {
 		return
 	}
 	e.records.coalesceAt(i)
-	e.recheckTesting(h)
 }
 
 func (e *localECNEvidence) releaseTest(h *sentPacketHandler, pn protocol.PacketNumber) {

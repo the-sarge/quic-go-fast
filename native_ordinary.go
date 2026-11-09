@@ -3,6 +3,7 @@
 package quic
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net"
@@ -11,6 +12,8 @@ import (
 	"slices"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/handshake"
@@ -198,23 +201,31 @@ func (e *nativeEndpoint) cancelGeneration(p *endpointParticipant, generation uin
 }
 
 func (s *nativeOrdinarySender) WouldBlock() bool {
+	blocked, _ := s.wouldBlock()
+	return blocked
+}
+
+// wouldBlock reports the actual finish action even if a callback reuses a record.
+func (s *nativeOrdinarySender) wouldBlock() (blocked, finished bool) {
 	if s.drained || s.closed || s.err != nil {
-		return true
+		return true, false
 	}
 	if !s.recovery.CanRegisterLocalPackets(1) || !s.bufferRoom(s.route, 0) {
+		finished = s.pending != nil
 		s.finish()
-		return true
+		return true, finished
 	}
 	if s.pending != nil {
 		identity := s.constructionIdentity(s.route)
 		identity.registration = s.pending.identity.registration
 		if identity == s.pending.identity && (len(s.pending.members) == 0 || s.pending.request.epoch == s.constructionEpoch()) {
-			return false
+			return false, false
 		}
 		s.finish()
+		finished = true
 	}
 	s.pending = s.reserve(s.route)
-	return s.pending == nil
+	return s.pending == nil, finished
 }
 
 // reserve holds connection-local capacity before destructive packing. It never
@@ -239,7 +250,10 @@ func (s *nativeOrdinarySender) reserve(route *pathRoute) *ordinaryLocalRecord {
 		s.sequence++
 		identity := s.constructionIdentity(route)
 		identity.registration = s.sequence
-		*record = ordinaryLocalRecord{state: ordinaryBuilding, endpoint: participant.endpoint, participant: participant, identity: identity, deadline: monotime.Now().Add(participant.endpoint.budget)}
+		*record = ordinaryLocalRecord{
+			state: ordinaryBuilding, endpoint: participant.endpoint, participant: participant, identity: identity, deadline: monotime.Now().Add(participant.endpoint.budget),
+			packets: record.packets, members: record.members, request: endpointRequest{members: record.request.members},
+		}
 		return record
 	}
 	return nil
@@ -344,15 +358,20 @@ func (s *nativeOrdinarySender) sendProtected(buffer *packetBuffer, segment uint1
 		panic("local packet handoff without reserved construction capacity")
 	}
 	destination, base, writeState := s.destination, s.oob, s.writeState
+	nativeGSO := s.nativeGSO
 	epoch := s.constructionEpoch()
 	routed := true
 	if route := s.route; route != nil {
 		destination, routed = nativeDestination(route.addr)
 		base, writeState = route.info.OOB(), &route.writeState
+	} else if conn, ok := s.connection.conn.(*nativeOrdinaryConn); ok {
+		// Packing geometry does not grant wire GSO. The existing connection
+		// capability owner also governs segmented buffers sent as scalar calls.
+		nativeGSO = nativeGSO && conn.sendConn.capabilities().GSO
 	}
-	member := endpointMember{buffer: buffer, protection: protection, oob: packetOOB(base, destination, ecn), gsoSize: segment, nativeGSO: s.nativeGSO, writeState: writeState, credit: metadata.credit}
+	member := endpointMember{buffer: buffer, protection: protection, oob: record.packetOOB(base, destination, ecn), gsoSize: segment, nativeGSO: nativeGSO, writeState: writeState, credit: metadata.credit}
 	if len(record.members) == 0 {
-		record.request = endpointRequest{identity: record.identity, destination: destination, deadline: record.deadline.ToTime(), epoch: epoch}
+		record.request = endpointRequest{identity: record.identity, destination: destination, deadline: record.deadline.ToTime(), epoch: epoch, members: record.request.members}
 	}
 	datagrams := member.datagrams()
 	packets := record.count - record.memberEnd()
@@ -372,6 +391,42 @@ func (s *nativeOrdinarySender) sendProtected(buffer *packetBuffer, segment uint1
 
 func (s *nativeOrdinarySender) packetOOB(ecn protocol.ECN) []byte {
 	return packetOOB(s.oob, s.destination, ecn)
+}
+
+func (r *ordinaryLocalRecord) packetOOB(base []byte, destination netip.AddrPort, ecn protocol.ECN) []byte {
+	if r.state != ordinaryBuilding || len(r.request.members) == 0 {
+		return packetOOB(base, destination, ecn)
+	}
+	previous := r.request.members[len(r.request.members)-1].oob
+	if len(previous) == 0 {
+		return packetOOB(base, destination, ecn)
+	}
+	space := 0
+	if ecn != protocol.ECNUnsupported {
+		if destination.Addr().Unmap().Is4() {
+			space = unix.CmsgSpace(ecnIPv4DataLen)
+		} else {
+			space = unix.CmsgSpace(4)
+		}
+	}
+	var scratch [oobBufferSize]byte
+	if space > len(scratch) || len(base) > len(scratch)-space {
+		return packetOOB(base, destination, ecn)
+	}
+	candidate := append(scratch[:0], base...)
+	if ecn != protocol.ECNUnsupported {
+		if destination.Addr().Unmap().Is4() {
+			candidate = appendIPv4ECNMsg(candidate, ecn)
+		} else {
+			candidate = appendIPv6ECNMsg(candidate, ecn)
+		}
+	}
+	// Only the current Building record owns this value. It stays immutable;
+	// endpoint admission still takes its independent snapshot.
+	if bytes.Equal(candidate, previous) {
+		return previous
+	}
+	return packetOOB(base, destination, ecn)
 }
 
 func packetOOB(base []byte, destination netip.AddrPort, ecn protocol.ECN) []byte {
@@ -695,7 +750,7 @@ func (s *nativeOrdinarySender) reconcileFailure(participant *endpointParticipant
 			s.completePacket(packet, outcome, monotime.Now(), false)
 		}
 		s.connection.pathCredit.noteOutcome(protocol.PathID(record.identity.path), record.identity.tuple, 0, record.datagrams, record.datagrams)
-		*record = ordinaryLocalRecord{}
+		s.freeRecord(record)
 	}
 }
 
@@ -751,6 +806,10 @@ func (s *nativeOrdinarySender) consumeResult(participant *endpointParticipant, t
 						s.droppedDatagrams++
 					}
 					s.completePacket(packet, outcome, result.returnedAt, isSendMsgSizeErr(result.err))
+					if s.closed {
+						// Close already cleared this record during the callback.
+						return
+					}
 				}
 			}
 			if credit := s.connection.pathCredit; credit != nil && credit.hasAdmission() {
@@ -772,8 +831,11 @@ func (s *nativeOrdinarySender) consumeResult(participant *endpointParticipant, t
 				s.droppedDatagrams++
 			}
 			s.completePacket(packet, ackhandler.LocalPacketUnsubmitted, monotime.Now(), false)
+			if s.closed {
+				return
+			}
 		}
-		*record = ordinaryLocalRecord{}
+		s.freeRecord(record)
 		break
 	}
 }

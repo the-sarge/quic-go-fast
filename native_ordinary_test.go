@@ -142,7 +142,9 @@ func TestNativeOrdinarySegmentPrefix(t *testing.T) {
 					}
 					e := startNativeEndpoint(ordinaryTestNative{endpointTestNative: socket, observe: func(oob []byte, destination netip.AddrPort) {
 						require.Equal(t, netip.MustParseAddrPort("1.2.3.4:4321"), destination)
-						if !nativeGSO || calls >= 2 {
+						if nativeGSO && calls < 2 {
+							require.Equal(t, appendUDPSegmentSizeMsg(bytes.Clone(info.OOB()), 1200), oob, "first attempt and EPERM retry preserve identical GSO metadata")
+						} else {
 							require.Equal(t, info.OOB(), oob, "segmented fallback preserves captured source metadata")
 						}
 					}}, 100*time.Millisecond, nil)

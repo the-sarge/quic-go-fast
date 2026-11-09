@@ -116,15 +116,16 @@ func TestNativeProtectionEmissionReservationBeforeWriter(t *testing.T) {
 	require.True(t, plan.freeze())
 	construction.plan = nil
 	defer plan.release()
-	token := &endpointToken{request: endpointRequest{members: []endpointMember{{buffer: buffer, protection: plan, writeState: f.sender.writeState}}, deadline: time.Now().Add(time.Minute), destination: f.sender.destination}}
+	token := &endpointToken{request: &endpointRequest{members: []endpointMember{{buffer: buffer, protection: plan, writeState: f.sender.writeState}}, deadline: time.Now().Add(time.Minute), destination: f.sender.destination}}
 	var sent []byte
 	var scratch handshake.PacketProtectionScratch
+	var oobScratch [128]byte
 	result := writeEndpointRequestWithScratch(endpointTestNative{send: func(data []byte) (int, error) {
 		sent = bytes.Clone(data)
 		require.EqualValues(t, 1, plan.next)
 		require.Zero(t, plan.entries[0].protection, "writer clears key handle before native callback")
 		return len(data), nil
-	}}, token, &scratch)
+	}}, token, &scratch, oobScratch[:0])
 	require.NoError(t, result.failure())
 	require.Equal(t, 1, result.members[0].accepted)
 	require.Zero(t, result.members[0].uncertain)
@@ -474,8 +475,19 @@ func TestNativeProtectionNaturalTurnUsesWriter(t *testing.T) {
 		t.Skip("requires the optional non-FIPS capability")
 	}
 	nativeOrdinaryTest(t, func(t *testing.T) {
-		tc, sender, socket := nativeProbeRecoveryConnection(t, "reno")
+		conf := &Config{InitialPacketSize: 1200, EnableDatagrams: true}
+		require.NoError(t, conf.SetCongestionControlV1("reno"))
+		tc := newConfiguredEmissionTestConnection(t, true, conf)
+		tc.conn.rttStats.UpdateRTT(5*time.Millisecond, 0)
+		// This asserts the retained GSO-capable deferred domain. Keep each tiny
+		// DATAGRAM in its own member so the writer's plan progress is observable.
+		tc.conn.emission.shortSegments = false
+		socket := newNativeProbeSocket()
 		socket.hold = nativeProbeHoldAll
+		endpoint := startNativeProbeEndpoint(t, socket)
+		require.NoError(t, tc.conn.useNativeOrdinary(endpoint, nativeProbePeer, packetInfo{}))
+		sender := tc.conn.emission.local.(*nativeOrdinarySender)
+		t.Cleanup(sender.Close)
 		sealer, opener := nativeProtectionTestCrypto(t, protocol.Version1)
 		if !handshake.CanReservePacketProtection(sealer) {
 			t.Skip("runtime primitives do not provide the immutable capability")

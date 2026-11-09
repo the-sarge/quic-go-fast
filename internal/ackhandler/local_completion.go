@@ -389,6 +389,13 @@ func (h *sentPacketHandler) hasPendingLocal() bool {
 }
 
 func (h *sentPacketHandler) localPTOTimeAndSpace() (monotime.Time, protocol.EncryptionLevel) {
+	if h.handshakeConfirmed && h.initialPackets == nil && h.handshakePackets == nil && h.appDataPackets != nil {
+		latest := h.appDataPackets.history.latestLocalPTO()
+		if latest.IsZero() {
+			return 0, 0
+		}
+		return latest.Add(h.getScaledPTO(true)), protocol.Encryption1RTT
+	}
 	var earliest monotime.Time
 	var level protocol.EncryptionLevel
 	for _, l := range []protocol.EncryptionLevel{protocol.EncryptionInitial, protocol.EncryptionHandshake, protocol.Encryption1RTT} {
