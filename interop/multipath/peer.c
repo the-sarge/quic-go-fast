@@ -124,7 +124,10 @@ static int command(driver_t *d, uint64_t stream_id, const unsigned char *bytes, 
         d->limit_mtu = 1;
         break;
     case 'F':
-        d->blackhole_zero = 1;
+        /* Reply on the healthy path without changing the Go endpoint's
+         * local policy. Its next primary-path request must trigger failover. */
+        ret = picoquic_set_stream_path_affinity(d->cnx, stream_id, 1);
+        if (ret == 0) d->blackhole_zero = 1;
         break;
     case 'I': {
         /* Invalid draft-21 PATH_STATUS_BACKUP for a never-granted path ID. */

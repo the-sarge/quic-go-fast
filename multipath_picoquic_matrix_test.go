@@ -410,9 +410,19 @@ func matrixStatusFailover(s *matrixSession) {
 	require.Zero(s.t, before.Stream, "the backup was not used for the ordinary transfer")
 	require.NoError(s.t, backup.AdvertiseStatusV1("available"))
 	s.command('V', 1)
+	s.wait(func() bool {
+		state, err := backup.StateV1()
+		require.NoError(s.t, err)
+		return state.PeerPreference == "available"
+	})
 	require.NoError(s.t, s.path(0).AdvertiseStatusV1("backup"))
-	s.command('B', 0)
-	s.prefer(1)
+	zeroBefore, err := s.path(0).StateV1()
+	require.NoError(s.t, err)
+	backupBefore, err := backup.StateV1()
+	require.NoError(s.t, err)
+	require.True(s.t, zeroBefore.Primary, "path zero is still primary immediately before failure")
+	require.False(s.t, backupBefore.Primary)
+	require.Equal(s.t, "backup", backupBefore.LocalUse)
 	if s.role == "client" {
 		require.NoError(s.t, s.primary.Conn.Close(), "real local endpoint failure")
 	} else {
