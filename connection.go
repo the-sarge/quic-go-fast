@@ -3334,8 +3334,11 @@ func (c *Conn) SendDatagramOwnedContextV1(ctx context.Context, p []byte) error {
 }
 
 // SealDatagramAdmissionV1 permanently seals send admission and wakes blocked Datagram
-// operations without closing reliable streams. Already queued receives remain
-// drainable, as with connection closure. The seal is idempotent with itself and
+// operations without closing reliable streams. Enabled receives can drain queued
+// or later incoming payloads; an empty receive returns the first terminal cause.
+// An owner keeping the connection live must continue managing receive draining
+// or proceed with teardown to avoid filling the existing shared packet bound.
+// The seal is idempotent with itself and
 // subsequent connection shutdown; the first close cause wins. An exclusive
 // owner can use it to fence admission before tearing down the connection.
 // Blocked operations observe reason; nil uses net.ErrClosed.

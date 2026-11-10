@@ -1,0 +1,15 @@
+# Review record for owned Datagram admission (#1292)
+
+[PR #1293](https://github.com/the-sarge/quic-go-fast/pull/1293) initially reviewed base `72b67a761b00abc8ec52c111c2323905ca0a3e73` → head `fed93a3399f4879f3530d9560f4cf1d889aa57d3` in full-panel RAS run `20261110T011505-47e3503a88ecde1b009b0483`. All four configured reviewers and all four adjudicators completed; synthesis completed with five clusters, two duplicates. No panel, quorum, scope or acceptance criterion changed. The [capability contract](owned-datagram-admission-1292.md) and [repository protocol](../REVIEW-LOOP.md) govern the bounded review.
+
+| Cluster | Independent disposition | Evidence and correction |
+| --- | --- | --- |
+| C-001 | fix-now | Connection construction always allocates the queue. Correct the disabled-support/no-queue conflation and test peer send-support and local receive-support validation separately with initialized queues. No runtime policy changes. |
+| C-002 | fix-now | Existing receive semantics permit error at an empty sealed queue and later draining of incoming data. Clarify the public terminal-owner contract and existing shared backlog consequence; test exact-cause wakeup, retained pre-seal data and later incoming data. Preserve packet bounds and receive policy. |
+| C-003 | reject as duplicate | Its disabled-support observation is covered by C-001, with no independent obligation. |
+| C-004 | fix-now | The accepted issue requires concurrent closure evidence. Coordinate seal and ordinary Close with a blocked admission; retain one winning cause, reject the blocked payload and improve protected fence observations/result collection. No production fence defect was demonstrated. |
+| C-005 | reject as duplicate/overstated claim | C-002 covers the documented receive behavior. Later receive draining does not violate permanent send sealing; a second terminal owner or incoming-discard policy would exceed the accepted preservation boundary. |
+
+The precise-root check finds no second production counterexample: the experimental v1 ordinary-close lock deadlock was corrected before timing, and this review's concurrency observation concerns missing evidence rather than a reachable failure of that lock invariant. Production behavior remains unchanged by these corrections; the additions are public comments, contract prose and bounded tests. Existing `TestDatagramQueueBlockedAddAroundClose` remains the regression for ordinary close under an already-held send mutex. Focused normal/race checks and pinned verification follow the accepted fixes before the permitted replacement review and exact-head certification. No defer or stop-for-decision remains at this disposition.
+
+Accepted-correction normal/race checks passed in 0.225 s / 1.242 s with all new cases and the established blocked-add/close regression selected. This candidate changes comments, contract prose and tests after the initial source head; its production implementation is unchanged. Pinned RAS verification and the permitted replacement review remain next, followed by full exact-head certification and actual hosted checks.
