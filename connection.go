@@ -3305,7 +3305,7 @@ func (c *Conn) recordStreamPriorityUpdated(id protocol.StreamID, urgency int8, i
 // In addition, a datagram may be dropped before being sent out if the available packet size suddenly decreases.
 // If the payload is too large to be sent at the current time, a [DatagramTooLargeError] is returned.
 func (c *Conn) SendDatagram(p []byte) error {
-	return c.sendDatagram(context.Background(), p)
+	return c.sendDatagram(context.Background(), p, true)
 }
 
 // SendDatagramContext sends a datagram with the same validation and delivery
@@ -3319,10 +3319,41 @@ func (c *Conn) SendDatagramContext(ctx context.Context, p []byte) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	return c.sendDatagram(ctx, p)
+	return c.sendDatagram(ctx, p, true)
 }
 
-func (c *Conn) sendDatagram(ctx context.Context, p []byte) error {
+// SendDatagramOwnedContextV1 admits an owned payload with the same validation,
+// cancellation and unreliable delivery contract as SendDatagramContext. On
+// success the caller transfers p and must never access or reuse it again.
+// On error the payload was not admitted and remains caller-owned. ctx is non-nil.
+func (c *Conn) SendDatagramOwnedContextV1(ctx context.Context, p []byte) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return c.sendDatagram(ctx, p, false)
+}
+
+// SealDatagramAdmissionV1 permanently seals send admission and wakes blocked Datagram
+// operations without closing reliable streams. Enabled receives can drain queued
+// or later incoming payloads; an empty receive returns the first terminal cause.
+// An owner keeping the connection live must continue managing receive draining
+// or proceed with teardown to avoid filling the existing shared packet bound.
+// The seal is idempotent with itself and
+// subsequent connection shutdown; the first close cause wins. An exclusive
+// owner can use it to fence admission before tearing down the connection.
+// Blocked operations observe reason; nil uses net.ErrClosed.
+func (c *Conn) SealDatagramAdmissionV1(reason error) {
+	if reason == nil {
+		reason = net.ErrClosed
+	}
+	if q := c.datagramQueue; q != nil {
+		q.sendMx.Lock()
+		q.CloseWithError(reason)
+		q.sendMx.Unlock()
+	}
+}
+
+func (c *Conn) sendDatagram(ctx context.Context, p []byte, copyPayload bool) error {
 	if !c.supportsDatagrams() {
 		return errors.New("datagram support disabled")
 	}
@@ -3340,8 +3371,11 @@ func (c *Conn) sendDatagram(ctx context.Context, p []byte) error {
 	if protocol.ByteCount(len(p)) > maxDataLen {
 		return &DatagramTooLargeError{MaxDatagramPayloadSize: int64(maxDataLen)}
 	}
-	f.Data = make([]byte, len(p))
-	copy(f.Data, p)
+	f.Data = p
+	if copyPayload {
+		f.Data = make([]byte, len(p))
+		copy(f.Data, p)
+	}
 	return c.datagramQueue.AddContext(ctx, f)
 }
 

@@ -17,6 +17,7 @@ const (
 )
 
 type datagramQueue struct {
+	closeOnce sync.Once
 	sendMx    sync.Mutex
 	sendQueue ringbuffer.RingBuffer[*wire.DatagramFrame]
 	sent      chan struct{} // used to notify Add that a datagram was dequeued
@@ -204,8 +205,10 @@ func (h *datagramQueue) Receive(ctx context.Context) ([]byte, error) {
 }
 
 func (h *datagramQueue) CloseWithError(e error) {
-	h.closeErr = e
-	close(h.closed)
+	h.closeOnce.Do(func() {
+		h.closeErr = e
+		close(h.closed)
+	})
 }
 
 // discardOversized preserves the order of surviving queued messages. A sender
