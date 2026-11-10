@@ -2,7 +2,6 @@ package quic
 
 import (
 	"net"
-	"net/netip"
 
 	"golang.org/x/sys/unix"
 )
@@ -24,8 +23,7 @@ func newEndpointNativeIO(socket *net.UDPConn) endpointNativeIO {
 	}); err != nil || !inet4 {
 		return socket
 	}
-	return bindEndpointScalarSocket(socket, raw, func(fd uintptr, data, oob []byte, destination netip.AddrPort) (int, error) {
-		address := unix.SockaddrInet4{Addr: destination.Addr().As4(), Port: int(destination.Port())}
-		return unix.SendmsgN(int(fd), data, oob, &address, unix.MSG_DONTWAIT)
+	return bindEndpointScalarSocket(socket, raw, func(fd uintptr, data, oob []byte, address *unix.SockaddrInet4) (int, error) {
+		return unix.SendmsgN(int(fd), data, oob, address, unix.MSG_DONTWAIT)
 	})
 }

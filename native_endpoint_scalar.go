@@ -8,6 +8,8 @@ import (
 	"os"
 	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 // endpointScalarSocket belongs to the existing writer. It contains immutable
@@ -15,12 +17,12 @@ import (
 type endpointScalarSocket struct {
 	endpointNativeIO
 	raw     syscall.RawConn
-	send    func(uintptr, []byte, []byte, netip.AddrPort) (int, error)
+	send    func(uintptr, []byte, []byte, *unix.SockaddrInet4) (int, error)
 	network string
 	source  net.Addr
 }
 
-func bindEndpointScalarSocket(socket *net.UDPConn, raw syscall.RawConn, send func(uintptr, []byte, []byte, netip.AddrPort) (int, error)) endpointNativeIO {
+func bindEndpointScalarSocket(socket *net.UDPConn, raw syscall.RawConn, send func(uintptr, []byte, []byte, *unix.SockaddrInet4) (int, error)) endpointNativeIO {
 	// On an unconnected UDPConn, net rejects a missing destination before any
 	// syscall. This public error carries fd.net and the actual source object;
 	// LocalAddr().Network() alone would lose the udp / udp4 distinction.
@@ -37,6 +39,15 @@ type endpointScalarRequest struct {
 	token      *endpointToken
 	armed      bool
 	controlErr error
+
+	// One writer lends call inputs only until RawWrite returns. The callback
+	// and sockaddr belong to this request, never to a cross-request cache.
+	callback func(uintptr) bool
+	data     []byte
+	oob      []byte
+	address  unix.SockaddrInet4
+	n        int
+	sendErr  error
 }
 
 // Go's addrPortUDPAddr is private. Preserve its public value/method surface,
@@ -58,6 +69,7 @@ func (s *endpointScalarRequest) writeError(err error, destination netip.AddrPort
 func prepareEndpointRequestIO(native endpointNativeIO, token *endpointToken) (endpointNativeIO, *endpointScalarRequest, error) {
 	if socket, ok := native.(*endpointScalarSocket); ok && socket.supports(token.request) {
 		scope := &endpointScalarRequest{endpointScalarSocket: socket, token: token}
+		scope.callback = scope.write
 		return scope, scope, native.SetWriteDeadline(time.Time{})
 	}
 	return native, nil, native.SetWriteDeadline(token.request.deadline)
@@ -78,35 +90,45 @@ func (*endpointScalarSocket) supports(request *endpointRequest) bool {
 	return true
 }
 
-func (s *endpointScalarRequest) WriteMsgUDPAddrPort(data, oob []byte, destination netip.AddrPort) (n, nn int, err error) {
-	var sendErr error
-	err = s.raw.Write(func(fd uintptr) bool {
-		for {
-			if sendErr = endpointSubmissionAllowed(s.token); sendErr != nil {
-				return true
-			}
-			n, sendErr = s.send(fd, data, oob, destination)
-			if sendErr == syscall.EINTR {
-				continue
-			}
-			if sendErr != syscall.EAGAIN && sendErr != syscall.EWOULDBLOCK {
-				return true
-			}
-			if sendErr = endpointSubmissionAllowed(s.token); sendErr != nil {
-				return true
-			}
-			if !s.armed {
-				if sendErr = s.SetWriteDeadline(s.token.request.deadline); sendErr != nil {
-					s.controlErr = sendErr
-					return true
-				}
-				s.armed = true
-			}
-			// RawWrite holds the descriptor's write borrow. Its callback must
-			// never permit waitWrite before the current request's D is armed.
-			return false
+func (s *endpointScalarRequest) write(fd uintptr) bool {
+	for {
+		if s.sendErr = endpointSubmissionAllowed(s.token); s.sendErr != nil {
+			return true
 		}
-	})
+		s.n, s.sendErr = s.send(fd, s.data, s.oob, &s.address)
+		if s.sendErr == syscall.EINTR {
+			continue
+		}
+		if s.sendErr != syscall.EAGAIN && s.sendErr != syscall.EWOULDBLOCK {
+			return true
+		}
+		if s.sendErr = endpointSubmissionAllowed(s.token); s.sendErr != nil {
+			return true
+		}
+		if !s.armed {
+			if s.sendErr = s.SetWriteDeadline(s.token.request.deadline); s.sendErr != nil {
+				s.controlErr = s.sendErr
+				return true
+			}
+			s.armed = true
+		}
+		// RawWrite holds the descriptor's write borrow. Its callback must
+		// never permit waitWrite before the current request's D is armed.
+		return false
+	}
+}
+
+func (s *endpointScalarRequest) WriteMsgUDPAddrPort(data, oob []byte, destination netip.AddrPort) (int, int, error) {
+	s.data, s.oob = data, oob
+	s.n, s.sendErr = 0, nil
+	s.address = unix.SockaddrInet4{Addr: destination.Addr().As4(), Port: int(destination.Port())}
+	err := s.raw.Write(s.callback)
+	n, sendErr := s.n, s.sendErr
+	// RawWrite has ended every callback/wait borrow. Clear transient state
+	// before any return; the armed deadline and control fault span the request.
+	s.data, s.oob = nil, nil
+	s.n, s.sendErr = 0, nil
+	s.address = unix.SockaddrInet4{}
 	if err != nil {
 		return n, 0, s.writeError(err, destination)
 	}

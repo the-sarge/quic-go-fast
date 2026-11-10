@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 type endpointScalarTestRaw struct {
@@ -28,7 +29,7 @@ func newEndpointScalarTestSocket(t *testing.T) *endpointScalarSocket {
 			require.True(t, f(91))
 			return nil
 		}},
-		send:    func(_ uintptr, p, _ []byte, _ netip.AddrPort) (int, error) { return len(p), nil },
+		send:    func(_ uintptr, p, _ []byte, _ *unix.SockaddrInet4) (int, error) { return len(p), nil },
 		network: "udp4", source: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1234},
 	}
 }
@@ -53,7 +54,7 @@ func TestEndpointScalarArmsBeforeWait(t *testing.T) {
 		return nil
 	}}
 	calls := 0
-	native.send = func(_ uintptr, p, _ []byte, _ netip.AddrPort) (int, error) {
+	native.send = func(_ uintptr, p, _ []byte, _ *unix.SockaddrInet4) (int, error) {
 		calls++
 		if calls%2 == 1 {
 			return 0, syscall.EAGAIN
@@ -82,7 +83,7 @@ func TestEndpointScalarRetryPermission(t *testing.T) {
 				token := &endpointToken{request: &request}
 				native := newEndpointScalarTestSocket(t)
 				calls := 0
-				native.send = func(_ uintptr, p, _ []byte, _ netip.AddrPort) (int, error) {
+				native.send = func(_ uintptr, p, _ []byte, _ *unix.SockaddrInet4) (int, error) {
 					calls++
 					if calls == 1 {
 						switch outcome {
@@ -136,11 +137,12 @@ func TestEndpointScalarFastWrite(t *testing.T) {
 			require.True(t, f(91), "an immediate send must not wait")
 			return nil
 		}},
-		send: func(fd uintptr, p, control []byte, addr netip.AddrPort) (int, error) {
+		send: func(fd uintptr, p, control []byte, addr *unix.SockaddrInet4) (int, error) {
 			require.EqualValues(t, 91, fd)
 			require.Equal(t, data, p)
 			require.Equal(t, oob, control)
-			require.Equal(t, destination, addr)
+			require.Equal(t, [4]byte{127, 0, 0, 1}, addr.Addr)
+			require.Equal(t, 4321, addr.Port)
 			return len(p), nil
 		},
 		network: "udp4", source: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1234},
@@ -166,7 +168,7 @@ func TestEndpointScalarSendErrorSurface(t *testing.T) {
 			request.members[0].writeState = &endpointWriteState{}
 			native := newEndpointScalarTestSocket(t)
 			calls := 0
-			native.send = func(uintptr, []byte, []byte, netip.AddrPort) (int, error) {
+			native.send = func(uintptr, []byte, []byte, *unix.SockaddrInet4) (int, error) {
 				calls++
 				return 0, cause
 			}
@@ -209,15 +211,32 @@ func TestEndpointScalarRawErrorSurface(t *testing.T) {
 			destination := netip.MustParseAddrPort("[::ffff:127.0.0.1]:0")
 			request := endpointRequest{deadline: time.Now().Add(time.Second), destination: destination, members: []endpointMember{{datagram: &endpointDatagram{}}}}
 			native := newEndpointScalarTestSocket(t)
+			rawCalls := 0
 			native.raw = endpointScalarTestRaw{write: func(f func(uintptr) bool) error {
+				rawCalls++
+				if errors.Is(cause, net.ErrClosed) && rawCalls == 1 {
+					require.True(t, f(91))
+					return nil
+				}
 				if errors.Is(cause, os.ErrDeadlineExceeded) {
 					require.False(t, f(91))
 				}
 				return &net.OpError{Op: "raw-write", Net: "udp4", Source: native.source, Err: cause}
 			}}
-			native.send = func(uintptr, []byte, []byte, netip.AddrPort) (int, error) { return 0, syscall.EAGAIN }
+			native.send = func(_ uintptr, p, _ []byte, _ *unix.SockaddrInet4) (int, error) {
+				if errors.Is(cause, net.ErrClosed) {
+					return len(p), nil
+				}
+				return 0, syscall.EAGAIN
+			}
 			io, _, err := prepareEndpointRequestIO(native, &endpointToken{request: &request})
 			require.NoError(t, err)
+			if errors.Is(cause, net.ErrClosed) {
+				n, nn, err := io.WriteMsgUDPAddrPort([]byte("first success"), []byte("first control"), destination)
+				require.NoError(t, err)
+				require.Equal(t, 13, n)
+				require.Equal(t, 13, nn)
+			}
 			n, nn, err := io.WriteMsgUDPAddrPort([]byte("p"), []byte("oob"), destination)
 			require.Zero(t, n)
 			require.Zero(t, nn)
@@ -287,7 +306,7 @@ func TestEndpointScalarInitialDeadlineFailure(t *testing.T) {
 			}
 			return nil
 		}}
-		native.send = func(uintptr, []byte, []byte, netip.AddrPort) (int, error) {
+		native.send = func(uintptr, []byte, []byte, *unix.SockaddrInet4) (int, error) {
 			t.Fatal("initial setup failure must not submit")
 			return 0, nil
 		}
@@ -327,7 +346,7 @@ func TestEndpointScalarLateArmFailure(t *testing.T) {
 			return nil
 		}}
 		calls := 0
-		native.send = func(_ uintptr, p, _ []byte, _ netip.AddrPort) (int, error) {
+		native.send = func(_ uintptr, p, _ []byte, _ *unix.SockaddrInet4) (int, error) {
 			calls++
 			if calls == 1 {
 				require.Equal(t, "aa", string(p))
@@ -383,7 +402,7 @@ func TestEndpointScalarFinalFence(t *testing.T) {
 			return nil
 		}}
 		payload := []byte("borrowed")
-		native.send = func(_ uintptr, p, _ []byte, _ netip.AddrPort) (int, error) {
+		native.send = func(_ uintptr, p, _ []byte, _ *unix.SockaddrInet4) (int, error) {
 			require.Same(t, &payload[0], &p[0])
 			return len(p), nil
 		}
@@ -429,8 +448,8 @@ func TestEndpointScalarEmptyDatagramAndMetadata(t *testing.T) {
 	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
 		// Exercise the request/error/empty-datagram mechanics locally without
 		// enabling this mechanism on an unqualified production platform.
-		native = bindEndpointScalarSocket(socket, raw, func(fd uintptr, p, oob []byte, destination netip.AddrPort) (int, error) {
-			return syscall.SendmsgN(int(fd), p, oob, &syscall.SockaddrInet4{Addr: destination.Addr().As4(), Port: int(destination.Port())}, syscall.MSG_DONTWAIT)
+		native = bindEndpointScalarSocket(socket, raw, func(fd uintptr, p, oob []byte, address *unix.SockaddrInet4) (int, error) {
+			return unix.SendmsgN(int(fd), p, oob, address, unix.MSG_DONTWAIT)
 		})
 	}
 	bound, ok := native.(*endpointScalarSocket)
