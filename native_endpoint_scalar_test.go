@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"runtime"
 	"syscall"
 	"testing"
 	"testing/synctest"
@@ -416,17 +417,25 @@ func TestEndpointScalarEmptyDatagramAndMetadata(t *testing.T) {
 	receiver, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	require.NoError(t, err)
 	defer receiver.Close()
-	socket, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	// Match ordinaryCostTransport's explicit IPv4 "udp" construction. On the
+	// supported platform this must select production scalar I/O, not just work
+	// through an eager fallback or a separately bound test adapter.
+	socket, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	require.NoError(t, err)
 	defer socket.Close()
 	raw, err := socket.SyscallConn()
 	require.NoError(t, err)
-	native := bindEndpointScalarSocket(socket, raw, func(fd uintptr, p, oob []byte, destination netip.AddrPort) (int, error) {
-		return syscall.SendmsgN(int(fd), p, oob, &syscall.SockaddrInet4{Addr: destination.Addr().As4(), Port: int(destination.Port())}, syscall.MSG_DONTWAIT)
-	})
+	native := newEndpointNativeIO(socket)
+	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+		// Exercise the request/error/empty-datagram mechanics locally without
+		// enabling this mechanism on an unqualified production platform.
+		native = bindEndpointScalarSocket(socket, raw, func(fd uintptr, p, oob []byte, destination netip.AddrPort) (int, error) {
+			return syscall.SendmsgN(int(fd), p, oob, &syscall.SockaddrInet4{Addr: destination.Addr().As4(), Port: int(destination.Port())}, syscall.MSG_DONTWAIT)
+		})
+	}
 	bound, ok := native.(*endpointScalarSocket)
 	require.True(t, ok)
-	require.Equal(t, "udp4", bound.network)
+	require.Equal(t, "udp", bound.network)
 	require.Same(t, socket.LocalAddr(), bound.source)
 	e := startNativeEndpoint(native, time.Second, nil)
 	defer func() { <-e.stop() }()
