@@ -10040,3 +10040,26 @@ The retained mechanism removes wiremux's duplicate native queue/pump and second 
 ### Next
 
 At this timestamp, [wiremux integration PR #2305](https://github.com/GridSwarm/wiremux/pull/2305) is completing bounded review and exact-head certification. [Pipeline investigation #2304](https://github.com/GridSwarm/wiremux/issues/2304) is the live delivery record. Both physical directions, original repetitions and relative native controls, shrink/non-regression, shipping dependency and production packing selection, and release remain separate open states. Recommendation: finish the integration and its normal merge/journal workflow, then qualify a fresh exact-source rig binding while preserving the 7.84 Gbps / 2% targets.
+
+---
+
+## Independent multipath qualification completed - 2026-11-10 12:57 EST
+
+**Main:** `9d3988d01608`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #1284 — independent multipath matrix (#1037)](https://github.com/the-sarge/quic-go-fast/pull/1284) as `9d3988d016089d2a08134dceff3b3485071e76f1`, completing [R17 (#1037)](https://github.com/the-sarge/quic-go-fast/issues/1037). The maintained integration fixture covers eight fixed draft-21 QUIC v1 scenarios in both roles, preserves the separate negotiated-zero oracle boundary, and retains source/build/environment identities and raw results. Public activation remains held for [R19 (#1039)](https://github.com/the-sarge/quic-go-fast/issues/1039).
+
+### Decisions
+
+Selected the paired picoquic `fbd46d9a1f54ebf9397f2ee6355b5019ab379fb7` / PicoTLS `e446233b4100ebcdec60901c05bfb7f4cd369c5d` update after a local selector comparison demonstrated preservation of a pending stream path's pacing deadline. The compatibility assessment retained the adapter, wire scenarios, predicates, role ordering and bounds. The historical failed campaign's cause remains unproven. [Accepted source and qualification decision for R17 #1037](https://github.com/the-sarge/quic-go-fast/issues/1037#issuecomment-6774725329) records the exact scope and spent review history.
+
+### Validation
+
+[PR #1284 qualification run 42868284835](https://github.com/the-sarge/quic-go-fast/actions/runs/42868284835) passed one pinned build, all 16 independent instances, the separate zero-vector invocation and strict aggregate at exact head `04de3f51a5c2ba833df41947cb381d547f9fbdeb`, tree `a4f3a768fcf13b8660b89e33421b6c90aee8d9dc`. Root verified raw case/zero logs, common source/build/kernel identities, native amd64 image and 17 successful isolated container exits across 159 retained files. All 17 ordinary hosted checks and the eight existing local runner/accounting tests passed. No retry occurred; the final independent job contributed 18 activities and 198 enclosing seconds once. Earlier failed/partial evidence remains historical.
+
+### Next
+
+At this timestamp, [R18 (#1038)](https://github.com/the-sarge/quic-go-fast/issues/1038) remains incomplete pending a concrete in-contract repair for [ordinary latency #1285](https://github.com/the-sarge/quic-go-fast/issues/1285); [PR #1295](https://github.com/the-sarge/quic-go-fast/pull/1295) remains unselected. Its original full 36-instance qualification is still required after a selected repair. [Program #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live frontier; R17 completion does not remove R18's prerequisite for R19 #1039.
