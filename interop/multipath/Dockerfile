@@ -14,14 +14,14 @@ RUN rm -f /etc/apt/sources.list.d/debian.sources && \
 WORKDIR /src/picoquic
 COPY interop/multipath/peer.c /src/r17-peer.c
 RUN git init -q && git remote add origin https://github.com/private-octopus/picoquic.git && \
-    git fetch -q --depth 1 origin 01e124ebdf9fc50df307e01e71f2744471ddc470 && git checkout -q FETCH_HEAD && \
-    test "$(git rev-parse HEAD)" = 01e124ebdf9fc50df307e01e71f2744471ddc470 && \
+    git fetch -q --depth 1 origin fbd46d9a1f54ebf9397f2ee6355b5019ab379fb7 && git checkout -q FETCH_HEAD && \
+    test "$(git rev-parse HEAD)" = fbd46d9a1f54ebf9397f2ee6355b5019ab379fb7 && \
     printf '%s\n' 'add_executable(qgf-r17-peer /src/r17-peer.c)' \
       'target_include_directories(qgf-r17-peer PRIVATE ${PTLS_INCLUDE_DIRS})' \
       'target_link_libraries(qgf-r17-peer PRIVATE picoquic-core)' >> CMakeLists.txt && \
     cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPICOQUIC_FETCH_PTLS=ON \
-      -DPICOQUIC_FETCH_PTLS_TAG=bfa67875982afc4c24f21e146cef4747fa189c2f -DBUILD_TESTING=OFF && \
-    test "$(git -C build/_deps/picotls-src rev-parse HEAD)" = bfa67875982afc4c24f21e146cef4747fa189c2f && \
+      -DPICOQUIC_FETCH_PTLS_TAG=e446233b4100ebcdec60901c05bfb7f4cd369c5d -DBUILD_TESTING=OFF && \
+    test "$(git -C build/_deps/picotls-src rev-parse HEAD)" = e446233b4100ebcdec60901c05bfb7f4cd369c5d && \
     cmake --build build --target picoquicdemo qgf-r17-peer -j 4 && \
     cp build/picoquicdemo /usr/local/bin/picoquicdemo && \
     cp build/qgf-r17-peer /usr/local/bin/qgf-r17-peer && \

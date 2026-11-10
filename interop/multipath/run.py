@@ -87,7 +87,7 @@ def execution_identity(binary, test_binary):
         raise ValueError(f"unqualified primary toolchain: {version}")
     return {"candidate": candidate, "tree": tree, "image": image, "go": version,
             "kernel": {"system": platform.system(), "release": platform.release(), "version": platform.version(), "machine": platform.machine()},
-            "picoquic": "01e124ebdf9fc50df307e01e71f2744471ddc470", "picotls": "bfa67875982afc4c24f21e146cef4747fa189c2f",
+            "picoquic": "fbd46d9a1f54ebf9397f2ee6355b5019ab379fb7", "picotls": "e446233b4100ebcdec60901c05bfb7f4cd369c5d",
             "peer_binary_sha256": digest(binary), "test_binary_sha256": digest(test_binary) if test_binary else None,
             "runner_sha256": digest(__file__), "peer_driver_sha256": digest(Path(__file__).with_name("peer.c"))}
 
