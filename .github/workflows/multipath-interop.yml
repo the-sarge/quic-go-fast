@@ -1,0 +1,118 @@
+name: Independent multipath interoperability
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths-ignore:
+      - '**.md'
+      - '**.mdx'
+      - 'docs/**'
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+
+concurrency:
+  group: multipath-interop-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  independent-peer:
+    if: ${{ !github.event.pull_request.draft }}
+    # Native hosted amd64, independent of the shared qualification/performance host.
+    runs-on: ubuntu-24.04
+    # Setup 1200 s + 17 separately bounded 150 s invocations + artifact cleanup.
+    timeout-minutes: 65
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Bind exact source and execution venue
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+          RESULTS_DIR: ${{ runner.temp }}/multipath-interop
+        run: |
+          echo "RESULTS_DIR=$RESULTS_DIR" >> "$GITHUB_ENV"
+          mkdir "$RESULTS_DIR"
+          git rev-parse HEAD 'HEAD^{tree}' > "$RESULTS_DIR"/source.txt
+          uname -a > "$RESULTS_DIR"/kernel.txt
+          lscpu > "$RESULTS_DIR"/cpu.txt
+          docker version > "$RESULTS_DIR"/docker-version.txt
+          python3 - <<'PY'
+          import json, os, platform
+          from pathlib import Path
+          Path(os.environ["RESULTS_DIR"], "runner.json").write_text(json.dumps({
+              "system": platform.uname()._asdict(), "emulation": False,
+              "runner": {key: os.environ.get(key) for key in ("RUNNER_OS", "RUNNER_ARCH", "RUNNER_NAME", "RUNNER_ENVIRONMENT", "ImageOS", "ImageVersion", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT")},
+          }, indent=2) + "\n")
+          PY
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          test "$(uname -m)" = x86_64
+      - name: Build the pinned independent peer once
+        run: |
+          timeout 1200s docker build --platform linux/amd64 -f interop/multipath/Dockerfile \
+            --build-arg QGF_SOURCE_COMMIT="$(git rev-parse HEAD)" \
+            --build-arg QGF_SOURCE_TREE="$(git rev-parse 'HEAD^{tree}')" \
+            -t qgf-r17 . 2>&1 | tee "$RESULTS_DIR"/build.log
+          docker image inspect qgf-r17 > "$RESULTS_DIR"/image-inspect.json
+          test "$(docker image inspect qgf-r17 --format '{{.Architecture}}')" = amd64
+          docker image inspect qgf-r17 --format '{{.Id}}' > "$RESULTS_DIR"/image-id.txt
+          container=$(docker create --network none qgf-r17)
+          trap 'docker rm -f "$container" > /dev/null' EXIT
+          docker cp "$container:/src/build-packages.txt" "$RESULTS_DIR"/build-packages.txt
+      - name: Execute the fixed 16 cases and separate zero vectors
+        run: |
+          image=$(cat "$RESULTS_DIR"/image-id.txt)
+          container=
+          current=
+          cleanup() {
+            if test -n "$container"; then
+              docker inspect "$container" > "$current/container-inspect.json"
+              docker rm -f "$container" > /dev/null
+              container=
+            fi
+          }
+          trap cleanup EXIT
+          run_case() {
+            relative=$1
+            shift
+            current="$RESULTS_DIR/$relative"
+            mkdir -p "$current"
+            # The runner owns a fresh child directory; outer logs survive a timeout.
+            container=$(docker create --platform linux/amd64 --network none \
+              --user "$(id -u):$(id -g)" \
+              -e QGF_IMAGE_ID="$image" -e PYTHONDONTWRITEBYTECODE=1 \
+              -e HOME=/tmp -e GOCACHE=/tmp/go-build -e GOPATH=/tmp/go \
+              -v "$RESULTS_DIR:/results" "$image" \
+              --binary /usr/local/bin/qgf-r17-peer --test-binary /src/peer-matrix.test \
+              --output "/results/$relative/run" "$@")
+            timeout 150s docker start --attach "$container" 2>&1 | tee "$current/container.log"
+            test "$(docker inspect "$container" --format '{{.State.ExitCode}}')" = 0
+            cleanup
+            # Give the aggregate checker one canonical case directory.
+            mv "$current/run/"* "$current/"
+            rmdir "$current/run"
+          }
+          for scenario in useful-transfer absent-negotiation path-zero-ack key-update-silent-path status-backup-failover abandon-reopen-late-feedback same-id-migration-rebinding unequal-mtu-invalid-frame; do
+            for role in client server; do
+              run_case "$scenario/$role" --matrix --scenario "$scenario" --role "$role"
+            done
+          done
+          run_case negotiated-zero --zero-vectors
+          python3 -B interop/multipath/run.py --validate-matrix --output "$RESULTS_DIR"
+      - name: Retain all attempts and raw peer evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: multipath-interop-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/multipath-interop/
+          if-no-files-found: error
+          retention-days: 90

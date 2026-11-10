@@ -2,7 +2,9 @@
 
 This maintained fixture implements [R1 (#1021)](https://github.com/the-sarge/quic-go-fast/issues/1021): ordinary QUIC v1 transfer with quic-go-fast in each endpoint role. It does not advertise multipath or stand in for the later interoperability matrix. The transport integration suite owns the fixture; retire it only with equivalent independent coverage or feature removal.
 
-The image pins picoquic `01e124ebdf9fc50df307e01e71f2744471ddc470`, its default non-AEGIS PicoTLS `bfa67875982afc4c24f21e146cef4747fa189c2f`, Go 1.27.3, the base image digest, and a Debian package snapshot. The build verifies both source revisions and retains installed package identities in `/src/build-packages.txt`. Record the resulting image ID and execution environment with every receipt. This follows the endpoint/build structure in [qoke's MIT-licensed reference](https://github.com/qoke/mp-quic-go/tree/084c13ea3834fbe58cedb63db9208951d714f839/interop/multipath); the ordinary driver and strict accounting are local implementations.
+The image pins picoquic `fbd46d9a1f54ebf9397f2ee6355b5019ab379fb7`, its default non-AEGIS PicoTLS `e446233b4100ebcdec60901c05bfb7f4cd369c5d`, Go 1.27.3, the base image digest, and a Debian package snapshot. The build verifies both source revisions and retains installed package identities in `/src/build-packages.txt`. Record the resulting image ID and execution environment with every receipt. This follows the endpoint/build structure in [qoke's MIT-licensed reference](https://github.com/qoke/mp-quic-go/tree/084c13ea3834fbe58cedb63db9208951d714f839/interop/multipath); the ordinary driver and strict accounting are local implementations.
+
+R17 (#1037) recovery updates the independent peer to the merged [upstream scheduling correction (PR #2313)](https://github.com/private-octopus/picoquic/pull/2313). Its selector preserves a paced stream path’s wake deadline when another ready path has no matching stream work. An isolated comparison of the original and corrected selector demonstrates that deadline difference; it does not establish the historical matrix failure’s cause. PicoTLS is updated alongside it to satisfy the peer’s build requirement for disabling Brotli. Earlier peer receipts remain historical, and qualification requires the complete fixed matrix on this new pinned pair.
 
 Run accounting regressions without starting a peer:
 
@@ -28,6 +30,54 @@ The result is example-level evidence over this fixed scenario and toolchain, not
 ## Two-path smoke
 
 [R14 (#1034)](https://github.com/the-sarge/quic-go-fast/issues/1034) adds one fixed two-path STREAM run per role: useful data on both paths, a stream abort and a close, with the private activation guard set by a `picoquic`-tagged root package test. Pass `--smoke` to the runner to select it. Both `TestPicoquicMultipathSmoke/client` and `TestPicoquicMultipathSmoke/server` must execute and pass exactly once. It is example-level evidence, charged to the program ledger, and [R17 (#1037)](https://github.com/the-sarge/quic-go-fast/issues/1037) owns the full matrix.
+
+## Independent interoperability matrix
+
+[R17 (#1037)](https://github.com/the-sarge/quic-go-fast/issues/1037) adds the fixed draft-21 QUIC v1 matrix on Linux amd64 and Go 1.27.3. `peer.c` is an application callback and UDP adapter linked to the same pinned picoquic library. Its commands call that library's APIs; picoquic owns its protocol parsing, protection, recovery and path state. The adapter can hold and replay one opaque UDP packet, map a client's existing path to a replacement socket, blackhole path zero, and impose a 1280-byte UDP payload ceiling on path one. It has no second QUIC implementation. The Go cases use the V1 config, transport, path and lifecycle APIs under the existing internal activation guard.
+
+Each row runs once with quic-go-fast as client and once as server. Missing, duplicate, failed or skipped cases fail the aggregate claim. An unsupported peer operation stops qualification; changing the peer pin or substituting a self-to-self exchange requires disposition under the accepted contract.
+
+| Scenario | Observed behavior |
+| --- | --- |
+| `useful-transfer` | Exact STREAM and DATAGRAM round trips, with useful sent and received payload recorded on paths zero and one. |
+| `absent-negotiation` | A locally enabled V1 constructor falls back to an ordinary peer, reports no negotiated paths, refuses `OpenPathV1`, and transfers the fixed workload. |
+| `path-zero-ack` | Literal ACK and PATH_ACK vectors both acknowledge packet zero; decoded 1-RTT events identify both forms and useful transfer continues. |
+| `key-update-silent-path` | The independent peer applies a public key-rotation request, returns its protected same-stream response, and transfers useful data on path zero while observed path-one packet counts stay unchanged; useful data then resumes on path one. |
+| `status-backup-failover` | Backup/available status crosses the wire; useful traffic initially stays off the backup, then survives the original client's endpoint failure or path-zero packet loss through path one. |
+| `abandon-reopen-late-feedback` | Path one retires and a new wire ID replaces it. The old encrypted packet is replayed, with decoded, duplicate or retired routing/key-reclamation disposition observed at existing owners; an explicit late PATH_ACK(1) arrives on a live carrier and useful replacement transfer continues. |
+| `same-id-migration-rebinding` | A client calls `MigrateV1`, or the independent client undergoes NAT rebinding; wire ID and packet-number continuity survive a changed tuple without adding a third protocol path. |
+| `unequal-mtu-invalid-frame` | Path-specific PMTU discovery converges across unequal UDP payload limits; a literal PATH_STATUS_BACKUP for a never-granted ID causes the expected protocol violation. |
+
+The negotiated-zero gap is explicit: the pinned picoquic negotiator requires positive `initial_max_path_id` values and cannot act as the zero oracle. `TestMultipathNegotiatedZeroVectors` checks literal absent, zero and positive transport-parameter vectors in both roles, plus ACK/PATH_ACK(0) vectors through the existing wire parser. `TestMultipathNegotiatedZeroControlledPeer` checks a real self-to-self V1 exchange with both caps set to one, which advertises zero. These are separate normative and controlled evidence; they do not supply any of the 16 independent instances.
+
+Freeze a clean candidate before building. Pass its commit and tree to Docker as `QGF_SOURCE_COMMIT` and `QGF_SOURCE_TREE`, and pass the resulting immutable image ID as `QGF_IMAGE_ID` to every container. The runner records those identities, the primary toolchain, kernel, both peer pins, driver and binary hashes, command, start time and duration. `/src/build-packages.txt` retains installed packages. Preserve the build log, image inspection and all per-case logs, including failed attempts. The scoped owner waiver changes cumulative ceilings, while the finite inventory, venues, accounting and per-invocation timeouts remain binding.
+
+Run one case per invocation, with a fresh output directory. For example, this selects only the path-zero ACK case with quic-go-fast as server:
+
+```sh
+python3 -B interop/multipath/run.py --matrix --scenario path-zero-ack --role server --binary /usr/local/bin/qgf-r17-peer --test-binary /src/peer-matrix.test --output /results/path-zero-ack/server
+```
+
+After all 16 cases, run the separate zero evidence once, then validate the retained logs and receipts together:
+
+```sh
+python3 -B interop/multipath/run.py --zero-vectors --binary /usr/local/bin/qgf-r17-peer --test-binary /src/peer-matrix.test --output /results/negotiated-zero
+python3 -B interop/multipath/run.py --validate-matrix --output /results
+```
+
+Each role context and the C adapter are bounded at 30 seconds; the Go test timeout remains 90 seconds, the runner remains 120 seconds, and each outer container remains 150 seconds. Build/setup has the inherited 1200-second bound. There is no longer monolithic matrix timeout. A failed operation, unavailable prerequisite or unresolved identity mismatch stops the invocation and retains its evidence; do not repeat until passing. Cancellation kills and joins the runner's process group, and Go cleanup cancels and joins its peer before returning the granted sockets.
+
+Case containers run as the artifact owner's UID/GID with writable temporary HOME and Go cache locations, so retained 0700 peer directories remain readable after success or failure. The unequal-MTU case observes completion on the existing connection-owned finder, because a final lost probe can finish discovery without emitting a qlog Done update; all construction and path/lifecycle operations still use V1 APIs. Useful-traffic assertions wait for asynchronous trace consumption. Replay observations correlate the controlled packet's size with the existing connection/transport reception or drop events in this isolated single-peer case; they make no universal packet-correlation or retention-order claim. ACK(0), PATH_ACK(0), late PATH_ACK(1) and the invalid-path frame are literal controlled vectors protected and packetized by the pinned peer library.
+
+While the unequal-MTU case waits for each selected path's finder, it supplies a fixed 256-byte public E request/response on 100-millisecond ticks, up to 300 exchanges per path under the same shared 30-second role context. Later packet/ACK progress lets the existing recovery owner resolve an in-flight dropped probe; the fixture still reads completion only on the connection owner. Trace notifications recheck completion without emitting traffic, and a timer recheck does not require a particular final qlog event. The serial caller stops its ticker on return; synchronous I/O retains its existing stream deadline. Missing/wrong responses, owner errors, cancellation or the cap fail the case. This fixed-example prerequisite changes no probe/loss/idle timer, PMTU comparison or invalid-frame assertion and does not attribute historical timeouts.
+
+The abandon/reopen case in the Go-client role conditions delivery of the replacement tuple on a positive CID2 processing receipt. The existing typed recorder joins a path-zero 1-RTT CID2-carrying transmission with an authenticated ACK targeting that packet-number space and number, including reordered recorder callbacks and retransmissions. A separate 64-datagram opaque driver gate releases only after that witness, with delivery deferred until the application callback returns; overflow, missing evidence and API errors fail the case. This fixes the example's CID-before-replacement-delivery ordering. It does not query current peer CID inventory, guarantee indefinite CID availability or claim arbitrary packet-reordering interoperability. The Go-server role and the existing held path-one replay/late-feedback oracle retain their original behavior.
+
+The key-update witness combines the pinned public K API completing successfully, its causally later protected OK on that request's fresh stream, authenticated path-zero useful transfer, the existing observed path-one silence window and authenticated path-one resumption. The peer copies OK into its stream queue only after fresh encryption keys are applied, and subsequent packet protection uses the then-current 1-RTT context. Normal automatic updates can advance generations without exposing every intermediate phase bit, so no parity-counter increment is required. This source-dependent example does not enumerate generations or prove complete recorder delivery/in-flight quiescence; the existing packet-count limits remain.
+
+This is example-level evidence for these fixed scenarios, pins and venue. It does not claim universal draft conformance, arbitrary peer support, all key-update directions, Internet failure timing or other platforms. The early ordinary and smoke receipts remain historical evidence. The transport integration suite owns this maintained fixture; retire it only with equivalent independent coverage or feature removal.
+
+The required [independent peer workflow](../../.github/workflows/multipath-interop.yml) executes this fixed inventory on a GitHub-hosted Linux amd64 runner for a ready source PR, checking out its exact head. Draft pushes and documentation-only changes do not start the matrix. It records the actual hosted runner, kernel, native architecture, image and packages and rejects an unexpected self-hosted venue before peer launch. For R17 qualification, this job supplies the original 16 instances; do not run a duplicate manual matrix first. The workflow retains failed setup/case attempts and raw peer/Go JSON as an artifact and stops at the first failure.
 
 ## Native deadline qualification
 

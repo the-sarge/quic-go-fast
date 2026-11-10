@@ -1,6 +1,6 @@
 # Reno-first QUIC multipath implementation plan
 
-**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8/R9/R10/R11/R12/R13/R14/R15/R16/R20 complete (17/20 slices); R17 #1037 and R18 #1038 are the independent qualification frontier after completed [N3 #1202](2026-11-04-native-endpoint-efficiency-plan.md#n3). Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
+**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8/R9/R10/R11/R12/R13/R14/R15/R16/R17/R20 complete (18/20 slices); R18 #1038 is blocked pending the separately planned [ordinary-latency repair #1285](https://github.com/the-sarge/quic-go-fast/issues/1285); R19 #1039 still requires R18 #1038 qualification after completed R17 #1037 and [N3 #1202](2026-11-04-native-endpoint-efficiency-plan.md#n3). Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
 
 ## Binding contract and operating discipline
 
@@ -937,6 +937,8 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 **Delivers:** Run and wire the eight accepted scenarios in both endpoint roles into the pinned required Linux peer job. Include expected-case accounting, negotiated-zero normative vectors and explicit oracle limits; preserve early smoke evidence without claiming it replaces this matrix.
 
 **Blocked by:** R16, R20 and [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3). **Existing work:** new slice; no unmerged implementation accepted.
+
+**State:** complete in [PR #1284](https://github.com/the-sarge/quic-go-fast/pull/1284). The maintained ready-head Linux peer job executes the fixed 16-case matrix against the pinned picoquic library through V1 constructors/path APIs, with separate negotiated-zero normative/controlled evidence and strict source/identity/case accounting. The [R17 receipt](../audits/2026-11-09-multipath-r17-receipt.md) identifies the maintained owners, execution artifacts and explicit oracle limits. R18 #1038 remains independently required before R19 #1039.
 
 **Single owner and authority completeness:** Transport integration suite owns maintained job, scenario driver and receipts. Cover constructors, validation and the destruction/cancellation consumers named by this behavior together; no persisted state is introduced.
 
