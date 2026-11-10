@@ -380,7 +380,7 @@ func newNativeEndpoint(socket *net.UDPConn, budget time.Duration, sink func(endp
 	if socket == nil || socket.RemoteAddr() != nil || budget < time.Millisecond || budget > time.Second {
 		return nil, errEndpointRequest
 	}
-	return startNativeEndpoint(socket, budget, sink), nil
+	return startNativeEndpoint(newEndpointNativeIO(socket), budget, sink), nil
 }
 
 func startNativeEndpoint(native endpointNativeIO, budget time.Duration, sink func(endpointDiagnostic)) *nativeEndpoint {
@@ -1329,12 +1329,13 @@ func (e *nativeEndpoint) write(native endpointNativeIO) {
 		e.unlock()
 		var result endpointResult
 		fault := false
-		if err := native.SetWriteDeadline(token.request.deadline); err != nil {
+		requestIO, scalar, err := prepareEndpointRequestIO(native, token)
+		if err != nil {
 			result = token.request.unsubmitted(err)
 			fault = true
 		} else {
-			result = writeEndpointRequestWithScratch(native, token, &scratch, oobScratch[:0])
-			fault = endpointFatalWrite(result.failure())
+			result = writeEndpointRequestWithScratch(requestIO, token, &scratch, oobScratch[:0])
+			fault = endpointFatalWrite(result.failure()) || (scalar != nil && scalar.controlErr != nil)
 		}
 		if err := native.SetWriteDeadline(time.Time{}); err != nil {
 			result.err, fault = err, true
