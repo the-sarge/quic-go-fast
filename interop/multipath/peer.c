@@ -55,24 +55,7 @@ typedef struct {
     size_t gate_count;
     uint64_t gate_stream;
     gated_datagram_t gate[TUPLE_GATE_LIMIT];
-    /* Temporary terminal-only R17 E0 boundary evidence; no transport state. */
-    int diagnostic, diagnostic_emitted, diagnostic_accepted;
-    int diagnostic_affinity_called, diagnostic_affinity_status;
-    int diagnostic_queue_called, diagnostic_queue_status;
-    uint64_t diagnostic_stream;
-    size_t diagnostic_request, diagnostic_response;
 } driver_t;
-
-static void diagnostic_terminal(driver_t *d, const char *boundary)
-{
-    if (!d->diagnostic || d->diagnostic_emitted) return;
-    d->diagnostic_emitted = 1;
-    fprintf(stdout, "[R17E0] NOT QUALIFICATION terminal %s accepted-fin %d stream %llu request %zu response %zu affinity-called %d affinity-status %d queue-called %d queue-status %d\n",
-        boundary, d->diagnostic_accepted, (unsigned long long)d->diagnostic_stream,
-        d->diagnostic_request, d->diagnostic_response,
-        d->diagnostic_affinity_called, d->diagnostic_affinity_status,
-        d->diagnostic_queue_called, d->diagnostic_queue_status);
-}
 
 static int gate_failed(driver_t *d, const char *reason)
 {
@@ -123,26 +106,10 @@ static int command(driver_t *d, uint64_t stream_id, const unsigned char *bytes, 
         d->gate_release_pending = 1;
         d->gate_stream = stream_id;
         return 0;
-    case 'E': {
-        int observe = d->diagnostic && d->is_client && d->limit_mtu && path == 0 && !d->diagnostic_accepted;
-        if (observe) {
-            /* command is entered only after the original request FIN callback. */
-            d->diagnostic_accepted = 1;
-            d->diagnostic_stream = stream_id;
-            d->diagnostic_request = length;
-            d->diagnostic_response = length - 2;
-        }
-        if (path != 255) {
-            ret = picoquic_set_stream_path_affinity(d->cnx, stream_id, path);
-            if (observe) { d->diagnostic_affinity_called = 1; d->diagnostic_affinity_status = ret; }
-        }
-        if (ret == 0) {
-            ret = picoquic_add_to_stream(d->cnx, stream_id, bytes + 2, length - 2, 1);
-            if (observe) { d->diagnostic_queue_called = 1; d->diagnostic_queue_status = ret; }
-            return ret;
-        }
+    case 'E':
+        if (path != 255) ret = picoquic_set_stream_path_affinity(d->cnx, stream_id, path);
+        if (ret == 0) return picoquic_add_to_stream(d->cnx, stream_id, bytes + 2, length - 2, 1);
         break;
-    }
     case 'O':
         if (d->open_pending) return -1;
         int allowed = 0;
@@ -290,7 +257,6 @@ static int callback(picoquic_cnx_t *cnx, uint64_t stream_id, uint8_t *bytes, siz
         fprintf(stdout, "closed local %llu remote %llu\n", (unsigned long long)picoquic_get_local_error(cnx),
                 (unsigned long long)picoquic_get_remote_error(cnx));
         d->closed = 1;
-        diagnostic_terminal(d, "connection-close");
         break;
     default:
         break;
@@ -392,8 +358,6 @@ int main(int argc, char **argv)
     if (d == NULL) return 2;
     int client = strcmp(argv[1], "client") == 0;
     d->is_client = client;
-    const char *diagnostic = getenv("QGF_R17_DIAGNOSTIC");
-    d->diagnostic = diagnostic != NULL && strcmp(diagnostic, "terminal-e0-v1") == 0;
     for (int i = 0; i < 3; i++) {
         d->sockets[i] = socket(AF_INET, SOCK_DGRAM, 0);
         d->addresses[i].sin_family = AF_INET;
@@ -424,7 +388,6 @@ int main(int argc, char **argv)
     }
     fprintf(stdout, "Waiting for packets.\n");
     int ret = run(d);
-    diagnostic_terminal(d, "run-return");
     picoquic_free(d->quic);
     for (int i = 0; i < 3; i++) close(d->sockets[i]);
     free(d);

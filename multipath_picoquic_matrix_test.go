@@ -23,26 +23,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Temporary terminal-only R17 E0 evidence. The original ReadAll owns the result.
-type matrixTerminalDiagnostic struct {
-	started, readReturned bool
-	stream                StreamID
-	requestBytes          int
-	readBytes             int
-	readErr, cause        error
-}
-
 type matrixSession struct {
-	t                  *testing.T
-	ctx                context.Context
-	conn               *Conn
-	peer               *smokePeer
-	trace              *matrixTrace
-	dir                string
-	role               string
-	remote             *net.UDPAddr
-	primary            *Transport
-	terminalDiagnostic *matrixTerminalDiagnostic
+	t       *testing.T
+	ctx     context.Context
+	conn    *Conn
+	peer    *smokePeer
+	trace   *matrixTrace
+	dir     string
+	role    string
+	remote  *net.UDPAddr
+	primary *Transport
 }
 
 func matrixTransport(t *testing.T, lastIPByte byte, trace *matrixTrace) *Transport {
@@ -128,26 +118,12 @@ func (s *matrixSession) exchange(op byte, id byte, payload []byte) []byte {
 	s.t.Helper()
 	stream, err := s.conn.OpenStreamSync(s.ctx)
 	require.NoError(s.t, err)
-	diagnostic := s.terminalDiagnostic
-	if diagnostic != nil && !diagnostic.started {
-		diagnostic.started = true
-		diagnostic.stream = stream.StreamID()
-		diagnostic.requestBytes = len(payload) + 2
-	} else {
-		diagnostic = nil
-	}
 	deadline, _ := s.ctx.Deadline()
 	require.NoError(s.t, stream.SetDeadline(deadline))
 	_, err = stream.Write(append([]byte{op, id}, payload...))
 	require.NoError(s.t, err)
 	require.NoError(s.t, stream.Close())
 	got, err := io.ReadAll(stream)
-	if diagnostic != nil {
-		diagnostic.readReturned = true
-		diagnostic.readBytes = len(got)
-		diagnostic.readErr = err
-		diagnostic.cause = context.Cause(s.conn.Context())
-	}
 	require.NoError(s.t, err)
 	return got
 }
@@ -578,13 +554,6 @@ func matrixMTUInvalid(s *matrixSession) {
 	// suspended. Finish each path's discovery while it is selected.
 	s.finishMTU(1)
 	s.prefer(0)
-	if s.role == "server" && os.Getenv("QGF_R17_DIAGNOSTIC") == "terminal-e0-v1" {
-		diagnostic := &matrixTerminalDiagnostic{}
-		s.terminalDiagnostic = diagnostic
-		s.t.Cleanup(func() {
-			s.t.Logf("[R17E0] NOT QUALIFICATION terminal Go started %t stream %d request %d read-returned %t bytes %d error %v connection-cause %v", diagnostic.started, diagnostic.stream, diagnostic.requestBytes, diagnostic.readReturned, diagnostic.readBytes, diagnostic.readErr, diagnostic.cause)
-		})
-	}
 	s.echo(0)
 	s.finishMTU(0)
 	zero, err := s.path(0).StateV1()
