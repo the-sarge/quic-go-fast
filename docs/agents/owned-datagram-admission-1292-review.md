@@ -1,0 +1,25 @@
+# Review record for owned Datagram admission (#1292)
+
+[PR #1293](https://github.com/the-sarge/quic-go-fast/pull/1293) initially reviewed base `72b67a761b00abc8ec52c111c2323905ca0a3e73` → head `fed93a3399f4879f3530d9560f4cf1d889aa57d3` in full-panel RAS run `20261110T011505-47e3503a88ecde1b009b0483`. All four configured reviewers and all four adjudicators completed; synthesis completed with five clusters, two duplicates. No panel, quorum, scope or acceptance criterion changed. The [capability contract](owned-datagram-admission-1292.md) and [repository protocol](../REVIEW-LOOP.md) govern the bounded review.
+
+| Cluster | Independent disposition | Evidence and correction |
+| --- | --- | --- |
+| C-001 | fix-now | Connection construction always allocates the queue. Correct the disabled-support/no-queue conflation and test peer send-support and local receive-support validation separately with initialized queues. No runtime policy changes. |
+| C-002 | fix-now | Existing receive semantics permit error at an empty sealed queue and later draining of incoming data. Clarify the public terminal-owner contract and existing shared backlog consequence; test exact-cause wakeup, retained pre-seal data and later incoming data. Preserve packet bounds and receive policy. |
+| C-003 | reject as duplicate | Its disabled-support observation is covered by C-001, with no independent obligation. |
+| C-004 | fix-now | The accepted issue requires concurrent closure evidence. Coordinate seal and ordinary Close with a blocked admission; retain one winning cause, reject the blocked payload and improve protected fence observations/result collection. No production fence defect was demonstrated. |
+| C-005 | reject as duplicate/overstated claim | C-002 covers the documented receive behavior. Later receive draining does not violate permanent send sealing; a second terminal owner or incoming-discard policy would exceed the accepted preservation boundary. |
+
+The precise-root check finds no second production counterexample: the experimental v1 ordinary-close lock deadlock was corrected before timing, and this review's concurrency observation concerns missing evidence rather than a reachable failure of that lock invariant. Production behavior remains unchanged by these corrections; the additions are public comments, contract prose and bounded tests. Existing `TestDatagramQueueBlockedAddAroundClose` remains the regression for ordinary close under an already-held send mutex. Focused normal/race checks and pinned verification follow the accepted fixes before the permitted replacement review and exact-head certification. No defer or stop-for-decision remains at this disposition.
+
+Accepted-correction normal/race checks passed in 0.225 s / 1.242 s with all new cases and the established blocked-add/close regression selected. This candidate changes comments, contract prose and tests after the initial source head; its production implementation is unchanged. Pinned RAS verification and the permitted replacement review remain next, followed by full exact-head certification and actual hosted checks.
+
+Pinned verification of the initial run at `13f9fb74f0bd313ce3c8e477f7c76deac3d13af1` completed with coverage 5/5 and a clear blocking projection. The single permitted replacement review, `20261110T013639-973367d37fdd9052b28def69`, completed on that same head with all four reviewers, all four adjudicators and synthesis. It found two low documentation obligations and one duplicate, with no reachable runtime defect.
+
+| Replacement cluster | Independent disposition | Evidence and correction |
+| --- | --- | --- |
+| C-001 | fix-now | The two new exported capability methods need an Unreleased discovery entry. Add names, ownership/error behavior, first-cause seal, retained draining and a link to issue #1292 and this contract; make no publication or performance claim. This is bounded public API documentation. |
+| C-002 | reject as duplicate | The requested Unreleased entry is covered by C-001. |
+| C-003 | fix-now | `packetPacker.datagramPayload` retains the Datagram frame in payload frames, and `sentPacketHandler.sentPacket` stores those frames in recovery metadata. Clarify backing-allocation retention beyond serialization and the queue's entry rather than byte bound; recommend standalone allocations and preserve permanent transfer. Wiremux already supplies that allocation form, so its existing resource constraints remain intact. |
+
+These documentation obligations concern API discoverability and backing-allocation retention, distinct from the initial disabled-support precedence, receive draining and concurrent-close evidence. No repeated production invariant failure or boundary expansion was found. The cheap, high-confidence documentation-only corrections use the shared low/nit policy: skip another RAS review/verify cycle, run local documentation checks and a fresh exact-head certification. No runtime or test behavior changes after the verified head. Both fresh review rounds are consumed; no deferred or stop-for-decision finding remains.
