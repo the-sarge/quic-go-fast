@@ -10017,3 +10017,26 @@ The [verified brief for issue #1286](https://github.com/the-sarge/quic-go-fast/i
 ### Next
 
 At this entry's timestamp the product is merged and this separate journal lifecycle is active. Root retains shared issue/task reconciliation. [Program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646), [native parent #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) and [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) remain the live frontier views. This standalone maintained-test repair changes no audited-slice count, reopens no completed N3 #1202 work and does not discharge [R17 #1037](https://github.com/the-sarge/quic-go-fast/issues/1037) / [PR #1284](https://github.com/the-sarge/quic-go-fast/pull/1284), [R18 #1038](https://github.com/the-sarge/quic-go-fast/issues/1038) or the separate runtime repair [issue #1285](https://github.com/the-sarge/quic-go-fast/issues/1285).
+
+---
+
+## Owned Datagram admission landed - 2026-11-09 20:57 EST
+
+**Main:** `4b2c9792f7b8`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #1293 — Add owned Datagram admission with a terminal fence](https://github.com/the-sarge/quic-go-fast/pull/1293), closing [owned admission issue #1292](https://github.com/the-sarge/quic-go-fast/issues/1292). `Conn.SendDatagramOwnedContextV1` transfers a standalone payload on successful admission; errors retain caller ownership. `Conn.SealDatagramAdmissionV1` fences the existing send queue with the first opaque terminal cause. Ordinary copying APIs, legacy close locking, receive draining, packet/recovery owners, queue bounds and module identity remain compatible. The [capability contract](agents/owned-datagram-admission-1292.md) records backing-storage retention and exclusive-owner requirements.
+
+### Validation
+
+The full configured initial and replacement review panels completed, and pinned verification covered all five initial clusters with a clear blocking projection. Independent [review dispositions](agents/owned-datagram-admission-1292-review.md) retain the documentation and concurrency evidence corrections. Final source head `ee508761c27714b5a8186546d25c66f16834e84f` passed affected root tests, focused owned/seal/queue races, vet, module tidiness, diff and relative documentation-link checks, with a clean unchanged tree. All 17 applicable hosted checks succeeded on that exact head; guarded squash merge produced `4b2c9792f7b80c3f5bfecf49bf67e99b74fc504b`.
+
+### Decisions
+
+The retained mechanism removes wiremux's duplicate native queue/pump and second payload copy when both capabilities exist; old forks keep their fallback. The original [comparison issue #2301](https://github.com/GridSwarm/wiremux/issues/2301) and [report PR #2302](https://github.com/GridSwarm/wiremux/pull/2302) remain unchanged, including B-forward's inconclusive deficit. The combined source's local causal E8 row passed delivery and conservative deficit at 7.927645–7.927664 Gbps / 0.9042%–1.8079%, retaining 424 missing admitted records. It used the recorded experimental packing overlay and supplies local feasibility, with no physical qualification, dependency publication or release claim.
+
+### Next
+
+At this timestamp, [wiremux integration PR #2305](https://github.com/GridSwarm/wiremux/pull/2305) is completing bounded review and exact-head certification. [Pipeline investigation #2304](https://github.com/GridSwarm/wiremux/issues/2304) is the live delivery record. Both physical directions, original repetitions and relative native controls, shrink/non-regression, shipping dependency and production packing selection, and release remain separate open states. Recommendation: finish the integration and its normal merge/journal workflow, then qualify a fresh exact-source rig binding while preserving the 7.84 Gbps / 2% targets.
