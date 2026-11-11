@@ -59,36 +59,36 @@ class TraceTests(unittest.TestCase):
 
 class EvidenceTests(unittest.TestCase):
     def evidence(self, name, **facts):
-        return {"class": name, "go": "go1.27.3", "traversal": True, "timing_ms": dict.fromkeys(driver.CLASSES[name]["timing"], 1.5)} | facts
+        return {"class": name, "go": "go1.27.4", "traversal": True, "timing_ms": dict.fromkeys(driver.CLASSES[name]["timing"], 1.5)} | facts
 
     def test_toolchain_and_class_must_match(self):
-        driver.check_evidence("eagain-to-deadline", "go1.27.3", self.evidence("eagain-to-deadline"))
+        driver.check_evidence("eagain-to-deadline", "go1.27.4", self.evidence("eagain-to-deadline"))
         with self.assertRaisesRegex(ValueError, "toolchain"):
-            driver.check_evidence("eagain-to-deadline", "go1.26.10", self.evidence("eagain-to-deadline"))
+            driver.check_evidence("eagain-to-deadline", "go1.26.11", self.evidence("eagain-to-deadline"))
         with self.assertRaisesRegex(ValueError, "class"):
-            driver.check_evidence("eagain-to-deadline", "go1.27.3", self.evidence("queued-expiry"))
+            driver.check_evidence("eagain-to-deadline", "go1.27.4", self.evidence("queued-expiry"))
 
     def test_injected_class_needs_traversal(self):
         with self.assertRaisesRegex(ValueError, "traversal"):
-            driver.check_evidence("eagain-to-deadline", "go1.27.3", self.evidence("eagain-to-deadline", traversal=False))
+            driver.check_evidence("eagain-to-deadline", "go1.27.4", self.evidence("eagain-to-deadline", traversal=False))
 
     def test_tolerance_binds_only_uninstrumented_timing(self):
         def timing(name, value):
             return self.evidence(name, timing_ms=dict.fromkeys(driver.CLASSES[name]["timing"], value))
         with self.assertRaisesRegex(ValueError, "tolerance"):
-            driver.check_evidence("expired-before-dispatch", "go1.27.3", timing("expired-before-dispatch", 20.5))
-        driver.check_evidence("expired-before-dispatch", "go1.27.3", timing("expired-before-dispatch", 20.0))
-        driver.check_evidence("eagain-to-deadline", "go1.27.3", timing("eagain-to-deadline", 20.5))
+            driver.check_evidence("expired-before-dispatch", "go1.27.4", timing("expired-before-dispatch", 20.5))
+        driver.check_evidence("expired-before-dispatch", "go1.27.4", timing("expired-before-dispatch", 20.0))
+        driver.check_evidence("eagain-to-deadline", "go1.27.4", timing("eagain-to-deadline", 20.5))
 
     def test_missing_timing_fails(self):
         with self.assertRaisesRegex(ValueError, "timing"):
-            driver.check_evidence("shutdown-join", "go1.27.3", self.evidence("shutdown-join", timing_ms={}))
+            driver.check_evidence("shutdown-join", "go1.27.4", self.evidence("shutdown-join", timing_ms={}))
 
     def test_partial_timing_fails(self):
         partial = self.evidence("request-contention")
         del partial["timing_ms"]["pressure_publication"]
         with self.assertRaisesRegex(ValueError, "pressure_publication"):
-            driver.check_evidence("request-contention", "go1.27.3", partial)
+            driver.check_evidence("request-contention", "go1.27.4", partial)
 
 
 class AccountingTests(unittest.TestCase):
