@@ -2,6 +2,15 @@
 # Ordinary control, R14 smoke and R17's fixed independent matrix share these pins.
 FROM golang:1.27.3-bookworm@sha256:d9b6a1beb9474adc2a1ce842573639b44b2a0dd49b6669f51d3821baf9ec37c9
 
+
+# Refresh only Go; retain the exact OS, native tools and package snapshot.
+RUN test "$(dpkg --print-architecture)" = amd64 && \
+    curl --fail --silent --show-error --location https://go.dev/dl/go1.27.4.linux-amd64.tar.gz -o /tmp/go1274.tar.gz && \
+    printf '%s\n' '7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840  /tmp/go1274.tar.gz' | sha256sum -c - && \
+    rm -rf /usr/local/go && tar -C /usr/local -xzf /tmp/go1274.tar.gz && \
+    rm /tmp/go1274.tar.gz && \
+    test "$(GOTOOLCHAIN=local /usr/local/go/bin/go version)" = 'go version go1.27.4 linux/amd64'
+
 # Freeze package resolution as well as the image and both protocol dependencies.
 RUN rm -f /etc/apt/sources.list.d/debian.sources && \
     printf '%s\n' \

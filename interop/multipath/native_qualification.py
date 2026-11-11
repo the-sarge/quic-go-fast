@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import time
 
-GO_VERSIONS = ["go1.26.10", "go1.27.3"]
+GO_VERSIONS = ["go1.26.11", "go1.27.4"]
 TOLERANCE_MS = 20.0
 EAGAIN_RULE = "inject=sendmsg:error=EAGAIN"
 # Injected classes run under strace, so their timing is attributed, never qualified.

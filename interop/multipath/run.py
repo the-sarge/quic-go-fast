@@ -83,7 +83,7 @@ def execution_identity(binary, test_binary):
             or len(image) != 71 or not image.startswith("sha256:") or any(c not in "0123456789abcdef" for c in image[7:])):
         raise ValueError("matrix execution requires exact QGF_SOURCE_COMMIT, QGF_SOURCE_TREE and QGF_IMAGE_ID")
     version = subprocess.check_output(["go", "version"], text=True, timeout=10).strip()
-    if version != "go version go1.27.3 linux/amd64":
+    if version != "go version go1.27.4 linux/amd64":
         raise ValueError(f"unqualified primary toolchain: {version}")
     return {"candidate": candidate, "tree": tree, "image": image, "go": version,
             "kernel": {"system": platform.system(), "release": platform.release(), "version": platform.version(), "machine": platform.machine()},

@@ -10063,3 +10063,24 @@ Selected the paired picoquic `fbd46d9a1f54ebf9397f2ee6355b5019ab379fb7` / PicoTL
 ### Next
 
 At this timestamp, [R18 (#1038)](https://github.com/the-sarge/quic-go-fast/issues/1038) remains incomplete pending a concrete in-contract repair for [ordinary latency #1285](https://github.com/the-sarge/quic-go-fast/issues/1285); [PR #1295](https://github.com/the-sarge/quic-go-fast/pull/1295) remains unselected. Its original full 36-instance qualification is still required after a selected repair. [Program #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live frontier; R17 completion does not remove R18's prerequisite for R19 #1039.
+
+---
+
+## Go 1.27.4 compiler refresh - 2026-11-11 00:23 EST
+
+**Main:** `eab06f84490f`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #1299](https://github.com/the-sarge/quic-go-fast/pull/1299) to refresh maintained development, CI, interoperability and qualification-driver selections to Go 1.27.4 and compatibility Go 1.26.11. The three maintained modules retain their Go 1.26.0 consumer floors and unchanged dependency graphs. The independent-peer image retains its exact OS/native base and installs only the checksum-verified official Go distribution. Historical evidence and published release notes remain unchanged; no release tag was needed.
+
+### Validation
+
+Both compilers passed local unit suites, vet, root/FIPS/vendor module tidy checks, integration-helper/version-negotiation and FIPS tests. All 65 interoperability Python regressions passed. Actionlint diagnostics on changed workflows matched the existing baseline. Exact-head local certification covered `d9d5e46b1ec298e3b56cacc763d061a4e7153783`; all 18 hosted PR checks passed on that head, including native independent-peer interoperability and both cross-compilation matrices.
+
+RAS review `20261111T050934-aa55b77b54be9796175837d7` completed without findings. Two Codex reviewers and synthesis completed, meeting the configured quorum; both Claude reviewer processes failed. No review was posted, no fix verification or replacement review was needed, and no review follow-up remains.
+
+### Next
+
+[infra #729](https://github.com/the-sarge/infra/issues/729) tracks the wider rollout, with Wiremux, Gridcast and Offload next in the operator's priority order. This source/compiler refresh does not establish a new library release or downstream application deployment.
