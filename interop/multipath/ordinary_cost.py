@@ -16,7 +16,7 @@ import statistics
 import subprocess
 import time
 
-GO_VERSION = "go1.27.3"
+GO_VERSION = "go1.27.4"
 ROUNDS = 3
 WARMUP_S = 10
 WINDOW_S = 60

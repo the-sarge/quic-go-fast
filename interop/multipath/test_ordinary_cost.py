@@ -124,7 +124,7 @@ class AccountingTests(unittest.TestCase):
 
     def test_wrong_toolchain_fails(self):
         record = observation()
-        record["server"]["go"] = "go1.26.10"
+        record["server"]["go"] = "go1.26.11"
         with self.assertRaisesRegex(ValueError, "toolchain"):
             driver.check_observation(record)
 
