@@ -10084,3 +10084,24 @@ RAS review `20261111T050934-aa55b77b54be9796175837d7` completed without findings
 ### Next
 
 [infra #729](https://github.com/the-sarge/infra/issues/729) tracks the wider rollout, with Wiremux, Gridcast and Offload next in the operator's priority order. This source/compiler refresh does not establish a new library release or downstream application deployment.
+
+---
+
+## Accepted ordinary STREAM latency tradeoff - 2026-11-11 01:13 EST
+
+**Main:** `579effa846d5`
+**Actor:** Codex
+
+### Decisions
+
+Published the owner's scoped acceptance of the measured STREAM/GSO-off echo-latency tradeoff in [PR #1297](https://github.com/the-sarge/quic-go-fast/pull/1297), merged as `579effa846d5e8f157a05806b74c3a2f2f9317b8`. The [owner decision for #1285](https://github.com/the-sarge/quic-go-fast/issues/1285#issuecomment-6787260018) removes mandatory optimization of that measured outcome. The original numerical FAIL remains historical evidence with a separate owner-accepted deviation; no replacement numerical ceiling or blanket future waiver is selected. Other metrics, native guarantees and the R19 #1039 activation hold remain required.
+
+Current compiler statements now match Go 1.27.4 and compatibility Go 1.26.11 from [maintenance PR #1299](https://github.com/the-sarge/quic-go-fast/pull/1299) and [journal PR #1300](https://github.com/the-sarge/quic-go-fast/pull/1300). The [scoped native-evidence reassessment](adr/2026-10-24-multipath-endpoint-plan.md#november-go-patch-reassessment) preserves the historical native receipt and records the relevant source inspection and existing maintenance checks. It does not claim binary or timing equivalence.
+
+### Validation
+
+The five-file documentation change passed independent source/contract review and exact-head clean-tree, whitespace, added relative-link/anchor, slice-identity and completion-count checks at `4ca53a2edc94d377558898ec7921273896bc4fb7`, against `391ad5127b30634f356ac1f9bdf08e644605cbdc`. All 17 hosted checks succeeded on that head. The earlier Go 1.27.3 vulnerability-check failure remains preserved; the patched toolchain resolved it without suppressing the check or rerunning the unchanged failed candidate. This PR changed no runtime code, numerical judge, profile or workload and ran no performance campaign.
+
+### Next
+
+At this timestamp, [R18 #1038](https://github.com/the-sarge/quic-go-fast/issues/1038) remains incomplete and needs one fresh fixed-candidate 36-observation qualification. Its [disposable continuation controls (#1038)](https://github.com/the-sarge/quic-go-fast/issues/1038#issuecomment-6787788018) are source-reviewed and locally checked but still unbound and unrun. The original twelve observations cannot be combined with measurements of the changed production source/compiler. [Program #646](https://github.com/the-sarge/quic-go-fast/issues/646) remains the live frontier at 38/46 completed slices; [R19 #1039](https://github.com/the-sarge/quic-go-fast/issues/1039) stays held until R18 is accepted. Recommendation: reconcile the obsolete #1285 dependency and bind the current candidate for the original qualification inventory.
