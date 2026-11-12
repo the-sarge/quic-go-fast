@@ -374,6 +374,9 @@ func (s *nativeOrdinarySender) sendProtected(buffer *packetBuffer, segment uint1
 		record.request = endpointRequest{identity: record.identity, destination: destination, deadline: record.deadline.ToTime(), epoch: epoch, members: record.request.members}
 	}
 	datagrams := member.datagrams()
+	if metadata.shortSoftwareDatagramGroup && !member.nativeGSO && datagrams > 1 {
+		record.request.shortSoftwareDatagramGroup = true
+	}
 	packets := record.count - record.memberEnd()
 	record.request.members = append(record.request.members, member)
 	record.members = append(record.members, ordinaryLocalMember{end: record.count, datagrams: datagrams, metadata: metadata, bytes: buffer.Len()})

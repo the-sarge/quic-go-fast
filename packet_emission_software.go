@@ -23,7 +23,9 @@ func (e *packetEmission) withSoftwareSegments(now monotime.Time) (result emissio
 			protection.discard()
 			buf.Release()
 		} else {
-			e.handoff(buf, batch.gsoSize(), bufferECN, sendMetadata{}, &protection)
+			segment := batch.gsoSize()
+			metadata := sendMetadata{shortSoftwareDatagramGroup: segment != 0 && batch.segment < batch.maxSize}
+			e.handoff(buf, segment, bufferECN, metadata, &protection)
 			result.progress = true
 		}
 		buf = nil

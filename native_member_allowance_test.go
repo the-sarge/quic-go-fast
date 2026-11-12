@@ -85,6 +85,7 @@ func TestE23HardwareFallbackKeepsOneSlotAcrossReplacement(t *testing.T) {
 		r := sender.pending
 		require.Len(t, r.members, 1)
 		require.Equal(t, 6, r.datagrams)
+		require.False(t, r.request.shortSoftwareDatagramGroup, "hardware GSO does not mark a request")
 		sender.finish()
 		synctest.Wait()
 		require.True(t, fallback)
