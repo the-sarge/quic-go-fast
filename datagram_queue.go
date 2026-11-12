@@ -270,6 +270,14 @@ func (h *datagramQueue) CloseWithError(e error) {
 	})
 }
 
+// clearSendPayloadCache is called by the terminal owner after notifying waiters
+// of closure. An admission already holding sendMx can finish before cleanup.
+func (h *datagramQueue) clearSendPayloadCache() {
+	h.sendMx.Lock()
+	h.sendPayloadCache = nil
+	h.sendMx.Unlock()
+}
+
 // sealAdmission fences new sends without removing already admitted frames.
 func (h *datagramQueue) sealAdmission(reason error) {
 	h.sendMx.Lock()

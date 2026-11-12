@@ -2737,8 +2737,9 @@ func (c *Conn) handleCloseError(closeErr *closeError) {
 	}
 
 	c.streamsMap.CloseWithError(e)
-	if c.datagramQueue != nil {
-		c.datagramQueue.CloseWithError(e)
+	if q := c.datagramQueue; q != nil {
+		q.CloseWithError(e)
+		defer q.clearSendPayloadCache()
 	}
 	if c.pathCredit != nil {
 		c.pathCredit.endOperation(e)
