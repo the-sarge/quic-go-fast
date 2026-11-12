@@ -395,7 +395,6 @@ func newEndpointToken(index int, request *endpointRequest) *endpointToken {
 }
 
 type endpointState struct {
-	armedDeadline                      time.Time // runner snapshot; protected by the endpoint mutex
 	endpoint                           *nativeEndpoint
 	budget                             time.Duration
 	participants                       [endpointParticipants + 2]*endpointParticipant
@@ -483,12 +482,9 @@ func (e *nativeEndpoint) do(f func(*endpointState)) {
 	if !s.terminal {
 		s.advance(time.Now())
 		f(s)
-		now := time.Now()
-		s.advance(now)
+		s.advance(time.Now())
 		s.wakeWriter()
-		if s.progressWakeNeeded(now) {
-			e.notifyProgress()
-		}
+		e.notifyProgress()
 	}
 	e.unlock()
 }
@@ -501,18 +497,6 @@ func (e *nativeEndpoint) nativeWorkEmpty(p *endpointParticipant) bool { //nolint
 	empty := !s.sealed && !s.faulted && !s.terminal && s.valid(p) && !p.draining && s.current == nil && len(s.queue) == 0
 	e.mutex.Unlock()
 	return empty
-}
-
-// progressWakeNeeded observes state under control after advance at now.
-// Reuse that settled time: a fresh clock could skip an unarbitrated retry floor.
-// The runner alone sets terminal and joins, so terminal-ready must also wake it.
-// An existing earlier timer may fire harmlessly; never drain its pending wake.
-func (s *endpointState) progressWakeNeeded(now time.Time) bool {
-	if s.terminal || (s.sealed && s.current == nil && len(s.queue) == 0) {
-		return true
-	}
-	next := s.nextWake(now)
-	return !next.IsZero() && (s.armedDeadline.IsZero() || next.Before(s.armedDeadline))
 }
 
 func (e *nativeEndpoint) notifyProgress() {
@@ -1104,7 +1088,6 @@ func (s *endpointState) run() {
 		}
 		s.wakeWriter()
 		next := s.nextWake(now)
-		s.armedDeadline = next
 		e.unlock()
 		var wake <-chan time.Time
 		if !next.IsZero() {
@@ -1368,13 +1351,10 @@ func (e *nativeEndpoint) write(native endpointNativeIO) {
 	e.mutex.Lock()
 	for {
 		s := e.state
-		now := time.Now()
-		s.advance(now)
+		s.advance(time.Now())
 		token := s.claim()
 		if token == nil {
-			if s.progressWakeNeeded(now) {
-				e.notifyProgress()
-			}
+			e.notifyProgress() // timer/terminal owner must observe the parked boundary
 			e.unlock()
 			select {
 			case <-e.halt:
@@ -1384,9 +1364,7 @@ func (e *nativeEndpoint) write(native endpointNativeIO) {
 			e.mutex.Lock()
 			continue
 		}
-		if s.progressWakeNeeded(now) {
-			e.notifyProgress()
-		}
+		e.notifyProgress() // independent watchdog observes this new claim
 		e.unlock()
 		var result endpointResult
 		fault := false

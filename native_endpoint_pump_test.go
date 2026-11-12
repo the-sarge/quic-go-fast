@@ -153,7 +153,7 @@ func TestNativeEndpointEarlierDeadlineAfterArming(t *testing.T) {
 	})
 }
 
-func TestNativeEndpointCoveredProgress(t *testing.T) {
+func TestNativeEndpointProgressHintsPreserveWriterSupply(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		started := make(chan string, 3)
 		permits := make(chan struct{})
@@ -169,10 +169,9 @@ func TestNativeEndpointCoveredProgress(t *testing.T) {
 		require.Equal(t, "first", <-started)
 		require.NoError(t, e.offer(p, 0, endpointTestRequest(1, "successor")))
 		synctest.Wait()
-		// No progress receiver exists. A later empty channel therefore proves
-		// suppression, not that a live runner happened to consume the hint.
+		// No progress receiver exists. Conservative progress hints stay pending
+		// while the independent writer continues and parks without a rendezvous.
 		e.mutex.Lock()
-		e.state.armedDeadline = time.Now().Add(50 * time.Millisecond)
 		select {
 		case <-e.progress:
 		default:
@@ -181,18 +180,18 @@ func TestNativeEndpointCoveredProgress(t *testing.T) {
 		permits <- struct{}{}
 		require.Equal(t, "successor", <-started)
 		synctest.Wait()
-		require.Empty(t, e.progress, "the earlier timer covers the successor claim")
+		require.NotEmpty(t, e.progress, "conservative progress hints do not prevent the successor claim")
 		result, ok := e.take(p)
 		require.True(t, ok)
 		require.NoError(t, result.failure())
 		require.Equal(t, 1, result.members[0].accepted)
 		permits <- struct{}{}
 		synctest.Wait()
-		require.Empty(t, e.progress, "the empty writer park has no new obligation")
+		require.NotEmpty(t, e.progress, "conservative progress hints do not prevent the empty writer park")
 		result, ok = e.take(p)
 		require.True(t, ok)
 		require.NoError(t, result.failure())
-		// Writer supply is independent of the suppressed progress hint.
+		// Writer supply is independent of the pending progress hint.
 		require.NoError(t, e.offer(p, 0, endpointTestRequest(1, "after park")))
 		require.Equal(t, "after park", <-started)
 		permits <- struct{}{}
@@ -200,7 +199,7 @@ func TestNativeEndpointCoveredProgress(t *testing.T) {
 		result, ok = e.take(p)
 		require.True(t, ok)
 		require.NoError(t, result.failure())
-		require.Empty(t, e.progress)
+		require.NotEmpty(t, e.progress)
 	})
 }
 
@@ -290,7 +289,6 @@ func TestNativeEndpointRetryProgressAfterSuccessfulReentry(t *testing.T) {
 		_, err = prepare()
 		require.ErrorIs(t, err, errEndpointCapacity)
 		e.mutex.Lock()
-		e.state.armedDeadline = time.Now().Add(10 * time.Millisecond)
 		select {
 		case <-e.progress:
 		default:
