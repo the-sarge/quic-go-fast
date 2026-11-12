@@ -10128,3 +10128,28 @@ The exact reviewed head was `a2e388c27fdf6af3249e2a799aa2b27ebaa4b001`, based on
 ### Next
 
 At this timestamp, [R18 #1038](https://github.com/the-sarge/quic-go-fast/issues/1038) still requires one fresh original 36-observation campaign on the merged candidate, using the same final binary in both roles and preserving CPU/useful-byte ≤1.10 and every other original predicate. Stopped and diagnostic rows receive no credit. [Program #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live frontier; this standalone repair adds no audited implementation slice or activation authority. Recommendation: complete journal publication, then bind the existing R18 qualification controls to the final source without an extra confidence run.
+
+---
+
+## Conservative endpoint progress restoration landed - 2026-11-12 11:08 EST
+
+**Main:** `1c1f48b846ee`
+**Actor:** Codex
+
+### Completed
+
+[PR #1306 — Restore conservative native endpoint progress hints](https://github.com/the-sarge/quic-go-fast/pull/1306) merged the bounded repair for [issue #1305](https://github.com/the-sarge/quic-go-fast/issues/1305) at `1c1f48b846ee8e64369ae80817d2900ffb314b62`. The merged tree equals reviewed candidate `4e115954e7e54e747a9f3292d1561c6447c299c8`. Control completion, writer claim and writer park use the existing nonblocking, coalescing progress hint; the suppression-only deadline snapshot and predicate are removed. Both control advances, the independent writer, canonical runner timer and terminal owners, native-return fences and existing capacity/admission policy remain. The two Go files match selected `f8c46cfcc773203f3a2ecc6ea8dffa5b41876a09`; the maintained efficiency ADR records the current policy without rewriting historical evidence.
+
+### Decisions
+
+The [delegated plan approval (#1305)](https://github.com/the-sarge/quic-go-fast/issues/1305#issuecomment-6828304449) bounds this repair to the selected two-file restoration plus the maintained ADR correction. The [final experiment disposition (#1038)](https://github.com/the-sarge/quic-go-fast/issues/1038#issuecomment-6828192590) rejects dual-plane recovery history and ends CPU exploration. Preserve the original CPU/useful-byte 1.10 verdict separately from the [narrow retained-design owner disposition (#1038)](https://github.com/the-sarge/quic-go-fast/issues/1038#issuecomment-6827181780); other acceptance obligations and the separate [STREAM echo disposition (#1285)](https://github.com/the-sarge/quic-go-fast/issues/1285#issuecomment-6787260018) remain.
+
+### Validation
+
+The [certification receipt (PR #1306)](https://github.com/the-sarge/quic-go-fast/pull/1306#issuecomment-6828724460) binds passing root tests, one focused 54-test race pass, vet, module tidiness, formatting, whitespace and ADR links. Standards and Spec preparation each returned zero findings. Full configured five-reviewer RAS `20261112T155014-4ea046e5366b19c06a1a623a` completed with no required fixes; all five initial reviewers succeeded, four adjudications and synthesis completed, and the agy-carbon adjudication's structured-delivery `plan_drift` failure remains recorded. Its adjacent Reno-plan pointer item is deferred to root's already owned R18 publication, with no repair scope expansion or separate ticket. No fix verification or replacement review was required.
+
+[Exact-candidate native preservation (#1305)](https://github.com/the-sarge/quic-go-fast/issues/1305#issuecomment-6828604001) passed two nativequal builds and all twelve existing E6 instances across Go 1.26.11 and 1.27.4 without repeats or added scope. All eighteen applicable hosted checks passed, including the [actual post-ready independent-peer run](https://github.com/the-sarge/quic-go-fast/actions/runs/43254069938) on the certified head; the skipped draft peer job was excluded. Root serialized the exact-head squash merge after checking the unchanged base.
+
+### Next
+
+Complete this journal delivery and reconcile [repair #1305](https://github.com/the-sarge/quic-go-fast/issues/1305). [R18 #1038](https://github.com/the-sarge/quic-go-fast/issues/1038) is the live qualification tracker: it remains open for the original fresh six-cell, three-pair, 36-observation campaign on final merged combined code, with the same binary serving both roles. Prior diagnostics earn no qualification credit. Root will reconcile the Reno-plan prerequisite/CPU-disposition pointers with final qualification publication; no further CPU candidate search is authorized.
