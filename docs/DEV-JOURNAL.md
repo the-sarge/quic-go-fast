@@ -10105,3 +10105,26 @@ The five-file documentation change passed independent source/contract review and
 ### Next
 
 At this timestamp, [R18 #1038](https://github.com/the-sarge/quic-go-fast/issues/1038) remains incomplete and needs one fresh fixed-candidate 36-observation qualification. Its [disposable continuation controls (#1038)](https://github.com/the-sarge/quic-go-fast/issues/1038#issuecomment-6787788018) are source-reviewed and locally checked but still unbound and unrun. The original twelve observations cannot be combined with measurements of the changed production source/compiler. [Program #646](https://github.com/the-sarge/quic-go-fast/issues/646) remains the live frontier at 38/46 completed slices; [R19 #1039](https://github.com/the-sarge/quic-go-fast/issues/1039) stays held until R18 is accepted. Recommendation: reconcile the obsolete #1285 dependency and bind the current candidate for the original qualification inventory.
+
+---
+
+## Bounded ordinary-pipeline repair landed - 2026-11-12 04:42 EST
+
+**Main:** `98617534f64f`
+**Actor:** Codex
+
+### Completed
+
+Merged [ordinary-pipeline production repair PR #1303](https://github.com/the-sarge/quic-go-fast/pull/1303) as `98617534f64f3f6bf039f3d1e78faba37521038c`, closing [repair #1302](https://github.com/the-sarge/quic-go-fast/issues/1302). The repair retains fresh small-claim/member-fact allocation, invocation-local completion scratch, producer used-prefix clearing and selective deadline/terminal progress notification. Shared application DATAGRAM admission is now 128 entries for ordinary/unregistered and opted-in routes; native physical/backing/request/record limits, ownership, certainty and deadline fences remain unchanged.
+
+The [delegated plan decision (#1302)](https://github.com/the-sarge/quic-go-fast/issues/1302#issuecomment-6819042165) authorizes this bounded continuation after completed N3 #1202. The [source and feasibility receipt](audits/2026-11-12-r18-production-repair.md) preserves the narrow one-pair CPU ratio 1.098521485024 and its memory, latency and loss/drop costs. It is not full ordinary-cost qualification. All three production files retain the selected source; two regression tests received behavior-preserving Unix portability and Go-fixer normalization.
+
+### Validation
+
+The exact reviewed head was `a2e388c27fdf6af3249e2a799aa2b27ebaa4b001`, based on `a6a87ea447b2384de49fe5ed67b2233aaf60ad4e`. Affected root/ackhandler tests, 45 root race families plus the ackhandler scalar-prefix family, vet, module tidiness, formatting and documentation checks passed. The two corrected test families passed focused races and OpenBSD/Solaris test compilation; the initial hosted failures remain recorded. Standards/Spec preparation found no issues. Initial RAS review `20261112T085655-3d69064ebcd83298587647ea` found the portability issue and two documentation inconsistencies; scoped verification resolved them. Its carbon adjudicator failed structured delivery, while all five first-pass reviewers and synthesis completed. Replacement `20261112T092235-32cc47aff051842d7955a837` completed all five reviewers and synthesis with zero findings. [Review/certification receipt (PR #1303)](https://github.com/the-sarge/quic-go-fast/pull/1303#issuecomment-6820013759).
+
+[Native preservation (PR #1303)](https://github.com/the-sarge/quic-go-fast/pull/1303#issuecomment-6819544058) passed two builds and all twelve existing E6 instances on Go 1.26.11/1.27.4 at `b5d884bca19a28d85db48c162432aabee175e6d9`. The final two ADR edits preserve all 979 Go/module/driver inputs; binaries retain their actual tested identities. Injected traversal is separate from uninstrumented timing, GSO EIO is simulated, and pressure stack sampling observed zero waits. Maximum uninstrumented timing was 1.174443 ms against 20 ms. All 18 current hosted checks passed, including [actual post-ready peer run 43192790217](https://github.com/the-sarge/quic-go-fast/actions/runs/43192790217); draft skips were not used as evidence.
+
+### Next
+
+At this timestamp, [R18 #1038](https://github.com/the-sarge/quic-go-fast/issues/1038) still requires one fresh original 36-observation campaign on the merged candidate, using the same final binary in both roles and preserving CPU/useful-byte ≤1.10 and every other original predicate. Stopped and diagnostic rows receive no credit. [Program #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live frontier; this standalone repair adds no audited implementation slice or activation authority. Recommendation: complete journal publication, then bind the existing R18 qualification controls to the final source without an extra confidence run.
