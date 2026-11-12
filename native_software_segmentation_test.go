@@ -50,8 +50,11 @@ func TestNativeSoftwareShortDatagramGrouping(t *testing.T) {
 	nativeOrdinaryTest(t, func(t *testing.T) {
 		tc, sender, socket := nativeSoftwareBoundaryConnection(t)
 		c := tc.conn
-		payloads := gsoTestPayloads(900, 900, 950, 900)
-		queueGSOTestDatagrams(t, c, payloads)
+		c.peerParams = &wire.TransportParameters{MaxDatagramFrameSize: wire.MaxDatagramSize}
+		payloads := gsoTestPayloads(1090, 1090, 1140, 1090)
+		for _, payload := range payloads {
+			require.NoError(t, c.SendDatagram(payload))
+		}
 		result := c.emission.advanceForPlatform(monotime.Now(), false, true)
 		require.NoError(t, result.err)
 		r := sender.pending
@@ -69,6 +72,13 @@ func TestNativeSoftwareShortDatagramGrouping(t *testing.T) {
 			}
 		}
 		require.Nil(t, c.datagramQueue.Peek())
+		require.Len(t, c.datagramQueue.sendPayloadCache, len(payloads))
+		replacement := bytes.Repeat([]byte{0xff}, len(payloads[len(payloads)-1]))
+		require.NoError(t, c.SendDatagram(replacement))
+		require.Len(t, c.datagramQueue.sendPayloadCache, len(payloads)-1)
+		c.SealDatagramAdmissionV1(nil)
+		require.Empty(t, c.datagramQueue.sendPayloadCache)
+		require.Equal(t, replacement, c.datagramQueue.Peek().Data, "sealing leaves admitted data queued")
 		sender.finish()
 		synctest.Wait()
 		require.NoError(t, sender.consume())

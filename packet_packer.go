@@ -1335,6 +1335,9 @@ func (p *packetPacker) appendPacketPayload(raw []byte, pl payload, paddingLen pr
 		if err != nil {
 			return nil, err
 		}
+		if datagram, ok := f.Frame.(*wire.DatagramFrame); ok && p.datagramQueue != nil {
+			p.datagramQueue.recycleSendPayload(datagram)
+		}
 	}
 	for _, f := range pl.streamFrames {
 		var err error

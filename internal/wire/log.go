@@ -40,6 +40,8 @@ func LogFrame(logger utils.Logger, frame Frame, sent bool) {
 		} else {
 			logger.Debugf("\t%s &wire.AckFrame{LargestAcked: %d, LowestAcked: %d, DelayTime: %s%s}", dir, f.LargestAcked(), f.LowestAcked(), f.DelayTime.String(), ecn)
 		}
+	case *DatagramFrame:
+		logger.Debugf("\t%s &wire.DatagramFrame{DataLenPresent:%t, Data:%#v}", dir, f.DataLenPresent, f.Data)
 	case *MaxDataFrame:
 		logger.Debugf("\t%s &wire.MaxDataFrame{MaximumData: %d}", dir, f.MaximumData)
 	case *MaxStreamDataFrame:

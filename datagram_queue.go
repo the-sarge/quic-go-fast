@@ -14,6 +14,12 @@ import (
 const (
 	maxDatagramSendQueueLen = 128
 	maxDatagramRcvQueueLen  = 1024
+
+	// One backing size covers common near-MTU payloads, including 1190-byte
+	// sends. Keep exact-size allocations outside this range to avoid rounding
+	// up small payloads or retaining jumbo buffers. This is a cache policy.
+	minReusableDatagramPayloadSize = 1024
+	maxReusableDatagramPayloadSize = 1280
 )
 
 type datagramQueue struct {
@@ -22,6 +28,9 @@ type datagramQueue struct {
 	sendQueue ringbuffer.RingBuffer[*wire.DatagramFrame]
 	sent      chan struct{} // used to notify Add that a datagram was dequeued
 	sendDrops atomic.Uint64 // queued frames no eligible path could carry
+	// Idle backing storage for copies made at admission, bounded by the send
+	// queue limit. sendMx protects both taking and returning these buffers.
+	sendPayloadCache []*[maxReusableDatagramPayloadSize]byte
 
 	rcvMx    sync.Mutex
 	rcvQueue [][]byte
@@ -57,6 +66,10 @@ func (h *datagramQueue) Add(f *wire.DatagramFrame) error {
 }
 
 func (h *datagramQueue) AddContext(ctx context.Context, f *wire.DatagramFrame) error {
+	return h.addContext(ctx, f, false)
+}
+
+func (h *datagramQueue) addContext(ctx context.Context, f *wire.DatagramFrame, copyPayload bool) error {
 	h.sendMx.Lock()
 
 	for {
@@ -78,6 +91,9 @@ func (h *datagramQueue) AddContext(ctx context.Context, f *wire.DatagramFrame) e
 		default:
 		}
 		if h.sendQueue.Len() < maxDatagramSendQueueLen {
+			if copyPayload {
+				h.copySendPayload(f)
+			}
 			h.sendQueue.PushBack(f)
 			h.sendMx.Unlock()
 			h.hasData()
@@ -96,6 +112,49 @@ func (h *datagramQueue) AddContext(ctx context.Context, f *wire.DatagramFrame) e
 		}
 		h.sendMx.Lock()
 	}
+}
+
+// copySendPayload is called with sendMx held once admission has committed.
+func (h *datagramQueue) copySendPayload(f *wire.DatagramFrame) {
+	size := len(f.Data)
+	// Debug logs the bytes after serialization. Keep its copy with the frame.
+	if size < minReusableDatagramPayloadSize || size > maxReusableDatagramPayloadSize || h.logger.Debug() {
+		data := make([]byte, size)
+		copy(data, f.Data)
+		f.Data = data
+		return
+	}
+	var buf *[maxReusableDatagramPayloadSize]byte
+	if n := len(h.sendPayloadCache); n > 0 {
+		buf = h.sendPayloadCache[n-1]
+		h.sendPayloadCache[n-1] = nil
+		h.sendPayloadCache = h.sendPayloadCache[:n-1]
+	} else {
+		buf = new([maxReusableDatagramPayloadSize]byte)
+	}
+	copy(buf[:size], f.Data)
+	f.SetReusableData(buf[:size])
+}
+
+func (h *datagramQueue) recycleSendPayload(f *wire.DatagramFrame) {
+	data := f.DetachReusableData()
+	if data == nil {
+		return
+	}
+	h.sendMx.Lock()
+	defer h.sendMx.Unlock()
+	select {
+	case <-h.closed:
+		return
+	default:
+	}
+	if len(h.sendPayloadCache) == maxDatagramSendQueueLen {
+		return
+	}
+	if h.sendPayloadCache == nil {
+		h.sendPayloadCache = make([]*[maxReusableDatagramPayloadSize]byte, 0, maxDatagramSendQueueLen)
+	}
+	h.sendPayloadCache = append(h.sendPayloadCache, (*[maxReusableDatagramPayloadSize]byte)(data[:cap(data)]))
 }
 
 // Peek gets the next DATAGRAM frame for sending.
@@ -209,6 +268,14 @@ func (h *datagramQueue) CloseWithError(e error) {
 		h.closeErr = e
 		close(h.closed)
 	})
+}
+
+// sealAdmission fences new sends without removing already admitted frames.
+func (h *datagramQueue) sealAdmission(reason error) {
+	h.sendMx.Lock()
+	h.CloseWithError(reason)
+	h.sendPayloadCache = nil
+	h.sendMx.Unlock()
 }
 
 // discardOversized preserves the order of surviving queued messages. A sender

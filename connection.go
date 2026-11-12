@@ -3347,9 +3347,7 @@ func (c *Conn) SealDatagramAdmissionV1(reason error) {
 		reason = net.ErrClosed
 	}
 	if q := c.datagramQueue; q != nil {
-		q.sendMx.Lock()
-		q.CloseWithError(reason)
-		q.sendMx.Unlock()
+		q.sealAdmission(reason)
 	}
 }
 
@@ -3372,11 +3370,7 @@ func (c *Conn) sendDatagram(ctx context.Context, p []byte, copyPayload bool) err
 		return &DatagramTooLargeError{MaxDatagramPayloadSize: int64(maxDataLen)}
 	}
 	f.Data = p
-	if copyPayload {
-		f.Data = make([]byte, len(p))
-		copy(f.Data, p)
-	}
-	return c.datagramQueue.AddContext(ctx, f)
+	return c.datagramQueue.addContext(ctx, f, copyPayload)
 }
 
 // ReceiveDatagram gets a message received in a QUIC datagram, as specified in RFC 9221.

@@ -16,6 +16,7 @@ import (
 	"github.com/quic-go/quic-go/internal/qerr"
 	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/internal/wire"
+	"github.com/quic-go/quic-go/qlog"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -711,6 +712,69 @@ func TestPackDatagramFrames(t *testing.T) {
 	require.IsType(t, &wire.DatagramFrame{}, p.Frames[0].Frame)
 	require.Equal(t, []byte("foobar"), p.Frames[0].Frame.(*wire.DatagramFrame).Data)
 	require.NotEmpty(t, buffer.Data)
+}
+
+func TestPackCopiedDatagramReusesPayload(t *testing.T) {
+	for _, mode := range []string{"copied", "owned", "debug"} {
+		t.Run(mode, func(t *testing.T) {
+			mockCtrl := gomock.NewController(t)
+			tp := newTestPacketPacker(t, mockCtrl, protocol.PerspectiveServer)
+			c := newOwnedDatagramTestConn()
+			c.datagramQueue = tp.datagramQueue
+			logger := utils.DefaultLogger.WithPrefix("test")
+			logger.SetLogLevel(utils.LogLevelNothing)
+			if mode == "debug" {
+				logger.SetLogLevel(utils.LogLevelDebug)
+			}
+			c.datagramQueue.logger = logger
+
+			original := bytes.Repeat([]byte{0x42}, 1190)
+			supplied := bytes.Clone(original)
+			if mode == "owned" {
+				require.NoError(t, c.SendDatagramOwnedContextV1(t.Context(), supplied))
+			} else {
+				require.NoError(t, c.SendDatagramContext(t.Context(), supplied))
+				supplied[0] = 0x24
+			}
+			frame := c.datagramQueue.Peek()
+			require.Equal(t, original, frame.Data)
+			backing := &frame.Data[0]
+			if mode == "owned" {
+				require.Same(t, &supplied[0], backing)
+			}
+
+			tp.ackFramer.EXPECT().GetAckFrame(protocol.Encryption1RTT, gomock.Any(), true)
+			tp.pnManager.EXPECT().PeekPacketNumber(protocol.Encryption1RTT).Return(protocol.PacketNumber(0x42), protocol.PacketNumberLen2)
+			tp.pnManager.EXPECT().PopPacketNumber(protocol.Encryption1RTT).Return(protocol.PacketNumber(0x42))
+			tp.sealingManager.EXPECT().Get1RTTSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
+			tp.framer.EXPECT().HasData()
+			buffer := getPacketBuffer()
+			defer buffer.Release()
+			packet, err := tp.packer.AppendPacket(buffer, protocol.MaxByteCount, monotime.Now(), protocol.Version1)
+			require.NoError(t, err)
+			require.Len(t, packet.Frames, 1)
+			require.Same(t, frame, packet.Frames[0].Frame)
+			require.True(t, packet.IsAckEliciting())
+			require.Nil(t, packet.Frames[0].Handler)
+
+			replacement := bytes.Repeat([]byte{0x93}, len(original))
+			require.NoError(t, c.SendDatagram(replacement))
+			next := c.datagramQueue.Peek()
+			require.Equal(t, replacement, next.Data)
+			if mode == "copied" {
+				require.Nil(t, frame.Data)
+				require.Same(t, backing, &next.Data[0])
+				_, err := frame.Append(nil, c.version)
+				require.Error(t, err)
+			} else {
+				require.Equal(t, original, frame.Data)
+				require.NotSame(t, backing, &next.Data[0])
+			}
+			require.Equal(t, &qlog.DatagramFrame{Length: int64(len(original))}, toQlogFrame(frame).Frame)
+			decoded := decodeGSOTestPacket(t, testPackerConnIDLen, buffer.Data)
+			require.Equal(t, [][]byte{original}, decoded.datagrams)
+		})
+	}
 }
 
 func TestPackLargeDatagramFrame(t *testing.T) {

@@ -56,6 +56,13 @@ func TestLogStreamFrame(t *testing.T) {
 	require.Contains(t, buf.String(), "\t<- &wire.StreamFrame{StreamID: 42, Fin: false, Offset: 1337, Data length: 100, Offset + Data length: 1437}\n")
 }
 
+func TestLogDatagramFrame(t *testing.T) {
+	buf := &bytes.Buffer{}
+	logger := setupLogTest(t, buf)
+	LogFrame(logger, &DatagramFrame{DataLenPresent: true, Data: []byte{0xab, 0xcd}}, true)
+	require.Contains(t, buf.String(), "\t-> &wire.DatagramFrame{DataLenPresent:true, Data:[]byte{0xab, 0xcd}}\n")
+}
+
 func TestLogAckFrameWithoutMissingPackets(t *testing.T) {
 	buf := &bytes.Buffer{}
 	logger := setupLogTest(t, buf)
