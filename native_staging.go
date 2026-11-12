@@ -15,7 +15,7 @@ import (
 // exchange detaches the bounded immutable terminal FIFO and optionally admits one
 // exact frozen head in the same endpoint transaction. Refusal leaves payload ownership
 // with the producer. No callback or protocol processing runs under endpoint control.
-func (e *nativeEndpoint) exchange(p *endpointParticipant, request *endpointRequest) ([]endpointResult, error) {
+func (e *nativeEndpoint) exchange(p *endpointParticipant, request *endpointRequest, storage []endpointResult) ([]endpointResult, error) {
 	var results []endpointResult
 	err := net.ErrClosed
 	e.do(func(s *endpointState) {
@@ -23,7 +23,7 @@ func (e *nativeEndpoint) exchange(p *endpointParticipant, request *endpointReque
 			return
 		}
 		if len(p.results) != 0 {
-			results = make([]endpointResult, 0, len(p.results))
+			results = storage[:0]
 		}
 		for _, i := range p.results {
 			results = append(results, s.records[i].result)
@@ -71,6 +71,9 @@ func (s *nativeOrdinarySender) serviceParticipant(p *endpointParticipant) {
 		ready = true
 	default:
 	}
+	// Settlement can reenter this method before the detached facts are staged.
+	// Each invocation owns its outer slots; member facts remain independently owned.
+	var storage [4]endpointResult
 	// At most four records exist; this loop can only advance to a different head.
 	for range len(s.records) + 1 {
 		head := s.stagedHead(p)
@@ -81,7 +84,7 @@ func (s *nativeOrdinarySender) serviceParticipant(p *endpointParticipant) {
 		if request == nil && !notified {
 			return
 		}
-		results, err := p.endpoint.exchange(p, request)
+		results, err := p.endpoint.exchange(p, request, storage[:0])
 		notified = false
 		if errors.Is(err, net.ErrClosed) {
 			// The endpoint owns admitted requests through their native fence; only
@@ -104,6 +107,7 @@ func (s *nativeOrdinarySender) serviceParticipant(p *endpointParticipant) {
 		for _, result := range results {
 			s.deferResult(result)
 		}
+		clear(results)
 		if request == nil || errors.Is(err, errEndpointCapacity) {
 			return
 		}
@@ -115,7 +119,7 @@ func (s *nativeOrdinarySender) serviceParticipant(p *endpointParticipant) {
 // Empty private backing carries no payload or authority.
 func (r *ordinaryLocalRecord) clearRequest() {
 	members := r.request.members
-	clear(members[:cap(members)])
+	clear(members)
 	r.request = endpointRequest{}
 	if cap(members) <= endpointBatch {
 		r.request.members = members[:0]
@@ -127,9 +131,9 @@ func (r *ordinaryLocalRecord) clearRequest() {
 // headers here, not before callbacks: Close must never have its backing restored.
 func (s *nativeOrdinarySender) freeRecord(r *ordinaryLocalRecord) {
 	packets, members, requestMembers := r.packets, r.members, r.request.members
-	clear(packets[:cap(packets)])
-	clear(members[:cap(members)])
-	clear(requestMembers[:cap(requestMembers)])
+	clear(packets)
+	clear(members)
+	clear(requestMembers)
 	*r = ordinaryLocalRecord{}
 	if s.closed {
 		return

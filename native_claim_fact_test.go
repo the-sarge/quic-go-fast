@@ -13,6 +13,7 @@ import (
 
 func TestE12ClaimFactLayout(t *testing.T) {
 	t.Logf("endpointToken=%d endpointRequest=%d endpointWriteResult=%d bytes", unsafe.Sizeof(endpointToken{}), unsafe.Sizeof(endpointRequest{}), unsafe.Sizeof(endpointWriteResult{}))
+	t.Logf("endpointOneMemberClaim=%d endpointTwoMemberClaim=%d endpointMemberResult=%d endpointResult=%d bytes", unsafe.Sizeof(endpointOneMemberClaim{}), unsafe.Sizeof(endpointTwoMemberClaim{}), unsafe.Sizeof(endpointMemberResult{}), unsafe.Sizeof(endpointResult{}))
 }
 
 func TestE12ClaimFactLifecycle(t *testing.T) {

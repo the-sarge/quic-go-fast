@@ -363,8 +363,8 @@ func TestDatagramQueueAddAfterClose(t *testing.T) {
 		depth int
 	}{
 		{name: "empty", depth: 0},
-		{name: "partly occupied", depth: 31},
-		{name: "full", depth: 32},
+		{name: "partly occupied", depth: maxDatagramSendQueueLen - 1},
+		{name: "full", depth: maxDatagramSendQueueLen},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var notifications int
@@ -410,7 +410,7 @@ func TestDatagramQueueBlockedAddAroundClose(t *testing.T) {
 		err := <-result
 		require.Error(t, err)
 		require.Same(t, assert.AnError, err)
-		require.Equal(t, 32, notifications)
+		require.Equal(t, maxDatagramSendQueueLen, notifications)
 		for range maxDatagramSendQueueLen - 1 {
 			require.Equal(t, []byte("queued"), queue.Peek().Data)
 			queue.Pop()
