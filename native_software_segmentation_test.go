@@ -81,6 +81,82 @@ func TestNativeSoftwareShortDatagramGrouping(t *testing.T) {
 	})
 }
 
+func TestNativeSoftwarePaddedDatagramGrouping(t *testing.T) {
+	t.Setenv(disableShortGSOSegmentsEnv, "false")
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		tc, sender, socket := nativeSoftwareBoundaryConnection(t)
+		c := tc.conn
+		// An empty DATAGRAM without a length field still needs a padding byte
+		// with the fixture's two-byte packet number and seven-byte sealer tag.
+		for range 3 {
+			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{}))
+		}
+		require.NoError(t, c.emission.advanceForPlatform(monotime.Now(), false, true).err)
+		r := sender.pending
+		require.NotNil(t, r)
+		require.Len(t, r.request.members, 1)
+		require.Equal(t, 3, r.datagrams)
+		wireSize := 1 + c.connIDManager.Get().Len() + 4 + 7
+		require.EqualValues(t, wireSize, r.request.members[0].gsoSize)
+		sender.finish()
+		synctest.Wait()
+		require.NoError(t, sender.consume())
+		require.Len(t, socket.writes, 3)
+		for _, write := range socket.writes {
+			require.Len(t, write.data, wireSize)
+			p := decodeGSOTestPacket(t, c.connIDManager.Get().Len(), write.data)
+			require.Len(t, p.datagrams, 1)
+			require.Empty(t, p.datagrams[0])
+		}
+	})
+}
+
+func TestNativeSoftwareShortDatagramMixedProgress(t *testing.T) {
+	t.Setenv(disableShortGSOSegmentsEnv, "false")
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		tc, sender, socket := nativeSoftwareBoundaryConnection(t)
+		c := tc.conn
+		for range maxGSOSegments + 2 {
+			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: make([]byte, 16)}))
+		}
+		now := monotime.Now()
+		streamData := []byte("stream progress behind a short DATAGRAM member")
+		queued := false
+		c.emission.policy = nativeNaturalTurnPolicy{emissionPolicy: c, inspect: func() {
+			if queued || c.connStats.PacketsSent.Load() == 0 {
+				return
+			}
+			// Make real STREAM and control work ready after the first packet
+			// opens the short member, while compatible DATAGRAMs remain queued.
+			queued = true
+			c.connFlowController.UpdateSendWindow(1 << 20)
+			flow := newStreamFlowController(0, c.connFlowController, 1<<20, 1<<20, 1<<20, c.flowControlRTT(), c.logger)
+			stream := newSendStream(c.ctx, 0, c, flow, false)
+			require.NoError(t, stream.TryWriteAll(streamData))
+			c.framer.QueueControlFrame(&wire.PingFrame{})
+			for pn := protocol.PacketNumber(1); pn <= 2; pn++ {
+				require.NoError(t, c.receivedPacketHandler.ReceivedPacket(pn, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+			}
+		}}
+		require.NoError(t, c.emission.advanceForPlatform(now, false, true).err)
+		require.True(t, queued)
+		r := sender.pending
+		require.NotNil(t, r)
+		require.GreaterOrEqual(t, len(r.request.members), 2)
+		require.Equal(t, maxGSOSegments, r.request.members[0].datagrams())
+		sender.finish()
+		synctest.Wait()
+		require.NoError(t, sender.consume())
+		require.Len(t, socket.writes, maxGSOSegments+2)
+		// The first ordinary packet after the bounded short member carries
+		// the pending ACK and control frame as well as STREAM data.
+		packet := decodeGSOTestPacket(t, c.connIDManager.Get().Len(), socket.writes[maxGSOSegments].data)
+		require.Len(t, packet.datagrams, 1)
+		require.Equal(t, 2, packet.others, "both the ACK and PING are packed at the next ordinary opportunity")
+		require.Equal(t, len(streamData), packet.streamBytes)
+	})
+}
+
 // Keep real registration and native outcome owners. The failed suffix owns a
 // token but no handed buffer, so it must not consume the last physical slot.
 func TestNativeSoftwarePhysicalAllowanceAcrossTransferAndFailedSuffix(t *testing.T) {

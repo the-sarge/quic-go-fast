@@ -356,15 +356,15 @@ func (p *packetPacker) longHeaderPacketLength(hdr *wire.ExtendedHeader, pl paylo
 	return hdr.GetLength(v) + pl.length + paddingLen
 }
 
-// shortHeaderPacketLength calculates the length of a serialized short header packet.
-// It takes into account that packets that have a tiny payload need to be padded,
-// such that len(payload) + packet number len >= 4 + AEAD overhead
+// shortHeaderPaddingLen reserves enough bytes before the protection tag for
+// the header protection sample, including when the packet payload is tiny.
+func shortHeaderPaddingLen(pnLen protocol.PacketNumberLen, payloadLen protocol.ByteCount) protocol.ByteCount {
+	return max(0, 4-protocol.ByteCount(pnLen)-payloadLen)
+}
+
+// shortHeaderPacketLength includes header protection padding and excludes the AEAD tag.
 func (p *packetPacker) shortHeaderPacketLength(connID protocol.ConnectionID, pnLen protocol.PacketNumberLen, pl payload) protocol.ByteCount {
-	var paddingLen protocol.ByteCount
-	if pl.length < 4-protocol.ByteCount(pnLen) {
-		paddingLen = 4 - protocol.ByteCount(pnLen) - pl.length
-	}
-	return wire.ShortHeaderLen(connID, pnLen) + pl.length + paddingLen
+	return wire.ShortHeaderLen(connID, pnLen) + pl.length + shortHeaderPaddingLen(pnLen, pl.length)
 }
 
 // size is the expected size of the packet, if no padding was applied.
@@ -557,7 +557,7 @@ func (p *packetPacker) AppendDatagramPacket(route *pathRoute, buf *packetBuffer,
 	}
 	context, numbers, connID := p.shortHeaderIdentity(route)
 	pn, pnLen := numbers.PeekPacketNumber(protocol.Encryption1RTT)
-	pl, err := p.datagramPayload(f, maxSize, wire.ShortHeaderLen(connID, pnLen), sealer, v)
+	pl, err := p.datagramPayload(f, maxSize, connID, pnLen, sealer, v)
 	if err != nil {
 		return shortHeaderPacket{}, err
 	}
@@ -567,9 +567,10 @@ func (p *packetPacker) AppendDatagramPacket(route *pathRoute, buf *packetBuffer,
 
 // datagramPayload is shared by native preparation and value construction. It
 // leaves a non-fitting DATAGRAM queued and commits extraction only on success.
-func (p *packetPacker) datagramPayload(f *wire.DatagramFrame, maxSize, headerLen protocol.ByteCount, sealer sealer, v protocol.Version) (payload, error) {
+func (p *packetPacker) datagramPayload(f *wire.DatagramFrame, maxSize protocol.ByteCount, connID protocol.ConnectionID, pnLen protocol.PacketNumberLen, sealer sealer, v protocol.Version) (payload, error) {
 	size := f.Length(v)
-	if size > maxSize-headerLen-protocol.ByteCount(sealer.Overhead()) {
+	wireSize := p.shortHeaderPacketLength(connID, pnLen, payload{length: size}) + protocol.ByteCount(sealer.Overhead())
+	if wireSize > maxSize {
 		return payload{}, errNothingToPack
 	}
 	p.datagramQueue.Pop()
@@ -649,7 +650,7 @@ func (p *packetPacker) appendPreparedPacketProtected(route *pathRoute, buf *pack
 	hdrLen := wire.ShortHeaderLen(connID, pnLen)
 	var pl payload
 	if datagramOnly {
-		pl, err = p.datagramPayload(datagram, maxPacketSize, hdrLen, sealer, v)
+		pl, err = p.datagramPayload(datagram, maxPacketSize, connID, pnLen, sealer, v)
 		if err != nil {
 			return err
 		}
@@ -1264,11 +1265,7 @@ func (p *packetPacker) prepareShortHeaderPayload(
 		}
 		sealer = selected
 	}
-	var paddingLen protocol.ByteCount
-	if pl.length < 4-protocol.ByteCount(pnLen) {
-		paddingLen = 4 - protocol.ByteCount(pnLen) - pl.length
-	}
-	paddingLen += padding
+	paddingLen := shortHeaderPaddingLen(pnLen, pl.length) + padding
 
 	startLen := len(buffer.Data)
 	raw := buffer.Data[startLen:]
