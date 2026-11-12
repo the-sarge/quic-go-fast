@@ -43,6 +43,44 @@ func TestE21ScalarStreamUsesSegmentedStorage(t *testing.T) {
 	})
 }
 
+// The longer third packet cannot join the first short member. It must still
+// start a new member in order, and a shorter fourth packet may end that member.
+func TestNativeSoftwareShortDatagramGrouping(t *testing.T) {
+	t.Setenv(disableShortGSOSegmentsEnv, "false")
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		tc, sender, socket := nativeSoftwareBoundaryConnection(t)
+		c := tc.conn
+		payloads := gsoTestPayloads(900, 900, 950, 900)
+		queueGSOTestDatagrams(t, c, payloads)
+		result := c.emission.advanceForPlatform(monotime.Now(), false, true)
+		require.NoError(t, result.err)
+		r := sender.pending
+		require.NotNil(t, r)
+		require.Equal(t, 4, r.count, "a continuation miss consumes no packet number or DATAGRAM")
+		require.Equal(t, 4, r.datagrams)
+		require.Len(t, r.request.members, 2)
+		for i, member := range r.request.members {
+			require.Equal(t, 2, member.datagrams())
+			require.False(t, member.nativeGSO)
+			require.NotZero(t, member.gsoSize)
+			require.Nil(t, member.protection, "software protection remains synchronous")
+			if i == 1 {
+				require.Less(t, len(member.buffer.Data), int(member.gsoSize)*2, "the final segment can be shorter")
+			}
+		}
+		require.Nil(t, c.datagramQueue.Peek())
+		sender.finish()
+		synctest.Wait()
+		require.NoError(t, sender.consume())
+		require.Len(t, socket.writes, len(payloads), "software grouping preserves scalar socket submissions")
+		for i, write := range socket.writes {
+			p := decodeGSOTestPacket(t, c.connIDManager.Get().Len(), write.data)
+			require.Equal(t, [][]byte{payloads[i]}, p.datagrams)
+		}
+		require.Equal(t, ordinaryFree, r.state)
+	})
+}
+
 // Keep real registration and native outcome owners. The failed suffix owns a
 // token but no handed buffer, so it must not consume the last physical slot.
 func TestNativeSoftwarePhysicalAllowanceAcrossTransferAndFailedSuffix(t *testing.T) {
@@ -65,13 +103,16 @@ func TestNativeSoftwarePhysicalAllowanceAcrossTransferAndFailedSuffix(t *testing
 		require.Equal(t, ordinaryEndpointOwned, r.state)
 		require.Equal(t, 32, r.count)
 		require.True(t, sender.softwarePacketRoom(), "a frozen failed suffix is not a physical member")
-		for _, payload := range []string{"last allowed packet", "must remain queued"} {
+		// A larger second packet needs another physical member. The available
+		// slot is enough for the first, but not for the larger continuation.
+		for _, payload := range []string{"last allowed packet", "larger packet must remain queued"} {
 			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte(payload)}))
 		}
 		result := c.emission.advanceForPlatform(monotime.Now(), false, true)
 		require.NoError(t, result.err)
 		require.Equal(t, emissionQueueFull, result.stop)
-		require.Equal(t, "must remain queued", string(c.datagramQueue.Peek().Data))
+		require.NotNil(t, c.datagramQueue.Peek())
+		require.Equal(t, "larger packet must remain queued", string(c.datagramQueue.Peek().Data))
 		require.Equal(t, 1, sender.pending.datagrams)
 		reservation := sender.reserveBuffer(protocol.MaxPacketBufferSize)
 		require.False(t, reservation.available)
