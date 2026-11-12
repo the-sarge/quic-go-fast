@@ -21,11 +21,12 @@ type sender interface {
 
 // sendMetadata is captured by the connection loop, never read from it by the worker.
 type sendMetadata struct {
-	terminalReceipts []*pathAbandonReceipt // nil unless the packet carries PATH_ABANDON
-	credit           *sendReservation
-	handshake        bool
-	mtuProbe         bool
-	pathGeneration   uint64
+	terminalReceipts           []*pathAbandonReceipt // nil unless the packet carries PATH_ABANDON
+	credit                     *sendReservation
+	handshake                  bool
+	mtuProbe                   bool
+	shortSoftwareDatagramGroup bool
+	pathGeneration             uint64
 }
 
 // handshakeSendFeedback retains the latest eligible failure without retaining buffers.

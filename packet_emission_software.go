@@ -7,8 +7,9 @@ import (
 )
 
 // withSoftwareSegments changes physical storage, not the off-path packet turn.
-// Every packet retains its capacity -> SendMode -> receive boundary; only the
-// already available full-size prefix can share a member. Short packets flush.
+// Every packet retains its capacity -> SendMode -> receive boundary. A short
+// DATAGRAM packet can start a member whose continuation carries only DATAGRAMs;
+// the writer still submits each segment as a separate datagram.
 func (e *packetEmission) withSoftwareSegments(now monotime.Time) (result emissionResult) {
 	var buf *packetBuffer
 	var protection nativeProtectionConstruction
@@ -22,7 +23,9 @@ func (e *packetEmission) withSoftwareSegments(now monotime.Time) (result emissio
 			protection.discard()
 			buf.Release()
 		} else {
-			e.handoff(buf, batch.gsoSize(), bufferECN, sendMetadata{}, &protection)
+			segment := batch.gsoSize()
+			metadata := sendMetadata{shortSoftwareDatagramGroup: segment != 0 && batch.segment < batch.maxSize}
+			e.handoff(buf, segment, bufferECN, metadata, &protection)
 			result.progress = true
 		}
 		buf = nil
@@ -51,7 +54,7 @@ func (e *packetEmission) withSoftwareSegments(now monotime.Time) (result emissio
 			}
 			protection.begin(e, buf)
 			protection.synchronous()
-			batch = newGSOBatch(size, false)
+			batch = newGSOBatch(size, e.shortSegments)
 		}
 		ecn := e.selected().ECNMode(true)
 		if buf.Len() != 0 && (ecn != bufferECN || batch.maxSize != size) {
@@ -70,13 +73,19 @@ func (e *packetEmission) withSoftwareSegments(now monotime.Time) (result emissio
 			}
 			protection.begin(e, buf)
 			protection.synchronous()
-			batch = newGSOBatch(size, false)
+			batch = newGSOBatch(size, e.shortSegments)
 		}
 		bufferECN = ecn
-		receipt, err := e.appendPacketProtected(buf, size, false, ecn, now, &protection)
+		limit, datagramOnly := batch.next()
+		receipt, err := e.appendPacketProtected(buf, limit, datagramOnly, ecn, now, &protection)
 		if err != nil {
 			if err == errNothingToPack {
 				flush()
+				if datagramOnly {
+					// A short continuation can miss while a larger DATAGRAM or
+					// other frames are ready. Retry with a fresh full-size limit.
+					continue
+				}
 				return result
 			}
 			protection.discard()

@@ -353,6 +353,16 @@ func testConnectionClose(t *testing.T, useApplicationClose bool, expectedErr err
 		var eventRecorder events.Recorder
 		tc := newServerTestConnection(t, mockCtrl, nil, false, connectionOptTracer(&eventRecorder))
 		errChan := make(chan error, 1)
+		dgrams := tc.conn.datagramQueue
+		dgrams.sendPayloadCache = []*[maxReusableDatagramPayloadSize]byte{new([maxReusableDatagramPayloadSize]byte)}
+		admitted := &wire.DatagramFrame{DataLenPresent: true, Data: []byte("already admitted")}
+		require.NoError(t, dgrams.Add(admitted))
+		for range maxDatagramSendQueueLen - 1 {
+			require.NoError(t, dgrams.Add(&wire.DatagramFrame{}))
+		}
+		blockedDatagram := make(chan error, 1)
+		go func() { blockedDatagram <- dgrams.Add(&wire.DatagramFrame{}) }()
+		synctest.Wait()
 
 		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
 		useLifecyclePacketPacker(t, mockCtrl, tc)
@@ -378,8 +388,8 @@ func testConnectionClose(t *testing.T, useApplicationClose bool, expectedErr err
 			synctest.Wait()
 		}()
 
-		go func() { errChan <- tc.conn.run() }()
 		tc.conn.closeLocal(expectedErr)
+		go func() { errChan <- tc.conn.run() }()
 
 		synctest.Wait()
 
@@ -390,6 +400,15 @@ func testConnectionClose(t *testing.T, useApplicationClose bool, expectedErr err
 		default:
 			t.Fatal("connection was not closed")
 		}
+		select {
+		case err := <-blockedDatagram:
+			require.ErrorIs(t, err, expectedErr)
+		default:
+			t.Fatal("terminal close did not wake the blocked DATAGRAM sender")
+		}
+		require.Nil(t, dgrams.sendPayloadCache, "terminal close releases the idle backing")
+		require.Equal(t, maxDatagramSendQueueLen, dgrams.sendQueue.Len())
+		require.Same(t, admitted, dgrams.Peek())
 		payload, err := schedulingPacketPayload(closePacket, closeConnIDLen)
 		require.NoError(t, err)
 		parser := wire.NewFrameParser(true, false, false)

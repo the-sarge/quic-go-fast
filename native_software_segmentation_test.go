@@ -28,6 +28,7 @@ func TestE21ScalarStreamUsesSegmentedStorage(t *testing.T) {
 		require.NotNil(t, r)
 		require.Greater(t, r.count, 1, "real stream construction registered each packet immediately")
 		require.Len(t, r.members, 1, "naturally available packets share one physical buffer")
+		require.False(t, r.request.shortSoftwareDatagramGroup, "grouped STREAM packets do not mark a request")
 		require.Equal(t, r.count, r.datagrams)
 		require.False(t, r.request.members[0].nativeGSO)
 		require.NotZero(t, r.request.members[0].gsoSize)
@@ -40,6 +41,138 @@ func TestE21ScalarStreamUsesSegmentedStorage(t *testing.T) {
 		for _, write := range socket.writes {
 			require.LessOrEqual(t, len(write.data), 1200)
 		}
+	})
+}
+
+// The longer third packet cannot join the first short member. It must still
+// start a new member in order, and a shorter fourth packet may end that member.
+func TestNativeSoftwareShortDatagramGrouping(t *testing.T) {
+	t.Setenv(disableShortGSOSegmentsEnv, "false")
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		tc, sender, socket := nativeSoftwareBoundaryConnection(t)
+		c := tc.conn
+		c.peerParams = &wire.TransportParameters{MaxDatagramFrameSize: wire.MaxDatagramSize}
+		payloads := gsoTestPayloads(1090, 1090, 1140, 1090)
+		for _, payload := range payloads {
+			require.NoError(t, c.SendDatagram(payload))
+		}
+		result := c.emission.advanceForPlatform(monotime.Now(), false, true)
+		require.NoError(t, result.err)
+		r := sender.pending
+		require.NotNil(t, r)
+		require.Equal(t, 4, r.count, "a continuation miss consumes no packet number or DATAGRAM")
+		require.Equal(t, 4, r.datagrams)
+		require.Len(t, r.request.members, 2)
+		require.True(t, r.request.shortSoftwareDatagramGroup)
+		for i, member := range r.request.members {
+			require.Equal(t, 2, member.datagrams())
+			require.False(t, member.nativeGSO)
+			require.NotZero(t, member.gsoSize)
+			require.Nil(t, member.protection, "software protection remains synchronous")
+			if i == 1 {
+				require.Less(t, len(member.buffer.Data), int(member.gsoSize)*2, "the final segment can be shorter")
+			}
+		}
+		require.Nil(t, c.datagramQueue.Peek())
+		require.Len(t, c.datagramQueue.sendPayloadCache, len(payloads))
+		replacement := bytes.Repeat([]byte{0xff}, len(payloads[len(payloads)-1]))
+		require.NoError(t, c.SendDatagram(replacement))
+		require.Len(t, c.datagramQueue.sendPayloadCache, len(payloads)-1)
+		c.SealDatagramAdmissionV1(nil)
+		require.Empty(t, c.datagramQueue.sendPayloadCache)
+		require.Equal(t, replacement, c.datagramQueue.Peek().Data, "sealing leaves admitted data queued")
+		socket.hold = nativeProbeHoldAll
+		sender.finish()
+		synctest.Wait()
+		sender.endpoint.do(func(state *endpointState) {
+			require.NotNil(t, state.current)
+			require.True(t, state.current.request.shortSoftwareDatagramGroup, "the writer receives the frozen mark")
+		})
+		socket.release()
+		synctest.Wait()
+		require.NoError(t, sender.consume())
+		require.Len(t, socket.writes, len(payloads), "software grouping preserves scalar socket submissions")
+		for i, write := range socket.writes {
+			p := decodeGSOTestPacket(t, c.connIDManager.Get().Len(), write.data)
+			require.Equal(t, [][]byte{payloads[i]}, p.datagrams)
+		}
+		require.Equal(t, ordinaryFree, r.state)
+	})
+}
+
+func TestNativeSoftwarePaddedDatagramGrouping(t *testing.T) {
+	t.Setenv(disableShortGSOSegmentsEnv, "false")
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		tc, sender, socket := nativeSoftwareBoundaryConnection(t)
+		c := tc.conn
+		// An empty DATAGRAM without a length field still needs a padding byte
+		// with the fixture's two-byte packet number and seven-byte sealer tag.
+		for range 3 {
+			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{}))
+		}
+		require.NoError(t, c.emission.advanceForPlatform(monotime.Now(), false, true).err)
+		r := sender.pending
+		require.NotNil(t, r)
+		require.Len(t, r.request.members, 1)
+		require.Equal(t, 3, r.datagrams)
+		wireSize := 1 + c.connIDManager.Get().Len() + 4 + 7
+		require.EqualValues(t, wireSize, r.request.members[0].gsoSize)
+		sender.finish()
+		synctest.Wait()
+		require.NoError(t, sender.consume())
+		require.Len(t, socket.writes, 3)
+		for _, write := range socket.writes {
+			require.Len(t, write.data, wireSize)
+			p := decodeGSOTestPacket(t, c.connIDManager.Get().Len(), write.data)
+			require.Len(t, p.datagrams, 1)
+			require.Empty(t, p.datagrams[0])
+		}
+	})
+}
+
+func TestNativeSoftwareShortDatagramMixedProgress(t *testing.T) {
+	t.Setenv(disableShortGSOSegmentsEnv, "false")
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		tc, sender, socket := nativeSoftwareBoundaryConnection(t)
+		c := tc.conn
+		for range maxGSOSegments + 2 {
+			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: make([]byte, 16)}))
+		}
+		now := monotime.Now()
+		streamData := []byte("stream progress behind a short DATAGRAM member")
+		queued := false
+		c.emission.policy = nativeNaturalTurnPolicy{emissionPolicy: c, inspect: func() {
+			if queued || c.connStats.PacketsSent.Load() == 0 {
+				return
+			}
+			// Make real STREAM and control work ready after the first packet
+			// opens the short member, while compatible DATAGRAMs remain queued.
+			queued = true
+			c.connFlowController.UpdateSendWindow(1 << 20)
+			flow := newStreamFlowController(0, c.connFlowController, 1<<20, 1<<20, 1<<20, c.flowControlRTT(), c.logger)
+			stream := newSendStream(c.ctx, 0, c, flow, false)
+			require.NoError(t, stream.TryWriteAll(streamData))
+			c.framer.QueueControlFrame(&wire.PingFrame{})
+			for pn := protocol.PacketNumber(1); pn <= 2; pn++ {
+				require.NoError(t, c.receivedPacketHandler.ReceivedPacket(pn, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+			}
+		}}
+		require.NoError(t, c.emission.advanceForPlatform(now, false, true).err)
+		require.True(t, queued)
+		r := sender.pending
+		require.NotNil(t, r)
+		require.GreaterOrEqual(t, len(r.request.members), 2)
+		require.Equal(t, maxGSOSegments, r.request.members[0].datagrams())
+		sender.finish()
+		synctest.Wait()
+		require.NoError(t, sender.consume())
+		require.Len(t, socket.writes, maxGSOSegments+2)
+		// The first ordinary packet after the bounded short member carries
+		// the pending ACK and control frame as well as STREAM data.
+		packet := decodeGSOTestPacket(t, c.connIDManager.Get().Len(), socket.writes[maxGSOSegments].data)
+		require.Len(t, packet.datagrams, 1)
+		require.Equal(t, 2, packet.others, "both the ACK and PING are packed at the next ordinary opportunity")
+		require.Equal(t, len(streamData), packet.streamBytes)
 	})
 }
 
@@ -65,13 +198,16 @@ func TestNativeSoftwarePhysicalAllowanceAcrossTransferAndFailedSuffix(t *testing
 		require.Equal(t, ordinaryEndpointOwned, r.state)
 		require.Equal(t, 32, r.count)
 		require.True(t, sender.softwarePacketRoom(), "a frozen failed suffix is not a physical member")
-		for _, payload := range []string{"last allowed packet", "must remain queued"} {
+		// A larger second packet needs another physical member. The available
+		// slot is enough for the first, but not for the larger continuation.
+		for _, payload := range []string{"last allowed packet", "larger packet must remain queued"} {
 			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte(payload)}))
 		}
 		result := c.emission.advanceForPlatform(monotime.Now(), false, true)
 		require.NoError(t, result.err)
 		require.Equal(t, emissionQueueFull, result.stop)
-		require.Equal(t, "must remain queued", string(c.datagramQueue.Peek().Data))
+		require.NotNil(t, c.datagramQueue.Peek())
+		require.Equal(t, "larger packet must remain queued", string(c.datagramQueue.Peek().Data))
 		require.Equal(t, 1, sender.pending.datagrams)
 		reservation := sender.reserveBuffer(protocol.MaxPacketBufferSize)
 		require.False(t, reservation.available)
@@ -99,6 +235,8 @@ func TestE21ScalarReceiveBoundaryAndUnsupportedDomain(t *testing.T) {
 		require.Equal(t, emissionReceivePending, result.stop)
 		require.EqualValues(t, 1, c.connStats.PacketsSent.Load())
 		require.Equal(t, "next packet", string(c.datagramQueue.Peek().Data))
+		require.NotNil(t, sender.pending)
+		require.False(t, sender.pending.request.shortSoftwareDatagramGroup, "a scalar DATAGRAM does not mark a request")
 		sender.finish()
 		synctest.Wait()
 		require.NoError(t, sender.consume())

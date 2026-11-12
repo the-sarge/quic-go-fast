@@ -1,0 +1,58 @@
+{
+  "schema": "r18-exact-delivery-disposition-v1",
+  "issue": 1038,
+  "source": "56e011367705ce3adb31a70ce23f4b5ff29b5521",
+  "tested_tree": "13d27c28c8f24155ba79da2c82cd055cd7365643",
+  "binary_sha256": "bedeb0e80d54503e76bf51ffc09d5f8588deeb164cee7fb4093ff054c84e9a7b",
+  "campaign_binding_sha256": "71ef7443ea0215e28d488a60e51c5e1e818ee9e0b6c85f06103fced86c40ef9c",
+  "public_archive_sha256": "1da8274c9e8c33ed8aa9e6e4862d86fa3367d4025143d761f63d32e28201b8cc",
+  "raw_summary_sha256": "ead396d6632f96d15b84dffea0ba87914cad1bbafb0014a450f07156b29cfa1e",
+  "raw_disposition_sha256": "cd4073f31a12ad54763537b5938fe5b2ee77c6eb1f678c1c52b1354e78689db7",
+  "terminal_verification_sha256": "c0a3afb2546c911e270869fe1a378cc83e919e97226820ca7fdc6fc99acfda7f",
+  "raw_result_receipt": "https://github.com/the-sarge/quic-go-fast/issues/1038#issuecomment-6837136807",
+  "authorization_quote": "Go ahead. Accept the two CPU exceptions for 56e011367 and move forward with delivery. Keep the strict failed verdict in the evidence and leave the 1.10 CPU and 10% RSS limits in place.",
+  "campaign_complete": true,
+  "eligible_observations": 36,
+  "numerical_passed": false,
+  "delivery_disposition": "owner-accepted-with-two-exact-cpu-exceptions",
+  "cpu_ratio_limit": 1.1,
+  "native_rss_growth_limit": 0.1,
+  "accepted_cpu_exceptions": {
+    "datagram-batch-on": {
+      "metric": "native CPU per useful byte / ordinary",
+      "median": 1.1216863626097462,
+      "rounds": [
+        1.1158407906693706,
+        1.1233178577708733,
+        1.1216863626097462
+      ],
+      "strict_limit": 1.1,
+      "raw_failure": "CPU per useful byte ratio 1.122 above 1.1",
+      "raw_cell_sha256": "83b5c71f62cf24863fbbddc15f7af6dd4dfbc32a290ce0663e2b6fd4def81079"
+    },
+    "mixed-bulk": {
+      "metric": "native CPU per useful byte / ordinary",
+      "median": 1.1085849703534405,
+      "rounds": [
+        1.1004740278077259,
+        1.1165107797927987,
+        1.1085849703534405
+      ],
+      "strict_limit": 1.1,
+      "raw_failure": "CPU per useful byte ratio 1.109 above 1.1",
+      "raw_cell_sha256": "3a7dbe47915c7e59ec3cd5a424257de77c1aa5ebc91a3abb9a94e1a7588af22a"
+    }
+  },
+  "scope": "Only the two measured CPU verdicts for the identified source, binary, and completed campaign.",
+  "owner_acceptance_receipt": "https://github.com/the-sarge/quic-go-fast/issues/1038#issuecomment-6837253248",
+  "prior_failure_receipt": "2026-11-12-multipath-r18-final-receipt.md",
+  "raw_summary_file": "2026-11-12-multipath-r18-delivery-raw-summary.json",
+  "qualification": {
+    "eligible": 36,
+    "attempts": 36,
+    "unrun": 0,
+    "replacements": 0,
+    "all_custody_released": true,
+    "occupancy_seconds": "2773.45554357301443"
+  }
+}

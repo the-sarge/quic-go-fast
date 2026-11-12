@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"runtime"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -78,11 +79,12 @@ type endpointMember struct {
 }
 
 type endpointRequest struct {
-	identity    endpointIdentity
-	destination netip.AddrPort
-	members     []endpointMember
-	epoch       *responseEpoch // nil grants no additional revocation owner
-	deadline    time.Time      // zero selects admission+B; an earlier deadline is allowed
+	identity                   endpointIdentity
+	destination                netip.AddrPort
+	members                    []endpointMember
+	epoch                      *responseEpoch // nil grants no additional revocation owner
+	deadline                   time.Time      // zero selects admission+B; an earlier deadline is allowed
+	shortSoftwareDatagramGroup bool           // includes a segmented short DATAGRAM member sent as scalar UDP writes
 }
 
 type endpointMemberResult struct {
@@ -1367,13 +1369,15 @@ func (e *nativeEndpoint) write(native endpointNativeIO) {
 		e.notifyProgress() // independent watchdog observes this new claim
 		e.unlock()
 		var result endpointResult
+		var writeErr error
 		fault := false
 		if err := native.SetWriteDeadline(token.request.deadline); err != nil {
 			result = token.request.unsubmitted(err, token.fact.result.members)
-			fault = true
+			writeErr, fault = err, true
 		} else {
 			result = writeEndpointRequestWithScratch(native, token, &scratch, oobScratch[:0])
-			fault = endpointFatalWrite(result.failure())
+			writeErr = result.failure()
+			fault = endpointFatalWrite(writeErr)
 		}
 		if err := native.SetWriteDeadline(time.Time{}); err != nil {
 			result.err, fault = err, true
@@ -1381,9 +1385,17 @@ func (e *nativeEndpoint) write(native endpointNativeIO) {
 		// This separate fact fences the entire native/deadline borrow. Member
 		// timestamps remain their actual sequence returns, including on reset error.
 		returnedAt := time.Now()
+		yield := runtime.GOOS == "linux" && writeErr == nil && result.err == nil && token.request.shortSoftwareDatagramGroup &&
+			returnedAt.Before(token.request.deadline.Add(endpointTolerance))
 		// Do not access token payload after Store: control can release it at once.
 		token.fact = endpointWriteResult{result: result, fault: fault, returnedAt: returnedAt}
 		token.completion.Store(&token.fact)
+		if yield {
+			// Give the reader a chance to run between groups of scalar sends.
+			// The completion owner can proceed while this writer is descheduled.
+			e.notifyProgress()
+			runtime.Gosched()
+		}
 		// A failed reconciliation attempt notifies independent progress before
 		// waiting on control. Publication is never coupled to lock acquisition.
 		if !e.mutex.TryLock() {

@@ -1,0 +1,1092 @@
+{
+  "passed": false,
+  "failed_cells": [
+    "datagram-batch-on",
+    "mixed-bulk"
+  ],
+  "cells": {
+    "stream-gso-on": {
+      "cell": "stream-gso-on",
+      "passed": true,
+      "failures": [],
+      "goodput_ratio": {
+        "median": 1.069406059464902,
+        "range": [
+          1.06158876696345,
+          1.074668037314048
+        ],
+        "rounds": [
+          1.06158876696345,
+          1.069406059464902,
+          1.074668037314048
+        ]
+      },
+      "cpu_per_useful_byte_ratio": {
+        "median": 1.081192383299949,
+        "range": [
+          1.0752554301827848,
+          1.0904691183986157
+        ],
+        "rounds": [
+          1.0904691183986157,
+          1.0752554301827848,
+          1.081192383299949
+        ]
+      },
+      "control_p99_margin_us": {
+        "median": -705.0879999999999,
+        "range": [
+          -705.0879999999999,
+          -639.5519999999999
+        ],
+        "rounds": [
+          -705.0879999999999,
+          -705.0879999999999,
+          -639.5519999999999
+        ]
+      },
+      "application_send_call_p99_margin_us": {
+        "median": -911.936,
+        "range": [
+          -911.936,
+          -911.936
+        ],
+        "rounds": [
+          -911.936,
+          -911.936,
+          -911.936
+        ]
+      },
+      "control_p99_us": {
+        "unregistered": [
+          622.591,
+          622.591,
+          589.823
+        ],
+        "opted-in": [
+          917.503,
+          917.503,
+          950.271
+        ]
+      },
+      "application_send_call_p99_us": {
+        "unregistered": [
+          51.199,
+          51.199,
+          51.199
+        ],
+        "opted-in": [
+          139.263,
+          139.263,
+          139.263
+        ]
+      },
+      "empty_seconds": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "background_bytes": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "stateless_reset_share": {
+        "unregistered": [],
+        "opted-in": []
+      },
+      "stateless_offered_packets": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "stateless_resets_received": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "peak_rss_kb": {
+        "unregistered": [
+          23744,
+          26116,
+          27596
+        ],
+        "opted-in": [
+          29688,
+          30212,
+          29804
+        ]
+      },
+      "packets_lost": {
+        "unregistered": [
+          360,
+          1321,
+          1063
+        ],
+        "opted-in": [
+          1204,
+          626,
+          1057
+        ]
+      },
+      "datagram_drops": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "write_errors": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "stream-gso-off": {
+      "cell": "stream-gso-off",
+      "passed": true,
+      "failures": [],
+      "goodput_ratio": {
+        "median": 1.071699405308664,
+        "range": [
+          1.0694854121966737,
+          1.072790258940548
+        ],
+        "rounds": [
+          1.071699405308664,
+          1.072790258940548,
+          1.0694854121966737
+        ]
+      },
+      "cpu_per_useful_byte_ratio": {
+        "median": 0.9112098679009294,
+        "range": [
+          0.9086859844216383,
+          0.9122739793374472
+        ],
+        "rounds": [
+          0.9122739793374472,
+          0.9086859844216383,
+          0.9112098679009294
+        ]
+      },
+      "control_p99_margin_us": {
+        "median": -82.4960000000001,
+        "range": [
+          -213.56799999999976,
+          114.11200000000008
+        ],
+        "rounds": [
+          -213.56799999999976,
+          114.11200000000008,
+          -82.4960000000001
+        ]
+      },
+      "application_send_call_p99_margin_us": {
+        "median": -844.3519999999999,
+        "range": [
+          -844.3519999999999,
+          -844.3519999999999
+        ],
+        "rounds": [
+          -844.3519999999999,
+          -844.3519999999999,
+          -844.3519999999999
+        ]
+      },
+      "control_p99_us": {
+        "unregistered": [
+          1703.935,
+          1638.399,
+          1703.935
+        ],
+        "opted-in": [
+          2490.367,
+          2752.511,
+          2621.439
+        ]
+      },
+      "application_send_call_p99_us": {
+        "unregistered": [
+          155.647,
+          155.647,
+          155.647
+        ],
+        "opted-in": [
+          311.295,
+          311.295,
+          311.295
+        ]
+      },
+      "empty_seconds": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "background_bytes": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "stateless_reset_share": {
+        "unregistered": [],
+        "opted-in": []
+      },
+      "stateless_offered_packets": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "stateless_resets_received": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "peak_rss_kb": {
+        "unregistered": [
+          23712,
+          24596,
+          24068
+        ],
+        "opted-in": [
+          29668,
+          30468,
+          29776
+        ]
+      },
+      "packets_lost": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "datagram_drops": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "write_errors": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "datagram-batch-on": {
+      "cell": "datagram-batch-on",
+      "passed": false,
+      "failures": [
+        "CPU per useful byte ratio 1.122 above 1.1"
+      ],
+      "goodput_ratio": {
+        "median": 0.994596042821135,
+        "range": [
+          0.9886852577880868,
+          1.0058618864749223
+        ],
+        "rounds": [
+          1.0058618864749223,
+          0.9886852577880868,
+          0.994596042821135
+        ]
+      },
+      "cpu_per_useful_byte_ratio": {
+        "median": 1.1216863626097462,
+        "range": [
+          1.1158407906693706,
+          1.1233178577708733
+        ],
+        "rounds": [
+          1.1158407906693706,
+          1.1233178577708733,
+          1.1216863626097462
+        ]
+      },
+      "control_p99_margin_us": {
+        "median": -803.392,
+        "range": [
+          -803.392,
+          -770.624
+        ],
+        "rounds": [
+          -803.392,
+          -770.624,
+          -803.392
+        ]
+      },
+      "application_send_call_p99_margin_us": {
+        "median": -1021.504,
+        "range": [
+          -1021.504,
+          -1020.48
+        ],
+        "rounds": [
+          -1021.504,
+          -1020.48,
+          -1021.504
+        ]
+      },
+      "control_p99_us": {
+        "unregistered": [
+          917.503,
+          884.735,
+          917.503
+        ],
+        "opted-in": [
+          1114.111,
+          1114.111,
+          1114.111
+        ]
+      },
+      "application_send_call_p99_us": {
+        "unregistered": [
+          43.007,
+          43.007,
+          43.007
+        ],
+        "opted-in": [
+          21.503,
+          22.527,
+          21.503
+        ]
+      },
+      "empty_seconds": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "background_bytes": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "stateless_reset_share": {
+        "unregistered": [],
+        "opted-in": []
+      },
+      "stateless_offered_packets": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "stateless_resets_received": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "peak_rss_kb": {
+        "unregistered": [
+          21532,
+          21480,
+          21408
+        ],
+        "opted-in": [
+          21640,
+          21812,
+          21552
+        ]
+      },
+      "packets_lost": {
+        "unregistered": [
+          6029,
+          5556,
+          6268
+        ],
+        "opted-in": [
+          11649,
+          11015,
+          10829
+        ]
+      },
+      "datagram_drops": {
+        "unregistered": [
+          0,
+          4,
+          3
+        ],
+        "opted-in": [
+          5,
+          2,
+          4
+        ]
+      },
+      "write_errors": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "datagram-batch-off": {
+      "cell": "datagram-batch-off",
+      "passed": true,
+      "failures": [],
+      "goodput_ratio": {
+        "median": 1.0331587033099594,
+        "range": [
+          1.0306939500747028,
+          1.0362849098448212
+        ],
+        "rounds": [
+          1.0306939500747028,
+          1.0331587033099594,
+          1.0362849098448212
+        ]
+      },
+      "cpu_per_useful_byte_ratio": {
+        "median": 0.9993089960341176,
+        "range": [
+          0.9988858047969178,
+          1.0017646709731298
+        ],
+        "rounds": [
+          1.0017646709731298,
+          0.9993089960341176,
+          0.9988858047969178
+        ]
+      },
+      "control_p99_margin_us": {
+        "median": -1524.2879999999998,
+        "range": [
+          -1720.896,
+          -1327.6799999999996
+        ],
+        "rounds": [
+          -1524.2879999999998,
+          -1720.896,
+          -1327.6799999999996
+        ]
+      },
+      "application_send_call_p99_margin_us": {
+        "median": -997.9520000000001,
+        "range": [
+          -1000.0000000000001,
+          -997.9520000000001
+        ],
+        "rounds": [
+          -1000.0000000000001,
+          -997.9520000000001,
+          -997.9520000000001
+        ]
+      },
+      "control_p99_us": {
+        "unregistered": [
+          2031.615,
+          2228.223,
+          1900.543
+        ],
+        "opted-in": [
+          1507.327,
+          1507.327,
+          1572.863
+        ]
+      },
+      "application_send_call_p99_us": {
+        "unregistered": [
+          57.343,
+          55.295,
+          55.295
+        ],
+        "opted-in": [
+          57.343,
+          57.343,
+          57.343
+        ]
+      },
+      "empty_seconds": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "background_bytes": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "stateless_reset_share": {
+        "unregistered": [],
+        "opted-in": []
+      },
+      "stateless_offered_packets": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "stateless_resets_received": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "peak_rss_kb": {
+        "unregistered": [
+          21372,
+          21600,
+          21568
+        ],
+        "opted-in": [
+          22216,
+          22084,
+          22156
+        ]
+      },
+      "packets_lost": {
+        "unregistered": [
+          173,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          644,
+          646
+        ]
+      },
+      "datagram_drops": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "write_errors": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "mixed-bulk": {
+      "cell": "mixed-bulk",
+      "passed": false,
+      "failures": [
+        "CPU per useful byte ratio 1.109 above 1.1"
+      ],
+      "goodput_ratio": {
+        "median": 1.0399678841825484,
+        "range": [
+          1.0348122004279103,
+          1.0501614939097503
+        ],
+        "rounds": [
+          1.0501614939097503,
+          1.0348122004279103,
+          1.0399678841825484
+        ]
+      },
+      "cpu_per_useful_byte_ratio": {
+        "median": 1.1085849703534405,
+        "range": [
+          1.1004740278077259,
+          1.1165107797927987
+        ],
+        "rounds": [
+          1.1004740278077259,
+          1.1165107797927987,
+          1.1085849703534405
+        ]
+      },
+      "control_p99_margin_us": {
+        "median": -770.6239999999999,
+        "range": [
+          -836.16,
+          -737.8559999999999
+        ],
+        "rounds": [
+          -737.8559999999999,
+          -770.6239999999999,
+          -836.16
+        ]
+      },
+      "application_send_call_p99_margin_us": {
+        "median": -903.744,
+        "range": [
+          -903.744,
+          -895.5520000000001
+        ],
+        "rounds": [
+          -903.744,
+          -895.5520000000001,
+          -903.744
+        ]
+      },
+      "control_p99_us": {
+        "unregistered": [
+          622.591,
+          655.359,
+          753.663
+        ],
+        "opted-in": [
+          884.735,
+          884.735,
+          917.503
+        ]
+      },
+      "application_send_call_p99_us": {
+        "unregistered": [
+          51.199,
+          51.199,
+          51.199
+        ],
+        "opted-in": [
+          147.455,
+          155.647,
+          147.455
+        ]
+      },
+      "empty_seconds": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "background_bytes": {
+        "unregistered": [
+          2516582400,
+          2516582400,
+          2516582400
+        ],
+        "opted-in": [
+          2516582400,
+          2516582400,
+          2516582400
+        ]
+      },
+      "stateless_reset_share": {
+        "unregistered": [],
+        "opted-in": []
+      },
+      "stateless_offered_packets": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "stateless_resets_received": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "peak_rss_kb": {
+        "unregistered": [
+          29920,
+          27316,
+          30516
+        ],
+        "opted-in": [
+          34848,
+          29708,
+          32740
+        ]
+      },
+      "packets_lost": {
+        "unregistered": [
+          662,
+          810,
+          1264
+        ],
+        "opted-in": [
+          1237,
+          1067,
+          1851
+        ]
+      },
+      "datagram_drops": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "write_errors": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "stateless-pressure": {
+      "cell": "stateless-pressure",
+      "passed": true,
+      "failures": [],
+      "goodput_ratio": {
+        "median": 1.0497022728921122,
+        "range": [
+          1.0482298857305923,
+          1.0544702460665218
+        ],
+        "rounds": [
+          1.0497022728921122,
+          1.0482298857305923,
+          1.0544702460665218
+        ]
+      },
+      "cpu_per_useful_byte_ratio": {
+        "median": 1.0932465786707495,
+        "range": [
+          1.0896406173082618,
+          1.0964108388008142
+        ],
+        "rounds": [
+          1.0964108388008142,
+          1.0932465786707495,
+          1.0896406173082618
+        ]
+      },
+      "control_p99_margin_us": {
+        "median": -737.856,
+        "range": [
+          -803.3919999999999,
+          -606.7839999999999
+        ],
+        "rounds": [
+          -737.856,
+          -803.3919999999999,
+          -606.7839999999999
+        ]
+      },
+      "application_send_call_p99_margin_us": {
+        "median": -903.744,
+        "range": [
+          -903.744,
+          -903.744
+        ],
+        "rounds": [
+          -903.744,
+          -903.744,
+          -903.744
+        ]
+      },
+      "control_p99_us": {
+        "unregistered": [
+          688.127,
+          688.127,
+          589.823
+        ],
+        "opted-in": [
+          950.271,
+          884.735,
+          983.039
+        ]
+      },
+      "application_send_call_p99_us": {
+        "unregistered": [
+          51.199,
+          51.199,
+          51.199
+        ],
+        "opted-in": [
+          147.455,
+          147.455,
+          147.455
+        ]
+      },
+      "empty_seconds": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "background_bytes": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "stateless_reset_share": {
+        "unregistered": [
+          0.6871551364432946,
+          0.6842761618187897,
+          0.6733543627745511
+        ],
+        "opted-in": [
+          0.6422566925193895,
+          0.6422824055533307,
+          0.6461113798222059
+        ]
+      },
+      "stateless_offered_packets": {
+        "unregistered": [
+          599150,
+          598200,
+          599160
+        ],
+        "opted-in": [
+          599550,
+          599280,
+          599570
+        ]
+      },
+      "stateless_resets_received": {
+        "unregistered": [
+          411709,
+          409334,
+          403447
+        ],
+        "opted-in": [
+          385065,
+          384907,
+          387389
+        ]
+      },
+      "peak_rss_kb": {
+        "unregistered": [
+          27056,
+          25648,
+          24744
+        ],
+        "opted-in": [
+          31100,
+          28492,
+          29176
+        ]
+      },
+      "packets_lost": {
+        "unregistered": [
+          1306,
+          805,
+          206
+        ],
+        "opted-in": [
+          628,
+          1086,
+          842
+        ]
+      },
+      "datagram_drops": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      },
+      "write_errors": {
+        "unregistered": [
+          0,
+          0,
+          0
+        ],
+        "opted-in": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  "contaminated_observations": 0,
+  "campaign_complete": true,
+  "mode": "campaign",
+  "reruns": 0,
+  "metric_boundaries": {
+    "application_send_call": "elapsed Stream.Write / SendDatagram call time; neither native return nor peer delivery",
+    "control": "application echo round trip",
+    "useful_bytes": "receiver-counted application content within the measurement window"
+  }
+}
