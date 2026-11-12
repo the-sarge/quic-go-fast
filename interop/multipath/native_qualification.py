@@ -21,9 +21,18 @@ CLASSES = {
     "eagain-to-deadline": {"rule": EAGAIN_RULE, "timing": {"injected_native_return", "injected_publication"}},
     "retry-fallback": {"rule": EAGAIN_RULE + ":when=2+", "drop_udp": True, "timing": {"injected_retry_return", "injected_fallback_return"}},
     "queued-expiry": {"rule": EAGAIN_RULE, "timing": {"injected_queued_expiry", "injected_current_return"}},
-    "shutdown-join": {"rule": None, "timing": {"public_write_return"}},
-    "request-contention": {"rule": None, "timing": {"native_return_overrun", "publication", "pressure_native_return_overrun", "pressure_publication"}},
+    # R21: these two cases must also witness the delivered writer yield. Each witness
+    # fact is positive, and a marked group has more than one datagram.
+    "shutdown-join": {"rule": None, "timing": {"public_write_return"}, "witness": ("marked_group_datagrams", "marked_witnessed", "active_close_return_after_close_ms")},
+    "request-contention": {
+        "rule": None,
+        "timing": {"native_return_overrun", "publication", "pressure_native_return_overrun", "pressure_publication"},
+        "witness": ("marked_group_datagrams", "marked_witnessed", "pressure_marked_group_datagrams", "pressure_marked_witnessed"),
+    },
 }
+# Only the full profile is native qualification. A named partial profile reports
+# its own exact inventory and never claims the full one.
+PROFILES = {"full": tuple(CLASSES), "writer-yield": ("shutdown-join", "request-contention")}
 NAMESPACE_SETUP = (
     "ip link set lo up && nft add table inet qual && "
     "nft add chain inet qual out '{ type filter hook output priority 0; }' && "
@@ -84,6 +93,12 @@ def check_evidence(name, go, evidence):
         raise ValueError(f"evidence class {evidence.get('class')} is not {name}")
     if evidence.get("go") != go:
         raise ValueError(f"evidence toolchain {evidence.get('go')} is not {go}")
+    facts = evidence.get("facts") or {}
+    for key in CLASSES[name].get("witness", ()):
+        value = facts.get(key)
+        floor = 1 if key.endswith("marked_group_datagrams") else 0
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= floor:
+            raise ValueError(f"{name}: witness fact {key} must be greater than {floor}, got {value!r}")
     timing = evidence.get("timing_ms") or {}
     missing = CLASSES[name]["timing"] - timing.keys()
     if missing:
@@ -97,10 +112,14 @@ def check_evidence(name, go, evidence):
         raise ValueError(f"{name}: over the {TOLERANCE_MS} ms tolerance: {late}")
 
 
-def check_accounting(instances):
-    expected = sorted((go, name) for go in GO_VERSIONS for name in CLASSES)
+def check_accounting(instances, profile="full"):
+    expected = sorted((go, name) for go in GO_VERSIONS for name in PROFILES[profile])
     if sorted(instances) != expected:
-        raise ValueError(f"expected the 12 fixed instances exactly once, got {len(instances)}")
+        raise ValueError(f"expected the {len(expected)} fixed {profile} instances exactly once, got {len(instances)}")
+
+
+def status_for(profile):
+    return {"profile": profile, "instances": len(GO_VERSIONS) * len(PROFILES[profile]), "status": "pass", "full_qualification": profile == "full"}
 
 
 def check_prerequisites(system, machine, which):
@@ -156,11 +175,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--candidate", required=True)
+    parser.add_argument("--profile", choices=sorted(PROFILES), default="full")
     args = parser.parse_args()
     check_prerequisites(platform.system(), platform.machine(), shutil.which)
     args.output.mkdir(parents=True, exist_ok=False)
     results = {
         "candidate": args.candidate,
+        "profile": args.profile,
+        "full_qualification": args.profile == "full",
         "kernel": capture("uname", "-a"),
         "os_release": Path("/etc/os-release").read_text(),
         "strace": capture("strace", "-V").splitlines()[0],
@@ -174,7 +196,7 @@ def main():
         binaries[go], poll_hash = build(go, args.output)
         results["toolchains"][go] = {"internal/poll/fd_unix.go": poll_hash}
     for go in GO_VERSIONS:
-        for name in CLASSES:
+        for name in PROFILES[args.profile]:
             if failure is None:
                 record, failure = run_instance(go, name, binaries[go], args.output)
                 record["failure"] = failure
@@ -182,8 +204,8 @@ def main():
     (args.output / "results.json").write_text(json.dumps(results, indent=2) + "\n")
     if failure is not None:
         raise SystemExit(f"stopped: {failure}")
-    check_accounting([(record["go"], record["class"]) for record in results["instances"]])
-    print(json.dumps({"instances": len(results["instances"]), "status": "pass"}))
+    check_accounting([(record["go"], record["class"]) for record in results["instances"]], args.profile)
+    print(json.dumps(status_for(args.profile)))
 
 
 if __name__ == "__main__":

@@ -17,6 +17,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/require"
@@ -85,6 +86,220 @@ func nativeQualRequest(id, registration uint64, destination netip.AddrPort, dead
 		destination: destination,
 		members:     []endpointMember{{buffer: endpointTestBuffer(data)}},
 		deadline:    deadline,
+	}
+}
+
+const (
+	// R21: lane 0 offers marked software groups, so request-contention reaches the
+	// writer yield while lanes 1 and 2 keep the scalar data and control paths.
+	nativeQualMarkedLane = 0
+	nativeQualSegments   = 4
+	// The shutdown activity's participant ID can't collide with a connection's.
+	nativeQualActivityID       = 1 << 62
+	nativeQualActivityRequests = 256
+	nativeQualActivityMembers  = 32
+)
+
+// nativeQualMarkedKey is the producer's identity for one offered request.
+type nativeQualMarkedKey struct{ connection, path, registration uint64 }
+
+func nativeQualKey(identity endpointIdentity) nativeQualMarkedKey {
+	return nativeQualMarkedKey{identity.connection, identity.path, identity.registration}
+}
+
+type nativeQualCapture struct {
+	key      nativeQualMarkedKey
+	deadline time.Time
+}
+
+// nativeQualMarked witnesses the writer yield without a production observer. The
+// yield predicate is Linux, no member or deadline-reset error, a marked group, and
+// a whole-borrow return before the cutoff. A witness pairs a successful marked
+// result its producer took with the immutable completion fact the writer published
+// for that same request, sampled under the endpoint lock. Offered traffic alone
+// never counts, and no payload is read after publication.
+type nativeQualMarked struct {
+	segment           string
+	members, segments int
+	offered           atomic.Int64
+
+	mutex     sync.Mutex
+	captured  map[*endpointToken]nativeQualCapture
+	succeeded map[nativeQualMarkedKey]struct{}
+}
+
+func newNativeQualMarked(segment string, members, segments int) *nativeQualMarked {
+	return &nativeQualMarked{
+		segment: segment, members: members, segments: segments,
+		captured: make(map[*endpointToken]nativeQualCapture), succeeded: make(map[nativeQualMarkedKey]struct{}),
+	}
+}
+
+// request builds the shape the software-group constructor marks: segmented members
+// sent as scalar datagrams, with no native GSO.
+func (m *nativeQualMarked) request(id, registration uint64, destination netip.AddrPort) endpointRequest {
+	request := endpointRequest{
+		identity:                   endpointIdentity{connection: id, registration: registration},
+		destination:                destination,
+		shortSoftwareDatagramGroup: true,
+	}
+	for range m.members {
+		request.members = append(request.members, endpointMember{buffer: endpointTestBuffer(strings.Repeat(m.segment, m.segments)), gsoSize: uint16(len(m.segment))})
+	}
+	return request
+}
+
+func nativeQualRelease(request endpointRequest) {
+	for _, member := range request.members {
+		member.buffer.Release()
+	}
+}
+
+// sample records the writer's current marked request. It runs under the endpoint
+// lock, which owns the canonical request until reconciliation. fresh reports the
+// first sighting of this token.
+func (m *nativeQualMarked) sample(s *endpointState) (token *endpointToken, fresh bool) {
+	token = s.current
+	if token == nil || !token.request.shortSoftwareDatagramGroup {
+		return nil, false
+	}
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	if _, seen := m.captured[token]; seen {
+		return token, false
+	}
+	m.captured[token] = nativeQualCapture{key: nativeQualKey(token.request.identity), deadline: token.request.deadline}
+	return token, true
+}
+
+// took records a marked result its producer consumed, if every datagram was accepted.
+func (m *nativeQualMarked) took(result endpointResult) {
+	if result.failure() != nil || len(result.members) != m.members {
+		return
+	}
+	for _, member := range result.members {
+		if member.accepted != m.segments || member.uncertain != 0 || member.unsubmitted != 0 {
+			return
+		}
+	}
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.succeeded[nativeQualKey(result.identity)] = struct{}{}
+}
+
+func (m *nativeQualMarked) consume(e *nativeEndpoint, p *endpointParticipant) {
+	for {
+		result, ok := e.take(p)
+		if !ok {
+			return
+		}
+		m.took(result)
+	}
+}
+
+// witnessed counts sampled marked requests whose published fact satisfies the
+// yield predicate and whose producer took the same request's success. margin is
+// the smallest distance of a witnessed return before its cutoff.
+func (m *nativeQualMarked) witnessed() (count int, margin time.Duration) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	for token, capture := range m.captured {
+		fact := token.completion.Load()
+		if fact == nil || fact.fault || fact.result.failure() != nil {
+			continue
+		}
+		cutoff := capture.deadline.Add(endpointTolerance)
+		if !fact.returnedAt.Before(cutoff) {
+			continue
+		}
+		if _, ok := m.succeeded[capture.key]; !ok {
+			continue
+		}
+		if count == 0 || cutoff.Sub(fact.returnedAt) < margin {
+			margin = cutoff.Sub(fact.returnedAt)
+		}
+		count++
+	}
+	return count, margin
+}
+
+// record publishes the geometry and witness counts as facts, never as timing.
+func (m *nativeQualMarked) record(evidence *nativeQualEvidence, prefix string) int {
+	witnessed, margin := m.witnessed()
+	m.mutex.Lock()
+	sampled, succeeded := len(m.captured), len(m.succeeded)
+	m.mutex.Unlock()
+	for key, value := range map[string]any{
+		"marked_group_members":            m.members,
+		"marked_group_datagrams":          m.members * m.segments,
+		"marked_segment_bytes":            len(m.segment),
+		"marked_offered":                  m.offered.Load(),
+		"marked_succeeded":                succeeded,
+		"marked_sampled":                  sampled,
+		"marked_witnessed":                witnessed,
+		"marked_witness_cutoff_margin_ms": nativeQualMS(margin),
+	} {
+		evidence.Facts[prefix+key] = value
+	}
+	return witnessed
+}
+
+// produce offers at most limit marked requests and takes their results. Sealing
+// ends the activity: offers are refused and the revoked participant retires.
+func (m *nativeQualMarked) produce(e *nativeEndpoint, p *endpointParticipant, destination netip.AddrPort, limit int) error {
+	var registration uint64
+	var request endpointRequest
+	pending := false
+	for {
+		m.consume(e, p)
+		if !pending && registration < uint64(limit) {
+			registration++
+			request, pending = m.request(p.id, registration, destination), true
+		}
+		if pending {
+			err := e.offer(p, 0, request)
+			if err == nil {
+				m.offered.Add(1)
+				pending = false
+				continue
+			}
+			if !errors.Is(err, errEndpointCapacity) {
+				nativeQualRelease(request)
+				if errors.Is(err, net.ErrClosed) {
+					return nil
+				}
+				return err
+			}
+		}
+		select {
+		case <-p.retired:
+			return nil
+		case <-p.ready:
+		case <-p.completed:
+		case <-time.After(endpointRetry):
+		}
+	}
+}
+
+// awaitInFlight returns a marked request still inside its native borrow. It is first
+// sighted in a sample that began after a witness was already established, so the
+// close that follows starts while that activity is outstanding.
+func (m *nativeQualMarked) awaitInFlight(t *testing.T, e *nativeEndpoint) *endpointToken {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		armed, _ := m.witnessed()
+		var token *endpointToken
+		e.do(func(s *endpointState) {
+			if current, fresh := m.sample(s); armed > 0 && fresh && current.completion.Load() == nil {
+				token = current
+			}
+		})
+		if token != nil {
+			return token
+		}
+		require.True(t, time.Now().Before(deadline), "no fresh marked request reached the writer after a witnessed success")
+		time.Sleep(50 * time.Microsecond)
 	}
 }
 
@@ -190,7 +405,9 @@ func nativeQualSNMP(t *testing.T, field string) int64 {
 
 // nativeQualBlast tallies one phase: per-lane accepted counts, the latest native
 // return past its deadline, and the slowest publication after a native return.
+// Its marked lane offers single-member software groups to the same writer.
 type nativeQualBlast struct {
+	marked      *nativeQualMarked
 	accepted    [3]atomic.Int64
 	expired     atomic.Int64
 	uncertain   atomic.Int64
@@ -200,6 +417,9 @@ type nativeQualBlast struct {
 }
 
 func (b *nativeQualBlast) note(result endpointResult, deadline, seen time.Time) {
+	if result.identity.path == nativeQualMarkedLane {
+		b.marked.took(result)
+	}
 	b.accepted[result.identity.path].Add(int64(result.members[0].accepted))
 	b.uncertain.Add(int64(result.members[0].uncertain))
 	if result.members[0].unsubmitted != 0 {
@@ -250,7 +470,12 @@ func (b *nativeQualBlast) participant(t *testing.T, e *nativeEndpoint, p *endpoi
 				break
 			}
 			registration++
-			request := nativeQualRequest(p.id, registration, destination, time.Time{}, payload)
+			var request endpointRequest
+			if lane == nativeQualMarkedLane {
+				request = b.marked.request(p.id, registration, destination)
+			} else {
+				request = nativeQualRequest(p.id, registration, destination, time.Time{}, payload)
+			}
 			request.identity.path = uint64(lane)
 			for {
 				deadline := time.Now().Add(nativeQualBudget)
@@ -258,12 +483,15 @@ func (b *nativeQualBlast) participant(t *testing.T, e *nativeEndpoint, p *endpoi
 				deadlines[registration] = deadline
 				err := e.offer(p, lane, request)
 				if err == nil {
+					if lane == nativeQualMarkedLane {
+						b.marked.offered.Add(1)
+					}
 					outstanding++
 					break
 				}
 				if !errors.Is(err, errEndpointCapacity) {
 					t.Errorf("participant %d lane %d: %v", p.id, lane, err)
-					request.members[0].buffer.Release()
+					nativeQualRelease(request)
 					return
 				}
 				// Consuming only here leaves results pending, so participants
@@ -307,6 +535,159 @@ func TestNativeQualRaiseKeepsMaximum(t *testing.T) {
 	}
 	raisers.Wait()
 	require.EqualValues(t, 1<<40, maximum.Load(), "a smaller concurrent sample can't replace a larger one")
+}
+
+// nativeQualHeld is a fake native whose holdAt send waits for one release, and
+// whose failAt send fails. It exercises the witness without UDP or timing claims.
+type nativeQualHeld struct {
+	sends, holdAt, failAt atomic.Int64
+	release               chan struct{}
+}
+
+func (n *nativeQualHeld) SetWriteDeadline(time.Time) error { return nil }
+
+func (n *nativeQualHeld) WriteMsgUDPAddrPort(b, _ []byte, _ netip.AddrPort) (int, int, error) {
+	send := n.sends.Add(1)
+	if send == n.holdAt.Load() {
+		<-n.release
+	}
+	if send == n.failAt.Load() {
+		return 0, 0, &os.SyscallError{Syscall: "sendmsg", Err: syscall.ECONNREFUSED}
+	}
+	return len(b), 0, nil
+}
+
+func TestNativeQualMarkedWitness(t *testing.T) {
+	destination := netip.MustParseAddrPort("127.0.0.1:1234")
+	// held runs one request through a writer held at send holdAt, sampling it there.
+	held := func(t *testing.T, native *nativeQualHeld, holdAt int64, m *nativeQualMarked, request endpointRequest) (*nativeEndpoint, *endpointParticipant, *endpointToken) {
+		native.holdAt.Store(holdAt)
+		e := startNativeEndpoint(native, nativeQualBudget, nil)
+		p, err := e.attach(1)
+		require.NoError(t, err)
+		require.NoError(t, e.offer(p, 0, request))
+		synctest.Wait()
+		var token *endpointToken
+		var fresh bool
+		e.do(func(s *endpointState) { token, fresh = m.sample(s) })
+		if request.shortSoftwareDatagramGroup {
+			require.True(t, fresh)
+			require.Nil(t, token.completion.Load(), "sampled inside the native borrow")
+			e.do(func(s *endpointState) { _, fresh = m.sample(s) })
+			require.False(t, fresh, "a token is fresh only once")
+		}
+		return e, p, token
+	}
+
+	t.Run("a taken success pairs with its fact", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			native := &nativeQualHeld{release: make(chan struct{})}
+			m := newNativeQualMarked("abc", 2, 3)
+			e, p, _ := held(t, native, 1, m, m.request(1, 1, destination))
+			defer func() { <-e.stop() }()
+			native.release <- struct{}{}
+			synctest.Wait()
+			count, _ := m.witnessed()
+			require.Zero(t, count, "a published fact alone is not a witness")
+			m.consume(e, p)
+			count, margin := m.witnessed()
+			require.Equal(t, 1, count)
+			require.Equal(t, 120*time.Millisecond, margin, "no time passed in the bubble")
+			require.EqualValues(t, 6, native.sends.Load(), "two members of three scalar datagrams")
+			evidence := &nativeQualEvidence{Facts: map[string]any{}}
+			require.Equal(t, 1, m.record(evidence, "pressure_"))
+			require.Equal(t, 6, evidence.Facts["pressure_marked_group_datagrams"])
+			require.Equal(t, 1, evidence.Facts["pressure_marked_witnessed"])
+		})
+	})
+
+	t.Run("an unmarked request is never sampled", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			native := &nativeQualHeld{release: make(chan struct{})}
+			m := newNativeQualMarked("abc", 2, 3)
+			request := m.request(1, 1, destination)
+			request.shortSoftwareDatagramGroup = false
+			e, p, token := held(t, native, 1, m, request)
+			defer func() { <-e.stop() }()
+			require.Nil(t, token)
+			native.release <- struct{}{}
+			synctest.Wait()
+			m.consume(e, p)
+			count, _ := m.witnessed()
+			require.Zero(t, count)
+		})
+	})
+
+	t.Run("a member error is not a witness", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			native := &nativeQualHeld{release: make(chan struct{})}
+			native.failAt.Store(2)
+			m := newNativeQualMarked("abc", 2, 3)
+			e, p, token := held(t, native, 1, m, m.request(1, 1, destination))
+			defer func() { <-e.stop() }()
+			native.release <- struct{}{}
+			synctest.Wait()
+			m.consume(e, p)
+			require.Error(t, token.completion.Load().result.failure())
+			count, _ := m.witnessed()
+			require.Zero(t, count)
+			require.Empty(t, m.succeeded)
+		})
+	})
+
+	t.Run("a return after the cutoff is not a witness", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			native := &nativeQualHeld{release: make(chan struct{})}
+			m := newNativeQualMarked("abc", 2, 3)
+			// Holding the last send lets every datagram be accepted after the cutoff.
+			e, p, _ := held(t, native, 6, m, m.request(1, 1, destination))
+			defer func() { <-e.stop() }()
+			time.Sleep(nativeQualBudget + endpointTolerance)
+			native.release <- struct{}{}
+			synctest.Wait()
+			m.consume(e, p)
+			_, faulted := e.faultObservation()
+			require.True(t, faulted, "control owns the same cutoff")
+			require.Len(t, m.succeeded, 1, "every datagram was accepted")
+			count, _ := m.witnessed()
+			require.Zero(t, count)
+		})
+	})
+
+	t.Run("close starts while a fresh marked request is in the writer", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			native := &nativeQualHeld{release: make(chan struct{})}
+			native.holdAt.Store(1)
+			e := startNativeEndpoint(native, nativeQualBudget, nil)
+			p, err := e.attach(nativeQualActivityID)
+			require.NoError(t, err)
+			m := newNativeQualMarked("abc", 2, 3)
+			done := make(chan error, 1)
+			go func() { done <- m.produce(e, p, destination, 8) }()
+			synctest.Wait()
+			e.do(func(s *endpointState) { m.sample(s) })
+			// Request 1 completes; request 2 waits at its first send.
+			native.holdAt.Store(7)
+			native.release <- struct{}{}
+			synctest.Wait()
+			token := m.awaitInFlight(t, e)
+			closing := time.Now()
+			stopped := e.stop()
+			time.Sleep(time.Millisecond)
+			native.release <- struct{}{}
+			<-stopped
+			require.NoError(t, <-done)
+			fact := token.completion.Load()
+			require.NotNil(t, fact)
+			require.False(t, fact.fault)
+			require.True(t, fact.returnedAt.After(closing))
+			require.ErrorIs(t, fact.result.failure(), errEndpointRevoked, "sealing revokes the rest of the request")
+			require.Equal(t, 1, fact.result.members[0].accepted)
+			count, _ := m.witnessed()
+			require.Equal(t, 1, count, "request 1 is the activity's witness")
+			require.GreaterOrEqual(t, m.offered.Load(), int64(2))
+		})
+	})
 }
 
 func TestNativeQualification(t *testing.T) {
@@ -463,8 +844,22 @@ func TestNativeQualification(t *testing.T) {
 		require.Equal(t, len("public"), written)
 		require.Equal(t, "public", nativeQualRead(t, receiver))
 
+		// R21: the client endpoint closes during bounded marked-group activity. Its
+		// datagrams go to a sink nobody reads, so the receiver's reads stay exact.
+		clientEndpoint := nativeTransportEndpoint(clientTransport)
+		require.NotNil(t, clientEndpoint)
+		sink := newUDPConnLocalhost(t).LocalAddr().(*net.UDPAddr).AddrPort()
+		marked := newNativeQualMarked(strings.Repeat("s", 300), nativeQualActivityMembers, nativeQualSegments)
+		activityDone := make(chan error, 1)
 		for name, tr := range map[string]*Transport{"client": clientTransport, "server": serverTransport} {
 			require.ErrorIs(t, tr.waitNativeIOStopped(ctx), ErrMultipathNotStoppingV1)
+			var inFlight *endpointToken
+			if tr == clientTransport {
+				activity, err := clientEndpoint.attach(nativeQualActivityID)
+				require.NoError(t, err)
+				go func() { activityDone <- marked.produce(clientEndpoint, activity, sink, nativeQualActivityRequests) }()
+				inFlight = marked.awaitInFlight(t, clientEndpoint)
+			}
 			closing := time.Now()
 			require.NoError(t, tr.Close())
 			require.NoError(t, tr.waitNativeIOStopped(ctx))
@@ -473,8 +868,39 @@ func TestNativeQualification(t *testing.T) {
 			require.Less(t, joined, nativeQualBudget+endpointTolerance, "the current request's budget bounds the join")
 			_, err = tr.WriteTo([]byte("late"), receiver.LocalAddr())
 			require.ErrorIs(t, err, net.ErrClosed)
+			if inFlight == nil {
+				continue
+			}
+			// The join follows writer exit, which follows the borrow's published
+			// return. That return after close began is the active-close precondition.
+			// Sealing may revoke the rest of this request; its disposition is kept.
+			fact := inFlight.completion.Load()
+			require.NotNil(t, fact, "the writer publishes before its exit")
+			require.False(t, fact.fault)
+			after := fact.returnedAt.Sub(closing)
+			require.Positive(t, after, "close began while a marked group was in the writer")
+			evidence.Facts["active_close_return_after_close_ms"] = nativeQualMS(after)
+			var accepted, uncertain, unsubmitted int
+			for _, member := range fact.result.members {
+				accepted, uncertain, unsubmitted = accepted+member.accepted, uncertain+member.uncertain, unsubmitted+member.unsubmitted
+			}
+			evidence.Facts["active_close_accepted"] = accepted
+			evidence.Facts["active_close_uncertain"] = uncertain
+			evidence.Facts["active_close_unsubmitted"] = unsubmitted
+			if err := fact.result.failure(); err != nil {
+				evidence.Facts["active_close_error"] = err.Error()
+			}
+			_, faulted := clientEndpoint.faultObservation()
+			require.False(t, faulted)
+			select {
+			case err := <-activityDone:
+				require.NoError(t, err)
+			case <-time.After(5 * time.Second):
+				require.FailNow(t, "the marked activity did not end with the seal")
+			}
 		}
 		require.NoError(t, listener.Close())
+		require.Positive(t, marked.record(evidence, ""), "no successful marked group from the closing activity reached the writer yield")
 
 		// The join returned write and deadline authority over the caller's socket.
 		require.NoError(t, clientSocket.SetWriteDeadline(time.Now().Add(-time.Second)))
@@ -519,7 +945,7 @@ func TestNativeQualification(t *testing.T) {
 		// The bounded request classes share the real writer until each lane's
 		// fixed count is done.
 		const perLane = 64
-		blast := &nativeQualBlast{}
+		blast := &nativeQualBlast{marked: newNativeQualMarked("contention", 1, nativeQualSegments)}
 		var workers, classes sync.WaitGroup
 		for _, p := range participants {
 			workers.Go(func() { blast.participant(t, e, p, destination, perLane, "contention", nil) })
@@ -564,7 +990,10 @@ func TestNativeQualification(t *testing.T) {
 				case <-peakStop:
 					return
 				case <-time.After(100 * time.Microsecond):
-					e.do(func(s *endpointState) { peak = max(peak, s.count) })
+					e.do(func(s *endpointState) {
+						peak = max(peak, s.count)
+						blast.marked.sample(s)
+					})
 				}
 			}
 		})
@@ -596,13 +1025,14 @@ func TestNativeQualification(t *testing.T) {
 		evidence.Facts["public_sent"] = publicSent.Load()
 		evidence.Facts["public_attempts"] = publicAttempts.Load()
 		evidence.Facts["diagnostics_dropped"] = e.dropped.Load()
+		require.Positive(t, blast.marked.record(evidence, ""), "no successful marked group reached the writer yield")
 
 		// The pressure phase only records whether real traffic made the writer
 		// wait. No observed wait is a recorded fact, not pressure evidence.
 		require.NoError(t, socket.SetWriteBuffer(2048))
 		sndbufErrors := nativeQualSNMP(t, "SndbufErrors")
 		stopPressure := make(chan struct{})
-		pressure := &nativeQualBlast{}
+		pressure := &nativeQualBlast{marked: newNativeQualMarked(strings.Repeat("p", 300), 1, nativeQualSegments)}
 		var pressured sync.WaitGroup
 		payload := strings.Repeat("p", 1200)
 		for _, p := range participants {
@@ -614,6 +1044,7 @@ func TestNativeQualification(t *testing.T) {
 			if nativeQualWriterWaiting() {
 				waits++
 			}
+			e.do(func(s *endpointState) { pressure.marked.sample(s) })
 		}
 		close(stopPressure)
 		pressured.Wait()
@@ -625,6 +1056,7 @@ func TestNativeQualification(t *testing.T) {
 		evidence.Facts["pressure_uncertain"] = pressure.uncertain.Load()
 		evidence.TimingMS["pressure_native_return_overrun"] = nativeQualMS(time.Duration(pressure.overrun.Load()))
 		evidence.TimingMS["pressure_publication"] = nativeQualMS(time.Duration(pressure.publication.Load()))
+		require.Positive(t, pressure.marked.record(evidence, "pressure_"), "no successful marked group reached the writer yield under pressure")
 
 		releaseSink.Do(func() { close(sinkRelease) })
 		require.NoError(t, receiver.SetReadDeadline(time.Now()))
