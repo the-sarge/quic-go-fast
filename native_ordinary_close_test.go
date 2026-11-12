@@ -59,7 +59,7 @@ func TestNativeOrdinaryCompletionCloseInterruptsRecord(t *testing.T) {
 					require.True(t, sender.reserveBuffer(first.Cap()).available)
 					_, pnLen := tc.conn.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
 					payloadSize := 1200 - int(wire.ShortHeaderLen(tc.conn.connIDManager.Get(), pnLen)) - 7 - 3
-					for _, value := range []byte{0x41, 0x42} {
+					for _, value := range []byte{0x41, 0x42, 0x43} {
 						require.NoError(t, tc.conn.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: bytes.Repeat([]byte{value}, payloadSize)}))
 						receipt, err := tc.conn.emission.appendPacket(first, 1200, false, protocol.ECNNon, monotime.Now())
 						require.NoError(t, err)
@@ -71,7 +71,11 @@ func TestNativeOrdinaryCompletionCloseInterruptsRecord(t *testing.T) {
 					appendNativeGroupMember(t, tc, sender, tail, "later member", protocol.ECNNon, sendMetadata{})
 				}
 				record := sender.pending
-				require.Equal(t, 3, record.count)
+				wantPackets := 4
+				if suffix {
+					wantPackets = 3
+				}
+				require.Equal(t, wantPackets, record.count)
 				wantTokens := make([]ackhandler.LocalCompletionToken, record.count)
 				for i, packet := range record.packets[:record.count] {
 					wantTokens[i] = packet.token

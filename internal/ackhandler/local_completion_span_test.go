@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newLocalSpanTest(t *testing.T, ecn bool) (*sentPacketHandler, []LocalCompletionToken) {
+func newLocalPendingSpanTest(t *testing.T, ecn bool) (*sentPacketHandler, []LocalCompletionToken) {
 	t.Helper()
 	handler, err := NewLocalSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, ecn, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger)
 	require.NoError(t, err)
@@ -29,7 +29,13 @@ func newLocalSpanTest(t *testing.T, ecn bool) (*sentPacketHandler, []LocalComple
 		tokens[i], err = h.RegisterLocalPacket(PacketContext{}, now, pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, mark, 1200)
 		require.NoError(t, err)
 	}
-	require.NoError(t, h.CompleteLocalPacket(tokens[0], LocalPacketAccepted, now))
+	return h, tokens
+}
+
+func newLocalSpanTest(t *testing.T, ecn bool) (*sentPacketHandler, []LocalCompletionToken) {
+	t.Helper()
+	h, tokens := newLocalPendingSpanTest(t, ecn)
+	require.NoError(t, h.CompleteLocalPacket(tokens[0], LocalPacketAccepted, monotime.Time(time.Second)))
 	return h, tokens[1:]
 }
 
@@ -104,6 +110,86 @@ func TestLocalAcceptedSpanDeclinesAtomically(t *testing.T) {
 			require.Equal(t, before, h.local.owner)
 			require.Equal(t, alarm, h.GetLossDetectionTimeout())
 			require.Equal(t, localPacketPending, tokens[0].registration.outcome, "preflight must not consume a valid prefix")
+		})
+	}
+}
+
+func TestLocalAcceptedSpanAfterScalarPrefix(t *testing.T) {
+	for _, ecn := range []bool{false, true} {
+		t.Run(map[bool]string{false: "plain", true: "ECN"}[ecn], func(t *testing.T) {
+			fast, tokens := newLocalPendingSpanTest(t, ecn)
+			scalar, scalarTokens := newLocalPendingSpanTest(t, ecn)
+			returnedAt := monotime.Time(time.Second + time.Millisecond)
+			fast.rttStats.UpdateRTT(8*time.Millisecond, 0)
+			scalar.rttStats.UpdateRTT(8*time.Millisecond, 0)
+			before := fast.local.owner
+			require.Zero(t, fast.appDataPackets.history.latestLocalPTO())
+			require.False(t, TryCompleteLocalAcceptedPackets(fast, tokens, returnedAt))
+			require.Equal(t, before, fast.local.owner)
+			require.Zero(t, fast.GetLossDetectionTimeout())
+			require.Equal(t, len(tokens), fast.appDataPackets.history.numUnresolvedLocal)
+			for _, token := range tokens {
+				require.Equal(t, localPacketPending, token.registration.outcome)
+			}
+			require.NoError(t, fast.CompleteLocalPacket(tokens[0], LocalPacketAccepted, returnedAt))
+			require.Equal(t, returnedAt, fast.appDataPackets.history.latestLocalPTO())
+			require.True(t, TryCompleteLocalAcceptedPackets(fast, tokens[1:], returnedAt))
+			for _, token := range scalarTokens {
+				require.NoError(t, scalar.CompleteLocalPacket(token, LocalPacketAccepted, returnedAt))
+			}
+			require.Equal(t, scalar.GetLossDetectionTimeout(), fast.GetLossDetectionTimeout())
+			require.Greater(t, fast.GetLossDetectionTimeout(), returnedAt)
+			require.Equal(t, scalar.bytesInFlight, fast.bytesInFlight)
+			require.Equal(t, scalar.local.owner, fast.local.owner)
+			require.Equal(t, localCompletionOwner{}, fast.local.owner)
+			require.Zero(t, fast.appDataPackets.history.numUnresolvedLocal)
+			require.Equal(t, scalar.appDataPackets.history.Difference(3, 0), fast.appDataPackets.history.Difference(3, 0))
+			for _, token := range tokens {
+				require.Equal(t, LocalPacketAccepted, token.registration.outcome)
+				require.Equal(t, returnedAt, token.registration.eligibleAt)
+				require.ErrorIs(t, fast.CompleteLocalPacket(token, LocalPacketAccepted, returnedAt), errLocalCompletionToken)
+			}
+			if ecn {
+				require.Equal(t, scalar.local.ecn.confirmed, fast.local.ecn.confirmed)
+				require.Equal(t, scalar.local.ecn.unresolved, fast.local.ecn.unresolved)
+			}
+		})
+	}
+	for _, kind := range []string{"ACK-retired prefix", "consumed suffix", "ACK-retired suffix"} {
+		t.Run(kind, func(t *testing.T) {
+			h, tokens := newLocalPendingSpanTest(t, false)
+			at := monotime.Time(time.Second + time.Millisecond)
+			require.False(t, TryCompleteLocalAcceptedPackets(h, tokens, at))
+			if kind == "ACK-retired prefix" {
+				_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(tokens[0].registration.pn)}, protocol.Encryption1RTT, at)
+				require.NoError(t, err)
+			}
+			require.NoError(t, h.CompleteLocalPacket(tokens[0], LocalPacketAccepted, at))
+			switch kind {
+			case "ACK-retired prefix":
+				require.Zero(t, h.appDataPackets.history.latestLocalPTO(), "an ACK-retired prefix cannot establish PTO evidence")
+			case "consumed suffix":
+				require.NoError(t, h.CompleteLocalPacket(tokens[3], LocalPacketAccepted, at))
+			case "ACK-retired suffix":
+				_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(tokens[3].registration.pn)}, protocol.Encryption1RTT, at)
+				require.NoError(t, err)
+			}
+			before := h.local.owner
+			alarm, flight := h.GetLossDetectionTimeout(), h.bytesInFlight
+			unresolved := h.appDataPackets.history.numUnresolvedLocal
+			require.False(t, TryCompleteLocalAcceptedPackets(h, tokens[1:], at))
+			require.Equal(t, before, h.local.owner)
+			require.Equal(t, alarm, h.GetLossDetectionTimeout())
+			require.Equal(t, flight, h.bytesInFlight)
+			require.Equal(t, unresolved, h.appDataPackets.history.numUnresolvedLocal)
+			for _, token := range tokens[1:3] {
+				require.Equal(t, localPacketPending, token.registration.outcome, "retry refusal leaves the untouched prefix pending")
+				require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, at))
+			}
+			if kind != "consumed suffix" {
+				require.NoError(t, h.CompleteLocalPacket(tokens[3], LocalPacketAccepted, at))
+			}
+			require.Equal(t, localCompletionOwner{}, h.local.owner)
 		})
 	}
 }

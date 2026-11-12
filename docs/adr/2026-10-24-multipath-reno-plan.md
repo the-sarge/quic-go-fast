@@ -400,7 +400,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 | [R15](#r15) | complete | Apply sticky primary and bounded backup promotion policy | R10 |
 | [R16](#r16) | new | Complete additive APIs and constructor gates behind disablement | E6, R11, R13, R14, R15 |
 | [R17](#r17) | new | Complete the independent interoperability matrix | R16, R20, [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3) |
-| [R18](#r18) | split/rework fixture into N0; retain campaign | Measure ordinary-peer costs on granted endpoints | R16, R20, [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3) |
+| [R18](#r18) | split/rework fixture into N0; retain campaign | Measure ordinary-peer costs on granted endpoints | R16, R20, [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3), [production repair #1302](https://github.com/the-sarge/quic-go-fast/issues/1302) |
 | [R19](#r19) | new | Enable the qualified experimental Reno profile | R17, R18 |
 | [R20](#r20) | new | Keep the connection on a healthy path after an endpoint fails | R13, R14, R15 |
 
@@ -970,13 +970,15 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 ### R18 — Measure ordinary-peer costs on granted endpoints
 
+**Current fixed-candidate prerequisite:** [Production repair #1302](https://github.com/the-sarge/quic-go-fast/issues/1302) integrates the retained ordinary-pipeline changes and explicitly scoped shared application DATAGRAM admission policy before the next campaign. Its [dated continuation](2026-11-04-native-endpoint-efficiency-plan.md#production-continuation--2026-11-12) preserves completed N3 history and native bounds. R18 remains qualification-only: use the merged final candidate binary for both server and client in a fresh original 36-observation campaign, without splicing the stopped old campaign or diagnostic comparisons. Existing numerical thresholds, contamination rules and scoped owner-disposition rules remain unchanged.
+
 **Fixture disposition:** [N0 #1199](2026-11-04-native-endpoint-efficiency-plan.md#n0) published and reviewed the ordinary-cost driver. This slice consumes that merged deliverable; the earlier branch is source material, not an accepted dependency. Its counted campaign runs only after N3 merges. Parent #1193 remains open until the fixed-candidate ordinary evidence satisfies the tolerances and the scoped owner-accepted disposition above, so this slice depends on N3 rather than that parent’s closure.
 
 **Combined-candidate admission:** carry the approved issue #1141 contract through N2 and N3 before this campaign. Report offered stateless traffic, reset receive share and background useful bytes alongside ordinary costs; a throughput gain achieved by starving that traffic is not success. Retain the numeric thresholds and 36-observation inventory, with the [owner-accepted STREAM/GSO-off outcome](#owner-accepted-streamgso-off-tradeoff) recorded separately from the raw numerical verdict. The approved metric clarification above governs application send-call latency; repair #1285 is not a prerequisite.
 
 **Delivers:** Run six accepted ordinary workload/acceleration cells against matched unregistered controls, including mixed multipath and stateless pressure. Record useful goodput, CPU/useful byte, p99 control/send completion, memory, timeout/drop rates and fair progress; publish pass/fail against owner thresholds.
 
-**Blocked by:** R16, R20 and [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3). **Existing work:** retained qualification slice; N0 owns driver publication, and no unmerged implementation is accepted.
+**Blocked by:** R16, R20, [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3) and [production repair #1302](https://github.com/the-sarge/quic-go-fast/issues/1302). **Existing work:** retained qualification slice; N0 owns driver publication, and no unmerged implementation is accepted.
 
 **Single owner and authority completeness:** Transport integration suite owns paired workload, resource ledger and qualification receipt; endpoint policy is unchanged. Cover constructors, validation and the destruction/cancellation consumers named by this behavior together; no persisted state is introduced.
 

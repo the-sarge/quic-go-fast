@@ -70,7 +70,7 @@ func TestNativeStagedRefusalAndExactTransfer(t *testing.T) {
 					socket.release()
 					synctest.Wait()
 					if finish == "lease expiry" {
-						_, err := e.exchange(sender.participant, nil)
+						_, err := e.exchange(sender.participant, nil, nil)
 						require.NoError(t, err)
 						time.Sleep(endpointLease + 2*endpointRetry)
 					}

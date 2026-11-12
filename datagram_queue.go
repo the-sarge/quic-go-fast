@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	maxDatagramSendQueueLen = 32
+	maxDatagramSendQueueLen = 128
 	maxDatagramRcvQueueLen  = 1024
 )
 
@@ -50,7 +50,7 @@ func newDatagramQueue(hasData func(), logger utils.Logger) *datagramQueue {
 }
 
 // Add queues a new DATAGRAM frame for sending.
-// Up to 32 DATAGRAM frames will be queued.
+// Up to 128 DATAGRAM frames will be queued.
 // Once that limit is reached, Add blocks until the queue size has reduced.
 func (h *datagramQueue) Add(f *wire.DatagramFrame) error {
 	return h.AddContext(context.Background(), f)

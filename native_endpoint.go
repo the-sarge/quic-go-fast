@@ -201,8 +201,17 @@ func (member endpointMember) datagrams() int {
 	return (len(member.buffer.Data) + int(member.gsoSize) - 1) / int(member.gsoSize)
 }
 
-func (request endpointRequest) unsubmitted(err error) endpointResult {
-	result := endpointResult{members: make([]endpointMemberResult, len(request.members))}
+func newEndpointResult(storage []endpointMemberResult, count int) endpointResult {
+	if cap(storage) < count {
+		storage = make([]endpointMemberResult, count)
+	} else {
+		storage = storage[:count]
+	}
+	return endpointResult{members: storage}
+}
+
+func (request endpointRequest) unsubmitted(err error, storage []endpointMemberResult) endpointResult {
+	result := newEndpointResult(storage, len(request.members))
 	now := monotime.Now()
 	for i, member := range request.members {
 		result.members[i] = endpointMemberResult{unsubmitted: member.datagrams(), err: err, returnedAt: now}
@@ -355,7 +364,38 @@ type endpointWriteResult struct {
 	returnedAt time.Time
 }
 
+// Small claims share one fresh allocation with their immutable member facts.
+// These objects are never recycled: an old result can outlive its endpoint record.
+type endpointOneMemberClaim struct {
+	token   endpointToken
+	members [1]endpointMemberResult
+}
+
+type endpointTwoMemberClaim struct {
+	token   endpointToken
+	members [2]endpointMemberResult
+}
+
+func newEndpointToken(index int, request *endpointRequest) *endpointToken {
+	var token *endpointToken
+	switch len(request.members) {
+	case 1:
+		claim := new(endpointOneMemberClaim)
+		token = &claim.token
+		token.fact.result.members = claim.members[:]
+	case 2:
+		claim := new(endpointTwoMemberClaim)
+		token = &claim.token
+		token.fact.result.members = claim.members[:]
+	default:
+		token = new(endpointToken)
+	}
+	token.index, token.request = index, request
+	return token
+}
+
 type endpointState struct {
+	armedDeadline                      time.Time // runner snapshot; protected by the endpoint mutex
 	endpoint                           *nativeEndpoint
 	budget                             time.Duration
 	participants                       [endpointParticipants + 2]*endpointParticipant
@@ -443,9 +483,12 @@ func (e *nativeEndpoint) do(f func(*endpointState)) {
 	if !s.terminal {
 		s.advance(time.Now())
 		f(s)
-		s.advance(time.Now())
+		now := time.Now()
+		s.advance(now)
 		s.wakeWriter()
-		e.notifyProgress()
+		if s.progressWakeNeeded(now) {
+			e.notifyProgress()
+		}
 	}
 	e.unlock()
 }
@@ -458,6 +501,18 @@ func (e *nativeEndpoint) nativeWorkEmpty(p *endpointParticipant) bool { //nolint
 	empty := !s.sealed && !s.faulted && !s.terminal && s.valid(p) && !p.draining && s.current == nil && len(s.queue) == 0
 	e.mutex.Unlock()
 	return empty
+}
+
+// progressWakeNeeded observes state under control after advance at now.
+// Reuse that settled time: a fresh clock could skip an unarbitrated retry floor.
+// The runner alone sets terminal and joins, so terminal-ready must also wake it.
+// An existing earlier timer may fire harmlessly; never drain its pending wake.
+func (s *endpointState) progressWakeNeeded(now time.Time) bool {
+	if s.terminal || (s.sealed && s.current == nil && len(s.queue) == 0) {
+		return true
+	}
+	next := s.nextWake(now)
+	return !next.IsZero() && (s.armedDeadline.IsZero() || next.Before(s.armedDeadline))
 }
 
 func (e *nativeEndpoint) notifyProgress() {
@@ -976,7 +1031,7 @@ func (s *endpointState) advance(now time.Time) {
 				err = errEndpointRevoked
 			}
 			s.queue = append(s.queue[:j], s.queue[j+1:]...)
-			s.publish(i, r.request.unsubmitted(err))
+			s.publish(i, r.request.unsubmitted(err, nil))
 			continue
 		}
 		j++
@@ -1049,6 +1104,7 @@ func (s *endpointState) run() {
 		}
 		s.wakeWriter()
 		next := s.nextWake(now)
+		s.armedDeadline = next
 		e.unlock()
 		var wake <-chan time.Time
 		if !next.IsZero() {
@@ -1301,7 +1357,7 @@ func (s *endpointState) claim() *endpointToken {
 	j := s.chooseService()
 	i := s.queue[j]
 	s.queue = append(s.queue[:j], s.queue[j+1:]...)
-	s.current = &endpointToken{index: i, request: &s.records[i].request}
+	s.current = newEndpointToken(i, &s.records[i].request)
 	return s.current
 }
 
@@ -1312,10 +1368,13 @@ func (e *nativeEndpoint) write(native endpointNativeIO) {
 	e.mutex.Lock()
 	for {
 		s := e.state
-		s.advance(time.Now())
+		now := time.Now()
+		s.advance(now)
 		token := s.claim()
 		if token == nil {
-			e.notifyProgress() // timer/terminal owner must observe the parked boundary
+			if s.progressWakeNeeded(now) {
+				e.notifyProgress()
+			}
 			e.unlock()
 			select {
 			case <-e.halt:
@@ -1325,12 +1384,14 @@ func (e *nativeEndpoint) write(native endpointNativeIO) {
 			e.mutex.Lock()
 			continue
 		}
-		e.notifyProgress() // independent watchdog observes this new claim
+		if s.progressWakeNeeded(now) {
+			e.notifyProgress()
+		}
 		e.unlock()
 		var result endpointResult
 		fault := false
 		if err := native.SetWriteDeadline(token.request.deadline); err != nil {
-			result = token.request.unsubmitted(err)
+			result = token.request.unsubmitted(err, token.fact.result.members)
 			fault = true
 		} else {
 			result = writeEndpointRequestWithScratch(native, token, &scratch, oobScratch[:0])
@@ -1406,7 +1467,7 @@ func endpointSendmsgError(err error, cause error) bool {
 
 func writeEndpointRequestWithScratch(native endpointNativeIO, token *endpointToken, scratch *handshake.PacketProtectionScratch, oobScratch []byte) endpointResult {
 	request := *token.request
-	result := endpointResult{members: make([]endpointMemberResult, len(request.members))}
+	result := newEndpointResult(token.fact.result.members, len(request.members))
 	for i, member := range request.members {
 		result.members[i] = writeEndpointMember(native, token, member, scratch, oobScratch)
 		if result.members[i].err != nil {
