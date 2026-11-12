@@ -10176,3 +10176,18 @@ Standards and Spec preparation each reported zero findings. Full configured five
 ### Next
 
 [R18 #1038](https://github.com/the-sarge/quic-go-fast/issues/1038) remains incomplete, [R19 #1039](https://github.com/the-sarge/quic-go-fast/issues/1039) remains blocked, and [admission #1141](https://github.com/the-sarge/quic-go-fast/issues/1141) and [efficiency #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) remain open. [Program #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live frontier at 38/46 completed, including Reno 18/20. Root owns mutable GitHub/OmniFocus synchronization. Recommendation: preserve this stopped result and resolve the future diagnosis scope before any further runtime work.
+
+---
+
+## Deliver R18 DATAGRAM changes (#1038) - 2026-11-12 17:28 EST
+
+**Main:** `fecc67b89f14`
+**Actor:** Codex
+
+[R18 delivery PR #1310](https://github.com/the-sarge/quic-go-fast/pull/1310) merged short software DATAGRAM grouping, copied payload backing reuse and the Linux writer scheduling fix. The merged tree matches the reviewed PR head, and the runtime and test inputs match measured source `56e011367705ce3adb31a70ce23f4b5ff29b5521`.
+
+All 36 qualification observations ran. The raw judge still fails batched DATAGRAM (1.121686 CPU per useful byte) and mixed bulk (1.108585). The owner accepted those exact CPU exceptions for delivery. All native rows passed the 10% RSS growth limit, and the 1.10 CPU and 10% RSS limits remain in force. [R18 qualification and acceptance receipt (#1038)](audits/2026-11-12-multipath-r18-delivery-receipt.md)
+
+The full RAS panel found no delivery-blocking runtime defect. Exact-head local tests, race, vet and module tidy verification passed. All 18 hosted checks passed, including the ready-head independent peer matrix. [Independent peer check for PR #1310](https://github.com/the-sarge/quic-go-fast/actions/runs/43319049861/job/131534590237)
+
+Reno implementation reaches 19/20 and the program reaches 39/46. R19 #1039 can proceed to its own evidence review and activation decision. Admission #1141 and efficiency #1193 retain their separate native evidence applicability assessment.
