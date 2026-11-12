@@ -10153,3 +10153,26 @@ The [certification receipt (PR #1306)](https://github.com/the-sarge/quic-go-fast
 ### Next
 
 Complete this journal delivery and reconcile [repair #1305](https://github.com/the-sarge/quic-go-fast/issues/1305). [R18 #1038](https://github.com/the-sarge/quic-go-fast/issues/1038) is the live qualification tracker: it remains open for the original fresh six-cell, three-pair, 36-observation campaign on final merged combined code, with the same binary serving both roles. Prior diagnostics earn no qualification credit. Root will reconcile the Reno-plan prerequisite/CPU-disposition pointers with final qualification publication; no further CPU candidate search is authorized.
+
+---
+
+## Stopped R18 qualification evidence published - 2026-11-12 13:33 EST
+
+**Main:** `9d858dcf2e68`
+**Actor:** Codex
+
+### Completed
+
+[PR #1308 — Preserve stopped R18 qualification and current blockers](https://github.com/the-sarge/quic-go-fast/pull/1308) merged at `9d858dcf2e683262675197c88c1f63825269ea3d`, with the same tree as certified head `cdf2c4aaf89cb64a8fd3f6ae203a2a1375735e80`. The [final receipt](audits/2026-11-12-multipath-r18-final-receipt.md) and adjacent manifest preserve 24 valid observations, 12 unrun observations, absolute paired measurements, original numerical failures, source and binary identities, metadata recovery, independent evidence reviews, cleanup, and consumed accounting. Current Reno, program, admission and efficiency pointers record the stopped outcome; the deferred current-contract item from [PR #1306](https://github.com/the-sarge/quic-go-fast/pull/1306) is reconciled.
+
+### Decisions
+
+Both STREAM cells pass. DATAGRAM/batch-on retains its raw CPU/useful-byte failure at `1.1133156468327912` against the unchanged `1.10` requirement; root applied the [exact narrow disposition under prior owner direction (#1038)](https://github.com/the-sarge/quic-go-fast/issues/1038#issuecomment-6830634241). DATAGRAM/batch-off independently fails goodput at `0.6524507173392426` against `0.95` and CPU/useful-byte at `1.324323644452628` against `1.10`; that failure is not covered by the batch-on disposition. Mixed/stateless cells remain unrun. The [stopping and publication disposition (#1038)](https://github.com/the-sarge/quic-go-fast/issues/1038#issuecomment-6831237639) preserves the failure without qualification completion, new optimization or another runtime attempt. These measurements compare native and control profiles; they do not establish that recent changes caused a regression.
+
+### Validation
+
+Standards and Spec preparation each reported zero findings. Full configured five-reviewer RAS `20261112T174708-4b4cf15e309baa93f7679cde` completed synthesis: all five initial reports succeeded, four second-round adjudications completed, and agy-carbon's second-round structured-delivery failure remains explicit. Four bounded evidence-metadata corrections and consumed-campaign tense were independently dispositioned, applied and locally checked; the accepted low-risk documentation policy required no replacement review or verification round. Final certification verified clean exact head, whitespace, new relative links, unchanged slice counts and graph, 32 indexed artifact hashes and 48 raw role hashes. All 17 applicable hosted checks succeeded on the certified head, including [unit run 43278953265](https://github.com/the-sarge/quic-go-fast/actions/runs/43278953265); the documentation paths do not dispatch the independent multipath peer matrix. Remote main's merged tree matched the certified tree. No Go/native qualification was rerun for publication.
+
+### Next
+
+[R18 #1038](https://github.com/the-sarge/quic-go-fast/issues/1038) remains incomplete, [R19 #1039](https://github.com/the-sarge/quic-go-fast/issues/1039) remains blocked, and [admission #1141](https://github.com/the-sarge/quic-go-fast/issues/1141) and [efficiency #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) remain open. [Program #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live frontier at 38/46 completed, including Reno 18/20. Root owns mutable GitHub/OmniFocus synchronization. Recommendation: preserve this stopped result and resolve the future diagnosis scope before any further runtime work.
