@@ -10191,3 +10191,16 @@ All 36 qualification observations ran. The raw judge still fails batched DATAGRA
 The full RAS panel found no delivery-blocking runtime defect. Exact-head local tests, race, vet and module tidy verification passed. All 18 hosted checks passed, including the ready-head independent peer matrix. [Independent peer check for PR #1310](https://github.com/the-sarge/quic-go-fast/actions/runs/43319049861/job/131534590237)
 
 Reno implementation reaches 19/20 and the program reaches 39/46. R19 #1039 can proceed to its own evidence review and activation decision. Admission #1141 and efficiency #1193 retain their separate native evidence applicability assessment.
+
+---
+
+## Scoped native writer-yield handoff - 2026-11-12 18:29 EST
+
+**Main:** `5ea08f236e27`
+**Actor:** Codex
+
+Published the scoped writer-yield qualification handoff in [PR #1312](https://github.com/the-sarge/quic-go-fast/pull/1312). The [R21 contract](adr/2026-10-24-multipath-reno-plan.md#r21) keeps native contention and shutdown on minimax Linux amd64 with Go 1.26.11/1.27.4, exactly four case executions plus two builds, and unchanged timing bounds. Eight unaffected native observations and accepted R17 #1037/R18 #1038 evidence carry forward under the [applicability audit](audits/2026-11-12-native-writer-yield-handoff.md).
+
+Independent source/evidence and final contract/graph review passed. Documentation links, graph/count consistency, exact pushed-head cleanliness and `git diff --check` passed; all 17 applicable hosted checks succeeded on `89b3beef9e1a1c364396e31f51438cac694b791d` before squash merge. No product code or native qualification execution was added by this handoff.
+
+Created [R21 — Native writer-yield qualification (#1313)](https://github.com/the-sarge/quic-go-fast/issues/1313) and made it the sole new blocker of [R19 — Experimental Reno activation (#1039)](https://github.com/the-sarge/quic-go-fast/issues/1039). Updated Reno parent [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013), program tracker [#646](https://github.com/the-sarge/quic-go-fast/issues/646) and their OmniFocus mirrors to 19/21 Reno and 39/47 program completion. The new evidence child is ready and undispatched; public activation remains disabled. The live frontier is maintained in [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
