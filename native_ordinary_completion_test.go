@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"os"
+	"slices"
 	"syscall"
 	"testing"
 	"testing/synctest"
@@ -200,11 +201,11 @@ func testNativeOrdinaryAcceptedSuffix(t *testing.T, count int, kind string, forc
 		// ACK all actual packet numbers, excluding any skipped number. Protocol
 		// retirement remains valid after either completion strategy.
 		var ranges []wire.AckRange
-		for i := len(pns) - 1; i >= 0; i-- {
-			if len(ranges) != 0 && ranges[len(ranges)-1].Smallest == pns[i]+1 {
-				ranges[len(ranges)-1].Smallest = pns[i]
+		for _, pn := range slices.Backward(pns) {
+			if len(ranges) != 0 && ranges[len(ranges)-1].Smallest == pn+1 {
+				ranges[len(ranges)-1].Smallest = pn
 			} else {
-				ranges = append(ranges, wire.AckRange{Smallest: pns[i], Largest: pns[i]})
+				ranges = append(ranges, wire.AckRange{Smallest: pn, Largest: pn})
 			}
 		}
 		_, ackErr := recovery.ReceivedAck(&wire.AckFrame{AckRanges: ranges}, protocol.Encryption1RTT, fact.returnedAt.Add(time.Millisecond))

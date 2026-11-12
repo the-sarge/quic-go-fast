@@ -3,6 +3,7 @@
 package quic
 
 import (
+	"net"
 	"syscall"
 	"testing"
 	"testing/synctest"
@@ -274,13 +275,19 @@ func TestNativeEndpointRetryProgressAfterSuccessfulReentry(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, e.offer(p, 0, endpointTestRequest(1, "backpressure")))
 		synctest.Wait()
+		prepare := func() (endpointAdmission, error) {
+			var admission endpointAdmission
+			err := net.ErrClosed
+			e.do(func(s *endpointState) { admission, err = s.admit(p, 0, 1) })
+			return admission, err
+		}
 		// Fill this participant's retained allowance through real reservations,
 		// so the next preparation leaves genuine pending demand.
 		for range 3 {
-			_, err := e.prepare(p, 0, 1)
+			_, err := prepare()
 			require.NoError(t, err)
 		}
-		_, err = e.prepare(p, 0, 1)
+		_, err = prepare()
 		require.ErrorIs(t, err, errEndpointCapacity)
 		e.mutex.Lock()
 		e.state.armedDeadline = time.Now().Add(10 * time.Millisecond)
@@ -316,7 +323,7 @@ func TestNativeEndpointRetryProgressAfterSuccessfulReentry(t *testing.T) {
 		default:
 			t.Fatal("retry floor needed another producer transaction to make progress")
 		}
-		admission, err := e.prepare(p, 0, 1)
+		admission, err := prepare()
 		require.NoError(t, err)
 		e.do(func(s *endpointState) { s.cancelAdmission(admission) })
 	})
