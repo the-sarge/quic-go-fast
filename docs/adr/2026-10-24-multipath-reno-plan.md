@@ -400,7 +400,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 | [R15](#r15) | complete | Apply sticky primary and bounded backup promotion policy | R10 |
 | [R16](#r16) | new | Complete additive APIs and constructor gates behind disablement | E6, R11, R13, R14, R15 |
 | [R17](#r17) | new | Complete the independent interoperability matrix | R16, R20, [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3) |
-| [R18](#r18) | split/rework fixture into N0; retain campaign | Measure ordinary-peer costs on granted endpoints | R16, R20, [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3) |
+| [R18](#r18) | split/rework fixture into N0; retain campaign | Measure ordinary-peer costs on granted endpoints | R16, R20, [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3), [production repair #1302](https://github.com/the-sarge/quic-go-fast/issues/1302) |
 | [R19](#r19) | new | Enable the qualified experimental Reno profile | R17, R18 |
 | [R20](#r20) | new | Keep the connection on a healthy path after an endpoint fails | R13, R14, R15 |
 
