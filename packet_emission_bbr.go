@@ -287,6 +287,10 @@ type boundedPlan struct {
 	request            protocol.ByteCount // zero for a step that sends only ACKs or a probe
 	ordinary, isolated bool
 	deadline           monotime.Time // a paced step's wake
+	// ceiling is request before the congestion allowance bounds it. Send-time
+	// preparation can raise the window, never the pacing budget of a route with
+	// pending bytes, so the request the opportunity takes never exceeds it.
+	ceiling protocol.ByteCount
 }
 
 // planBounded decides a BBR opportunity on route from recovery's mode and
@@ -311,7 +315,7 @@ func (e *packetEmission) planBounded(route *pathRoute, p *bbrSendPolicy, mode ac
 		if deadline := p.deadline(min(mtu.probeSize(), p.quantum), now); deadline != 0 {
 			return boundedPlan{step: stepMTUPaced, deadline: deadline}
 		}
-		return boundedPlan{step: stepMTUProbe, request: mtu.probeSize(), isolated: true}
+		return boundedPlan{step: stepMTUProbe, request: mtu.probeSize(), ceiling: mtu.probeSize(), isolated: true}
 	}
 	if allowance < size {
 		return boundedPlan{step: stepAck}
@@ -320,14 +324,15 @@ func (e *packetEmission) planBounded(route *pathRoute, p *bbrSendPolicy, mode ac
 		return boundedPlan{step: stepPaced, deadline: deadline}
 	}
 	if steered {
-		return boundedPlan{step: stepSteered, request: size, ordinary: true}
+		return boundedPlan{step: stepSteered, request: size, ceiling: size, ordinary: true}
 	}
-	limit := size
+	limit, ceiling := size, size
 	if confirmed && e.boundedGSOOn(route) {
-		limit = min(p.budget(now), allowance, gsoPacketSendLimit(size))
-		limit -= limit % size
+		ceiling = min(p.budget(now), gsoPacketSendLimit(size))
+		ceiling -= ceiling % size
+		limit = min(ceiling, allowance-allowance%size)
 	}
-	return boundedPlan{step: stepSend, request: limit, ordinary: true}
+	return boundedPlan{step: stepSend, request: limit, ceiling: ceiling, ordinary: true}
 }
 
 func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protocol.ByteCount) emissionResult {

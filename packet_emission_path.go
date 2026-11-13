@@ -167,7 +167,7 @@ func (e *packetEmission) packetSizeOn(route *pathRoute) protocol.ByteCount {
 // pathView reads one path's sending state for selection and consumes nothing. A
 // path is ready when the opportunity it would run gets its local reservation:
 // native construction capacity on its route and, for BBR, the local credit the
-// opportunity's own plan reserves. Reno sends into any open window. A BBR path's
+// opportunity's own plan reserves, up to its ceiling. Reno sends into any open window. A BBR path's
 // pacing is projected to its controller's current rate, and a paced path is
 // judged by the work it would do once pacing allows. Readiness never runs the
 // controller's send-time preparation, so a window that moves there stops the
@@ -194,7 +194,7 @@ func (e *packetEmission) pathView(id protocol.PathID, route *pathRoute, recovery
 		plan = e.planBounded(route, &projected, mode, allowance, size, mtu, false, confirmed, plan.deadline)
 	}
 	view.ready = (plan.step == stepSend || plan.step == stepMTUProbe) &&
-		p.credit.admits(plan.request, projected.creditLimit(), plan.ordinary, plan.isolated) && e.canConstruct(route)
+		p.credit.admits(plan.ceiling, projected.creditLimit(), plan.ordinary, plan.isolated) && e.canConstruct(route)
 	view.queued = e.bbrPendingBytes(p) + size
 	view.rate = p.controller.DeliveryRateEstimate()
 	return view
