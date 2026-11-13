@@ -10497,3 +10497,43 @@ Merged [PR #1333](https://github.com/the-sarge/quic-go-fast/pull/1333) as `c017d
   - `docs/adr/2026-10-24-multipath-program.md:11,16`.
 - The deferred test-only gaps are filed for triage as [#1338](https://github.com/the-sarge/quic-go-fast/issues/1338): accrual for anchored events with invalid samples, and the `clockValid` guard on backdated ACKs.
 - The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## BBR shared feedback scratch (#1330) - 2026-11-13 01:28 EST
+
+**Main:** `9bae6f4a10d4`
+**Actor:** Claude
+
+Merged [PR #1337](https://github.com/the-sarge/quic-go-fast/pull/1337) as `9bae6f4a10d4fbc9e02e206b2cc0cf6a8eb18ad0`, closing [Avoid scratch reallocation when two BBR paths near the shared feedback allowance (#1330)](https://github.com/the-sarge/quic-go-fast/issues/1330). This was a standalone, performance-only `planit` follow-up under program #646. It implements [plan rev 1](https://github.com/the-sarge/quic-go-fast/issues/1330#issuecomment-6845424126), which was [approved under delegated authority](https://github.com/the-sarge/quic-go-fast/issues/1330#issuecomment-6845436138). Public BBR+multipath stays refused.
+
+**Completed:**
+- **Fix.** Feedback scratch for a rich root and its BBR paths is now one buffer, owned by the root's `congestionDispatch` and reached through `scratchOwner()`.
+  - It grows by the single-context policy `min(allowance, max(need, 2*cap))`, so it never exceeds `maxDeliveryLive + maxDeliveryRetained`. Between root capture resets it allocates at most 16 times, whatever the event count.
+  - Growth drops sharing contexts' stale `event.Acked` and `event.Lost` slices, so a superseded buffer never stays referenced beside its replacement.
+  - The per-context peer-release loop in `scratchSize` is gone. The allowance, ceilings, compaction, feedback content, eviction and record ownership are unchanged.
+- **Regression.** `TestBBRPathFeedbackScratchNearAllowance` has two subtests.
+  - Alternating feedback: each context needs 14250 entries, and 40 alternating ACKs failed before the fix with `"40" is not less than or equal to "2"`. After it, one allocation.
+  - A second subtest checks that no context's feedback slices reference an array other than the current buffer, after growth and after a root capture reset.
+- **Allocation comparison.** Across the 40 alternating ACKs, the overlay comparison, 3 runs per side with medians, gave:
+  - base `2cdc76e40`: 196 mallocs, 108,534,464 bytes;
+  - candidate: 139 mallocs, 2,228,824 bytes.
+
+**Decisions:**
+- **Ownership and growth policy.** One buffer is owned by the root and shared across contexts, because feedback events are synchronous and never overlap. It grows by the single-context policy. The [plan](https://github.com/the-sarge/quic-go-fast/issues/1330#issuecomment-6845424126) records the rejected alternatives.
+- **Memory accounting.** `DeliveryStats.RecordBytes` now counts the shared buffer once, on the root. Paths report no scratch of their own.
+
+**Validation:**
+- **Preparation pass.** The code-review pass (Standards and Spec) added a path event after a root capture reset to the alias subtest, derived the fixture sizes from constants, and documented the `RecordBytes` accounting. Its other suggestions were rejected with reasons in the RAS briefing.
+- **Initial RAS review.** Run `20261113T060244-cc68a0b101d7685e330ad32d` at `5c2d71dfd` found no Fix First items. Its one finding, C-001, was rejected: the alias subtest does not inspect a zero-capacity `Lost` alias, but that only hardens a verification aid, production clears both headers in one statement, and the full-release guard mutation still fails the subtest.
+- **Replacement RAS review.** Run `20261113T061444-3b99a640b82021bf4f18a188` at `390977e22`, after rebasing onto #1333 and #1339, found nothing. The full panel completed both runs.
+- **Guard mutation.** Deleting the stale-slice release fails the alias subtest.
+- **Exact-head certification** at `390977e22d93cca48d7d186a42a85287918d3762` on base `3c15cc74e` passed:
+  - `gofmt`, `go vet` and `go build ./...`;
+  - `./internal/ackhandler/...` and `./internal/congestion/...`;
+  - `go test -race -run TestBBRPath ./internal/ackhandler/`.
+- **Hosted checks.** All 18 succeeded on that head, including the post-ready independent multipath peer job.
+
+**Next:**
+- There is no deferred follow-up from this work.
+- The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
