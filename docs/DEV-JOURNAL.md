@@ -10204,3 +10204,23 @@ Published the scoped writer-yield qualification handoff in [PR #1312](https://gi
 Independent source/evidence and final contract/graph review passed. Documentation links, graph/count consistency, exact pushed-head cleanliness and `git diff --check` passed; all 17 applicable hosted checks succeeded on `89b3beef9e1a1c364396e31f51438cac694b791d` before squash merge. No product code or native qualification execution was added by this handoff.
 
 Created [R21 — Native writer-yield qualification (#1313)](https://github.com/the-sarge/quic-go-fast/issues/1313) and made it the sole new blocker of [R19 — Experimental Reno activation (#1039)](https://github.com/the-sarge/quic-go-fast/issues/1039). Updated Reno parent [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013), program tracker [#646](https://github.com/the-sarge/quic-go-fast/issues/646) and their OmniFocus mirrors to 19/21 Reno and 39/47 program completion. The new evidence child is ready and undispatched; public activation remains disabled. The live frontier is maintained in [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## R21 native writer-yield evidence delivered - 2026-11-12 20:00 EST
+
+**Main:** `b740399cc300`
+**Actor:** Claude
+
+Delivered [R21 — Native writer-yield qualification (#1313)](https://github.com/the-sarge/quic-go-fast/issues/1313) in [PR #1315](https://github.com/the-sarge/quic-go-fast/pull/1315). The two native fixture cases now reach the delivered short software DATAGRAM-group writer yield.
+
+- `request-contention` offers marked groups on lane 0 and keeps the scalar data, control, stateless and public paths, counts and pressure duration.
+- `shutdown-join` closes the client endpoint while a freshly claimed marked group is still in the writer's native borrow.
+- A witness pairs a sampled marked token, its producer's taken success, and the immutable completion fact before the cutoff, all from test-side code. No production code changed.
+- The driver adds a named four-instance `writer-yield` profile with exact accounting and `full_qualification: false`.
+
+On minimax, fixture candidate `4aa238ed644f325753d95f0b42ec892ac3c3472f` ran the four counted instances (both cases on Go 1.26.11 and 1.27.4). All passed on the first attempt under unchanged bounds, with marked-group and active-close witnesses in every record. Six subjects were charged (11.665979264 s). The cumulative ledger stands at 956 activities / 33890.22268721819821176 Host-seconds lower bound. Records, hashes and limitations are in the [R21 receipt](audits/2026-11-12-native-writer-yield-r21/README.md).
+
+The code-review preparation pass and two RAS rounds found no runtime defect. Their fixes kept partial marked-group timing in the maxima, recorded driver status only for a complete passing run, narrowed the active-close sampling window, and corrected the receipt's ledger predecessor. Exact-head local certification passed, and all 18 hosted checks succeeded on `484d33c68c66895f64bbb15be61af5c43b98f56a`, including the post-ready [independent peer run](https://github.com/the-sarge/quic-go-fast/actions/runs/43340867693), before squash merge.
+
+Reno implementation reaches 20/21 and the program 40/47. R19 #1039 has no open blocker and can start its own evidence review and activation decision; public activation remains disabled. The live frontier is maintained in [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
