@@ -424,6 +424,8 @@ func TestNativeOrdinaryTerminalLifetime(t *testing.T) {
 							}).AnyTimes()
 						}
 						first, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+						// The outstanding PING keeps the ACK-only filler behind it from retirement.
+						register(t, c, []ackhandler.Frame{{Frame: &wire.PingFrame{}}})
 						for {
 							next, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
 							if next-first >= protocol.MaxTrackedSentPackets-128 {
@@ -431,7 +433,6 @@ func TestNativeOrdinaryTerminalLifetime(t *testing.T) {
 							}
 							register(t, c, nil)
 						}
-						register(t, c, []ackhandler.Frame{{Frame: &wire.PingFrame{}}})
 						now := monotime.Now()
 						require.Equal(t, ackhandler.SendAck, c.sentPacketHandler.SendMode(now))
 						deadline := c.sentPacketHandler.GetLossDetectionTimeout()
@@ -479,6 +480,8 @@ func TestNativeOrdinaryTerminalLifetime(t *testing.T) {
 			require.NoError(t, c.useNativeOrdinary(endpoint, netip.MustParseAddrPort("1.2.3.4:4321"), packetInfo{}))
 			queue := c.emission.local.(*nativeOrdinarySender)
 			defer func() { queue.Close(); <-endpoint.stop() }()
+			// An outstanding PING keeps the ACK-only filler from retirement.
+			register(t, c, []ackhandler.Frame{{Frame: &wire.PingFrame{}}})
 			for queue.recovery.CanRegisterLocalPackets(3) {
 				register(t, c, nil)
 			}

@@ -16,10 +16,10 @@ import (
 )
 
 // newAckOnlyTestHandler returns a confirmed server handler on one path.
-func newAckOnlyTestHandler(t *testing.T, native, ecn bool) *sentPacketHandler {
+func newAckOnlyTestHandler(t *testing.T, local, ecn bool) *sentPacketHandler {
 	t.Helper()
 	var h *sentPacketHandler
-	if native {
+	if local {
 		handler, err := NewLocalSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, ecn, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger)
 		require.NoError(t, err)
 		h = handler.(*sentPacketHandler)
@@ -38,15 +38,15 @@ func ackOnlyFrames(id protocol.PathID, received protocol.PacketNumber) []Frame {
 	return []Frame{{Frame: &wire.AckFrame{HasPathID: id != 0, PathID: id, AckRanges: ackRanges(received)}}}
 }
 
-// sendRegistered registers an unregistered packet on path id.
-func sendRegistered(h *sentPacketHandler, id protocol.PathID, now monotime.Time, frames []Frame, ecn protocol.ECN) protocol.PacketNumber {
+// sendUnregistered records a packet on path id without a local completion registration.
+func sendUnregistered(h *sentPacketHandler, id protocol.PathID, now monotime.Time, frames []Frame, ecn protocol.ECN) protocol.PacketNumber {
 	pn := h.RecoveryOnPath(id).PopPacketNumber(protocol.Encryption1RTT)
 	h.SentPacketWithContext(PacketContext{PathID: id}, now, pn, protocol.InvalidPacketNumber, nil, frames, protocol.Encryption1RTT, ecn, 50, false, false)
 	return pn
 }
 
-// registerNative registers a local packet on path id, leaving its completion pending.
-func registerNative(t *testing.T, h *sentPacketHandler, id protocol.PathID, now monotime.Time, frames []Frame, ecn protocol.ECN) (protocol.PacketNumber, LocalCompletionToken) {
+// registerLocal registers a local packet on path id, leaving its completion pending.
+func registerLocal(t *testing.T, h *sentPacketHandler, id protocol.PathID, now monotime.Time, frames []Frame, ecn protocol.ECN) (protocol.PacketNumber, LocalCompletionToken) {
 	t.Helper()
 	pn := h.RecoveryOnPath(id).PopPacketNumber(protocol.Encryption1RTT)
 	token, err := h.RegisterLocalPacket(PacketContext{PathID: id}, now, pn, protocol.InvalidPacketNumber, nil, frames, protocol.Encryption1RTT, ecn, 50)
@@ -57,7 +57,7 @@ func registerNative(t *testing.T, h *sentPacketHandler, id protocol.PathID, now 
 // sendAccepted registers a local packet and completes it as accepted.
 func sendAccepted(t *testing.T, h *sentPacketHandler, id protocol.PathID, now monotime.Time, frames []Frame, ecn protocol.ECN) protocol.PacketNumber {
 	t.Helper()
-	pn, token := registerNative(t, h, id, now, frames, ecn)
+	pn, token := registerLocal(t, h, id, now, frames, ecn)
 	require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now))
 	return pn
 }
@@ -80,9 +80,9 @@ func pnRange(lo, hi protocol.PacketNumber) []protocol.PacketNumber {
 }
 
 func TestAckOnlyRetirementSustainedTwoPaths(t *testing.T) {
-	for _, native := range []bool{false, true} {
-		t.Run(fmt.Sprintf("native=%t", native), func(t *testing.T) {
-			h := newAckOnlyTestHandler(t, native, false)
+	for _, local := range []bool{false, true} {
+		t.Run(fmt.Sprintf("local=%t", local), func(t *testing.T) {
+			h := newAckOnlyTestHandler(t, local, false)
 			require.NoError(t, h.AddPath(17, 1200))
 			now := monotime.Time(2 * time.Second)
 			paths := []protocol.PathID{0, 17}
@@ -91,10 +91,10 @@ func TestAckOnlyRetirementSustainedTwoPaths(t *testing.T) {
 				id := paths[n%2]
 				path := h.path(id)
 				require.NotEqual(t, SendNone, path.SendMode(now), "packet %d", n)
-				if native {
+				if local {
 					sendAccepted(t, h, id, now, ackOnlyFrames(id, protocol.PacketNumber(n)), protocol.ECNNon)
 				} else {
-					sendRegistered(h, id, now, ackOnlyFrames(id, protocol.PacketNumber(n)), protocol.ECNNon)
+					sendUnregistered(h, id, now, ackOnlyFrames(id, protocol.PacketNumber(n)), protocol.ECNNon)
 				}
 				now = now.Add(time.Microsecond)
 			}
@@ -111,7 +111,7 @@ func TestAckOnlyRetirementSustainedTwoPaths(t *testing.T) {
 func TestAckOnlyRetirementPendingCompletion(t *testing.T) {
 	h := newAckOnlyTestHandler(t, true, false)
 	now := monotime.Time(2 * time.Second)
-	pending, token := registerNative(t, h, 0, now, ackOnlyFrames(0, 0), protocol.ECNNon)
+	pending, token := registerLocal(t, h, 0, now, ackOnlyFrames(0, 0), protocol.ECNNon)
 	for n := range 30 {
 		sendAccepted(t, h, 0, now, ackOnlyFrames(0, protocol.PacketNumber(n+1)), protocol.ECNNon)
 	}
@@ -127,6 +127,7 @@ func TestAckOnlyRetirementPendingCompletion(t *testing.T) {
 
 func TestAckOnlyRetirementLateACK(t *testing.T) {
 	newFixture := func(t *testing.T) (*sentPacketHandler, *ReceivedPacketHandler, monotime.Time) {
+		t.Helper()
 		h := newAckOnlyTestHandler(t, false, false)
 		// Skip 0, as PopPacketNumber would.
 		h.appDataPackets.history.SkippedPacket(0)
@@ -140,9 +141,9 @@ func TestAckOnlyRetirementLateACK(t *testing.T) {
 
 	t.Run("retained carrier", func(t *testing.T) {
 		h, received, now := newFixture(t)
-		first := sendRegistered(h, 0, now, ackOnlyFrames(0, 9), protocol.ECNNon)
+		first := sendUnregistered(h, 0, now, ackOnlyFrames(0, 9), protocol.ECNNon)
 		for range protocol.MaxNonAckElicitingAcks {
-			sendRegistered(h, 0, now, nil, protocol.ECNNon)
+			sendUnregistered(h, 0, now, nil, protocol.ECNNon)
 		}
 		require.NotContains(t, historyPNs(h), first, "the oldest completed record is retired")
 		require.NotNil(t, received.GetAckFrame(protocol.Encryption1RTT, now, false))
@@ -162,10 +163,10 @@ func TestAckOnlyRetirementLateACK(t *testing.T) {
 
 	t.Run("evicted carrier", func(t *testing.T) {
 		h, received, now := newFixture(t)
-		first := sendRegistered(h, 0, now, ackOnlyFrames(0, 9), protocol.ECNNon)
+		first := sendUnregistered(h, 0, now, ackOnlyFrames(0, 9), protocol.ECNNon)
 		// Retire as many later carriers as the store holds, so the first is evicted.
 		for range protocol.MaxNonAckElicitingAcks + maxRetiredAckCarriers {
-			sendRegistered(h, 0, now, ackOnlyFrames(0, 9), protocol.ECNNon)
+			sendUnregistered(h, 0, now, ackOnlyFrames(0, 9), protocol.ECNNon)
 		}
 		require.Len(t, h.ackCarriers.carriers, maxRetiredAckCarriers)
 		_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(first)}, protocol.Encryption1RTT, now.Add(time.Millisecond))
@@ -178,9 +179,9 @@ func TestAckOnlyRetirementWaitsForAckEliciting(t *testing.T) {
 	h := newAckOnlyTestHandler(t, false, false)
 	now := monotime.Time(2 * time.Second)
 	var tracker packetTracker
-	ping := sendRegistered(h, 0, now, []Frame{tracker.NewPingFrame(0)}, protocol.ECNNon)
+	ping := sendUnregistered(h, 0, now, []Frame{tracker.NewPingFrame(0)}, protocol.ECNNon)
 	for n := range 30 {
-		sendRegistered(h, 0, now, ackOnlyFrames(0, protocol.PacketNumber(n)), protocol.ECNNon)
+		sendUnregistered(h, 0, now, ackOnlyFrames(0, protocol.PacketNumber(n)), protocol.ECNNon)
 	}
 	require.Equal(t, pnRange(0, 30), historyPNs(h), "nothing retires while an ack-eliciting record remains")
 
@@ -230,7 +231,7 @@ func TestAckOnlyRetirementECN(t *testing.T) {
 				now := monotime.Now()
 				send := func(frames []Frame) protocol.PacketNumber {
 					if h.local == nil {
-						return sendRegistered(h, 0, now, frames, h.ECNMode(true))
+						return sendUnregistered(h, 0, now, frames, h.ECNMode(true))
 					}
 					return sendAccepted(t, h, 0, now, frames, h.ECNMode(true))
 				}
@@ -290,7 +291,7 @@ func TestAckOnlyRetirementECN(t *testing.T) {
 				ackBBRECNAt(t, h, now.Add(2*time.Millisecond), ackRanges(a), 1, 0)
 				require.Equal(t, protocol.ECT0, h.ECNMode(true))
 
-				uncertain, token := registerNative(t, h, 0, now.Add(3*time.Millisecond), nil, h.ECNMode(true))
+				uncertain, token := registerLocal(t, h, 0, now.Add(3*time.Millisecond), nil, h.ECNMode(true))
 				require.NoError(t, h.CompleteLocalPacket(token, LocalPacketUncertain, now.Add(4*time.Millisecond)))
 				for range 25 {
 					sendAccepted(t, h, 0, now.Add(5*time.Millisecond), nil, h.ECNMode(true))
@@ -308,13 +309,13 @@ func TestAckOnlyRetirementBBRDisposal(t *testing.T) {
 	h := newAckOnlyTestHandler(t, false, false)
 	EnableBBR(h, 1200, func() protocol.ByteCount { return 0 })
 	now := monotime.Time(2 * time.Second)
-	first := sendRegistered(h, 0, now, ackOnlyFrames(0, 0), protocol.ECNNon)
+	first := sendUnregistered(h, 0, now, ackOnlyFrames(0, 0), protocol.ECNNon)
 	r := &h.congestionEvents.recovery
 	i := r.find(congestionKey(protocol.Encryption1RTT, first))
 	require.GreaterOrEqual(t, i, 0)
 	require.Equal(t, outcomeUnresolved, r.index.outcomes[i].state)
 	for n := range protocol.MaxNonAckElicitingAcks {
-		sendRegistered(h, 0, now, ackOnlyFrames(0, protocol.PacketNumber(n+1)), protocol.ECNNon)
+		sendUnregistered(h, 0, now, ackOnlyFrames(0, protocol.PacketNumber(n+1)), protocol.ECNNon)
 	}
 	require.NotContains(t, historyPNs(h), first)
 	require.Equal(t, outcomeDisposed, r.index.outcomes[i].state, "retirement disposes of the outcome")
@@ -326,6 +327,7 @@ func TestAckOnlyRetirementBBRDisposal(t *testing.T) {
 func TestAckOnlyRetirementPeriodicPING(t *testing.T) {
 	// ACK-only 0–18, PING 19 and ACK-only 20–38, as the packer's periodic PING sends them.
 	newSequence := func(t *testing.T) (*sentPacketHandler, *packetTracker, monotime.Time, protocol.ByteCount) {
+		t.Helper()
 		h := newAckOnlyTestHandler(t, false, false)
 		now := monotime.Time(2 * time.Second)
 		tracker := &packetTracker{}
@@ -334,7 +336,7 @@ func TestAckOnlyRetirementPeriodicPING(t *testing.T) {
 			if n == 19 {
 				frames = append(frames, tracker.NewPingFrame(n))
 			}
-			sendRegistered(h, 0, now, frames, protocol.ECNNon)
+			sendUnregistered(h, 0, now, frames, protocol.ECNNon)
 		}
 		require.Equal(t, pnRange(0, 38), historyPNs(h))
 		return h, tracker, now, h.congestion.GetCongestionWindow()
@@ -393,7 +395,7 @@ func TestAckOnlyRetirementPathRemoval(t *testing.T) {
 	now := monotime.Time(2 * time.Second)
 	require.NoError(t, received.ReceivedPacketOnPath(17, 9, protocol.ECNNon, now, true))
 	for range protocol.MaxNonAckElicitingAcks + 3 {
-		sendRegistered(h, 17, now, ackOnlyFrames(17, 9), protocol.ECNNon)
+		sendUnregistered(h, 17, now, ackOnlyFrames(17, 9), protocol.ECNNon)
 	}
 	require.Len(t, path.ackCarriers.carriers, 3, "the retired records' carriers are retained")
 	require.Len(t, historyPNs(path), protocol.MaxNonAckElicitingAcks)

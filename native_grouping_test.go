@@ -234,12 +234,15 @@ func TestNativeGroupRecoveryCapacityStopsBeforeExtraction(t *testing.T) {
 	nativeOrdinaryTest(t, func(t *testing.T) {
 		tc, sender, _ := nativeProbeRecoveryConnection(t, "reno")
 		c := tc.conn
+		// An outstanding ack-eliciting record keeps the ACK-only filler from retirement.
+		ping := []ackhandler.Frame{{Frame: &wire.PingFrame{}}}
 		for sender.recovery.CanRegisterLocalPackets(2) {
 			now := monotime.Now()
 			pn := c.sentPacketHandler.PopPacketNumber(protocol.Encryption1RTT)
-			token, err := sender.recovery.RegisterLocalPacket(ackhandler.PacketContext{}, now, pn, protocol.InvalidPacketNumber, nil, nil, protocol.Encryption1RTT, protocol.ECNNon, 1200)
+			token, err := sender.recovery.RegisterLocalPacket(ackhandler.PacketContext{}, now, pn, protocol.InvalidPacketNumber, nil, ping, protocol.Encryption1RTT, protocol.ECNNon, 1200)
 			require.NoError(t, err)
 			require.NoError(t, sender.recovery.CompleteLocalPacket(token, ackhandler.LocalPacketAccepted, now))
+			ping = nil
 		}
 		require.True(t, sender.recovery.CanRegisterLocalPackets(1))
 		for _, payload := range []string{"last available registration", "remains queued"} {
