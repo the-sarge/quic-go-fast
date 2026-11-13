@@ -1684,8 +1684,11 @@ func (h *sentPacketHandler) resetForPacketSize(now monotime.Time, initialMaxData
 // Retirement is disposal, not loss: no lost outcome, loss trace, congestion, ECN
 // or spurious-loss consequence. Its targets move to the bounded carrier store,
 // and a later ACK of the number finds no record. Skipped numbers are untouched.
+//
+// A context whose ECN validation reads acknowledged history records retires
+// nothing until that validation fails; see ecnReadsHistory.
 func (h *sentPacketHandler) retireAckOnly(now monotime.Time) {
-	if h.local != nil && h.local.closed {
+	if (h.local != nil && h.local.closed) || h.ecnReadsHistory() {
 		return
 	}
 	history := &h.appDataPackets.history
@@ -1716,6 +1719,22 @@ func (h *sentPacketHandler) retireAckOnly(now monotime.Time) {
 		h.retireLocal(p, false)
 		history.DeclareLost(pn) // history removal only: nothing is declared lost
 	}
+}
+
+// ecnReadsHistory reports that the ordinary ECN tracker still validates this
+// context from newly acknowledged history records: testing confirmation, the
+// acknowledged-count checks and the CE response all take the records an ACK
+// newly acknowledges (receivedAck's HandleNewlyAcked). A retired record would
+// let a later ACK covering it bypass that evidence. The local and BBR ledgers
+// settle from the ACK's ranges, and a failed tracker reads nothing further.
+// Multipath contexts always have the local route, so only ordinary connections,
+// which the periodic PING bounds, keep today's exits here.
+func (h *sentPacketHandler) ecnReadsHistory() bool {
+	if h.local != nil || h.ecnTracker == nil {
+		return false
+	}
+	t, ok := h.ecnTracker.(*ecnTracker)
+	return !ok || t.state != ecnStateFailed
 }
 
 // ackOnlyCompleted reports a non-ack-eliciting record whose transmission is settled:

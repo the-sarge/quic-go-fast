@@ -219,12 +219,12 @@ func snapshotLocalECN(e *localECNEvidence) localECNLedger {
 
 func TestAckOnlyRetirementECN(t *testing.T) {
 	t.Run("retired accepted or unregistered record", func(t *testing.T) {
-		for _, mode := range []string{"unregistered", "local Reno", "local BBR"} {
+		for _, mode := range []string{"unregistered BBR", "local Reno", "local BBR"} {
 			t.Run(mode, func(t *testing.T) {
 				var h *sentPacketHandler
 				switch mode {
-				case "unregistered":
-					h = newAckOnlyTestHandler(t, false, true)
+				case "unregistered BBR":
+					h, _ = newBBRECNTestHandler()
 				default:
 					h, _ = newLocalECNTestHandler(t, mode == "local BBR")
 				}
@@ -279,6 +279,68 @@ func TestAckOnlyRetirementECN(t *testing.T) {
 				}
 			})
 		}
+	})
+
+	// The ordinary tracker reads its evidence from newly acknowledged history
+	// records, so its context retires nothing until validation fails.
+	t.Run("ordinary tracker", func(t *testing.T) {
+		// sequence sends ACK-only 1–19, PING 20 and ACK-only 21–39 after packet 0,
+		// then lets a PTO extract the PING.
+		sequence := func(t *testing.T, h *sentPacketHandler, now monotime.Time) {
+			t.Helper()
+			for n := range protocol.PacketNumber(39) {
+				frames := ackOnlyFrames(0, n)
+				if n == 19 {
+					frames = append(frames, Frame{Frame: &wire.PingFrame{}})
+				}
+				sendUnregistered(h, 0, now, frames, h.ECNMode(true))
+			}
+			require.True(t, h.QueueProbePacketAt(protocol.Encryption1RTT, now.Add(time.Second)))
+		}
+		ack := func(t *testing.T, h *sentPacketHandler, now monotime.Time, ranges []wire.AckRange, ect0, ce uint64) {
+			t.Helper()
+			_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ranges, ECT0: ect0, ECNCE: ce}, protocol.Encryption1RTT, now)
+			require.NoError(t, err)
+		}
+		newHandler := func(t *testing.T, capable bool) (*sentPacketHandler, monotime.Time) {
+			t.Helper()
+			h := newAckOnlyTestHandler(t, false, true)
+			now := monotime.Time(2 * time.Second)
+			if capable {
+				first := sendUnregistered(h, 0, now, []Frame{{Frame: &wire.PingFrame{}}}, h.ECNMode(true))
+				ack(t, h, now.Add(time.Millisecond), ackRanges(first), 1, 0)
+				require.Equal(t, ecnStateCapable, h.ecnTracker.(*ecnTracker).state)
+			}
+			return h, now
+		}
+
+		t.Run("testing confirmation", func(t *testing.T) {
+			h, now := newHandler(t, false)
+			sequence(t, h, now) // packets 0–38; testing marks 0–9
+			require.Contains(t, historyPNs(h), protocol.PacketNumber(0), "nothing is retired")
+			probe := sendUnregistered(h, 0, now.Add(time.Second), []Frame{{Frame: &wire.PingFrame{}}}, h.ECNMode(true))
+			ack(t, h, now.Add(time.Second+10*time.Millisecond), ackRanges(append(pnRange(0, 38), probe)...), 10, 0)
+			require.Equal(t, ecnStateCapable, h.ecnTracker.(*ecnTracker).state, "a later ACK still confirms testing")
+		})
+
+		t.Run("insufficient ECT count", func(t *testing.T) {
+			h, now := newHandler(t, true)
+			sequence(t, h, now) // packets 1–39, all ECT(0)
+			probe := sendUnregistered(h, 0, now.Add(time.Second), []Frame{{Frame: &wire.PingFrame{}}}, h.ECNMode(true))
+			// 39 newly acknowledged ECT(0) records, but the count rises by only 20.
+			ack(t, h, now.Add(time.Second+10*time.Millisecond), ackRanges(append(pnRange(1, 39), probe)...), 21, 0)
+			require.Equal(t, ecnStateFailed, h.ecnTracker.(*ecnTracker).state, "a short count still fails a capable path")
+			require.Equal(t, protocol.ECNNon, h.ECNMode(true))
+		})
+
+		t.Run("CE response", func(t *testing.T) {
+			h, now := newHandler(t, true)
+			sequence(t, h, now)
+			window := h.congestion.GetCongestionWindow()
+			// The ACK covers only the prefix a retirement would have disposed of.
+			ack(t, h, now.Add(time.Second+10*time.Millisecond), ackRanges(pnRange(1, 19)...), 19, 1)
+			require.Less(t, h.congestion.GetCongestionWindow(), window, "the ACK still takes the CE response")
+		})
 	})
 
 	t.Run("uncertain record", func(t *testing.T) {
