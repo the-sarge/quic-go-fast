@@ -10224,3 +10224,27 @@ On minimax, fixture candidate `4aa238ed644f325753d95f0b42ec892ac3c3472f` ran the
 The code-review preparation pass and two RAS rounds found no runtime defect. Their fixes kept partial marked-group timing in the maxima, recorded driver status only for a complete passing run, narrowed the active-close sampling window, and corrected the receipt's ledger predecessor. Exact-head local certification passed, and all 18 hosted checks succeeded on `484d33c68c66895f64bbb15be61af5c43b98f56a`, including the post-ready [independent peer run](https://github.com/the-sarge/quic-go-fast/actions/runs/43340867693), before squash merge.
 
 Reno implementation reaches 20/21 and the program 40/47. R19 #1039 has no open blocker and can start its own evidence review and activation decision; public activation remains disabled. The live frontier is maintained in [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## R19 experimental Reno multipath activation delivered - 2026-11-12 20:49 EST
+
+**Main:** `e7dc92c890d8`
+**Actor:** Claude
+
+Delivered [R19 — Enable the qualified experimental Reno profile (#1039)](https://github.com/the-sarge/quic-go-fast/issues/1039) in [PR #1317](https://github.com/the-sarge/quic-go-fast/pull/1317), merged as `e7dc92c890d8811cc8111bfdc0aea7a4e4631027`. Multipath V1 is now publicly usable as an experimental, opt-in profile. The profile is draft-21 QUIC v1 with Reno primary/backup and at most two paths, on Linux amd64 over a `Transport.ConfigureMultipathIOV1` grant.
+
+- `admitMultipath`, the one capability gate, and `ConfigureMultipathIOV1` now check the qualified platform at compile time instead of the private `internal/multipathguard` flag. That package and every fixture activation are deleted.
+- Native I/O also builds on darwin and FreeBSD, so removing the guard alone would have published unqualified platforms. Every build other than Linux amd64 keeps the `ErrMultipathUnsupportedV1` refusal before any grant or advertisement.
+- Go 1.26.11/1.27.4 and the recorded Ubuntu 26.04.1 `7.0.0-30-generic` kernel are published support boundaries, not runtime checks.
+- The [usage boundary](usage.md#packet-io-and-socket-ownership), API comments, interop guide and CHANGELOG publish the opt-in limits and link the E6, R21, R17 and R18 receipts. The completed-slice states in the [Reno plan](adr/2026-10-24-multipath-reno-plan.md#r19) now frame the earlier disablement as history.
+- The R3 temporary context seam needed no deletion: every remaining `pathZeroContext` consumer is path zero or ordinary construction.
+
+**Validation:**
+- Guard-free public tests first failed on minimax linux/amd64 (14 root and 2 HTTP/3 lifecycle tests refused) and then passed.
+- A gate ignoring the platform fails 9 of 14 unqualified-platform refusal subtests on darwin.
+- The code-review preparation pass fixed six documentation and test findings. RAS review `20261113T012354-69128ae68dbf10f33e2d6f2d` found no runtime defect; its three documentation fixes and the changelog entry landed, and the RAS rerun was skipped under the docs-only policy.
+- Exact-head local certification passed on linux/amd64 and darwin: vet, tidy, the shuffled suites and a focused race run.
+- All 18 hosted checks succeeded on `521f31c32d7250fc92f241db3e05ebb29ecad124`, including the post-ready [independent peer run](https://github.com/the-sarge/quic-go-fast/actions/runs/43346898796) with all 16 matrix cases.
+
+Reno implementation completes at 21/21 and the program reaches 41/47. No successor became ready: B1 #1040 still requires Q2 #599. One deferred usage note, on how a granted transport routes ordinary traffic and the participant cap, awaits merged-head revalidation. The live frontier is maintained in [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
