@@ -1,0 +1,15 @@
+== identity
+Linux minimax 7.0.0-30-generic #30-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 31 18:22:54 UTC 2026 x86_64 GNU/Linux
+c0ea222a-3837-450f-8bbe-b1d45620cef8
+1000
+affinity: 0-31
+GOMAXPROCS=unset GOGC=unset GOMEMLIMIT=unset
+PRETTY_NAME="Ubuntu 26.04.1 LTS"
+go1.26.11: go1.26.11 /home/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.11.linux-amd64
+go1.27.4: go1.27.4 /usr/local/lib/go1.27.4
+load: 0.06 0.09 0.16 1/557 2095327
+== foreign before
+load: 0.20 0.12 0.17 1/557 2097469
+== foreign after
+== leftover test processes
+none

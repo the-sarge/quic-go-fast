@@ -1,0 +1,25 @@
+{
+  "class": "shutdown-join",
+  "go": "go1.26.11",
+  "traversal": false,
+  "timing_ms": {
+    "public_write_return": 0.059882
+  },
+  "facts": {
+    "active_close_accepted": 36,
+    "active_close_error": "quic: native endpoint request revoked",
+    "active_close_return_after_close_ms": 0.014377,
+    "active_close_uncertain": 0,
+    "active_close_unsubmitted": 92,
+    "client_join_ms": 0.10124,
+    "marked_group_datagrams": 128,
+    "marked_group_members": 32,
+    "marked_offered": 5,
+    "marked_sampled": 2,
+    "marked_segment_bytes": 300,
+    "marked_succeeded": 1,
+    "marked_witness_cutoff_margin_ms": 119.670392,
+    "marked_witnessed": 1,
+    "server_join_ms": 0.104346
+  }
+}

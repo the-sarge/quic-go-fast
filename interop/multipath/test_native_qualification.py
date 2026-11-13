@@ -59,7 +59,8 @@ class TraceTests(unittest.TestCase):
 
 class EvidenceTests(unittest.TestCase):
     def evidence(self, name, **facts):
-        return {"class": name, "go": "go1.27.4", "traversal": True, "timing_ms": dict.fromkeys(driver.CLASSES[name]["timing"], 1.5)} | facts
+        witness = dict.fromkeys(driver.CLASSES[name].get("witness", ()), 2)
+        return {"class": name, "go": "go1.27.4", "traversal": True, "timing_ms": dict.fromkeys(driver.CLASSES[name]["timing"], 1.5), "facts": witness} | facts
 
     def test_toolchain_and_class_must_match(self):
         driver.check_evidence("eagain-to-deadline", "go1.27.4", self.evidence("eagain-to-deadline"))
@@ -90,20 +91,75 @@ class EvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "pressure_publication"):
             driver.check_evidence("request-contention", "go1.27.4", partial)
 
+    def test_yield_cases_need_every_witness_fact(self):
+        for name, required in (
+            ("request-contention", {"marked_group_datagrams", "marked_witnessed", "pressure_marked_group_datagrams", "pressure_marked_witnessed"}),
+            ("shutdown-join", {"marked_group_datagrams", "marked_witnessed", "active_close_return_after_close_ms"}),
+        ):
+            self.assertEqual(set(driver.CLASSES[name]["witness"]), required)
+            driver.check_evidence(name, "go1.27.4", self.evidence(name))
+            for key in sorted(required):
+                for value in (None, 0, -0.5, False, True, "3"):
+                    evidence = self.evidence(name)
+                    if value is None:
+                        del evidence["facts"][key]
+                    else:
+                        evidence["facts"][key] = value
+                    with self.subTest(name=name, key=key, value=value), self.assertRaisesRegex(ValueError, key):
+                        driver.check_evidence(name, "go1.27.4", evidence)
+
+    def test_a_single_datagram_is_not_a_marked_group(self):
+        evidence = self.evidence("shutdown-join")
+        evidence["facts"]["marked_group_datagrams"] = 1
+        with self.assertRaisesRegex(ValueError, "marked_group_datagrams"):
+            driver.check_evidence("shutdown-join", "go1.27.4", evidence)
+
+    def test_unchanged_classes_need_no_witness(self):
+        for name in ("expired-before-dispatch", "eagain-to-deadline", "retry-fallback", "queued-expiry"):
+            self.assertNotIn("witness", driver.CLASSES[name])
+            driver.check_evidence(name, "go1.27.4", self.evidence(name, facts={}))
+
+    def test_join_stays_out_of_the_timing_tolerance(self):
+        evidence = self.evidence("shutdown-join")
+        evidence["facts"] |= {"client_join_ms": 80.0, "server_join_ms": 90.0}
+        driver.check_evidence("shutdown-join", "go1.27.4", evidence)
+
 
 class AccountingTests(unittest.TestCase):
-    def instances(self):
-        return [(go, name) for go in driver.GO_VERSIONS for name in driver.CLASSES]
+    def instances(self, profile="full"):
+        return [(go, name) for go in driver.GO_VERSIONS for name in driver.PROFILES[profile]]
 
     def test_twelve_fixed_instances(self):
         self.assertEqual(len(self.instances()), 12)
+        self.assertEqual(driver.PROFILES["full"], tuple(driver.CLASSES))
         driver.check_accounting(self.instances())
+        driver.check_accounting(self.instances(), "full")
 
     def test_missing_or_duplicate_instance_fails(self):
         instances = self.instances()
         for bad in (instances[1:], instances + instances[:1], []):
             with self.subTest(count=len(bad)), self.assertRaisesRegex(ValueError, "instances"):
                 driver.check_accounting(bad)
+
+    def test_writer_yield_profile_is_four_fixed_instances(self):
+        self.assertEqual(set(driver.PROFILES["writer-yield"]), {"request-contention", "shutdown-join"})
+        instances = self.instances("writer-yield")
+        self.assertEqual(len(instances), 4)
+        driver.check_accounting(instances, "writer-yield")
+        extra = instances + [("go1.27.4", "queued-expiry")]
+        for bad in (instances[1:], instances + instances[:1], extra, [], self.instances()):
+            with self.subTest(count=len(bad)), self.assertRaisesRegex(ValueError, "writer-yield instances"):
+                driver.check_accounting(bad, "writer-yield")
+
+    def test_partial_profile_cannot_claim_full_qualification(self):
+        with self.assertRaisesRegex(ValueError, "instances"):
+            driver.check_accounting(self.instances("writer-yield"))
+        self.assertEqual(driver.status_for("full"), {"profile": "full", "instances": 12, "status": "pass", "full_qualification": True})
+        self.assertEqual(driver.status_for("writer-yield"), {"profile": "writer-yield", "instances": 4, "status": "pass", "full_qualification": False})
+
+    def test_unknown_profile_fails(self):
+        with self.assertRaises(KeyError):
+            driver.check_accounting([], "contention-only")
 
 
 class CommandTests(unittest.TestCase):

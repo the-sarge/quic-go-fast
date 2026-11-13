@@ -1,6 +1,6 @@
 # Reno-first QUIC multipath implementation plan
 
-**Status:** implementation in progress. R1–R18 and R20 are complete (19/21 slices). [R18 #1038](../audits/2026-11-12-multipath-r18-delivery-receipt.md) delivered with two exact CPU exceptions and a preserved strict numerical failure. R21 is the scoped native writer-yield evidence frontier (child issue pending publication); R19 #1039 resumes after R21 completes, with unaffected qualification carried forward. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
+**Status:** implementation in progress. R1–R18, R20 and R21 are complete (20/21 slices). [R18 #1038](../audits/2026-11-12-multipath-r18-delivery-receipt.md) delivered with two exact CPU exceptions and a preserved strict numerical failure. [R21 #1313](../audits/2026-11-12-native-writer-yield-r21/README.md) supplied the scoped native writer-yield evidence in PR #1315. R19 #1039 is the frontier, with unaffected qualification carried forward. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
 
 ## Binding contract and operating discipline
 
@@ -409,9 +409,9 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 | [R16](#r16) | new | Complete additive APIs and constructor gates behind disablement | E6, R11, R13, R14, R15 |
 | [R17](#r17) | new | Complete the independent interoperability matrix | R16, R20, [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3) |
 | [R18](#r18) | split/rework fixture into N0; retain campaign | Measure ordinary-peer costs on granted endpoints | R16, R20, [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3), delivered [production repair #1302](https://github.com/the-sarge/quic-go-fast/issues/1302) and [progress repair #1305](https://github.com/the-sarge/quic-go-fast/issues/1305) |
-| [R19](#r19) | retain; blocked | Enable the qualified experimental Reno profile | R17, R18, R21 |
+| [R19](#r19) | retain; ready | Enable the qualified experimental Reno profile | R17, R18, R21 |
 | [R20](#r20) | new | Keep the connection on a healthy path after an endpoint fails | R13, R14, R15 |
-| [R21](#r21) | new evidence slice; issue pending | Qualify native contention and shutdown with the delivered writer yield | R18 (complete) |
+| [R21](#r21) | complete | Qualify native contention and shutdown with the delivered writer yield | R18 (complete) |
 
 ## Implementation slices
 
@@ -1013,7 +1013,7 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 **Delivers:** Remove private activation for the exact supported Linux native v1 Reno profile, publish opt-in usage/support boundaries, and delete temporary fixture selectors/unqualified context access. Record evidence reachability and default-off preservation. Keep BBR+multipath and aggregate rejected until the B track.
 
-**Blocked by:** R17, R18, R21. **Existing-work disposition:** retain R19 #1039 as the one activation PR; no R19 implementation branch or PR is accepted. R17 #1037 and R18 #1038 are complete. R21 supplies only the two affected native timing cases and the scoped applicability receipt; it does not reopen completed qualification.
+**Blocked by:** R17, R18, R21 (all complete). **Existing-work disposition:** retain R19 #1039 as the one activation PR; no R19 implementation branch or PR is accepted. R17 #1037 and R18 #1038 are complete. R21 supplies only the two affected native timing cases and the scoped applicability receipt; it does not reopen completed qualification.
 
 **Single owner and authority completeness:** Common configuration capability gate alone authorizes advertisement/public operations; all runtime owners remain as qualified. Cover constructors, validation and the destruction/cancellation consumers named by this behavior together; no persisted state is introduced.
 
@@ -1098,7 +1098,7 @@ A newly discovered untraced shared-state, concurrency, public API, failure, perf
 
 ### R21 — Qualify native contention and shutdown with the delivered writer yield
 
-**Identity and state:** `QGF-MP646-20261024-R21`; accepted evidence slice, not implemented; child issue pending publication. **Blocked by:** R18 #1038 (complete). **Existing-work disposition:** retain delivered runtime, completed R17/R18/E6/N3 work and R19 #1039's activation boundary. Add one fixture-and-receipt PR; no unmerged runtime branch is a baseline. The [scoped source and evidence audit](../audits/2026-11-12-native-writer-yield-handoff.md) owns historical identities, applicability and review dispositions.
+**Identity and state:** `QGF-MP646-20261024-R21`; complete as #1313 in PR #1315, with its [native writer-yield receipt](../audits/2026-11-12-native-writer-yield-r21/README.md). **Blocked by:** R18 #1038 (complete). **Existing-work disposition:** retain delivered runtime, completed R17/R18/E6/N3 work and R19 #1039's activation boundary. Add one fixture-and-receipt PR; no unmerged runtime branch is a baseline. The [scoped source and evidence audit](../audits/2026-11-12-native-writer-yield-handoff.md) owns historical identities, applicability and review dispositions.
 
 **What it delivers:** Supplemental example-level native timing evidence for `request-contention` and `shutdown-join` on the delivered successful short software DATAGRAM-group yield. Change only the two existing native fixture cases, their bounded driver/accounting support, focused verification and the receipt. Carry the other four native classes, independent peer evidence and accepted ordinary-peer costs forward through a source applicability check. Do not change product code, enable public support, repeat the full native/ordinary campaigns, reopen CPU optimization, or relax a bound. R19 #1039 alone removes activation guards.
 

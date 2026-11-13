@@ -1,0 +1,19 @@
+{
+  "program": "QGF-MP646-20261024",
+  "slice": "R21 #1313",
+  "candidate": "4aa238ed644f325753d95f0b42ec892ac3c3472f",
+  "profile": "writer-yield",
+  "prior_cumulative_activities": 950,
+  "prior_cumulative_host_seconds_lower_bound": "33878.55670795419821176",
+  "prior_source": "https://github.com/the-sarge/quic-go-fast/issues/1038#issuecomment-6837136807",
+  "subjects_charged": 6,
+  "builds_charged": 2,
+  "instances_charged": 4,
+  "failed_attempts": 0,
+  "reruns": 0,
+  "host_seconds_charged": "11.665979264",
+  "charge_basis": "Each build and native instance is charged once; the charge is the driver's wall time from its start to its exit, covering both builds and all four instances. Host identity, staging and archiving overhead outside the driver is not charged, so the total is a lower bound.",
+  "cumulative_activities": 956,
+  "cumulative_host_seconds_lower_bound": "33890.22268721819821176",
+  "cumulative_cap": null
+}
