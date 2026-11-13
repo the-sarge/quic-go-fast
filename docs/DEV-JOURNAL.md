@@ -10732,3 +10732,35 @@ It acts on two owner decisions from 2026-11-13:
 - B8 is the dispatchable frontier once the orchestrator creates the child issues from plan commit `94331faf148b2dc63355ced7f0c505b0a3fb4bec`.
 - Draft PR #1350 (B5 scope) must be rechecked against B7 before it merges.
 - The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## Drop B8; bounded backup PINGs for B7 (#1356) - 2026-11-13 18:31 EST
+
+**Main:** `8c0b1293816c`
+**Actor:** Claude
+
+Merged [PR #1361](https://github.com/the-sarge/quic-go-fast/pull/1361) as `8c0b1293816c815c9592e70c24045cf6ae6c9e3c`. It is an owner-decision docs amendment to program #646, B track #1014, following PR #1323 and PR #1332, and it changes no Go code.
+
+It acts on the owner decision of 2026-11-13 on #1356, [drop B8; bounded backup PINGs instead](https://github.com/the-sarge/quic-go-fast/issues/1356#issuecomment-6866681570). B8 failed review four times on one root: a retired number leaves the sent history but still reaches acknowledgment, loss and ECN processing ([stop](https://github.com/the-sarge/quic-go-fast/issues/1356#issuecomment-6866552161)).
+
+**Completed:**
+- **B8 #1356 closed with no code.** The BBR plan records it under "Outcomes closed with no code": the rejected representation, the reason, the replacement and a revisit trigger, with no normative contract left. #1359 merged and is superseded. Draft PRs #1358 and #1360 and the unpushed commit `3b9de05aa` are abandoned by the owner decision.
+- **B7 #1357 revised and now the frontier,** blocked only by B4 (complete).
+  - *Per-carrier PING.* The packer's existing counter is extended per carrier, with no second counting rule. Path zero keeps `numNonAckElicitingAcks`, and each nonzero route gets its own count on `pathRoute`. The sites were re-verified at `41366b962`: `packet_packer.go` :149, :577, :818, :822, :824, :827, :842 and :1046. Every twentieth consecutive non-ack-eliciting packet on a carrier carries a PING, and ordinary connections are unchanged.
+  - *Bare-PING probe.* Off the designated primary, the read-only `onlyPingsOutstanding` is evaluated before extraction on each of a PTO's two probe calls. It covers pending records and admits PING and acknowledgment frames, PATH_ACK included. When it holds, both packing sites use `packPingPacket1RTT`, so no stream, retransmission or DATAGRAM data reaches the path.
+  - *Backup effects.* The existing policy is unchanged and acts on the PING's evidence. An acknowledged PING is liveness, so the backup stays fresh and can be promoted without revalidation. Three qualified PTOs make it suspect: it is no longer home, its acknowledgments fall back, and revalidation starts. A backup the peer never sent on gains nothing. A backup that goes idle keeps its outstanding PING's tail.
+  - The alternation, the strict `ackTurnRoom` share, the slot-service invariant, the home predicate and `pathTurnSignaling` are kept. The age clause now also reads the turn's own PINGs. B7 names 15 tests within its 16-test budget.
+- **Reno plan.** The backup-traffic policy (line 139) is narrowed: the bounded PING and the bare-PING probe are allowed only while the peer sends on the path, and existing held-route ACK carriage is preserved. Lines 91 and 143 are consistent with it.
+- **Program.** 48 intended slices, 45 complete; B is at 4/7, with B7 #1357 the frontier and B5 #1044 blocked by B7.
+
+**Validation:**
+- **Initial RAS review,** run `20261113T225359-0bbc84d8d136fd6e9a7e1409`: four fixes for PATH_ACK records, both probes, idle tails and held routes. Verification at `df6db017b` resolved all six clusters.
+- **Replacement RAS review,** run `20261113T231055-5afbf91e1c6b5b120a6e5f2f`: three docs fixes, for the idle-transition test, the scan bound and the probe summaries, and one rejection. These were fixed in `40c888745` with no rerun under the docs low/nit policy ([dispositions](https://github.com/the-sarge/quic-go-fast/pull/1361#issuecomment-6867472228)).
+- **Certification of `40c888745`.** The tree was clean, `git diff --check` was clean, and the changed links and anchors resolve. One untouched Reno link to an N0 anchor was already broken.
+- **Hosted checks.** All 17 checks passed on that head.
+
+**Next:**
+- B7 #1357 needs its child issue reconciled to plan commit `8c0b1293816c815c9592e70c24045cf6ae6c9e3c` before dispatch. The orchestrator owns closing #1356 as not planned, closing PRs #1358 and #1360, and updating OmniFocus.
+- Draft PR #1350 (B5 scope) still needs a recheck against B7.
+- The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
