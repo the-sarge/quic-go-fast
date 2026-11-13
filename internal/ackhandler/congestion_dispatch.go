@@ -151,11 +151,8 @@ func (h *sentPacketHandler) beginCongestionFeedback(now monotime.Time, level pro
 	}
 	// ACK values grow from the front and losses from the back of one bounded
 	// buffer. Registration cannot interleave this connection-owned event.
-	needed := d.packets.len() + len(d.sampler.retained)
-	if cap(d.scratch) < needed {
-		size := min(maxDeliveryLive+maxDeliveryRetained, max(needed, 2*cap(d.scratch)))
-		d.releasePeerScratch(size)
-		d.scratch = make([]congestion.PacketInfo, size)
+	if needed := d.scratchNeed(); cap(d.scratch) < needed {
+		d.scratch = make([]congestion.PacketInfo, d.scratchSize(needed))
 	}
 	d.scratch = d.scratch[:cap(d.scratch)]
 	d.event = congestion.FeedbackEvent{

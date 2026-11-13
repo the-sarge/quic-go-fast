@@ -5,7 +5,6 @@ import (
 	"maps"
 	"math"
 	"math/bits"
-	"slices"
 	"time"
 	"unsafe"
 
@@ -205,23 +204,45 @@ func (d *congestionDispatch) eachPeer(fn func(*congestionDispatch)) {
 	}
 }
 
-// reserveRecord makes room for one new live record. Live occupancy is already
-// below the shared ceiling, so a compacted peer set always leaves room.
+// deliveryHeadroom is the growth room a store keeps beyond n records, so a
+// context that resumes growing after peer reclamation does not reallocate on
+// every registration or feedback event.
+func deliveryHeadroom(n int) int { return n/4 + minDeliverySlots }
+
+// reserveRecord makes room for one new live record. It grows into unused
+// allowance first. Only when that is short do peers give back capacity beyond
+// their records and headroom, and only if that is still short, beyond their
+// records. Live occupancy is below the shared ceiling, so room always remains.
 func (d *congestionDispatch) reserveRecord() {
 	if d.root == nil || !d.packets.slabFull() {
 		return
 	}
+	n := len(d.packets.recs)
 	size := max(minDeliverySlots, 2*cap(d.packets.recs))
+	peers := d.peerRecordCapacity()
+	if size+peers > deliveryRecordAllowance {
+		for _, headroom := range [...]bool{true, false} {
+			if deliveryRecordAllowance-peers >= n+deliveryHeadroom(n) || (!headroom && deliveryRecordAllowance-peers > n) {
+				break
+			}
+			d.eachPeer(func(p *congestionDispatch) {
+				spare := 0
+				if headroom {
+					spare = deliveryHeadroom(p.packets.len())
+				}
+				p.packets.compact(spare)
+			})
+			peers = d.peerRecordCapacity()
+		}
+		size = min(size, deliveryRecordAllowance-peers)
+	}
+	d.packets.growSlab(size)
+}
+
+func (d *congestionDispatch) peerRecordCapacity() int {
 	peers := 0
 	d.eachPeer(func(p *congestionDispatch) { peers += cap(p.packets.recs) })
-	if size+peers > deliveryRecordAllowance {
-		peers = 0
-		d.eachPeer(func(p *congestionDispatch) {
-			p.packets.compact()
-			peers += cap(p.packets.recs)
-		})
-	}
-	d.packets.growSlab(min(size, deliveryRecordAllowance-peers))
+	return peers
 }
 
 // reserveRetained makes room for one new retained record, as reserveRecord does.
@@ -230,38 +251,85 @@ func (d *congestionDispatch) reserveRetained() {
 	if d.root == nil || len(s.order) < cap(s.order) {
 		return
 	}
+	n := len(s.order)
 	size := max(minDeliverySlots, 2*cap(s.order))
-	peers := 0
-	d.eachPeer(func(p *congestionDispatch) { peers += cap(p.sampler.order) })
+	peers := d.peerRetainedCapacity()
 	if size+peers > deliveryRetainedAllowance {
-		peers = 0
-		d.eachPeer(func(p *congestionDispatch) {
-			p.sampler.compactRetained()
-			peers += cap(p.sampler.order)
-		})
+		for _, headroom := range [...]bool{true, false} {
+			if deliveryRetainedAllowance-peers >= n+deliveryHeadroom(n) || (!headroom && deliveryRetainedAllowance-peers > n) {
+				break
+			}
+			d.eachPeer(func(p *congestionDispatch) {
+				spare := 0
+				if headroom {
+					spare = deliveryHeadroom(len(p.sampler.order))
+				}
+				p.sampler.compactRetained(spare)
+			})
+			peers = d.peerRetainedCapacity()
+		}
+		size = min(size, deliveryRetainedAllowance-peers)
 	}
-	size = min(size, deliveryRetainedAllowance-peers)
-	order, expiry := make(retainedDeliveryHeap, len(s.order), size), make(retainedExpiryHeap, len(s.expiry), size)
+	order, expiry := make(retainedDeliveryHeap, n, size), make(retainedExpiryHeap, len(s.expiry), size)
 	copy(order, s.order)
 	copy(expiry, s.expiry)
 	s.order, s.expiry = order, expiry
 }
 
-// compactRetained gives back retained capacity beyond the records. Records keep
-// their heap positions; only the backing storage is replaced.
-func (s *deliverySampler) compactRetained() {
-	if len(s.retained) == 0 {
+func (d *congestionDispatch) peerRetainedCapacity() int {
+	peers := 0
+	d.eachPeer(func(p *congestionDispatch) { peers += cap(p.sampler.order) })
+	return peers
+}
+
+// compactRetained gives back retained capacity beyond the records and the
+// given spare room. Records keep their heap positions; only backing storage is
+// replaced.
+func (s *deliverySampler) compactRetained(spare int) {
+	n := len(s.order)
+	if n == 0 && spare == 0 {
 		s.retained, s.order, s.expiry = nil, nil, nil
 		return
 	}
-	if cap(s.order) == len(s.order) {
+	if cap(s.order) <= n+spare {
 		return
 	}
-	s.order, s.expiry = slices.Clone(s.order), slices.Clone(s.expiry)
-	retained := make(map[congestionPacketKey]*retainedDelivery, len(s.retained))
+	order, expiry := make(retainedDeliveryHeap, n, n+spare), make(retainedExpiryHeap, n, n+spare)
+	copy(order, s.order)
+	copy(expiry, s.expiry)
+	s.order, s.expiry = order, expiry
+	retained := make(map[congestionPacketKey]*retainedDelivery, n)
 	maps.Copy(retained, s.retained)
 	s.retained = retained
 }
+
+// scratchSize is the feedback buffer a context needs for this many records,
+// within the shared scratch allowance. It grows into unused allowance first. A
+// peer's buffer is idle outside its own synchronous feedback event, so only when
+// that room is short do peers give back buffers beyond their records and
+// headroom, and only if that is still short, all of them.
+func (d *congestionDispatch) scratchSize(needed int) int {
+	const allowance = maxDeliveryLive + maxDeliveryRetained
+	if d.root == nil {
+		return min(allowance, max(needed, 2*cap(d.scratch)))
+	}
+	size := min(allowance, needed+deliveryHeadroom(needed))
+	for _, headroom := range [...]bool{true, false} {
+		peers := 0
+		d.eachPeer(func(p *congestionDispatch) { peers += cap(p.scratch) })
+		if allowance-peers >= needed {
+			return min(size, allowance-peers)
+		}
+		d.eachPeer(func(p *congestionDispatch) {
+			if !headroom || cap(p.scratch) > p.scratchNeed()+deliveryHeadroom(p.scratchNeed()) {
+				p.scratch, p.event.Acked, p.event.Lost = nil, nil, nil
+			}
+		})
+	}
+	return size
+}
+
+func (d *congestionDispatch) scratchNeed() int { return d.packets.len() + len(d.sampler.retained) }
 
 // deliveryUse is the live and retained record count under this context's
 // ceiling: its own, or the sum over a rich root and its paths.
@@ -280,35 +348,6 @@ func (d *congestionDispatch) deliveryUse() (live, retained int) {
 		add(path.congestionEvents)
 	}
 	return live, retained
-}
-
-// releasePeerScratch keeps the contexts' feedback buffers, together with one
-// of the given size, within a single context's ceiling. A peer's buffer is idle
-// outside its own synchronous feedback event.
-func (d *congestionDispatch) releasePeerScratch(size int) {
-	if d.root == nil {
-		return
-	}
-	total := size
-	visit := func(p *congestionDispatch, release bool) {
-		if p == nil || p == d {
-			return
-		}
-		if release {
-			p.scratch, p.event.Acked, p.event.Lost = nil, nil, nil
-		} else {
-			total += cap(p.scratch)
-		}
-	}
-	for _, release := range []bool{false, true} {
-		if release && total <= maxDeliveryLive+maxDeliveryRetained {
-			return
-		}
-		visit(d.root.congestionEvents, release)
-		for _, path := range d.root.paths {
-			visit(path.congestionEvents, release)
-		}
-	}
 }
 
 // DeliveryExpiry is independent of send permission and recovery's loss alarm.

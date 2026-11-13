@@ -252,6 +252,39 @@ func TestBBRPathAggregateDeliveryStore(t *testing.T) {
 	pathAck(t, h, 0, 0, now.Add(500*time.Millisecond), held...)
 	require.Equal(t, delivered+100*1200, lastFeedback(t, root).Delivery.Delivered, "the peer's records still settle")
 
+	// Reclamation leaves growth headroom: contexts registering in turn with
+	// large flights do not rebuild each other's stores on every packet.
+	h3, _, _ := newRichPathFixture(t)
+	ctx3 := h3.RecoveryOnPath(17).(*sentPacketHandler)
+	var zeros, paths []protocol.PacketNumber
+	for range 10000 {
+		zeros = append(zeros, sendRichPathPacket(h3, 0, now))
+		paths = append(paths, sendRichPathPacket(h3, 17, now))
+	}
+	moves := 0
+	for range 2000 {
+		rootSlab, pathSlab := &h3.congestionEvents.packets.recs[0], &ctx3.congestionEvents.packets.recs[0]
+		sendRichPathPacket(h3, 0, now)
+		sendRichPathPacket(h3, 17, now)
+		if rootSlab != &h3.congestionEvents.packets.recs[0] || pathSlab != &ctx3.congestionEvents.packets.recs[0] {
+			moves++
+		}
+	}
+	require.LessOrEqual(t, moves, 4)
+	require.LessOrEqual(t, cap(h3.congestionEvents.packets.recs)+cap(ctx3.congestionEvents.packets.recs), deliveryRecordAllowance)
+	// Feedback buffers likewise, as the two contexts' ACKs alternate.
+	moves = 0
+	for i := range 200 {
+		rootScratch, pathScratch := cap(h3.congestionEvents.scratch), cap(ctx3.congestionEvents.scratch)
+		pathAck(t, h3, 0, 0, now.Add(time.Second), zeros[i])
+		pathAck(t, h3, 17, 17, now.Add(time.Second), paths[i])
+		if i > 0 && (rootScratch != cap(h3.congestionEvents.scratch) || pathScratch != cap(ctx3.congestionEvents.scratch)) {
+			moves++
+		}
+	}
+	require.LessOrEqual(t, moves, 4)
+	require.LessOrEqual(t, cap(h3.congestionEvents.scratch)+cap(ctx3.congestionEvents.scratch), maxDeliveryLive+maxDeliveryRetained)
+
 	// Retained loss evidence shares one ceiling too. A context never evicts
 	// another's records; with none of its own, it forgoes retention.
 	h2, _, path2 := newRichPathFixture(t)

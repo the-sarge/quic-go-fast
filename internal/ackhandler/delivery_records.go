@@ -117,12 +117,12 @@ func (t *deliveryRecords) growSlab(size int) {
 	t.recs = recs
 }
 
-// compact gives back backing capacity beyond the live records: the slab holds
-// exactly them, the free list is empty and the index is the smallest table
-// within its load bound. A record's identity is its key, so nothing moves but
-// storage.
-func (t *deliveryRecords) compact() {
-	if t.n == 0 {
+// compact gives back backing capacity beyond the live records and the given
+// spare slab room: the free list empties and the index becomes the smallest
+// table within its load bound. A record's identity is its key, so nothing
+// moves but storage.
+func (t *deliveryRecords) compact(spare int) {
+	if t.n == 0 && spare == 0 {
 		*t = deliveryRecords{}
 		return
 	}
@@ -130,10 +130,10 @@ func (t *deliveryRecords) compact() {
 	for t.n*8 > size*7 {
 		size *= 2
 	}
-	if len(t.free) == 0 && cap(t.recs) == t.n && len(t.slots) == size {
+	if len(t.free) == 0 && cap(t.recs) <= t.n+spare && len(t.slots) == size {
 		return
 	}
-	recs := make([]deliveryRecord, 0, t.n)
+	recs := make([]deliveryRecord, 0, t.n+spare)
 	for _, r := range t.recs {
 		if r.key != 0 {
 			recs = append(recs, r)
