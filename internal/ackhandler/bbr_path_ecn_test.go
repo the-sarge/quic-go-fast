@@ -222,7 +222,7 @@ func TestBBRPathAbandonmentWhileRetained(t *testing.T) {
 func TestBBRPathRecoveryStoreBound(t *testing.T) {
 	h, ctx, _, _ := newBBRECNPathFixture(t)
 	now := monotime.Time(2 * time.Second)
-	share := maxRecoveryOutcomes / maxRecoveryPaths
+	share := pathRecoveryOutcomes
 	saturate := func(id protocol.PathID, ctx *sentPacketHandler) {
 		t.Helper()
 		var tracker packetTracker
@@ -282,7 +282,8 @@ func TestBBRPathECNAdmission(t *testing.T) {
 }
 
 // On the local route, a BBR path's validator reconciles its own local ECN
-// evidence, never the root's.
+// evidence, never the root's: the path's unresolved old-generation send holds
+// its fence, and an uncertain marked send degrades only the path's validation.
 func TestBBRPathECNLocalEvidence(t *testing.T) {
 	now := monotime.Time(time.Second)
 	handler, err := NewLocalSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, true, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger)
@@ -292,9 +293,42 @@ func TestBBRPathECNLocalEvidence(t *testing.T) {
 	EnableBBRECN(h, func(bool) (uint64, bool, bool) { return h.congestionEvents.pathGeneration, true, true })
 	h.DropPackets(protocol.EncryptionInitial, now)
 	h.DropPackets(protocol.EncryptionHandshake, now)
-	ctx, _ := addTestBBRPath(t, h, 17, &testECNAuthority{drained: true, capable: true})
+	auth := &testECNAuthority{drained: true, capable: true}
+	ctx, _ := addTestBBRPath(t, h, 17, auth)
 	require.NotNil(t, ctx.local.ecn)
 	require.Same(t, ctx.local.ecn, ctx.bbrECN.local)
 	require.NotSame(t, h.local.ecn, ctx.local.ecn)
 	require.Equal(t, protocol.ECT0, ctx.ECNMode(true))
+
+	register := func(at monotime.Time) (protocol.PacketNumber, LocalCompletionToken) {
+		t.Helper()
+		pn := ctx.PopPacketNumber(protocol.Encryption1RTT)
+		token, err := h.RegisterLocalPacket(PacketContext{PathID: 17}, at, pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, ctx.ECNMode(true), 1200)
+		require.NoError(t, err)
+		return pn, token
+	}
+	now = now.Add(time.Second)
+	oldPN, old := register(now)
+	ctx.MigratedPath(now.Add(time.Millisecond), 1200)
+	auth.generation = 1 // the credit has nothing pending: only local evidence holds the fence
+	require.Equal(t, protocol.ECNNon, ctx.ECNMode(true), "the path's unresolved old send holds its fence")
+	require.Equal(t, protocol.ECT0, h.ECNMode(true))
+	require.NoError(t, h.CompleteLocalPacket(old, LocalPacketAccepted, now.Add(2*time.Millisecond)))
+	ecnPathAck(t, h, 17, 0, now.Add(3*time.Millisecond), 1, 0, oldPN)
+	require.Equal(t, protocol.ECT0, ctx.ECNMode(true))
+
+	a, ta := register(now.Add(4 * time.Millisecond))
+	require.NoError(t, h.CompleteLocalPacket(ta, LocalPacketAccepted, now.Add(5*time.Millisecond)))
+	ecnPathAck(t, h, 17, 17, now.Add(6*time.Millisecond), 2, 0, a)
+	_, uncertain := register(now.Add(7 * time.Millisecond))
+	require.NoError(t, h.CompleteLocalPacket(uncertain, LocalPacketUncertain, now.Add(8*time.Millisecond)))
+	var higher []protocol.PacketNumber
+	for range 4 {
+		pn, token := register(now.Add(9 * time.Millisecond))
+		higher = append(higher, pn)
+		require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(10*time.Millisecond)))
+	}
+	ecnPathAck(t, h, 17, 17, now.Add(11*time.Millisecond), 6, 0, higher...)
+	require.Equal(t, protocol.ECNNon, ctx.ECNMode(true), "an uncertain marked send degrades the path's validation")
+	require.Equal(t, protocol.ECT0, h.ECNMode(true), "and only the path's")
 }

@@ -10,8 +10,16 @@ import (
 	"github.com/quic-go/quic-go/internal/wire"
 )
 
-// maxRecoveryOutcomes is one context's outcome-ring allowance, a power of two.
-const maxRecoveryOutcomes = 32768
+const (
+	// maxRecoveryOutcomes is one context's outcome-ring allowance.
+	maxRecoveryOutcomes = 32768
+	// pathRecoveryOutcomes is each nonzero rich context's ring: together, the
+	// nonzero contexts hold one further allowance beside the root's.
+	pathRecoveryOutcomes = maxRecoveryOutcomes / maxRecoveryPaths
+)
+
+// Ring slots wrap by masking, so both ring sizes must be powers of two.
+var _ = [1]struct{}{}[maxRecoveryOutcomes&(maxRecoveryOutcomes-1)|pathRecoveryOutcomes&(pathRecoveryOutcomes-1)]
 
 type recoveryOutcomeState uint8
 

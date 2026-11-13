@@ -70,8 +70,9 @@ func (h *sentPacketHandler) addRichPath(id protocol.PathID, size protocol.ByteCo
 	}
 	path.congestionEvents = &congestionDispatch{sink: sink, pending: pending, localRoute: path.local != nil, root: h}
 	// The root keeps one context's outcome ring; the nonzero contexts divide one
-	// further allowance, so the aggregate stays bounded whatever their history.
-	path.congestionEvents.recovery.capacity = maxRecoveryOutcomes / maxRecoveryPaths
+	// further ring allowance, so the aggregate stays bounded whatever their
+	// history. Each context's fixed-size slot indexes stay undivided.
+	path.congestionEvents.recovery.capacity = pathRecoveryOutcomes
 	h.congestionEvents.root = h
 	h.richPaths = true
 	return path, nil
