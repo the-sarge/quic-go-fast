@@ -10319,3 +10319,35 @@ Merged [PR #1323](https://github.com/the-sarge/quic-go-fast/pull/1323) as `0f841
 - All 17 hosted checks succeeded on `33f6167d871c6691fba60f552f5d02f65ed51632`, after the branch was updated for the unrelated journal [PR #1322](https://github.com/the-sarge/quic-go-fast/pull/1322).
 
 **Next:** B1 [#1040](https://github.com/the-sarge/quic-go-fast/issues/1040) has no open blocker and becomes the frontier once its issue dependency and label are reconciled. The live frontier is maintained in [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## Native efficiency and admission parents closed - 2026-11-12 22:22 EST
+
+**Main:** `088b2d022127`
+**Actor:** Claude
+
+Merged [PR #1324](https://github.com/the-sarge/quic-go-fast/pull/1324) as `088b2d022127c510fab0cc5ea09f157c50542562`. The PR is docs-only. It closed efficiency parent [#1193](https://github.com/the-sarge/quic-go-fast/issues/1193) and admission tracker [#1141](https://github.com/the-sarge/quic-go-fast/issues/1141), both as completed. The new [native parent closure note](audits/2026-11-12-native-parent-closure.md) records the native evidence applicability assessment on the final merged candidate, which the efficiency plan requires.
+
+**Decisions:**
+- Close both issues under the [delegated orchestrator decision (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193#issuecomment-6842225323). It was made under the owner's 2026-11-12 `/orchestrate-architecture-program` request and is not owner approval.
+- The R18 #1038 measured source equals the delivered source.
+- R19 #1039's configuration-time activation check lies outside the measured per-packet path.
+- R21 #1313 contention was public 53/53 and 63/63, stateless 55/55 and 65/65, with zero expired or uncertain results. Eight E6 cases carry over from the #1305 package.
+- R18 has four numeric passes. Two exact owner-accepted CPU exceptions (1.121686× and 1.108585×) stay separate from the strict failure against 1.10.
+- The `bedeb0e8` exception still applies to the delivered candidate. This is a judgment from reading the code, not a new measurement.
+- No threshold, gate, budget or campaign changed. B1 #1040 and Q2 #599 are not affected.
+
+**Completed:**
+- The efficiency plan, the [admission contract](agents/native-endpoint-admission-1141.md) and the [program index](adr/2026-10-24-multipath-program.md) now show #1193 and #1141 as complete.
+- The already-stale N3 #1202 frontier mirrors were corrected.
+- All eight #1141 acceptance boxes are checked, each citing existing tests or receipts.
+- Historical text, normative contract requirements and acceptance-criteria wording, the Reno plan and the endpoint plan are unchanged. The admission contract's closure-status prose, checkbox states and evidence citations were updated. Reno plan L319 still records only the earlier 1.1133 exception, a gap that predates this PR.
+
+**Validation:**
+- A code-review prep pass (Standards and Spec) ran, followed by RAS review `20261113T024612-2dfb12c1a1be3a078a115e5c`. Five docs-only Fix First clusters were fixed and two were rejected as unsupported. No finding challenged the closure decision.
+- RAS verify at `2ee04e862` resolved all 11 prior clusters. One new low concern was fixed, and the replacement review was skipped under the docs-only low/nit policy.
+- Docs certification ran at head `7835449d6`: clean tree, `git diff --check`, and every added link and anchor resolved.
+- The branch took two merges from `main`, which journal and docs PRs #1322, #1323 and #1325 had advanced. The last merge changed only `docs/DEV-JOURNAL.md`, so the four certified files are byte-identical at the final head `9173db8185cbb775392cec5be5f3e07db9a6b23e`. All 17 hosted checks succeeded there.
+
+**Next:** The N track is closed. The live frontier is maintained in [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
