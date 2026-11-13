@@ -44,6 +44,15 @@ func (c *localSendCredit) canReserve(n, limit protocol.ByteCount, ordinary, isol
 	return !c.isolated && (!isolated || c.pending == 0) && (isolated || n <= limit-c.pending) && (!ordinary || c.pending == c.current)
 }
 
+// admits reports whether an ordinary reservation of n could be made now. It
+// reserves nothing; a completion can only add room before the opportunity's own
+// reservation.
+func (c *localSendCredit) admits(n, limit protocol.ByteCount) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.canReserve(n, limit, true, false)
+}
+
 func (c *localSendCredit) reserve(n, limit protocol.ByteCount, ordinary, isolated bool) *sendReservation {
 	c.mu.Lock()
 	defer c.mu.Unlock()

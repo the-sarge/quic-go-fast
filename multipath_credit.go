@@ -45,6 +45,7 @@ type pathCreditRegistry struct {
 	retained       []*pathRetained // bounded by the history units each one holds
 	now            monotime.Time
 	primary        protocol.PathID
+	scheduler      pathScheduler // set only before the first selection
 }
 
 type issuedPathCIDs struct {

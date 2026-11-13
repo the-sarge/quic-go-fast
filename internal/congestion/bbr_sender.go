@@ -118,6 +118,17 @@ func (b *BBRSender) GetCongestionWindow() protocol.ByteCount { return b.window }
 func (b *BBRSender) CanSend(flight protocol.ByteCount) bool  { return flight < b.window }
 func (b *BBRSender) InSlowStart() bool                       { return !b.closed && b.phase == bbrStartup }
 func (b *BBRSender) PacingRate() uint64                      { return b.rate }
+
+// DeliveryRateEstimate is the conservative delivery rate of this model's own
+// valid samples, in bytes per second: the smaller of the bandwidth filter and its
+// short-term bound. Zero means no valid sample since construction or Reset.
+func (b *BBRSender) DeliveryRateEstimate() uint64 {
+	if b.closed || b.bandwidth == 0 {
+		return 0
+	}
+	return min(b.bandwidth, b.bandwidthShort)
+}
+
 func (b *BBRSender) Sent(e SendEvent) {
 	p := e.Packet
 	if b.closed || p.PathGeneration != b.pathGeneration || p.SampleGeneration < b.sampleGeneration || !p.RegistrationValid {

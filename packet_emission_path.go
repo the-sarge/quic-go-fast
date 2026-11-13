@@ -3,6 +3,7 @@ package quic
 import (
 	"net"
 	"slices"
+	"time"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
@@ -31,8 +32,16 @@ type pathView struct {
 	id      protocol.PathID
 	probing bool               // a PTO is pending on this path
 	fits    bool               // a fresh packet can carry the next DATAGRAM, or none is queued
-	ready   bool               // not congestion-limited, so that DATAGRAM could leave here now
+	ready   bool               // a whole packet could leave here now or once paced
 	room    protocol.ByteCount // frame length a fresh packet here holds, once read
+
+	// What only aggregate reads.
+	backup    bool
+	sendAt    monotime.Time      // the next send pacing allows; zero or past is now
+	queued    protocol.ByteCount // bytes held locally for this path, plus the next packet
+	rate      uint64             // conservative delivery rate in bytes per second; zero is no valid sample
+	rtt       time.Duration      // smoothed path-local RTT; zero is none measured
+	scheduled uint64             // the round-robin ledger
 }
 
 // selectPath takes views in path ID order. A pending PTO goes first so the probe
@@ -143,11 +152,39 @@ func (e *packetEmission) selected() ackhandler.SentPacketHandler {
 }
 
 // packetSize is the current path's own limit.
-func (e *packetEmission) packetSize() protocol.ByteCount {
-	if e.route != nil {
-		return e.route.mtu.CurrentSize()
+func (e *packetEmission) packetSize() protocol.ByteCount { return e.packetSizeOn(e.route) }
+
+func (e *packetEmission) packetSizeOn(route *pathRoute) protocol.ByteCount {
+	if route != nil {
+		return route.mtu.CurrentSize()
 	}
 	return e.policy.maxPacketSize()
+}
+
+// pathView reads one path's sending state for selection and consumes nothing.
+// Reno sends into any open window. A BBR opportunity needs a whole packet of window
+// and local credit, so only that makes its path ready; its own pacing, local queue
+// and delivery sampler supply the rest.
+func (e *packetEmission) pathView(id protocol.PathID, route *pathRoute, recovery ackhandler.SentPacketHandler, now monotime.Time) pathView {
+	if e.bbr == nil {
+		mode := recovery.SendMode(now)
+		view := pathViewFor(id, mode)
+		if mode == ackhandler.SendPacingLimited {
+			view.sendAt = recovery.TimeUntilSend()
+		}
+		return view
+	}
+	size := e.packetSizeOn(route)
+	p := e.policyOn(route)
+	mode, allowance := recovery.(boundedRecovery).SendAllowance(now)
+	return pathView{
+		id: id, fits: true,
+		probing: mode == ackhandler.SendPTOAppData,
+		ready:   mode == ackhandler.SendAny && allowance >= size && p.credit.admits(size, 2*p.quantum),
+		sendAt:  p.sendAt(size, now),
+		queued:  e.bbrPendingBytes(p) + size,
+		rate:    p.controller.DeliveryRateEstimate(),
+	}
 }
 
 // announcePath sends the non-probing packet a cutover owes on its new tuple. It is an

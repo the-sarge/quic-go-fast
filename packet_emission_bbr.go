@@ -36,6 +36,9 @@ func (e *packetEmission) handoff(buf *packetBuffer, gso uint16, ecn protocol.ECN
 		}
 		e.reservation = nil
 	}
+	if e.pathCredit != nil {
+		e.pathCredit.noteScheduled(e.route, buf.Len())
+	}
 	metadata.terminalReceipts = e.terminalReceipts
 	e.terminalReceipts = nil
 	if protection.hasPlan() {

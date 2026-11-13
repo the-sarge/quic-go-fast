@@ -136,16 +136,34 @@ func (p *bbrSendPolicy) update(rate uint64, size protocol.ByteCount, now monotim
 
 func (p *bbrSendPolicy) budget(now monotime.Time) protocol.ByteCount {
 	if now > p.updated {
-		missing := int64(p.quantum)*1e9 - p.tokens
-		delta := uint64(now.Sub(p.updated))
-		if p.rate != 0 && delta >= ceilSendDelay(uint64(missing), p.rate) {
-			p.tokens += missing
-		} else {
-			p.tokens += int64(delta * p.rate) // bounded above by missing
-		}
-		p.updated = now
+		p.tokens, p.updated = p.accrued(now), now
 	}
 	return max(0, protocol.ByteCount(p.tokens/1e9))
+}
+
+// accrued is the credit, in byte-nanoseconds, that refill gives by now, without
+// recording it.
+func (p *bbrSendPolicy) accrued(now monotime.Time) int64 {
+	if now <= p.updated {
+		return p.tokens
+	}
+	missing := int64(p.quantum)*1e9 - p.tokens
+	delta := uint64(now.Sub(p.updated))
+	if p.rate != 0 && delta >= ceilSendDelay(uint64(missing), p.rate) {
+		return p.tokens + missing
+	}
+	return p.tokens + int64(delta*p.rate) // bounded above by missing
+}
+
+// sendAt is when this pacing next lets size leave: now when credit covers it,
+// otherwise when credit reaches a full quantum, as deadline wakes. It spends and
+// records nothing.
+func (p *bbrSendPolicy) sendAt(size protocol.ByteCount, now monotime.Time) monotime.Time {
+	tokens := p.accrued(now)
+	if max(0, protocol.ByteCount(tokens/1e9)) >= size {
+		return now
+	}
+	return now.Add(time.Duration(ceilSendDelay(uint64(int64(p.quantum)*1e9-tokens), p.rate)))
 }
 
 func ceilSendDelay(deficit, rate uint64) uint64 {
