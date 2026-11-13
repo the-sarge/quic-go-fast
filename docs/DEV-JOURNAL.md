@@ -10608,3 +10608,47 @@ Merged [PR #1343](https://github.com/the-sarge/quic-go-fast/pull/1343) as `5875a
 **Next:**
 - B4 #1043 is ready. The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
 - Follow-up #1345 awaits triage.
+
+---
+
+## Multipath B4 private aggregate scheduling (#1043) - 2026-11-13 11:00 EST
+
+**Main:** `f57cc974bb92`
+**Actor:** Claude
+
+Merged [PR #1347](https://github.com/the-sarge/quic-go-fast/pull/1347) as `f57cc974bb92610093362e54695fad01567506c5`, closing [Multipath B4: Add the private aggregate scheduling policy (#1043)](https://github.com/the-sarge/quic-go-fast/issues/1043) under program #646. It implements plan commit `422b3729f`, section B4. That commit is the scoped re-audit merged in [PR #1348](https://github.com/the-sarge/quic-go-fast/pull/1348).
+
+**Completed:**
+- **Scheduler.** A private scheduler (`multipath_scheduler.go`) owns route choice only. Primary/backup stays the default.
+- **Aggregate.** It picks the eligible path with the earliest estimated arrival: next send time, plus queued bytes at the conservative BBR delivery rate (`DeliveryRateEstimate`), plus half the path-local RTT.
+- **Fallback.** While any ready candidate lacks a sample, it uses paced byte round-robin. Reno always does, with no estimator added.
+- **Selection rules.** Backups stay out while an active path is eligible. A pending PTO goes first. Ties go to the wire ID. Ordinary work holds with no primary.
+- **Comparison arm.** A fixture-only `scheduleRoundRobin` serves B5's comparison.
+- **Readiness.** `sendBounded` decides its step and reservation in `planBounded`, which spends nothing, then executes it. A path's view consumes the same plan, with pacing projected to the controller's current rate. The local credit must admit the plan's demand ceiling, limit and isolation, and the native sender's non-reserving `canConstruct` must report construction capacity.
+- **B3 deferred readiness.** BBR readiness now needs a whole packet, which the plan covers.
+- **Tests.** Sixteen deterministic scenarios: nine pure selector cases and seven reliable-fixture cases with real protection, path recovery and the native probe endpoint.
+- **Status.** The plan and program index record B4 complete, with B5 #1044 as the frontier.
+
+**Decisions:**
+- **Approach stop.** The replacement review found readiness admitting one packet while the opportunity reserved a GSO batch. That was the second distinct counterexample at the readiness/reservation invariant, so the work stopped ([record](https://github.com/the-sarge/quic-go-fast/pull/1347#issuecomment-6849467743)).
+- **Planner.** The owner chose to widen B4 with the shared planner and a native capacity read, declining reselection with a run-loop wakeup ([decision](https://github.com/the-sarge/quic-go-fast/issues/1043#issuecomment-6855724427)). PR #1348 published the contract, with its ordering and send-time-preparation boundaries corrected under review.
+- **Same-path retransmission preference.** This is the existing PTO-first rule. The logical retransmission owner stays path-agnostic.
+
+**Validation:**
+- **Preparation pass.** The code-review Standards and Spec reports produced 2 fix-now items: one shared `steerFor` rule and one `creditLimit`.
+- **Initial RAS review**, run `20261113T084547-dd8111ba438fcfd1b4ab0631`: the no-primary hold and pacing projection were fixed and verified. Native capacity, deferred at first, was later absorbed by the planner.
+- **Replacement RAS review**, run `20261113T091919-4db7622b5f90c09bca7c8206`: approach stop, then scoped re-audit. Verified clear at `3153342fb`.
+- **Docs review of PR #1348**, run `20261113T143556-b226a09249adf61c3e83c52a`: two contract-accuracy fixes, verified clear.
+- **Fresh RAS review**, run `20261113T151327-9ff63727b3a4461d7ce3f624`: the credit-limit regression was completed and verified clear.
+- **Hosted golangci-lint.** It failed off the darwin/linux/freebsd build tag (a scheduler constant unused there). The fix was reviewed by RAS run `20261113T154901-2c812dc57f20b38190df799d`, which was clean.
+- **Exact-head certification** on base `422b3729f`:
+  - affected-package tests on darwin/arm64 and in a linux/arm64 container;
+  - the focused race run;
+  - `go vet`, `go mod tidy -diff`, and golangci-lint for darwin, linux, windows and openbsd.
+- **Discrimination.** Each new readiness regression fails under the previous readiness rule.
+- **Hosted checks.** All 18 succeeded on `2e06f01c4` after it was marked ready, including `independent-peer` (run 43456359452).
+
+**Next:**
+- B5 #1044 is ready. B5 needs its own private hook to select aggregate on a real connection. Reno aggregation switches path per opportunity burst, which matters for arm D.
+- #1345, held until this merge, can proceed. The planner split left `boundedPathTurns` unchanged.
+- The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
