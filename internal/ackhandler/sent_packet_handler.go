@@ -287,6 +287,7 @@ func (h *sentPacketHandler) DropPackets(encLevel protocol.EncryptionLevel, now m
 			h.retireLocal(p, false)
 			h.appDataPackets.history.Remove(pn)
 		}
+		h.retireAckOnly(now)
 	default:
 		panic(fmt.Sprintf("Cannot drop keys for encryption level %s", encLevel))
 	}
@@ -460,6 +461,9 @@ func (h *sentPacketHandler) publishSentPacket(pnSpace *packetNumberSpace, p *pac
 		if !h.peerCompletedAddressValidation {
 			h.setLossDetectionTimer(t)
 		}
+		if pnSpace == h.appDataPackets {
+			h.retireAckOnly(t)
+		}
 		return
 	}
 	if h.qlogger != nil {
@@ -632,6 +636,9 @@ func (h *sentPacketHandler) receivedAck(ack *wire.AckFrame, encLevel protocol.En
 				h.finishCongestionFeedback()
 			}
 		}
+		if encLevel == protocol.Encryption1RTT {
+			h.retireAckOnly(rcvTime)
+		}
 		return protocol.ApplicationKeyReceipt{}, nil
 	}
 	h.beginCongestionFeedback(rcvTime, encLevel, priorInFlight, ackedPackets, largestAcked)
@@ -745,6 +752,10 @@ func (h *sentPacketHandler) receivedAck(ack *wire.AckFrame, encLevel protocol.En
 
 	h.setLossDetectionTimer(rcvTime)
 	h.finishCongestionFeedback()
+	if encLevel == protocol.Encryption1RTT {
+		// Loss detection has already run, so retirement disposes only of what it left.
+		h.retireAckOnly(rcvTime)
+	}
 	return acked1RTTPacket, nil
 }
 
@@ -1220,6 +1231,7 @@ func (h *sentPacketHandler) OnLossDetectionTimeout(now monotime.Time) (TimeoutOu
 	}
 	defer h.setLossDetectionTimer(now)
 	defer h.settleLocalUndo(now)
+	defer h.retireAckOnly(now)
 
 	if h.handshakeConfirmed {
 		h.detectLostPathProbes(now)
@@ -1525,6 +1537,9 @@ func (h *sentPacketHandler) QueueProbePacketAt(encLevel protocol.EncryptionLevel
 	pnSpace.history.DeclareLost(pn)
 	h.removeFromBytesInFlight(p)
 	h.queueFramesForRetransmission(p)
+	if pnSpace == h.appDataPackets {
+		h.retireAckOnly(now)
+	}
 	if h.local != nil {
 		h.setLossDetectionTimer(now)
 	}
@@ -1656,6 +1671,57 @@ func (h *sentPacketHandler) resetForPacketSize(now monotime.Time, initialMaxData
 		)
 	}
 	h.setLossDetectionTimer(now)
+}
+
+// retireAckOnly bounds the completed ACK-only records a path keeps while nothing
+// can elicit their acknowledgment. With no ack-eliciting record or path probe in
+// the application history, it retires the oldest completed non-ack-eliciting
+// records, in send order, until MaxNonAckElicitingAcks remain. Completed means
+// unregistered or accepted. Pending records keep their token authority, and
+// uncertain ones keep acknowledgment or loss as their only exits, so terminal
+// ECN reconciliation never runs on them here.
+//
+// Retirement is disposal, not loss: no lost outcome, loss trace, congestion, ECN
+// or spurious-loss consequence. Its targets move to the bounded carrier store,
+// and a later ACK of the number finds no record. Skipped numbers are untouched.
+func (h *sentPacketHandler) retireAckOnly(now monotime.Time) {
+	if h.local != nil && h.local.closed {
+		return
+	}
+	history := &h.appDataPackets.history
+	if history.HasOutstandingPackets() || history.HasOutstandingPathProbes() || history.Len() <= protocol.MaxNonAckElicitingAcks {
+		return
+	}
+	completed := 0
+	for _, p := range history.Packets() {
+		// A PMTU probe is ack-eliciting without being outstanding.
+		if p.IsAckEliciting() {
+			return
+		}
+		if p.ackOnlyCompleted() {
+			completed++
+		}
+	}
+	excess := completed - protocol.MaxNonAckElicitingAcks
+	for pn, p := range history.Packets() {
+		if excess <= 0 {
+			return
+		}
+		if !p.ackOnlyCompleted() {
+			continue
+		}
+		excess--
+		h.discardCongestionPacket(p.EncryptionLevel, pn)
+		h.retainAckCarrier(pn, p, now)
+		h.retireLocal(p, false)
+		history.DeclareLost(pn) // history removal only: nothing is declared lost
+	}
+}
+
+// ackOnlyCompleted reports a non-ack-eliciting record whose transmission is settled:
+// unregistered, or accepted by local completion.
+func (p *packet) ackOnlyCompleted() bool {
+	return !p.isPathProbePacket && !p.IsAckEliciting() && (p.local == nil || p.local.outcome == LocalPacketAccepted)
 }
 
 func (h *sentPacketHandler) retainAckCarrier(pn protocol.PacketNumber, p *packet, now monotime.Time) {

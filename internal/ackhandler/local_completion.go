@@ -316,6 +316,7 @@ func (h *sentPacketHandler) CompleteLocalPacket(token LocalCompletionToken, outc
 		h.finishCongestionFeedback()
 	}
 	h.setLossDetectionTimer(returnedAt)
+	h.retireAckOnly(returnedAt)
 	return nil
 }
 

@@ -56,6 +56,7 @@ func RetireMTURecoveryProbes(handler SentPacketHandler, now monotime.Time, keepF
 		h.retireLocal(p, false)
 		h.appDataPackets.history.DeclareLost(pn)
 	}
+	h.retireAckOnly(now)
 	h.setLossDetectionTimer(now)
 }
 
