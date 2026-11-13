@@ -196,6 +196,11 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 			break
 		}
 	}
+	// Recovery anchors only a timing-eligible acknowledged packet: not excluded,
+	// not a PMTU probe and from the current timing generation. Ordinals start at
+	// one, so an unanchored event matches none. Cross-path and locally excluded
+	// ACKs still settle delivery but, like invalid clocks, accrue no aggregation.
+	timed := clockValid && anchor != nil
 	// Delivered-at-send evidence owns packet rounds, as UpdateRound precedes the
 	// draft's positive-rate test. Missing history and invalid clocks supply none.
 	roundEvidence := clockValid && anchor != nil && anchor.Delivery.Valid && anchor.Delivery.Delivered <= s.Delivered && anchor.PathGeneration == b.pathGeneration && anchor.SampleGeneration == b.sampleGeneration && !anchor.MTUProbe && !anchor.PathProbe
@@ -211,7 +216,7 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		if clockValid {
 			b.checkProbeRTT(e, expired, oldProbeCap)
 		}
-		b.applyACK(e, clockValid)
+		b.applyACK(e, timed)
 		return
 	}
 	b.updateMaxBandwidth(s)
@@ -272,7 +277,7 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 	if clockValid {
 		b.checkProbeRTT(e, expired, oldProbeCap)
 	}
-	b.applyACK(e, clockValid)
+	b.applyACK(e, timed)
 }
 
 func (b *BBRSender) startRound(sentDelivered, delivered uint64) bool {
@@ -298,12 +303,13 @@ func (b *BBRSender) checkDrainDone(e FeedbackEvent) {
 	}
 }
 
-func (b *BBRSender) applyACK(e FeedbackEvent, clockValid bool) {
+// applyACK counts delivery on every ACK; only a timed event accrues aggregation.
+func (b *BBRSender) applyACK(e FeedbackEvent, timed bool) {
 	s := e.Delivery
 	acked := bbrBytes(s.Delivered - b.delivered)
 	b.delivered = s.Delivered
 	extra := b.aggregationMaximum()
-	if clockValid {
+	if timed {
 		extra = b.updateAggregation(e.Time, uint64(acked))
 	}
 	modelTarget := b.bdp(2)
