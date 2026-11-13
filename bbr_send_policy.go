@@ -81,6 +81,34 @@ func (e *packetEmission) removeBBRPath(id protocol.PathID) {
 	delete(e.bbr.paths, id)
 }
 
+// policyOn is the BBR send policy of the route that carries an opportunity: the
+// root for path zero, otherwise the path's own. Admission installs a route's
+// policy before the route exists, and reclamation removes it only after.
+func (e *packetEmission) policyOn(route *pathRoute) *bbrSendPolicy {
+	if route == nil {
+		return e.bbr
+	}
+	if p := e.bbr.paths[route.context.PathID]; p != nil {
+		return p
+	}
+	panic("BBR route without its path policy")
+}
+
+func (e *packetEmission) routePolicy() *bbrSendPolicy { return e.policyOn(e.route) }
+
+// grantor is the policy whose credit granted r, which pays for its packet.
+func (e *packetEmission) grantor(r *sendReservation) *bbrSendPolicy {
+	if r.owner == e.bbr.credit {
+		return e.bbr
+	}
+	for _, p := range e.bbr.paths {
+		if p.credit == r.owner {
+			return p
+		}
+	}
+	panic("BBR reservation without its policy")
+}
+
 func newBBRSendPolicy(rate uint64, size protocol.ByteCount, now monotime.Time) *bbrSendPolicy {
 	return newBBRSendPolicyWithCeiling(rate, size, protocol.MaxPacketBufferSize, now)
 }

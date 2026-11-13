@@ -43,7 +43,12 @@ func newReliableFixture(t *testing.T, perspective protocol.Perspective) *reliabl
 
 func newReliableFixtureWith(t *testing.T, perspective protocol.Perspective, tracer func(context.Context, bool, ConnectionID) qlogwriter.Trace) *reliableFixture {
 	t.Helper()
-	f := newAdmissionFixtureWith(t, perspective, tracer)
+	return newReliableFixtureFor(t, perspective, tracer, "reno")
+}
+
+func newReliableFixtureFor(t *testing.T, perspective protocol.Perspective, tracer func(context.Context, bool, ConnectionID) qlogwriter.Trace, controller string) *reliableFixture {
+	t.Helper()
+	f := buildAdmissionFixtureFor(t, perspective, tracer, false, controller)
 	f.supplyPeerCIDs(t)
 	c := f.c
 	stream := reliableStream(t, c)
