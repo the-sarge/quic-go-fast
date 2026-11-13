@@ -408,6 +408,8 @@ func (h *sentPacketHandler) DeliveryStats() congestion.DeliveryStats {
 		return congestion.DeliveryStats{}
 	}
 	s := &d.sampler
+	// A rich root counts the feedback buffer it shares with its paths once;
+	// its paths hold none of their own.
 	return congestion.DeliveryStats{
 		OutcomeEntries: d.recovery.count, OutcomeEvicted: d.recovery.evicted,
 		Live: d.packets.len(), Retained: len(s.retained), Outstanding: s.outstanding,

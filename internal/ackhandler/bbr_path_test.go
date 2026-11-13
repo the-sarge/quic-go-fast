@@ -380,8 +380,13 @@ func TestBBRPathFeedbackScratchNearAllowance(t *testing.T) {
 		ctx := h.RecoveryOnPath(17).(*sentPacketHandler)
 		root, path := h.congestionEvents, ctx.congestionEvents
 		// Each context retains half the retained ceiling and holds just under
-		// half the live one: together their needs nearly fill the allowance.
-		const retained, live = maxDeliveryRetained / 2, 12202
+		// half the live one: together their needs nearly fill the allowance,
+		// and a buffer for one need plus its growth headroom leaves too little
+		// room for the other's.
+		const retained, live = maxDeliveryRetained / 2, maxDeliveryLive/2 - 298
+		const need = retained + live // 14250
+		require.Greater(t, need+deliveryHeadroom(need)+need, allowance)
+		require.LessOrEqual(t, 2*need, allowance)
 		oldest := map[protocol.PathID][]protocol.PacketNumber{}
 		for _, id := range []protocol.PathID{0, 17} {
 			var pns []protocol.PacketNumber
@@ -396,8 +401,8 @@ func TestBBRPathFeedbackScratchNearAllowance(t *testing.T) {
 				oldest[id] = append(oldest[id], sendRichPathPacket(h, id, now.Add(20*time.Millisecond)))
 			}
 		}
-		require.Equal(t, 14250, root.scratchNeed())
-		require.Equal(t, 14250, path.scratchNeed())
+		require.Equal(t, need, root.scratchNeed())
+		require.Equal(t, need, path.scratchNeed())
 
 		arrays := func() []*congestion.PacketInfo {
 			return []*congestion.PacketInfo{unsafe.SliceData(root.scratch), unsafe.SliceData(path.scratch)}
@@ -461,6 +466,13 @@ func TestBBRPathFeedbackScratchNearAllowance(t *testing.T) {
 		require.Nil(t, root.scratch)
 		last := sendRichPathPacket(h, 0, now.Add(30*time.Millisecond))
 		pathAck(t, h, 0, 0, now.Add(40*time.Millisecond), last)
+		requireCurrent()
+		// The path's next event, which needs more than the root's fresh buffer
+		// holds, grows that buffer rather than one of its own.
+		before := cap(root.scratch)
+		pathAck(t, h, 17, 17, now.Add(50*time.Millisecond), pns[2])
+		require.Greater(t, cap(root.scratch), before)
+		require.Nil(t, path.scratch)
 		requireCurrent()
 		require.LessOrEqual(t, cap(root.scratch)+cap(path.scratch), allowance)
 	})
