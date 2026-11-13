@@ -10342,12 +10342,12 @@ Merged [PR #1324](https://github.com/the-sarge/quic-go-fast/pull/1324) as `088b2
 - The efficiency plan, the [admission contract](agents/native-endpoint-admission-1141.md) and the [program index](adr/2026-10-24-multipath-program.md) now show #1193 and #1141 as complete.
 - The already-stale N3 #1202 frontier mirrors were corrected.
 - All eight #1141 acceptance boxes are checked, each citing existing tests or receipts.
-- Historical and contract text, the Reno plan and the endpoint plan are unchanged. Reno plan L319 still records only the earlier 1.1133 exception, a gap that predates this PR.
+- Historical text, normative contract requirements and acceptance-criteria wording, the Reno plan and the endpoint plan are unchanged. The admission contract's closure-status prose, checkbox states and evidence citations were updated. Reno plan L319 still records only the earlier 1.1133 exception, a gap that predates this PR.
 
 **Validation:**
 - A code-review prep pass (Standards and Spec) ran, followed by RAS review `20261113T024612-2dfb12c1a1be3a078a115e5c`. Five docs-only Fix First clusters were fixed and two were rejected as unsupported. No finding challenged the closure decision.
 - RAS verify at `2ee04e862` resolved all 11 prior clusters. One new low concern was fixed, and the replacement review was skipped under the docs-only low/nit policy.
-- Docs certification ran on the exact head: clean tree, `git diff --check`, and every added link and anchor resolved.
-- After `main` moved twice, through journal and docs PRs #1322, #1323 and #1325, all 17 hosted checks succeeded on the merged head `9173db8185cbb775392cec5be5f3e07db9a6b23e`.
+- Docs certification ran at head `7835449d6`: clean tree, `git diff --check`, and every added link and anchor resolved.
+- The branch took two merges from `main`, which journal and docs PRs #1322, #1323 and #1325 had advanced. The last merge changed only `docs/DEV-JOURNAL.md`, so the four certified files are byte-identical at the final head `9173db8185cbb775392cec5be5f3e07db9a6b23e`. All 17 hosted checks succeeded there.
 
 **Next:** The N track is closed. The live frontier is maintained in [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
