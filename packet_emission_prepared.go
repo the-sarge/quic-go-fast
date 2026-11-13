@@ -28,7 +28,7 @@ func (e *packetEmission) appendNativePacket(buf *packetBuffer, maxSize protocol.
 	start := buf.Len()
 	prepared := ackhandler.PreparePacket()
 	var header nativeHeaderFacts
-	if err := e.packer.appendPreparedPacketProtected(e.route, buf, maxSize, datagramOnly, now, e.version, &prepared, &header, protection); err != nil {
+	if err := e.packer.appendPreparedPacketProtected(e.route, e.acks, buf, maxSize, datagramOnly, now, e.version, &prepared, &header, protection); err != nil {
 		prepared.Discard()
 		return nativePacketReceipt{}, err
 	}

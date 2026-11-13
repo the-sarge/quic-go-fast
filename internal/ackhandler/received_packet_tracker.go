@@ -116,6 +116,11 @@ type appDataReceivedPacketTracker struct {
 	ackThreshold          int
 	oldestUnackedRcvdTime monotime.Time
 
+	// passedOver is this target's one service-order fact: the selection, by the
+	// receive owner's count, in which another target first took a PATH_ACK slot
+	// this one could have ridden. Zero is unmarked. Consumption clears it.
+	passedOver uint64
+
 	logger utils.Logger
 }
 
@@ -194,6 +199,7 @@ func (h *appDataReceivedPacketTracker) IgnoreBelow(pn protocol.PacketNumber) {
 		h.ackAlarm = 0
 		h.ackElicitingPacketsReceivedSinceLastAck = 0
 		h.oldestUnackedRcvdTime = 0
+		h.passedOver = 0
 	}
 	if h.logger.Debug() {
 		h.logger.Debugf("\tIgnoring all packets below %d.", pn)
@@ -271,12 +277,24 @@ func (h *appDataReceivedPacketTracker) shouldQueueACK(pn protocol.PacketNumber, 
 	return false
 }
 
+// due is the one rule that an onlyIfQueued read consumes by: an ACK is queued,
+// or its max_ack_delay alarm has expired. Emission's due read uses it too.
+func (h *appDataReceivedPacketTracker) due(now monotime.Time) bool {
+	return h.ackQueued || (!h.ackAlarm.IsZero() && !h.ackAlarm.After(now))
+}
+
+// takes reports whether a packet under the given piggyback rule would carry
+// this target's acknowledgment.
+func (h *appDataReceivedPacketTracker) takes(now monotime.Time, onlyIfQueued bool) bool {
+	return h.hasNewAck && len(h.packetHistory.ranges) != 0 && (!onlyIfQueued || h.due(now))
+}
+
 func (h *appDataReceivedPacketTracker) GetAckFrame(now monotime.Time, onlyIfQueued bool) *wire.AckFrame {
 	if onlyIfQueued && !h.ackQueued {
-		if h.ackAlarm.IsZero() || h.ackAlarm.After(now) {
+		if !h.due(now) {
 			return nil
 		}
-		if h.logger.Debug() && !h.ackAlarm.IsZero() {
+		if h.logger.Debug() {
 			h.logger.Debugf("Sending ACK because the ACK timer expired.")
 		}
 	}
@@ -289,6 +307,7 @@ func (h *appDataReceivedPacketTracker) GetAckFrame(now monotime.Time, onlyIfQueu
 	h.ackAlarm = 0
 	h.ackElicitingPacketsReceivedSinceLastAck = 0
 	h.oldestUnackedRcvdTime = 0
+	h.passedOver = 0
 	return ack
 }
 

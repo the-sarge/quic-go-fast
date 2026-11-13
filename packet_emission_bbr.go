@@ -92,8 +92,8 @@ const (
 )
 
 // boundedPathTurns gives a multipath connection Reno's turns in Reno's order:
-// admission probes, route selection, the announcement a cutover owes and the
-// held opportunity. Each packet charges the credit and pacing of the route that
+// admission probes, route selection, the announcement a cutover owes, an ACK turn
+// and the held opportunity. Each packet charges the credit and pacing of the route that
 // carries it.
 func (e *packetEmission) boundedPathTurns(now monotime.Time, confirmed bool) (emissionResult, pathTurn) {
 	if sent, err := e.pathProbeOpportunity(now); err != nil || sent {
@@ -122,6 +122,9 @@ func (e *packetEmission) boundedPathTurns(now monotime.Time, confirmed bool) (em
 			e.reservation.completeLocal()
 			e.reservation = nil
 		}
+	}
+	if sent, err := e.ackTurn(now); err != nil || sent {
+		return emissionResult{err: err, retry: err == nil}, pathTurnSignaling
 	}
 	if e.held {
 		if !e.reserveLocal(e.packetSize(), false, false, now) {

@@ -33,7 +33,7 @@ func TestPreparedPackerMatchesValueBytes(t *testing.T) {
 		if preparedPath {
 			prepared := ackhandler.PreparePacket()
 			var header nativeHeaderFacts
-			require.NoError(t, tp.packer.appendPreparedPacket(nil, buf, 1200, false, monotime.Now(), protocol.Version1, &prepared, &header))
+			require.NoError(t, tp.packer.appendPreparedPacket(nil, ackhandler.AckCarriage{}, buf, 1200, false, monotime.Now(), protocol.Version1, &prepared, &header))
 			require.EqualValues(t, 42, header.packetNumber)
 			require.Same(t, ack, header.ack)
 			require.Same(t, stream, prepared.View().StreamFrames()[0].Frame)
@@ -268,7 +268,7 @@ func TestPreparedPackerSealRefusalRetainsPreparation(t *testing.T) {
 	var header nativeHeaderFacts
 	buf := getPacketBuffer()
 	defer buf.Release()
-	err := tp.packer.appendPreparedPacket(nil, buf, 1200, false, monotime.Now(), protocol.Version1, &prepared, &header)
+	err := tp.packer.appendPreparedPacket(nil, ackhandler.AckCarriage{}, buf, 1200, false, monotime.Now(), protocol.Version1, &prepared, &header)
 	require.ErrorIs(t, err, sentinel)
 	require.Same(t, frame, prepared.View().StreamFrames()[0].Frame)
 	// No PopPacketNumber expectation: a refused seal cannot commit the number.

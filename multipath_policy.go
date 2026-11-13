@@ -44,6 +44,33 @@ func (p *pathCreditRegistry) primaryEligible(m *pathMember) bool {
 	return p.eligible(m) && !m.suspect
 }
 
+// home reports whether a path's own route can carry its acknowledgments: the
+// eligibility selection uses, not fencing, and for path zero zeroCarries too. A
+// suspect path zero isn't home, though zeroCarries ignores suspicion. Local and peer
+// backup status don't matter. A nonzero route is brought up to its current tuple.
+func (p *pathCreditRegistry) home(m *pathMember) bool {
+	if !p.primaryEligible(m) || m.fencing() || (m.id == 0 && !p.zeroCarries()) {
+		return false
+	}
+	if m.id != 0 {
+		p.refreshRoute(m)
+	}
+	return true
+}
+
+// holdHomes holds every home path's acknowledgments to its own route for one
+// emission call. Every other target stays released.
+func (p *pathCreditRegistry) holdHomes(acks *ackhandler.AckCarriage) {
+	if !p.hasAdmission() || p.closed {
+		return
+	}
+	for _, m := range p.members {
+		if p.home(m) {
+			acks.Hold(m.id)
+		}
+	}
+}
+
 func (p *pathCreditRegistry) rttOf(id protocol.PathID) *utils.RTTStats {
 	if id == 0 {
 		return p.conn.rttStats

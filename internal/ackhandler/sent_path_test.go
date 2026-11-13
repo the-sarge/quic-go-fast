@@ -398,9 +398,9 @@ func TestSentPathReplacement(t *testing.T) {
 		require.NoError(t, received.ReceivedPacketOnPath(id, 0, protocol.ECNNon, now0, true))
 		require.NoError(t, received.ReceivedPacketOnPath(id, 1, protocol.ECNNon, now0, true))
 	}
-	first, _ := received.AppendPathAckFrames(nil, 1000, now0, false, protocol.Version1)
+	first, _ := received.AppendPathAckFrames(nil, 1000, now0, false, protocol.Version1, AckCarriage{}, 0)
 	require.Len(t, first, 1, "one PATH_ACK per carrier")
-	second, _ := received.AppendPathAckFrames(nil, 1000, now0, false, protocol.Version1)
+	second, _ := received.AppendPathAckFrames(nil, 1000, now0, false, protocol.Version1, AckCarriage{}, 0)
 	require.Len(t, second, 1, "and the other waits for the next")
 	require.NotEqual(t, first[0].Frame.(*wire.AckFrame).PathID, second[0].Frame.(*wire.AckFrame).PathID)
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/utils"
+	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/quic-go/quic-go/qlog"
 	"github.com/quic-go/quic-go/qlogwriter"
 )
@@ -235,6 +236,51 @@ func (h *sentPacketHandler) TakeAckedTuple() (uint64, bool) {
 // keeps the PTO count and the alarm, so backoff and the next PTO are unaffected.
 func (h *sentPacketHandler) ClearProbeCredit() {
 	h.numProbesToSend = 0
+}
+
+// ackTurnShare is one application space's strict share of the shared tracking
+// ceiling: equal shares for every space a connection can hold, whose sum stays
+// below the ceiling at which recovery refuses all sending.
+const ackTurnShare = (protocol.MaxTrackedSentPackets - 1) / (maxRecoveryPaths + 1)
+
+// AckTurnRoom reports whether this path's history leaves room for an ACK-only
+// turn: the turn's packet, with any number skip, keeps the span within its share,
+// and the oldest outstanding ack-eliciting record is no older than one PTO. It
+// reads recovery and changes nothing.
+func (h *sentPacketHandler) AckTurnRoom(now monotime.Time) bool {
+	history := h.appDataPackets.history
+	reservation := 1
+	if history.Len() > 0 {
+		reservation = max(1, int(h.appDataPackets.pns.Peek()-history.highestPacketNumber))
+	}
+	if history.Len()+reservation > ackTurnShare {
+		return false
+	}
+	_, oldest := history.FirstOutstanding()
+	return oldest == nil || now.Sub(oldest.SendTime) <= h.rttStats.PTO(true)
+}
+
+// OnlyPingsOutstanding reports whether every outstanding ack-eliciting record of
+// this path's application history, one still pending local completion included,
+// holds only PING and acknowledgment frames. It is true when none is outstanding.
+// It stops at the first other frame and changes nothing.
+func (h *sentPacketHandler) OnlyPingsOutstanding() bool {
+	for _, p := range h.appDataPackets.history.Packets() {
+		if !p.Outstanding() {
+			continue
+		}
+		if len(p.StreamFrames) != 0 {
+			return false
+		}
+		for _, f := range p.Frames {
+			switch f.Frame.(type) {
+			case *wire.PingFrame, *wire.AckFrame:
+			default:
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // pathLossRecorder is a nonzero path's recorder. It carries only attributed losses;

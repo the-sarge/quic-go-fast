@@ -430,7 +430,7 @@ func TestPathReliablePartialPackingPreservesWork(t *testing.T) {
 		require.NotNil(t, route)
 		buf := getPacketBuffer()
 		defer buf.Release()
-		p, err := f.c.emission.packer.appendPacket(route, buf, false, 600, monotime.Now(), protocol.Version1)
+		p, err := f.c.emission.packer.appendPacket(route, ackhandler.AckCarriage{}, buf, false, 600, monotime.Now(), protocol.Version1)
 		require.NoError(t, err)
 		require.Len(t, p.StreamFrames, 1)
 		require.Less(t, len(p.StreamFrames[0].Frame.Data), 600)

@@ -34,6 +34,13 @@ type packetEmission struct {
 	inOpportunity, capsTaken bool
 	caps                     connCapabilities
 
+	// acks is this call's acknowledgment carriage: the home targets, each held to
+	// its own path until a refusal releases it. It is zero outside a call.
+	acks ackhandler.AckCarriage
+	// ackTurnSent is the alternation fact: the last call sent an ACK turn. The next
+	// call takes it into ackTurnSkip, runs no turn, and clears both.
+	ackTurnSent, ackTurnSkip bool
+
 	packer   *packetPacker
 	recovery *ackhandler.SentPacketHandler
 	queue    sender
@@ -153,6 +160,10 @@ func (e *packetEmission) send(now monotime.Time, confirmed bool) (result emissio
 	if e.local != nil {
 		defer e.local.finish()
 	}
+	if e.pathCredit != nil {
+		e.beginAckCarriage()
+		defer func() { e.endAckCarriage(now, &result) }()
+	}
 	if e.bbr != nil {
 		return e.sendBounded(now, confirmed)
 	}
@@ -169,6 +180,9 @@ func (e *packetEmission) send(now monotime.Time, confirmed bool) (result emissio
 			}
 			e.selectRoute(now)
 			if sent, err := e.announcePath(now); err != nil || sent {
+				return emissionResult{err: err, retry: err == nil, progress: progress}
+			}
+			if sent, err := e.ackTurn(now); err != nil || sent {
 				return emissionResult{err: err, retry: err == nil, progress: progress}
 			}
 			if e.held {
@@ -287,7 +301,7 @@ func (e *packetEmission) appendPacketProtected(buf *packetBuffer, maxSize protoc
 	if datagramOnly {
 		p, err = e.packer.AppendDatagramPacket(e.route, buf, maxSize, e.version)
 	} else {
-		p, err = e.packer.appendPacket(e.route, buf, false, maxSize, now, e.version)
+		p, err = e.packer.appendPacket(e.route, e.acks, buf, false, maxSize, now, e.version)
 	}
 	if err != nil {
 		return nativePacketReceipt{}, err
@@ -545,7 +559,7 @@ func (e *packetEmission) maybeSendAckOnlyPacket(now monotime.Time, confirmed boo
 	}
 
 	ecn := e.selected().ECNMode(true)
-	p, buf, err := e.packer.packAckOnlyPacket(e.route, e.packetSize(), now, e.version)
+	p, buf, err := e.packer.packAckOnlyPacket(e.route, e.acks, e.packetSize(), now, e.version)
 	if err != nil {
 		if err == errNothingToPack {
 			return false, nil
@@ -578,27 +592,29 @@ func (e *packetEmission) sendProbePacket(sendMode ackhandler.SendMode, now monot
 	// or until there are no more packets to queue.
 	var packet *coalescedPacket
 	recovery := e.selected()
-	for packet == nil {
-		var wasQueued bool
-		if h, ok := recovery.(interface {
-			QueueProbePacketAt(protocol.EncryptionLevel, monotime.Time) bool
-		}); ok {
-			wasQueued = h.QueueProbePacketAt(encLevel, now)
-		} else {
-			wasQueued = recovery.QueueProbePacket(encLevel)
+	if encLevel == protocol.Encryption1RTT && e.bareProbe(recovery) {
+		// At most one extraction, as today, and never data: the PING-only history
+		// has nothing to resend, and queued payload waits for the primary.
+		e.queueProbe(recovery, encLevel, now)
+		ping, err := e.packer.packPingPacket1RTT(e.route, e.acks, e.packetSize(), now, e.version)
+		if err != nil {
+			return err
 		}
-		if !wasQueued {
+		return e.sendCoalesced(ping, recovery.ECNMode(true), now)
+	}
+	for packet == nil {
+		if !e.queueProbe(recovery, encLevel, now) {
 			break
 		}
 		var err error
-		packet, err = e.packer.packPTOProbePacket(e.route, encLevel, e.packetSize(), false, now, e.version)
+		packet, err = e.packer.packPTOProbePacket(e.route, e.acks, encLevel, e.packetSize(), false, now, e.version)
 		if err != nil {
 			return err
 		}
 	}
 	if packet == nil {
 		var err error
-		packet, err = e.packer.packPTOProbePacket(e.route, encLevel, e.packetSize(), true, now, e.version)
+		packet, err = e.packer.packPTOProbePacket(e.route, e.acks, encLevel, e.packetSize(), true, now, e.version)
 		if err != nil {
 			return err
 		}
@@ -607,6 +623,16 @@ func (e *packetEmission) sendProbePacket(sendMode ackhandler.SendMode, now monot
 		return fmt.Errorf("connection BUG: couldn't pack %s probe packet: %v", encLevel, packet)
 	}
 	return e.sendCoalesced(packet, recovery.ECNMode(packet.IsOnlyShortHeaderPacket()), now)
+}
+
+// queueProbe extracts the oldest network-eligible outstanding record for a probe.
+func (e *packetEmission) queueProbe(recovery ackhandler.SentPacketHandler, encLevel protocol.EncryptionLevel, now monotime.Time) bool {
+	if h, ok := recovery.(interface {
+		QueueProbePacketAt(protocol.EncryptionLevel, monotime.Time) bool
+	}); ok {
+		return h.QueueProbePacketAt(encLevel, now)
+	}
+	return recovery.QueueProbePacket(encLevel)
 }
 
 func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN, now monotime.Time) error {

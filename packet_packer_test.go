@@ -1101,7 +1101,7 @@ func TestPackPingPacket1RTT(t *testing.T) {
 			tp.retransmissionQueue.addAppData(&wire.MaxDataFrame{MaximumData: 0x1337})
 			require.NoError(t, tp.datagramQueue.Add(&wire.DatagramFrame{Data: []byte("foobar")}))
 
-			p, err := tp.packer.packPingPacket1RTT(nil, maxPacketSize, monotime.Now(), protocol.Version1)
+			p, err := tp.packer.packPingPacket1RTT(nil, ackhandler.AckCarriage{}, maxPacketSize, monotime.Now(), protocol.Version1)
 			require.NoError(t, err)
 			require.True(t, p.IsOnlyShortHeaderPacket())
 			packet := p.shortHdrPacket

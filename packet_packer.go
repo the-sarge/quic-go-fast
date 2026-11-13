@@ -146,7 +146,27 @@ type packetPacker struct {
 	retransmissionQueue *retransmissionQueue
 	rand                rand.Rand
 
+	// numNonAckElicitingAcks counts path zero's consecutive non-ack-eliciting
+	// packets; each nonzero route keeps its own count (see pingCount).
 	numNonAckElicitingAcks int
+}
+
+// pingCount is the periodic-PING count of the packet's carrier. Path zero, the
+// nil route, keeps the packer's field, so an ordinary connection's only carrier
+// counts as before. Another carrier's packets never touch it.
+func (p *packetPacker) pingCount(route *pathRoute) *int {
+	if route != nil {
+		return &route.numNonAckElicitingAcks
+	}
+	return &p.numNonAckElicitingAcks
+}
+
+// carrierOf is the path a packet on route leaves on.
+func carrierOf(route *pathRoute) protocol.PathID {
+	if route != nil {
+		return route.context.PathID
+	}
+	return 0
 }
 
 func newPacketPacker(
@@ -450,7 +470,7 @@ func (p *packetPacker) PackCoalescedPacket(onlyAck bool, maxSize protocol.ByteCo
 			connID = p.getDestConnID()
 			oneRTTPacketNumber, oneRTTPacketNumberLen = p.pnManager.PeekPacketNumber(protocol.Encryption1RTT)
 			hdrLen := wire.ShortHeaderLen(connID, oneRTTPacketNumberLen)
-			oneRTTPayload = p.maybeGetShortHeaderPacket(oneRTTSealer, hdrLen, maxSize-size, onlyAck, now, v, nil)
+			oneRTTPayload = p.maybeGetShortHeaderPacket(nil, ackhandler.AckCarriage{}, oneRTTSealer, hdrLen, maxSize-size, onlyAck, now, v, nil)
 			if oneRTTPayload.length > 0 {
 				size += p.shortHeaderPacketLength(connID, oneRTTPacketNumberLen, oneRTTPayload) + protocol.ByteCount(oneRTTSealer.Overhead())
 			}
@@ -519,12 +539,12 @@ func (p *packetPacker) PackCoalescedPacket(onlyAck bool, maxSize protocol.ByteCo
 // PackAckOnlyPacket packs a packet containing only an ACK in the application data packet number space.
 // It should be called after the handshake is confirmed.
 func (p *packetPacker) PackAckOnlyPacket(maxSize protocol.ByteCount, now monotime.Time, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
-	return p.packAckOnlyPacket(nil, maxSize, now, v)
+	return p.packAckOnlyPacket(nil, ackhandler.AckCarriage{}, maxSize, now, v)
 }
 
-func (p *packetPacker) packAckOnlyPacket(route *pathRoute, maxSize protocol.ByteCount, now monotime.Time, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
+func (p *packetPacker) packAckOnlyPacket(route *pathRoute, acks ackhandler.AckCarriage, maxSize protocol.ByteCount, now monotime.Time, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
 	buf := getPacketBufferForCeiling(packetCeiling(maxSize))
-	packet, err := p.appendPacket(route, buf, true, maxSize, now, v)
+	packet, err := p.appendPacket(route, acks, buf, true, maxSize, now, v)
 	if err != nil {
 		buf.Release()
 		return shortHeaderPacket{}, nil, err
@@ -535,7 +555,7 @@ func (p *packetPacker) packAckOnlyPacket(route *pathRoute, maxSize protocol.Byte
 // AppendPacket packs a packet in the application data packet number space.
 // It should be called after the handshake is confirmed.
 func (p *packetPacker) AppendPacket(buf *packetBuffer, maxSize protocol.ByteCount, now monotime.Time, v protocol.Version) (shortHeaderPacket, error) {
-	return p.appendPacket(nil, buf, false, maxSize, now, v)
+	return p.appendPacket(nil, ackhandler.AckCarriage{}, buf, false, maxSize, now, v)
 }
 
 // AppendDatagramPacket packs a packet carrying only the next queued DATAGRAM
@@ -557,7 +577,7 @@ func (p *packetPacker) AppendDatagramPacket(route *pathRoute, buf *packetBuffer,
 	}
 	context, numbers, connID := p.shortHeaderIdentity(route)
 	pn, pnLen := numbers.PeekPacketNumber(protocol.Encryption1RTT)
-	pl, err := p.datagramPayload(f, maxSize, connID, pnLen, sealer, v)
+	pl, err := p.datagramPayload(route, f, maxSize, connID, pnLen, sealer, v)
 	if err != nil {
 		return shortHeaderPacket{}, err
 	}
@@ -567,14 +587,14 @@ func (p *packetPacker) AppendDatagramPacket(route *pathRoute, buf *packetBuffer,
 
 // datagramPayload is shared by native preparation and value construction. It
 // leaves a non-fitting DATAGRAM queued and commits extraction only on success.
-func (p *packetPacker) datagramPayload(f *wire.DatagramFrame, maxSize protocol.ByteCount, connID protocol.ConnectionID, pnLen protocol.PacketNumberLen, sealer sealer, v protocol.Version) (payload, error) {
+func (p *packetPacker) datagramPayload(route *pathRoute, f *wire.DatagramFrame, maxSize protocol.ByteCount, connID protocol.ConnectionID, pnLen protocol.PacketNumberLen, sealer sealer, v protocol.Version) (payload, error) {
 	size := f.Length(v)
 	wireSize := p.shortHeaderPacketLength(connID, pnLen, payload{length: size}) + protocol.ByteCount(sealer.Overhead())
 	if wireSize > maxSize {
 		return payload{}, errNothingToPack
 	}
 	p.datagramQueue.Pop()
-	p.numNonAckElicitingAcks = 0
+	*p.pingCount(route) = 0
 	return payload{frames: []ackhandler.Frame{{Frame: f}}, length: size}, nil
 }
 
@@ -601,6 +621,7 @@ func (p *packetPacker) shortHeaderIdentity(route *pathRoute) (ackhandler.PacketC
 
 func (p *packetPacker) appendPacket(
 	route *pathRoute,
+	acks ackhandler.AckCarriage,
 	buf *packetBuffer,
 	onlyAck bool,
 	maxPacketSize protocol.ByteCount,
@@ -614,7 +635,7 @@ func (p *packetPacker) appendPacket(
 	context, numbers, connID := p.shortHeaderIdentity(route)
 	pn, pnLen := numbers.PeekPacketNumber(protocol.Encryption1RTT)
 	hdrLen := wire.ShortHeaderLen(connID, pnLen)
-	pl := p.maybeGetShortHeaderPacket(sealer, hdrLen, maxPacketSize, onlyAck, now, v, nil)
+	pl := p.maybeGetShortHeaderPacket(route, acks, sealer, hdrLen, maxPacketSize, onlyAck, now, v, nil)
 	if pl.length == 0 {
 		return shortHeaderPacket{}, errNothingToPack
 	}
@@ -625,11 +646,11 @@ func (p *packetPacker) appendPacket(
 
 // appendPreparedPacket writes ordinary native facts into the sole preparation.
 // Header facts remain stack-owned by emission and expire before registration.
-func (p *packetPacker) appendPreparedPacket(route *pathRoute, buf *packetBuffer, maxPacketSize protocol.ByteCount, datagramOnly bool, now monotime.Time, v protocol.Version, prepared *ackhandler.PacketPreparation, header *nativeHeaderFacts) error {
-	return p.appendPreparedPacketProtected(route, buf, maxPacketSize, datagramOnly, now, v, prepared, header, nil)
+func (p *packetPacker) appendPreparedPacket(route *pathRoute, acks ackhandler.AckCarriage, buf *packetBuffer, maxPacketSize protocol.ByteCount, datagramOnly bool, now monotime.Time, v protocol.Version, prepared *ackhandler.PacketPreparation, header *nativeHeaderFacts) error {
+	return p.appendPreparedPacketProtected(route, acks, buf, maxPacketSize, datagramOnly, now, v, prepared, header, nil)
 }
 
-func (p *packetPacker) appendPreparedPacketProtected(route *pathRoute, buf *packetBuffer, maxPacketSize protocol.ByteCount, datagramOnly bool, now monotime.Time, v protocol.Version, prepared *ackhandler.PacketPreparation, header *nativeHeaderFacts, protection *nativeProtectionConstruction) error {
+func (p *packetPacker) appendPreparedPacketProtected(route *pathRoute, acks ackhandler.AckCarriage, buf *packetBuffer, maxPacketSize protocol.ByteCount, datagramOnly bool, now monotime.Time, v protocol.Version, prepared *ackhandler.PacketPreparation, header *nativeHeaderFacts, protection *nativeProtectionConstruction) error {
 	if datagramOnly && p.datagramQueue == nil {
 		return errNothingToPack
 	}
@@ -650,12 +671,12 @@ func (p *packetPacker) appendPreparedPacketProtected(route *pathRoute, buf *pack
 	hdrLen := wire.ShortHeaderLen(connID, pnLen)
 	var pl payload
 	if datagramOnly {
-		pl, err = p.datagramPayload(datagram, maxPacketSize, connID, pnLen, sealer, v)
+		pl, err = p.datagramPayload(route, datagram, maxPacketSize, connID, pnLen, sealer, v)
 		if err != nil {
 			return err
 		}
 	} else {
-		pl = p.maybeGetShortHeaderPacket(sealer, hdrLen, maxPacketSize, false, now, v, prepared.StreamStorage())
+		pl = p.maybeGetShortHeaderPacket(route, acks, sealer, hdrLen, maxPacketSize, false, now, v, prepared.StreamStorage())
 		if pl.length == 0 {
 			return errNothingToPack
 		}
@@ -785,10 +806,12 @@ func (p *packetPacker) maybeGetAppDataPacketFor0RTT(sealer sealer, maxSize proto
 
 	hdr := p.getLongHeader(protocol.Encryption0RTT, v)
 	maxPayloadSize := maxSize - hdr.GetLength(v) - protocol.ByteCount(sealer.Overhead())
-	return hdr, p.maybeGetAppDataPacket(maxPayloadSize, false, false, now, v, nil)
+	return hdr, p.maybeGetAppDataPacket(nil, ackhandler.AckCarriage{}, maxPayloadSize, false, false, now, v, nil)
 }
 
 func (p *packetPacker) maybeGetShortHeaderPacket(
+	route *pathRoute,
+	acks ackhandler.AckCarriage,
 	sealer handshake.ShortHeaderSealer,
 	hdrLen, maxPacketSize protocol.ByteCount,
 	onlyAck bool,
@@ -797,39 +820,44 @@ func (p *packetPacker) maybeGetShortHeaderPacket(
 	streamStorage []ackhandler.StreamFrame,
 ) payload {
 	maxPayloadSize := maxPacketSize - hdrLen - protocol.ByteCount(sealer.Overhead())
-	return p.maybeGetAppDataPacket(maxPayloadSize, onlyAck, true, now, v, streamStorage)
+	return p.maybeGetAppDataPacket(route, acks, maxPayloadSize, onlyAck, true, now, v, streamStorage)
 }
 
 func (p *packetPacker) maybeGetAppDataPacket(
+	route *pathRoute,
+	acks ackhandler.AckCarriage,
 	maxPayloadSize protocol.ByteCount,
 	onlyAck, ackAllowed bool,
 	now monotime.Time,
 	v protocol.Version,
 	streamStorage []ackhandler.StreamFrame,
 ) payload {
-	pl := p.composeNextPacket(maxPayloadSize, onlyAck, ackAllowed, now, v, streamStorage)
+	pl := p.composeNextPacket(route, acks, maxPayloadSize, onlyAck, ackAllowed, now, v, streamStorage)
 
 	// check if we have anything to send
+	count := p.pingCount(route)
 	if !ackhandler.HasAckElicitingFrames(pl.frames) && len(pl.streamFrames) == 0 {
 		if pl.ack == nil && len(pl.frames) == 0 {
 			return payload{}
 		}
 		// the packet only contains an ACK
-		if p.numNonAckElicitingAcks >= protocol.MaxNonAckElicitingAcks {
+		if *count >= protocol.MaxNonAckElicitingAcks {
 			ping := &wire.PingFrame{}
 			pl.frames = append(pl.frames, ackhandler.Frame{Frame: ping})
 			pl.length += ping.Length(v)
-			p.numNonAckElicitingAcks = 0
+			*count = 0
 		} else {
-			p.numNonAckElicitingAcks++
+			*count++
 		}
 	} else {
-		p.numNonAckElicitingAcks = 0
+		*count = 0
 	}
 	return pl
 }
 
 func (p *packetPacker) composeNextPacket(
+	route *pathRoute,
+	acks ackhandler.AckCarriage,
 	maxPayloadSize protocol.ByteCount,
 	onlyAck, ackAllowed bool,
 	now monotime.Time,
@@ -839,18 +867,19 @@ func (p *packetPacker) composeNextPacket(
 	// Only ACK selection reserves the periodic PING byte. Application data
 	// is itself ACK-eliciting and can use the full payload capacity.
 	maxAckSize := maxPayloadSize
-	if ackAllowed && p.numNonAckElicitingAcks >= protocol.MaxNonAckElicitingAcks {
+	if ackAllowed && *p.pingCount(route) >= protocol.MaxNonAckElicitingAcks {
 		maxAckSize--
 	}
+	carrier := carrierOf(route)
 	if onlyAck {
-		if ack := p.acks.GetAckFrame(protocol.Encryption1RTT, now, true); ack != nil {
+		if ack := p.appDataAck(acks, carrier, now, true); ack != nil {
 			ack.Truncate(maxAckSize, v)
 			pl := payload{ack: ack, length: ack.Length(v)}
-			p.appendPathAcks(&pl, maxAckSize, now, true, v)
+			p.appendPathAcks(&pl, acks, carrier, maxAckSize, now, true, v)
 			return pl
 		}
 		var pl payload
-		p.appendPathAcks(&pl, maxAckSize, now, true, v)
+		p.appendPathAcks(&pl, acks, carrier, maxAckSize, now, true, v)
 		return pl
 	}
 
@@ -859,7 +888,7 @@ func (p *packetPacker) composeNextPacket(
 
 	pl := payload{streamFrames: streamStorage}
 	if ackAllowed {
-		if ack := p.acks.GetAckFrame(protocol.Encryption1RTT, now, !hasRetransmission && !hasData); ack != nil {
+		if ack := p.appDataAck(acks, carrier, now, !hasRetransmission && !hasData); ack != nil {
 			ack.Truncate(maxAckSize, v)
 			pl.ack = ack
 			pl.length += ack.Length(v)
@@ -867,7 +896,7 @@ func (p *packetPacker) composeNextPacket(
 	}
 
 	if ackAllowed {
-		p.appendPathAcks(&pl, maxAckSize, now, !hasRetransmission && !hasData, v)
+		p.appendPathAcks(&pl, acks, carrier, maxAckSize, now, !hasRetransmission && !hasData, v)
 	}
 	if p.datagramQueue != nil {
 		if f := p.datagramQueue.Peek(); f != nil {
@@ -935,11 +964,12 @@ func (p *packetPacker) PackPTOProbePacket(
 	now monotime.Time,
 	v protocol.Version,
 ) (*coalescedPacket, error) {
-	return p.packPTOProbePacket(nil, encLevel, maxPacketSize, addPingIfEmpty, now, v)
+	return p.packPTOProbePacket(nil, ackhandler.AckCarriage{}, encLevel, maxPacketSize, addPingIfEmpty, now, v)
 }
 
 func (p *packetPacker) packPTOProbePacket(
 	route *pathRoute,
+	acks ackhandler.AckCarriage,
 	encLevel protocol.EncryptionLevel,
 	maxPacketSize protocol.ByteCount,
 	addPingIfEmpty bool,
@@ -947,7 +977,7 @@ func (p *packetPacker) packPTOProbePacket(
 	v protocol.Version,
 ) (*coalescedPacket, error) {
 	if encLevel == protocol.Encryption1RTT {
-		return p.packPTOProbePacket1RTT(route, maxPacketSize, addPingIfEmpty, now, v)
+		return p.packPTOProbePacket1RTT(route, acks, maxPacketSize, addPingIfEmpty, now, v)
 	}
 
 	var sealer handshake.LongHeaderSealer
@@ -999,7 +1029,7 @@ func (p *packetPacker) packPTOProbePacket(
 	return packet, nil
 }
 
-func (p *packetPacker) packPTOProbePacket1RTT(route *pathRoute, maxPacketSize protocol.ByteCount, addPingIfEmpty bool, now monotime.Time, v protocol.Version) (*coalescedPacket, error) {
+func (p *packetPacker) packPTOProbePacket1RTT(route *pathRoute, acks ackhandler.AckCarriage, maxPacketSize protocol.ByteCount, addPingIfEmpty bool, now monotime.Time, v protocol.Version) (*coalescedPacket, error) {
 	s, err := p.cryptoSetup.Get1RTTSealer()
 	if err != nil {
 		return nil, err
@@ -1008,7 +1038,7 @@ func (p *packetPacker) packPTOProbePacket1RTT(route *pathRoute, maxPacketSize pr
 	context, numbers, connID := p.shortHeaderIdentity(route)
 	pn, pnLen := numbers.PeekPacketNumber(protocol.Encryption1RTT)
 	hdrLen := wire.ShortHeaderLen(connID, pnLen)
-	pl := p.maybeGetAppDataPacket(maxPacketSize-protocol.ByteCount(s.Overhead())-hdrLen, false, true, now, v, nil)
+	pl := p.maybeGetAppDataPacket(route, acks, maxPacketSize-protocol.ByteCount(s.Overhead())-hdrLen, false, true, now, v, nil)
 	if pl.length == 0 {
 		if !addPingIfEmpty {
 			return nil, nil
@@ -1030,7 +1060,7 @@ func (p *packetPacker) packPTOProbePacket1RTT(route *pathRoute, maxPacketSize pr
 
 // packPingPacket1RTT packs an ack-eliciting PING on route with any queued ACKs and
 // nothing else: the framer, retransmission and DATAGRAM queues keep their frames.
-func (p *packetPacker) packPingPacket1RTT(route *pathRoute, maxPacketSize protocol.ByteCount, now monotime.Time, v protocol.Version) (*coalescedPacket, error) {
+func (p *packetPacker) packPingPacket1RTT(route *pathRoute, acks ackhandler.AckCarriage, maxPacketSize protocol.ByteCount, now monotime.Time, v protocol.Version) (*coalescedPacket, error) {
 	s, err := p.cryptoSetup.Get1RTTSealer()
 	if err != nil {
 		return nil, err
@@ -1040,10 +1070,10 @@ func (p *packetPacker) packPingPacket1RTT(route *pathRoute, maxPacketSize protoc
 	pn, pnLen := numbers.PeekPacketNumber(protocol.Encryption1RTT)
 	hdrLen := wire.ShortHeaderLen(connID, pnLen)
 	ping := &wire.PingFrame{}
-	pl := p.composeNextPacket(maxPacketSize-protocol.ByteCount(s.Overhead())-hdrLen-ping.Length(v), true, true, now, v, nil)
+	pl := p.composeNextPacket(route, acks, maxPacketSize-protocol.ByteCount(s.Overhead())-hdrLen-ping.Length(v), true, true, now, v, nil)
 	pl.frames = append(pl.frames, ackhandler.Frame{Frame: ping, Handler: emptyHandler{}})
 	pl.length += ping.Length(v)
-	p.numNonAckElicitingAcks = 0
+	*p.pingCount(route) = 0
 	buffer := getPacketBufferForCeiling(packetCeiling(maxPacketSize))
 	packet := &coalescedPacket{buffer: buffer}
 	shp, err := p.appendShortHeaderPacket(context, buffer, connID, pn, pnLen, kp, pl, 0, maxPacketSize, s, false, v)
@@ -1406,16 +1436,27 @@ var _ ackhandler.FrameHandler = emptyHandler{}
 func (emptyHandler) OnAcked(wire.Frame) {}
 func (emptyHandler) OnLost(wire.Frame)  {}
 
-// The receive owner exposes admitted path views only to private fixtures until
-// R9. Ordinary sources and public construction retain path-zero behavior.
-func (p *packetPacker) appendPathAcks(pl *payload, maxSize protocol.ByteCount, now monotime.Time, onlyIfQueued bool, v protocol.Version) {
+// appDataAck is path zero's 1-RTT ACK for a packet on carrier. The receive owner
+// applies carriage; a source without carriage keeps ordinary selection.
+func (p *packetPacker) appDataAck(acks ackhandler.AckCarriage, carrier protocol.PathID, now monotime.Time, onlyIfQueued bool) *wire.AckFrame {
+	if source, ok := p.acks.(interface {
+		GetAckFrameOn(ackhandler.AckCarriage, protocol.PathID, monotime.Time, bool) *wire.AckFrame
+	}); ok {
+		return source.GetAckFrameOn(acks, carrier, now, onlyIfQueued)
+	}
+	return p.acks.GetAckFrame(protocol.Encryption1RTT, now, onlyIfQueued)
+}
+
+// appendPathAcks passes the carrier and the call's carriage to the receive owner,
+// which alone selects. Sources without path views keep path-zero behavior.
+func (p *packetPacker) appendPathAcks(pl *payload, acks ackhandler.AckCarriage, carrier protocol.PathID, maxSize protocol.ByteCount, now monotime.Time, onlyIfQueued bool, v protocol.Version) {
 	source, ok := p.acks.(interface {
-		AppendPathAckFrames([]ackhandler.Frame, protocol.ByteCount, monotime.Time, bool, protocol.Version) ([]ackhandler.Frame, protocol.ByteCount)
+		AppendPathAckFrames([]ackhandler.Frame, protocol.ByteCount, monotime.Time, bool, protocol.Version, ackhandler.AckCarriage, protocol.PathID) ([]ackhandler.Frame, protocol.ByteCount)
 	})
 	if !ok {
 		return
 	}
 	var length protocol.ByteCount
-	pl.frames, length = source.AppendPathAckFrames(pl.frames, maxSize-pl.length, now, onlyIfQueued, v)
+	pl.frames, length = source.AppendPathAckFrames(pl.frames, maxSize-pl.length, now, onlyIfQueued, v, acks, carrier)
 	pl.length += length
 }

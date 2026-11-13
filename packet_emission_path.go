@@ -24,6 +24,9 @@ type pathRoute struct {
 	epoch      *responseEpoch
 	writeState endpointWriteState
 	mtu        *mtuFinder // this path's own limit; set when the path goes live
+	// numNonAckElicitingAcks is this carrier's periodic-PING count. It starts at
+	// zero with its member, survives refreshRoute, and only the packer touches it.
+	numNonAckElicitingAcks int
 }
 
 // pathView is what the scheduler may know about one eligible path. It holds no
@@ -244,11 +247,11 @@ func (e *packetEmission) announce(now monotime.Time, controlOnly bool) (bool, er
 	var packet *coalescedPacket
 	var err error
 	if controlOnly {
-		packet, err = e.packer.packPingPacket1RTT(e.route, e.packetSize(), now, e.version)
+		packet, err = e.packer.packPingPacket1RTT(e.route, e.acks, e.packetSize(), now, e.version)
 	} else {
 		// An ACK alone would fill the payload, and recovery wouldn't track the packet.
 		e.pathCredit.conn.framer.QueueControlFrame(&wire.PingFrame{})
-		packet, err = e.packer.packPTOProbePacket(e.route, protocol.Encryption1RTT, e.packetSize(), true, now, e.version)
+		packet, err = e.packer.packPTOProbePacket(e.route, e.acks, protocol.Encryption1RTT, e.packetSize(), true, now, e.version)
 	}
 	if err != nil {
 		return false, err
