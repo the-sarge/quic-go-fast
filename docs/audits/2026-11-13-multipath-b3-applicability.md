@@ -9,6 +9,7 @@ The baseline is the R19 #1039 delivered candidate `d7854ed7276a046ba06a33b9fe6e2
 | Surface | Change | Reach outside BBR multipath |
 | --- | --- | --- |
 | `internal/ackhandler` path contexts, delivery sampler, recovery and ECN ledgers (B1, B2, #1330) | Per-path BBR contexts, shared aggregate ceilings and one shared feedback scratch | None. Each new branch requires a BBR root (`congestionEvents != nil`), and `AddPathWithRTT` keeps refusing a rich root. |
+| Root BBR emission and credit (B1, B2): `bbrPendingBytes`, `resetGeneration`, the root's ECN authority | A single BBR policy's pending-local authority, credit generation and ECN fence are now per policy | Single-path BBR has only the root policy, so it keeps its former authority, generation and fence. Reno and ordinary connections never install a BBR policy. |
 | `receivedAck` carrier argument (B1) | Excludes an ACK carried on another path from a rich context's timing | None. The exclusion requires `congestionEvents != nil`; Reno contexts take the unchanged branch. The moved `MaybeExitSlowStart` call stays on that branch. |
 | `BBRSender.Feedback` aggregation (#1329) | An event without a timing-eligible anchor accrues no aggregation | Single-path BBR changes, by owner decision; Reno doesn't. Single-path BBRv3 remains experimental and unqualified while Q2 #599 is deferred. |
 | `handleAckFrame` (B3) | A multipath connection passes the carrier path through `ReceivedPathAck` | An ordinary connection still calls `ReceivedAck`. A Reno multipath connection now passes the carrier, which its contexts ignore, as in the row above. |
@@ -18,6 +19,8 @@ The baseline is the R19 #1039 delivered candidate `d7854ed7276a046ba06a33b9fe6e2
 | `commitTuple` (B2) | Pairs `resetBBRPath` with `MigratedPath` | A no-op without a BBR path policy. |
 
 The native writers, endpoint admission, response epochs and stateless paths are unchanged since `d7854ed72`.
+
+**ECN capability per route:** a BBR path's ECN authority keeps reading the endpoint-level capability (`opportunityCapabilities().ECN`), as the root's does, rather than its route's send connection. Only GSO follows the route, because a mismatched GSO choice would malform a batch, while a mismatched ECN choice fails closed. The native writers already omit ECN ancillary data on a socket that can't carry it. A path marked capable on such a socket then sees no ECN counts echoed, so that path's own validation fails and turns its marking off; no other path is affected. Routes run only on granted native endpoints of one qualified platform, so B5's campaign exercises the matched case. A per-route capability, if ever needed, would be a separate change to `bbrECNAuthority`.
 
 ## Disposition
 

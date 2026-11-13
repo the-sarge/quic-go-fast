@@ -5,6 +5,7 @@ package quic
 import (
 	"context"
 	"os"
+	"syscall"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -186,38 +187,42 @@ func TestBBRPathMigrationResetsPolicy(t *testing.T) {
 	})
 }
 
-// A local write timeout on the path is backpressure, not network loss: each
-// uncertain write returns the path's credit, the path stays primary and the
+// A failed or uncertain local write on the path is backpressure, not network
+// loss: each write returns the path's credit, the path stays primary and the
 // policy carries the next write.
-func TestBBRPathLocalTimeoutIsBackpressure(t *testing.T) {
-	nativeOrdinaryTest(t, func(t *testing.T) {
-		f := newBBRPathFixture(t, protocol.PerspectiveServer)
-		p := f.c.pathCredit
-		p.selectPrimaryPrivate(1)
-		path := f.bbrPath(1)
+func TestBBRPathLocalWriteFailureIsBackpressure(t *testing.T) {
+	for name, nativeError := range map[string]error{"timeout": os.ErrDeadlineExceeded, "capacity": syscall.ENOBUFS} {
+		t.Run(name, func(t *testing.T) {
+			nativeOrdinaryTest(t, func(t *testing.T) {
+				f := newBBRPathFixture(t, protocol.PerspectiveServer)
+				p := f.c.pathCredit
+				p.selectPrimaryPrivate(1)
+				path := f.bbrPath(1)
+				settle := func() {
+					for range 4 {
+						time.Sleep(endpointRetry)
+						f.drain(t)
+					}
+				}
 
-		f.socket.result = func([]byte) (int, error) { return 0, os.ErrDeadlineExceeded }
-		f.write(t, 3000)
-		for range 4 {
-			time.Sleep(endpointRetry)
-			f.drain(t)
-		}
-		require.NotEmpty(t, f.parseWrites(t, 1), "the path attempted its writes")
-		require.Zero(t, f.c.emission.bbrPendingBytes(path), "every uncertain write returned its credit")
-		require.Zero(t, f.c.emission.bbrPendingBytes(f.c.emission.bbr), "and charged no other policy")
-		require.False(t, p.members[1].suspect)
-		require.Equal(t, protocol.PathID(1), p.primary)
+				f.socket.result = func([]byte) (int, error) { return 0, nativeError }
+				f.write(t, 3000)
+				settle()
+				require.NotEmpty(t, f.parseWrites(t, 1), "the path attempted its writes")
+				require.Zero(t, f.c.emission.bbrPendingBytes(path), "every local result returned its credit")
+				require.Zero(t, f.c.emission.bbrPendingBytes(f.c.emission.bbr), "and charged no other policy")
+				require.False(t, p.members[1].suspect)
+				require.Equal(t, protocol.PathID(1), p.primary)
 
-		f.socket.result = nil
-		f.socket.writes = nil
-		f.write(t, 500)
-		for range 4 {
-			time.Sleep(endpointRetry)
-			f.drain(t)
-		}
-		require.GreaterOrEqual(t, reliableBytes(f.parseWrites(t, 1)), 500, "the path's policy carries the next write")
-		require.Zero(t, reliableBytes(f.parseWrites(t, 0)))
-	})
+				f.socket.result = nil
+				f.socket.writes = nil
+				f.write(t, 500)
+				settle()
+				require.GreaterOrEqual(t, reliableBytes(f.parseWrites(t, 1)), 500, "the path's policy carries the next write")
+				require.Zero(t, reliableBytes(f.parseWrites(t, 0)))
+			})
+		})
+	}
 }
 
 // A DATAGRAM that fits only the backup is steered there alone, on the backup's
