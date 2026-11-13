@@ -104,7 +104,7 @@ The 18 listed repeats are required BBR-candidate evidence, not optional reuse of
 | --- | --- | --- | --- |
 | [B1](#b1) | complete | Partition BBR delivery sampling and send credit | R19 |
 | [B2](#b2) | new | Preserve BBR ECN, recovery and migration evidence | B1 |
-| [B3](#b3) | new | Exercise BBR primary/backup through complete lifecycle | B2 |
+| [B3](#b3) | new | Exercise BBR primary/backup through complete lifecycle | B2, [BBR window-policy fix #1329](https://github.com/the-sarge/quic-go-fast/issues/1329) |
 | [B4](#b4) | new | Add the private aggregate scheduling policy | B3 |
 | [B5](#b5) | new | Measure aggregation benefit and shared-bottleneck cost | B4 |
 | [B6](#b6) | new | Publish the supported BBR and aggregation outcome | B5 |
@@ -165,13 +165,15 @@ The 18 listed repeats are required BBR-candidate evidence, not optional reuse of
 
 **Delivers:** Connect BBR contexts to private primary/backup operation and run focused lifecycle preservation through real APIs: opening, failover, migration, retirement, local timeout and close. Record which Reno/native evidence remains applicable and what changed surfaces require requalification within the same ledger.
 
-**Blocked by:** B2. **Existing work:** new slice; no unmerged implementation accepted.
+**Blocked by:** B2 and the owner-approved [BBR window-policy fix #1329](https://github.com/the-sarge/quic-go-fast/issues/1329). **Existing work:** new slice; no unmerged implementation accepted.
 
-**Single owner and authority completeness:** Connection policy stays controller-agnostic; BBR adapter owns controller construction and disposal. Cover constructors, validation and the destruction/cancellation consumers named by this behavior together; no persisted state is introduced.
+**Single owner and authority completeness:** Connection policy stays controller-agnostic; BBR adapter owns controller construction and disposal. Emission selects the chosen route's BBR send policy (pacing, local credit, supply gap) at send time; it does not choose the route, and scheduling choice stays with [B4](#b4). Cover constructors, validation and the destruction/cancellation consumers named by this behavior together; no persisted state is introduced.
 
 **Temporary seams:** Public BBR+multipath remains disabled until B6; no duplicate API or alternate timeout policy.
 
-**Blast radius and context:** congestion_control.go, connection.go, internal/ackhandler construction; integrationtests/self. Receive only this slice, binding discipline, its referenced owner/closure sections, direct blocker interface receipts and the bounded governing diff; omit complete historical plans. Target at most 24k input tokens, leaving the fresh context room for implementation, review fixes and verification. If the named source cannot fit after focused symbol reads, re-slice before editing. The touched owners and their tests bound shared state, concurrency, API, failure, performance/security and dependency effects; any newly discovered effect outside them stops the slice.
+**Blast radius and context:** congestion_control.go, connection.go, internal/ackhandler construction; send-time selection of the route's BBR send policy (pacing, local credit, supply gap) in packet_emission_bbr.go, bbr_send_policy.go and the supply-gap and pending-byte consumers in delivery_sampling.go, plus their tests; the path admission and final-reclamation `addBBRPath`/`removeBBRPath` call sites in multipath_admission.go, plus their tests; integrationtests/self. Receive only this slice, binding discipline, its referenced owner/closure sections, direct blocker interface receipts and the bounded governing diff; omit complete historical plans. Target at most 24k input tokens, leaving the fresh context room for implementation, review fixes and verification. If the named source cannot fit after focused symbol reads, re-slice before editing. The touched owners and their tests bound shared state, concurrency, API, failure, performance/security and dependency effects; any newly discovered effect outside them stops the slice.
+
+**Scope amendment:** by [owner decision on 2026-11-12](https://github.com/the-sarge/quic-go-fast/issues/1042#issuecomment-6844439624), send-time BBR send-policy selection, which B1 #1040 handed to this slice, joins its blast radius, including the supply-gap and pending-byte consumers emission calls at send time. By [owner decision on 2026-11-13](https://github.com/the-sarge/quic-go-fast/issues/1042#issuecomment-6844725977), the multipath_admission.go admission and reclamation call sites join it too; they are controller construction and disposal, already owned by this slice's BBR adapter line. The existing network-suspect promotion scenario already covers sending on the backup after failover, so the context and evidence budgets are unchanged. No behavior, representation or design changes.
 
 **Representation, artifacts and closure:** Universal runtime invariants within the binding profile and this slice's typed event/configuration/wire domain; the named owner validates the representation. Runtime is shipped behavior, ownership guards required safety enforcement, named tests maintained regression aids, receipts process metadata. Apply only this slice's rows of the track closure table; no Cartesian matrix or parser-alias census.
 
