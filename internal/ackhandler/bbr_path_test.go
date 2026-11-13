@@ -184,6 +184,58 @@ func TestBBRPathFreshAnchorAfterCrossPathInterval(t *testing.T) {
 	require.True(t, lastFeedback(t, path).Delivery.Valid, "eligible sampling resumes")
 }
 
+// bbrAnchorTap feeds a real controller and counts events in which recovery
+// named a sampler anchor ordinal, or matched one among the acknowledged packets.
+type bbrAnchorTap struct {
+	*congestion.BBRSender
+	named, anchored int
+}
+
+func (b *bbrAnchorTap) Feedback(e congestion.FeedbackEvent) {
+	if e.Delivery.Ordinal != 0 {
+		b.named++
+	}
+	for _, p := range e.Acked {
+		if p.Ordinal == e.Delivery.Ordinal {
+			b.anchored++
+		}
+	}
+	b.BBRSender.Feedback(e)
+}
+
+// A path acknowledged only on another path keeps no timing evidence, so its
+// controller stays near its initial window instead of growing per ACK (#1329).
+func TestBBRPathCrossPathOnlyFeedbackBoundsWindow(t *testing.T) {
+	h := newCongestionTestHandler(&congestionRecorder{})
+	now := monotime.Time(time.Second)
+	h.DropPackets(protocol.EncryptionInitial, now)
+	h.DropPackets(protocol.EncryptionHandshake, now)
+	bbr := &bbrAnchorTap{BBRSender: congestion.NewBBRSender(1200)}
+	_, err := h.addRichPath(17, 1200, utils.NewRTTStats(), bbr, func() protocol.ByteCount { return 0 })
+	require.NoError(t, err)
+	bound := 2 * bbr.GetCongestionWindow() // Startup's initial-window allowance only
+
+	now = monotime.Time(2 * time.Second)
+	var windows []protocol.ByteCount
+	for round := 1; round <= 400; round++ {
+		pns := make([]protocol.PacketNumber, 10)
+		for i := range pns {
+			pns[i] = sendRichPathPacket(h, 17, now)
+		}
+		now = now.Add(50 * time.Millisecond)
+		pathAck(t, h, 17, 0, now, pns...)
+		now = now.Add(time.Millisecond)
+		if round == 40 || round == 400 {
+			windows = append(windows, bbr.GetCongestionWindow())
+		}
+	}
+	require.Zero(t, bbr.named, "a cross-path ACK never names a sampler anchor")
+	require.Zero(t, bbr.anchored, "no acknowledged packet matches the absent anchor")
+	for i, w := range windows {
+		require.LessOrEqual(t, w, bound, "checkpoint %d; windows at rounds 40 and 400: %v", i, windows)
+	}
+}
+
 func TestBBRPathOldGenerationFeedback(t *testing.T) {
 	h, root, path := newRichPathFixture(t)
 	now := monotime.Time(2 * time.Second)

@@ -3,6 +3,7 @@ package congestion
 import (
 	"fmt"
 	"math"
+	"slices"
 	"testing"
 	"time"
 
@@ -297,4 +298,44 @@ func TestBBRPacketCeilingSurvivesReset(t *testing.T) {
 	jumbo.Reset(1, 1, 0)
 	require.NotPanics(t, func() { jumbo.SetMaxDatagramSize(8972) })
 	require.Panics(t, func() { jumbo.SetMaxDatagramSize(8973) })
+}
+
+// Recovery anchors no timing-ineligible ACK, such as a cross-path or locally
+// excluded one. Such feedback settles delivery and loss but supplies no
+// aggregation evidence, so the window stays near its initial target (#1329).
+func TestBBRTimingIneligibleFeedbackBoundsWindow(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		lost        int
+		checkpoints []int
+	}{
+		{"loss-free", 0, []int{40, 400}},
+		{"half lost", 5, []int{400, 2000}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			b := NewBBRSender(1200)
+			bound := 2 * b.initialWindow // Startup's initial-window allowance only
+			var ordinal, delivered uint64
+			var windows []protocol.ByteCount
+			for round := 1; round <= tc.checkpoints[len(tc.checkpoints)-1]; round++ {
+				now := monotime.Time(2*time.Second) + monotime.Time(round)*monotime.Time(100*time.Millisecond)
+				packets := make([]PacketInfo, 10)
+				for i := range packets {
+					ordinal++
+					packets[i] = PacketInfo{Space: protocol.Encryption1RTT, Ordinal: ordinal, PacketNumber: protocol.PacketNumber(ordinal), Length: 1200, AckEliciting: true, InFlight: true, RegistrationValid: true, TimingExcluded: true, SendTime: now.Add(-50 * time.Millisecond), Delivery: DeliverySnapshot{Delivered: delivered, PostInFlight: 12000}}
+					b.Sent(SendEvent{Packet: packets[i], PostInFlight: 12000})
+				}
+				acked := packets[:10-tc.lost]
+				delivered += uint64(1200 * len(acked))
+				// No anchor ordinal, no valid sample and no RTT: timing-excluded feedback.
+				b.Feedback(FeedbackEvent{Time: now, HasAck: true, PriorInFlight: 12000, Acked: acked, Lost: packets[10-tc.lost:], Delivery: DeliverySample{Delivered: delivered}})
+				if slices.Contains(tc.checkpoints, round) {
+					windows = append(windows, b.GetCongestionWindow())
+				}
+			}
+			for i, w := range windows {
+				require.LessOrEqual(t, w, bound, "round %d; windows at rounds %v: %v", tc.checkpoints[i], tc.checkpoints, windows)
+			}
+		})
+	}
 }
