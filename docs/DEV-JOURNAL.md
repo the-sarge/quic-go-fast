@@ -10537,3 +10537,39 @@ Merged [PR #1337](https://github.com/the-sarge/quic-go-fast/pull/1337) as `9bae6
 **Next:**
 - There is no deferred follow-up from this work.
 - The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## BBR aggregation predicate regressions (#1338) - 2026-11-13 02:05 EST
+
+**Main:** `2eca22daa193`
+**Actor:** Claude
+
+Merged [PR #1341](https://github.com/the-sarge/quic-go-fast/pull/1341) as `2eca22daa193ce72f4d7e6a7bbc8688dc5916466`, closing [Pin BBR aggregation predicate for anchored invalid-sample and backdated ACKs (#1338)](https://github.com/the-sarge/quic-go-fast/issues/1338). This was a test-only `planit` follow-up of #1329 under program #646. It implements [plan r1](https://github.com/the-sarge/quic-go-fast/issues/1338#issuecomment-6845859468), which was [approved under delegated authority](https://github.com/the-sarge/quic-go-fast/issues/1338#issuecomment-6845872673). There is no production change.
+
+**Completed:**
+- **Regressions.** Two reducer tests in `internal/congestion/bbr_sender_test.go` pin `timed := clockValid && anchor != nil`:
+  - `TestBBRAnchoredInvalidSampleAccruesAggregation`: a clock-valid anchored ACK whose snapshot and sample are invalid still accrues aggregation (start 2s, maximum 1200). An unanchored control accrues nothing.
+  - `TestBBRBackdatedAnchoredAckSkipsAggregation`: an anchored ACK with a backdated or zero clock leaves the aggregation epoch, slots and `lastEvent` unchanged while delivery settles to 14400. Its setup uses only valid samples.
+- **Mutation table.** Each mutation replaced only `bbr_sender.go:203` through `go test -overlay`, and each failed exactly its target test:
+  - `&& anchor.Delivery.Valid` and `&& s.Valid` fail test 1's anchored subtest only;
+  - `timed := anchor != nil` fails both subtests of test 2 only, moving the epoch start to 1.6s or 0.
+
+**Decisions:**
+- RAS cluster C-001 showed that the reachability wording in the triage and plan ("the first ACK of every BBR connection") overstates the case. The dispatch normally sets the send origin before the first registration. Anchored invalid evidence comes from originless registrations while local bytes are pending, or from failed interval checks. The test comment was corrected; the approved plan stays an unedited record.
+
+**Validation:**
+- **Preparation pass.** The code-review Standards and Spec reports raised no fix-now items; five nits were rejected.
+- **Initial RAS review**, run `20261113T062817-dea0a7b6b008c3c4eb6d8e8b`: no Fix First items. C-001 was fixed as a comment-only change, and verification at `6e739a441` found it resolved (1/1).
+- **Replacement RAS review**, run `20261113T063931-d0e11f11805c25489feee33b`: clean.
+- **Post-rebase RAS review**, run `20261113T064356-f24af82998aaf863ba70b89b`, after #1330 ([PR #1337](https://github.com/the-sarge/quic-go-fast/pull/1337)) landed: clean. The full panel (claude-fable, claude-opus, codex-astra, codex-sol) completed every run.
+- **Re-gating.** Main advanced twice: PR #1337 with its journal PR #1342, then the docs-only [PR #1340](https://github.com/the-sarge/quic-go-fast/pull/1340). Each time the branch was rebased and the mutation table rerun.
+- **Exact-head certification** at `352e9c3d99fc19ae9f652ea1f2bbb7f6850f75ee` on base `2dd43f63d` passed:
+  - `./internal/congestion` and `./internal/ackhandler`;
+  - root `-run BBR`;
+  - `go vet`, `gofmt`, `go mod tidy -diff` and `git diff --check`;
+  - golangci-lint v2.14.0 for six GOOS values, on local Go 1.27.4.
+- **Hosted checks.** All 17 draft-phase checks succeeded on that head. Process deviation: the PR was merged right after `gh pr ready`, before the post-ready `independent-peer` job finished. That job, run 43382706193, then succeeded on the same head, so all 18 checks are green.
+
+**Next:**
+- No follow-ups. The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
