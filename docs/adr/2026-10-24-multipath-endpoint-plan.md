@@ -213,7 +213,7 @@ Separate native-poller traversal evidence from uninstrumented timing evidence. T
 
 ## Program budget and downstream gates
 
-E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](2026-10-24-multipath-reno-plan.md#program-qualification-ledger-and-sequencing) owns the single cumulative 180-run/eight-host-hour ceiling, candidate identity and preflight rules. No independent endpoint budget exists. Public endpoint enablement is R19 after native, interop and ordinary-cost gates; endpoint internals may be explored before those results.
+E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](2026-10-24-multipath-reno-plan.md#program-qualification-ledger-and-sequencing) owns the single cumulative 210-run/eight-host-hour ceiling, candidate identity and preflight rules. No independent endpoint budget exists. Public endpoint enablement is R19 after native, interop and ordinary-cost gates; endpoint internals may be explored before those results.
 
 ## Slice graph
 

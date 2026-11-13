@@ -1,6 +1,6 @@
 # BBR and aggregation implementation plan
 
-**Status:** accepted design and audited slices; 4/6 complete. [B1 #1040](#b1) partitioned BBR delivery sampling, pacing and local credit into private per-path contexts; [B2 #1041](#b2) gave those contexts their own ECN validation, migration fence and bounded recovery evidence. [B3 #1042](#b3) connected those contexts to private primary/backup operation through the complete path lifecycle; its [applicability record](../audits/2026-11-13-multipath-b3-applicability.md) carries the Reno and native evidence forward. [B4 #1043](#b4) added the private aggregate scheduling policy and its fixture-only byte-round-robin comparison arm. [B5 #1044](#b5) is ready. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** B, 3 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** pending.
+**Status:** accepted design and audited slices; 4/7 complete. [B1 #1040](#b1) partitioned BBR delivery sampling, pacing and local credit into private per-path contexts; [B2 #1041](#b2) gave those contexts their own ECN validation, migration fence and bounded recovery evidence. [B3 #1042](#b3) connected those contexts to private primary/backup operation through the complete path lifecycle; its [applicability record](../audits/2026-11-13-multipath-b3-applicability.md) carries the Reno and native evidence forward. [B4 #1043](#b4) added the private aggregate scheduling policy and its fixture-only byte-round-robin comparison arm. By [owner decision on 2026-11-13](https://github.com/the-sarge/quic-go-fast/issues/1044#issuecomment-6859584262), [B7](#b7) delivers the receiver's same-path feedback preference and is the frontier; [B5 #1044](#b5) waits on it. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** B, 3 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** pending.
 
 ## Binding contract and operating discipline
 
@@ -30,7 +30,7 @@ Verified source seams: `internal/ackhandler/congestion_dispatch.go` couples deli
 
 BBR integration follows the complete Reno-first ownership model and the existing BBR controller contracts; BBR multipath support is gated by this track's own evidence, not by Q2 #599. Each path owns its controller, sampler, pacing, loss and ECN state; shared application delivery remains connection-owned. A tuple migration resets the appropriate RTT/controller/PMTU context without resetting its wire PN sequence or cumulative ECN accounting. Preserve old-generation evidence and the accepted ECN accounting fence before revalidation. No aggregate-controller shim or silent Reno substitution is permitted.
 
-Only same-send/return-path ACK evidence trains a path's propagation-RTT and delivery-rate model initially. A cross-path ACK still retires packet flight/logical obligations and updates loss/recovery facts, but does not create a new bandwidth or min-RTT sample. Keep conservative PTO timing from the last valid path-local RTT or the standard initial RTT while that evidence is absent; request/prefer same-path feedback without requiring peer compliance. A controller can therefore remain supply/evidence limited on a peer using only cross-path ACKs. Cross-path-only feedback gets a deterministic correctness regression, not a throughput-support claim in the accepted campaign. Count delivered bytes once independently of sampling eligibility; invalidate rate intervals that bridge excluded cross-path feedback and require a fresh path-local anchor before the next valid rate sample. Never let an excluded ACK re-enter a later bandwidth sample through cumulative delivered counters.
+Only same-send/return-path ACK evidence trains a path's propagation-RTT and delivery-rate model initially. A cross-path ACK still retires packet flight/logical obligations and updates loss/recovery facts, but does not create a new bandwidth or min-RTT sample. Keep conservative PTO timing from the last valid path-local RTT or the standard initial RTT while that evidence is absent; request/prefer same-path feedback without requiring peer compliance. [B7](#b7) delivers the preference at this fork's receiver; draft-21 defines no frame that requests it of a peer. A controller can therefore remain supply/evidence limited on a peer using only cross-path ACKs. Cross-path-only feedback gets a deterministic correctness regression, not a throughput-support claim in the accepted campaign. Count delivered bytes once independently of sampling eligibility; invalidate rate intervals that bridge excluded cross-path feedback and require a fresh path-local anchor before the next valid rate sample. Never let an excluded ACK re-enter a later bandwidth sample through cumulative delivered counters.
 
 Use one fixed private `aggregate` policy after BBR integration, implemented internally for Reno or BBR alongside `primary-backup`, with public aggregate support gated specifically for BBR; do not publish a scheduler interface. Among validated active paths with credit, pacing, PMTU and authority, estimate arrival as next eligible send time plus queued eligible bytes divided by the path's conservative delivery-rate estimate plus half its current valid path-local RTT. With no valid rate sample, use paced byte-round-robin among eligible paths; ties use wire ID. Backup paths stay outside aggregation while an active eligible path exists. Selection precedes destructive packing; the same-path retransmission preference and per-message DATAGRAM eligibility remain enforced. The comparison policy is byte-round-robin, confined to the evidence fixture, not another maintained public option.
 
@@ -59,12 +59,13 @@ Material controller/ownership corruption and independent ACK/loss/migration/reti
 | Loss, abandon and local completion | Recovery settles each flight once; local timeouts remain backpressure | Loss then ACK, retained abandonment, local uncertainty |
 | Shared store saturation | Connection aggregate budget grants bounded per-path use | Two-path exhaustion without lost ownership evidence |
 | Aggregate scheduling | Scheduler chooses immutable eligible context before packing | Rate fallback, PMTU/credit/pacing and stable ties |
+| Receiver ACK carriage | Emission carries each due acknowledgment on its own path while that path is home; a non-home or refused target falls back to any carrier in the same opportunity | [B7](#b7) carriage matrix |
 
 The fixture-only byte-round-robin comparison is a maintained verification aid solely for the accepted aggregation comparison: payoff is discriminating scheduler benefit, domain is the three fixed topologies/six modes, owner is the transport integration suite, retirement is completion of this one qualification decision or feature removal. It is not a public option or a perpetual tuning program. No cross-path-only-feedback throughput claim is included.
 
 ## Program budget and prior-evidence validity
 
-B5 uses 54 of the shared 118 regular run instances. The [Reno program ledger](2026-10-24-multipath-reno-plan.md#program-qualification-ledger-and-sequencing) owns the cumulative 180-run/eight-host-hour ceiling and execution preflight. Inspect B1–B4 changes against prior native/ordinary evidence. Unchanged owners/domain may retain receipts with a source-based applicability record; changed behavior needs the affected existing cases rerun within the same ceiling. Do not automatically replay an entire matrix or inherit a stale result. If more scope/budget is necessary, stop for a decision.
+B5 uses 54 of the shared 118 regular run instances. The [Reno program ledger](2026-10-24-multipath-reno-plan.md#program-qualification-ledger-and-sequencing) owns the cumulative 210-run/eight-host-hour ceiling and execution preflight. Inspect B1–B4 and B7 changes against prior native/ordinary evidence. Unchanged owners/domain may retain receipts with a source-based applicability record; changed behavior needs the affected existing cases rerun within the same ceiling. Do not automatically replay an entire matrix or inherit a stale result. If more scope/budget is necessary, stop for a decision.
 
 ### Controller-matched aggregation arms
 
@@ -92,11 +93,11 @@ Balanced disjoint-path thresholds compare E with max(A,B) and C. Shared-bottlene
 | R1 and R14 | One ordinary control smoke per role in R1; one two-path STREAM smoke per role after complete close handling in R14 | 4 setup/smoke instances |
 | B5 affected revalidation | BBR primary/backup: useful-transfer, abandon/reopen and same-ID migration interop scenarios, each in both roles | 6 existing-cell instances |
 | B5 ordinary revalidation | BBR primary/backup background in mixed ordinary/multipath bulk and ordinary-under-stateless-pressure cells, two endpoint profiles × three observations | 12 existing-cell observations |
-| Remaining reserve | Cause-recorded failed attempts, affected existing native/ordinary cells or necessary repeats; never new semantic cells or pass-seeking retries | 40 instances maximum |
+| Remaining reserve | Cause-recorded failed attempts, affected existing native/ordinary cells or necessary repeats; never new semantic cells or pass-seeking retries | 70 instances maximum |
 
-The regular inventory remains 118; the planned four early smokes plus 18 BBR revalidation observations make 140 scheduled instances, leaving at most 40 inside the cumulative 180-run/eight-host-hour ceiling. A "run instance" is one candidate/arm observation; paired ordinary profiles consume two, and a control warmup within an observation is included in its duration, not hidden extra capacity. Charge host-hours as summed occupied host time, including setup and failed attempts. Preflight must pin candidate/comparison SHAs, dependency/container/kernel/toolchain identities, workload seeds, remaining run/host-hour budget and per-invocation timeout; do not start an invocation whose maximum reserved cost exceeds either remainder.
+The regular inventory remains 118; the planned four early smokes plus 18 BBR revalidation observations make 140 scheduled instances, leaving at most 70 inside the cumulative 210-run/eight-host-hour ceiling. The [Reno program ledger](2026-10-24-multipath-reno-plan.md#program-qualification-ledger-and-sequencing) records the owner's raise from 180; the live remainder recorded on #646 binds before this planned figure. A "run instance" is one candidate/arm observation; paired ordinary profiles consume two, and a control warmup within an observation is included in its duration, not hidden extra capacity. Charge host-hours as summed occupied host time, including setup and failed attempts. Preflight must pin candidate/comparison SHAs, dependency/container/kernel/toolchain identities, workload seeds, remaining run/host-hour budget and per-invocation timeout; do not start an invocation whose maximum reserved cost exceeds either remainder.
 
-The 18 listed repeats are required BBR-candidate evidence, not optional reuse of the Reno receipt. Revalidate any additionally affected existing native/ordinary cell within the 40-run reserve with its concrete source-change reason; unchanged owners/domain may retain an earlier receipt only through an explicit applicability record against the current candidate. If changed semantics require more or different evidence than the fixed inventory/remaining budget, stop for a scoped decision. BBR primary/backup support needs its own complete correctness and the applicable/revalidated native, interop and ordinary-cost evidence; aggregate support additionally needs arm E's comparative pass. Q2 evidence never automatically transfers. No execution is authorized by this ledger.
+The 18 listed repeats are required BBR-candidate evidence, not optional reuse of the Reno receipt. Revalidate any additionally affected existing native/ordinary cell within the 70-run reserve with its concrete source-change reason; unchanged owners/domain may retain an earlier receipt only through an explicit applicability record against the current candidate. If changed semantics require more or different evidence than the fixed inventory/remaining budget, stop for a scoped decision. BBR primary/backup support needs its own complete correctness and the applicable/revalidated native, interop and ordinary-cost evidence; aggregate support additionally needs arm E's comparative pass. Q2 evidence never automatically transfers. No execution is authorized by this ledger.
 
 ## Slice graph
 
@@ -106,8 +107,9 @@ The 18 listed repeats are required BBR-candidate evidence, not optional reuse of
 | [B2](#b2) | complete | Preserve BBR ECN, recovery and migration evidence | B1 |
 | [B3](#b3) | complete | Exercise BBR primary/backup through complete lifecycle | B2, [BBR window-policy fix #1329](https://github.com/the-sarge/quic-go-fast/issues/1329) |
 | [B4](#b4) | complete | Add the private aggregate scheduling policy | B3 |
-| [B5](#b5) | new | Measure aggregation benefit and shared-bottleneck cost | B4 |
+| [B5](#b5) | new | Measure aggregation benefit and shared-bottleneck cost | B4, B7 |
 | [B6](#b6) | new | Publish the supported BBR and aggregation outcome | B5 |
+| [B7](#b7) | new | Prefer same-path ACK carriage at the multipath receiver | B4 |
 
 ## Implementation slices
 
@@ -219,7 +221,7 @@ The 18 listed repeats are required BBR-candidate evidence, not optional reuse of
 
 **Delivers:** Run the accepted three topologies and six modes, report useful STREAM/DATAGRAM outcomes separately and test owner aggregation/coexistence thresholds. Revalidate changed ordinary/native surfaces without silently inheriting earlier evidence; all repeated cases consume the same remaining program budget. A complete valid positive or negative comparison completes this evidence slice. Negative benefit/coexistence results deny the affected aggregate support claim; they are distinct from incomplete or invalid evidence. Use the six named controller-matched arms, required 18 existing-cell BBR revalidation observations and candidate-specific applicability records in the single cumulative ledger.
 
-**Blocked by:** B4. **Existing work:** new slice; no unmerged implementation accepted.
+**Blocked by:** B4 and [B7](#b7). **Existing work:** new slice; no unmerged implementation accepted.
 
 **Single owner and authority completeness:** Transport integration suite owns matched workload/ledger and support recommendation; runtime policy is frozen. Cover constructors, validation and the destruction/cancellation consumers named by this behavior together; no persisted state is introduced.
 
@@ -229,7 +231,7 @@ The 18 listed repeats are required BBR-candidate evidence, not optional reuse of
 
 **Representation, artifacts and closure:** Example-level evidence over the fixed scenario/toolchain domain, parsed by the pinned peer/fixture's existing protocol implementation. This is the explicitly maintained verification deliverable described above; receipts are metadata. Runtime closure is not recursively imposed on the fixture. Missing/incorrect case accounting is a failed claim, not evidence of product failure.
 
-**TDD / evidence budget:** 54 regular instances: three topologies, six modes, three observations, 60 seconds after 10-second warmup; any justified affected-case repeat charged inside 180/eight hours; valid negative result completes the evidence delivery and denies aggregate support. Build focused driver/accounting regressions first; operational attempts charge the single program ledger. Stop after the fixed cases or first unresolved prerequisite/budget failure; no repeat-until-pass.
+**TDD / evidence budget:** 54 regular instances: three topologies, six modes, three observations, 60 seconds after 10-second warmup; any justified affected-case repeat charged inside 210/eight hours; valid negative result completes the evidence delivery and denies aggregate support. Build focused driver/accounting regressions first; operational attempts charge the single program ledger. Stop after the fixed cases or first unresolved prerequisite/budget failure; no repeat-until-pass.
 
 **Context imports:** Qualification and adoption policy; Program budget and prior-evidence validity; Reno program qualification ledger. Include the binding discipline and only the matching closure rows, plus this current slice and direct blocker interfaces; do not load every slice contract.
 
@@ -260,6 +262,141 @@ The 18 listed repeats are required BBR-candidate evidence, not optional reuse of
 **Slice decision audit:** A distinct enablement PR keeps failed evidence from granting support. B5 supplies final claim boundaries and affected-case evidence. Further splitting would separate one capability table from its documented contract. Rejected split/merge alternatives have no revisit trigger except the stated context/contract stop. Direct blockers supply the interfaces or evidence named here; transitive blockers need not be repeated and convenience ordering is excluded.
 
 **Stop:** Evidence cannot support the exact enabled combinations or owner thresholds need relaxation.
+
+<a id="b7"></a>
+
+### B7 — Prefer same-path ACK carriage at the multipath receiver
+
+**Delivers:** A multipath receiver carries each protocol path's acknowledgment (ACK for path zero, PATH_ACK for any other path) on that same path whenever that path can carry it. A peer's path-local controller then gets the same-path feedback that the [BBR and scheduling contract](#bbr-and-scheduling-contract) trains on. When the path can't carry its own acknowledgment, any other path may carry it, as today. The rule applies to every multipath connection, whatever its own controller or the peer's, because a receiver can't observe the sender's controller. It adds no public API, configuration or wire frame, and correctness never depends on peer compliance. Draft-21 §5.5 permits sending PATH_ACK on the path where the acknowledged packets arrived, and the draft has no frame for requesting it from a peer. A peer that returns only cross-path acknowledgments therefore stays the unsupported case above. B7 makes no throughput claim; [B5](#b5) measures the effect.
+
+**Blocked by:** B4 (complete). **Existing work:** new slice; no unmerged implementation accepted. The [#1345](https://github.com/the-sarge/quic-go-fast/issues/1345) fix (PR #1351, merged as `ba811bfcc`) is the source baseline for the turns and the packer.
+
+**Verified shape (at `ba811bfcc`):**
+
+- `composeNextPacket` (`packet_packer.go:832`) takes path zero's ACK and calls `appendPathAcks` (`:1411`), but it doesn't know the carrier. The route that fixes the carrier is already resolved at `shortHeaderIdentity` (`:595`).
+- `AppendPathAckFrames` (`internal/ackhandler/received_packet_handler.go:217`) takes the first queued target in map order, one PATH_ACK per packet. A packet's `ackTargets` holds path zero and one other (`ack_targets.go:8`); an overflow panics (`:49`).
+- Every packet therefore carries whatever acknowledgments are due on whichever route the opportunity uses. Selection picks a pending PTO's path, then the primary (`packet_emission_path.go:53`). Every newly live path starts as a local backup (`multipath_admission.go:542`), so a primary/backup receiver returns every PATH_ACK on its primary.
+- Each receive space keeps its own queued flag and `max_ack_delay` alarm (`internal/ackhandler/received_packet_tracker.go:108–159`). One connection wakeup merges the alarms (`received_packet_handler.go:104`).
+- The sender passes the carrier path (`connection.go:2552`). A BBR context excludes a cross-path ACK from timing (`internal/ackhandler/sent_packet_handler.go:589`); Reno contexts ignore the carrier.
+- ACK_FREQUENCY isn't negotiated (`connection.go:599`). The local acknowledgment threshold applies per receive space.
+- One packer counter across all carriers drives the periodic ack-eliciting PING (`packet_packer.go:149`, `:818`, `:1046`).
+- Signaling turns already run outside the selected opportunity: admission probes, then selection, then the announcement a cutover owes (`packet_emission_path.go:224`, `packet_emission_bbr.go:98`).
+
+**Carrier decision:** Packet emission owns which carrier takes each due acknowledgment. The decision runs on the connection goroutine under one rule:
+
+- *Home.* A target's own path is home when the registry's selection eligibility admits it: `primaryEligible` (`multipath_policy.go:43`) and not fencing (`multipath_migration.go:41`), or `zeroCarries` for path zero (`:46`). This is the same predicate selection uses to build views. One registry accessor reads it and also refreshes the route to its current tuple.
+  - A path is not home when it is validating, retiring or abandoned, fencing, suspect, on a failed endpoint, or lacks a destination CID. Draft §3.4.3 requires an abandoned path's acknowledgments to leave on another path.
+  - Local and peer backup status don't matter. An acknowledgment is due only because the peer is sending on that path, and peer status is advisory here (`multipath_policy.go:34`).
+- *Turn.* After the announcement turn and before the held opportunity, emission gives one due home target an ACK-only turn on its own route, unless that path is already the opportunity's route. The turn follows the announcement's shape:
+  - switch the local route and check native construction capacity;
+  - under BBR, take the route's local credit (the ACK exemption bypasses pacing, never local byte ownership, `packet_emission_bbr.go:153`);
+  - pack through `packAckOnlyPacket` (`packet_packer.go:525`), register and hand off;
+  - restore the selected route and steering.
+
+  It packs only acknowledgment frames and the packer's periodic PING, never stream, retransmission or DATAGRAM payload, so it stays inside the existing ACK exemption. A turn that sends ends the call, as a sent announcement does, and the next call selects again. B4's readiness/reservation agreement for the selected opportunity is therefore untouched.
+- *Release.* A home target's turn may be refused because the shared send queue is full, its route has no native construction capacity, BBR local credit refuses it, or its recovery reports `SendNone`. A refused target is released for the rest of that opportunity, and so is every non-home target. A released target may ride any carrier under today's rules. No acknowledgment waits longer than it does today, and no stale alarm spins the loop.
+- *Selection.* Every short-header packet's ACK selection receives its carrier (the route's path ID) and the opportunity's released set. The receive owner selects the carrier's own target first, and another target only when it is released, under the existing capacity rule: ACK(0) and at most one PATH_ACK, with the rest left queued. The receive owner stays the sole owner of acknowledgment construction and consumption.
+  - The due read that the turn uses and the consumption that `GetAckFrame` performs share one predicate, so a due target always packs.
+  - The packer passes the carrier and released set through and decides nothing.
+  - Without a path registry, every target is released, which is today's behavior. That covers ordinary connections, single-path BBR and private fixtures without admission.
+- *Periodic PING.* The periodic ack-eliciting rule counts per carrier. The count lives in the path's route state, created and discarded with the member, and path zero keeps the existing counter. Each path has its own packet-number space (draft §2.3), so each carrier's ACK-only packets still prompt the peer's acknowledgment, which prunes their targets. The path's own recovery also gets evidence that the direction carrying its acknowledgments works.
+
+**Timing and preservation:**
+
+- Each receive space keeps its queued flag, alarm, threshold and ACK Delay. A due acknowledgment leaves in the opportunity that its alarm or queue makes due, and a release falls back within that same opportunity. The `max_ack_delay` and threshold obligations are therefore unchanged.
+- ACK-only packets keep their per-route congestion and pacing exemption. They charge their route's native capacity and BBR credit, and their bytes count in that path's round-robin ledger, as every handoff's do.
+- A PTO probe still leaves on the probing path, which is then the opportunity's route.
+- A peer's Reno contexts ignore the carrier. A Reno path's RTT samples now come from that path's own return direction.
+- Under primary/backup sending, data stays on the primary, whose acknowledgment was already on the same path. Only the acknowledgments of probes on backup paths move.
+- Suppose a home path's return direction fails while the peer's packets still arrive on it. Its acknowledgments are then lost until its own recovery, fed by the per-carrier PING, marks it suspect under the existing policy. Meanwhile, the peer may treat its path as failing; that is the peer's own failure policy acting on true path evidence, which today's cross-path carriage masks.
+
+**Rejected alternatives (do not do this):**
+
+- **The receive owner alone decides.** It can't see whether a path can carry, and mirroring registry state into it adds a second, stale copy. **Revisit if:** none: rejected on merit.
+- **The packer orders targets by carrier and adds no turn.** A primary/backup receiver never sends on its backup, so nothing is delivered. **Revisit if:** none: rejected on merit.
+- **Make due acknowledgments a scheduler input** (the owner's design). The scheduler owns route choice for ordinary work under every policy. This option would remove the turn, but it would change B4's views and readiness agreement, which B5 freezes. The turn adds one signaling step in the existing announcement shape. **Revisit if:** a later scheduling redesign makes control frames scheduler inputs.
+- **Hold a home target's acknowledgment across a refused turn.** It either spins on a stale alarm or adds ACK delay. **Revisit if:** none: rejected on merit.
+- **Honor local or peer backup status for carriage.** Status is advisory here, and draft §5.5 permits arrival-path acknowledgments. **Revisit if:** the published RFC forbids ACK-only packets on a backup path.
+- **Prefer same-path carriage only when the peer runs BBR.** The receiver can't observe the peer's controller. **Revisit if:** none: rejected on merit.
+- **Send each acknowledgment both on its own path and across paths.** Mixed carriers still invalidate BBR rate intervals, and the duplicates add overhead. **Revisit if:** none: rejected on merit.
+- **Request same-path feedback from the peer on the wire.** Draft-21 has no frame for it, and ACK_FREQUENCY neither applies nor is supported. **Revisit if:** a negotiated extension defines such a request.
+
+**Single owner and authority completeness:**
+
+- Emission owns the carrier decision and the per-opportunity released set.
+- The registry owns home eligibility, through the one predicate it shares with selection.
+- The receive owner owns acknowledgment construction, consumption and the carrier capacity rule.
+- The packer owns only the per-carrier periodic PING.
+
+No persisted state is introduced. The per-carrier count is constructed with the route and discarded with the member; a fresh member starts at zero, and retirement or close discards it with the route. Cover those constructors and consumers in this slice.
+
+**Temporary seams:** none. The released set lives for one opportunity and is never stored.
+
+**Blast radius and context:**
+
+- The carrier-aware selection in `internal/ackhandler/received_packet_handler.go`.
+- In `packet_packer.go`, the carrier and released-set threading through `composeNextPacket`, `appendPathAcks` and their 1-RTT callers, and the per-carrier PING count.
+- The ACK turn in `packet_emission_path.go`, and its places in the Reno loop (`packet_emission.go`) and `boundedPathTurns` (`packet_emission_bbr.go`).
+- The home accessor beside selection eligibility in `multipath_admission.go` and `multipath_policy.go`.
+- Their tests: `internal/ackhandler/received_path_test.go`, `packet_packer_path_ack_test.go`, `multipath_bbr_test.go`, `multipath_reliable_test.go` and `multipath_policy_test.go`, plus one two-connection self test.
+- The applicability record.
+
+Receive only this slice, binding discipline, its referenced owner/closure sections, direct blocker interface receipts and the bounded governing diff; omit complete historical plans. Target at most 24k input tokens, leaving the fresh context room for implementation, review fixes and verification. If the named source cannot fit after focused symbol reads, re-slice before editing. The touched owners and their tests bound shared state, concurrency, API, failure, performance/security and dependency effects; any newly discovered effect outside them stops the slice. Everything runs on the connection goroutine. The only crossing is the existing native-completion wakeup after a refused turn.
+
+**Representation, artifacts and closure:** The domain is negotiated draft-21 multipath connections on the binding profile. Carriers are live member routes. Targets are path zero and the admitted nonzero receive spaces (at most `maxRecoveryPaths`, retained spaces included). The guarantee is universal within that domain, with finite representative tests; it is not a throughput guarantee. Runtime is shipped behavior, the release rule is required safety enforcement, named tests are maintained regression aids, and the applicability record is process metadata. Closure is triggered: a withheld acknowledgment stalls the peer's recovery, and home, refusal and lifecycle states reach the rule independently. The invariant is that every due acknowledgment leaves in the opportunity it becomes due: on its own path while that path is home and its turn succeeds, otherwise on any carrier. Emission's turn and release rule enforce it.
+
+| Semantic class | Expected disposition | Enforcement owner | Evidence |
+| --- | --- | --- | --- |
+| Home target on the opportunity's route | Selected packet carries it under today's piggyback rules | Receive owner selection | Own-target piggyback test |
+| Home target on another path | ACK-only turn on its route; the selected packet excludes it, including ACK(0) on a nonzero carrier | Emission turn | Backup-path turn test; path-zero-on-nonzero-carrier test |
+| Turn refused: queue, native capacity, BBR credit or `SendNone` | Released; the selected carrier takes it in the same opportunity | Emission release | One test per refusal owner |
+| Not home: validating, retiring/abandoned, fencing, suspect, failed endpoint, no destination CID | Released | Registry home predicate | One table test, one case per state |
+| No registry | Every target released; unchanged | Packer default | Existing bundling test, unchanged |
+| Carrier capacity | Own target first; a released PATH_ACK only when the own one is absent; the rest stays queued | Receive owner | Capacity test |
+| Periodic PING | Every carrier's ACK-only stream elicits acknowledgment | Packer | Per-carrier PING test |
+
+**TDD / evidence budget:** At most 16 deterministic scenario tests under the binding rule. Write these first:
+
+1. A primary/backup receiver sends a due backup-path PATH_ACK as an ACK-only packet on the backup route, and the primary's packet doesn't carry it.
+2. Path zero's ACK rides a nonzero carrier only when released.
+3. The carrier's own target still piggybacks on data.
+4. Each non-home state releases its target.
+5. Each refusal owner releases its target into the same opportunity, with no stale alarm.
+6. The turn packs acknowledgments only, debits no pacing and charges the route's credit.
+7. The periodic PING counts per carrier.
+8. After a same-ID migration, the turn uses the current tuple.
+9. An alarm-due acknowledgment leaves in its opportunity, carrying its own space's ACK Delay.
+10. Two fork connections, with a BBR aggregate sender and a primary/backup receiver: each path's acknowledgments arrive on that path, and both sender paths get valid rate samples.
+11. Reno two-path primary/backup transfer and failover, and ordinary connections, are unchanged.
+
+One focused race run covers the native-completion wakeup. The required independent multipath peer job on the exact PR head re-establishes the R17 interop matrix.
+
+The slice writes a source-based applicability record, as [B3](#b3)'s does. It carries forward or names, for requalification:
+
+- the R17 and R18 evidence;
+- the E6 and R21 native evidence;
+- B5's planned BBR revalidation.
+
+An affected existing cell charges the existing reserve during B5, with its cause recorded. B7 adds no cell, campaign or budget.
+
+**Context imports:** BBR and scheduling contract (feedback); Contract closure: BBR feedback (receiver ACK carriage row); Program budget and prior-evidence validity; [Reno R6](2026-10-24-multipath-reno-plan.md#r6) carrier/target interface; B4's readiness and reservation agreement, for turn ordering. Include the binding discipline and only the matching closure rows, plus this current slice and direct blocker interfaces; do not load every slice contract.
+
+**Slice decision audit:**
+
+- *Split.* The strongest split is an inert prefactor that passes the carrier through with every target released, followed by the turn and home rule. It is rejected: the prefactor delivers nothing alone, and withholding a home target is safe only in the same PR as the turn that serves it. Authority completeness requires they ship together, and both fit one context.
+- *Merge.* Merging into B5 is rejected: B5 freezes runtime policy and measures it.
+- *Edges.* B4 is a genuine blocker. The turn's place beside selection and the end-to-end scenario's aggregate sender both come from B4. B5 genuinely depends on B7, because without it arm E measures the cross-path feedback this contract excludes from support claims. B6 is transitive and needs no edge.
+
+Rejected split/merge alternatives have no revisit trigger except the stated context/contract stop.
+
+**Stop:**
+
+- The turn needs a scheduler, view or readiness change, a new wakeup or timer, new concurrency, or reselection inside the opportunity.
+- The due read and the consumption can't share one predicate.
+- The carrier capacity must grow beyond two targets.
+- Any public API, configuration or wire change is needed.
+- The applicability record needs a new cell, or more than the existing reserve.
+- A second behaviorally distinct counterexample appears at the release rule.
 
 ## Acceptance and validation
 
