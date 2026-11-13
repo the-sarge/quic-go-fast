@@ -10248,3 +10248,26 @@ Delivered [R19 — Enable the qualified experimental Reno profile (#1039)](https
 - All 18 hosted checks succeeded on `521f31c32d7250fc92f241db3e05ebb29ecad124`, including the post-ready [independent peer run](https://github.com/the-sarge/quic-go-fast/actions/runs/43346898796) with all 16 matrix cases.
 
 Reno implementation completes at 21/21 and the program reaches 41/47. No successor became ready: B1 #1040 still requires Q2 #599. One deferred usage note, on how a granted transport routes ordinary traffic and the participant cap, awaits merged-head revalidation. The live frontier is maintained in [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## Multipath grant usage note delivered - 2026-11-12 21:23 EST
+
+**Main:** `ae1aecdb3e65`
+**Actor:** Claude
+
+Delivered [Multipath usage: document transport-wide native routing and the participant cap (#1319)](https://github.com/the-sarge/quic-go-fast/issues/1319) in [PR #1320](https://github.com/the-sarge/quic-go-fast/pull/1320), merged as `ae1aecdb3e6581b68d85323ce5097724f9fd793f`. This was the deferred R19 usage note. The [usage boundary](usage.md#packet-io-and-socket-ownership) now says what a `ConfigureMultipathIOV1` grant does to the rest of its transport. It is a documentation change only, with no runtime, cap or test change.
+
+- Every connection dialed or accepted on a granted transport, ordinary ones included, and `Transport.WriteTo` send through the native endpoint.
+- For connections, local deadline expiry is backpressure, not a send failure. `WriteTo` returns `ErrMultipathBackpressureV1`, plus `ErrMultipathDeadlineV1` on expiry, and neither proves non-submission.
+- Each endpoint has one 4,096-participant budget. A connection holds one participant on its own transport, plus one on each other granted transport it uses through `OpenPathV1`, `MigrateV1` or `AddPath`.
+- When the budget is full, a dial fails with `ErrMultipathResourceLimitV1` and the server refuses with CONNECTION_REFUSED or drops the packet. Path operations hit the limit only when they need a new participant. Release on close is not promised to be immediate.
+- The owner approved the `WriteTo` clause as an addition to the issue's three points.
+
+**Validation:**
+- Each claim was traced to code at `bd5393c9b018d800171f0ffbbd11dfd70e88e2d2`.
+- The code-review preparation pass fixed six wording and scope findings and rejected two nits.
+- RAS review `20261113T020701-e7292c631bbbb9c5b361a0be` found no runtime defect. It found that the path-operation exhaustion claim needed a new-participant qualifier and that the `WriteTo` wording implied non-submission; both were fixed. Verification at `45b6eeedf6d8ff32ccae7afbc4c43cc6baf234b2` resolved all three clusters, and the replacement review was skipped under the docs-only policy.
+- Local certification found a clean tree, a clean `git diff --check`, and a +2/−0 diff. All 17 hosted checks succeeded on `45b6eeedf6d8ff32ccae7afbc4c43cc6baf234b2` before the squash merge.
+
+No follow-up was filed. The live frontier is maintained in [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
