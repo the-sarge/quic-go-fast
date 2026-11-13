@@ -38,7 +38,7 @@ func (h *sentPacketHandler) AddPathWithRTT(id protocol.PathID, size protocol.Byt
 // logical delivery owner and the root's aggregate store ceilings stay shared.
 // The context validates no ECN, so it sends without ECN marks.
 func (h *sentPacketHandler) AddBBRPath(id protocol.PathID, size, ceiling protocol.ByteCount, rtt *utils.RTTStats, pending func() protocol.ByteCount) (*congestion.BBRSender, error) {
-	if _, ok := h.congestion.(*congestion.BBRSender); !ok || size > ceiling {
+	if _, ok := h.congestion.(*congestion.BBRSender); !ok || size < protocol.MinInitialPacketSize || size > ceiling {
 		return nil, fmt.Errorf("ackhandler: BBR path unavailable: %d", id)
 	}
 	b := congestion.NewBBRSenderWithPacketCeiling(size, ceiling)

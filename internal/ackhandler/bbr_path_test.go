@@ -166,6 +166,22 @@ func TestBBRPathFreshAnchorAfterCrossPathInterval(t *testing.T) {
 	// through the cumulative counter.
 	require.Equal(t, uint64(1200*time.Second)/uint64(e.Delivery.Interval), e.Delivery.BytesPerSecond)
 	require.LessOrEqual(t, e.Delivery.BytesPerSecond, uint64(1200*time.Second/(100*time.Millisecond)))
+
+	// A delivery registered before the fence keeps its send-spacing bound on
+	// either route: the fresh anchor cannot count it over a shortened interval.
+	h, _, path = newRichPathFixture(t)
+	a = sendRichPathPacket(h, 17, now)
+	b = sendRichPathPacket(h, 17, now.Add(10*time.Millisecond))
+	pathAck(t, h, 17, 0, now.Add(50*time.Millisecond), a)
+	c = sendRichPathPacket(h, 17, now.Add(150*time.Millisecond))
+	pathAck(t, h, 17, 17, now.Add(160*time.Millisecond), b)
+	pathAck(t, h, 17, 17, now.Add(200*time.Millisecond), c)
+	e = lastFeedback(t, path)
+	require.Equal(t, uint64(3600), e.Delivery.Delivered)
+	require.False(t, e.Delivery.Valid, "the stale delivery's bound invalidates the bridging snapshot")
+	d = sendRichPathPacket(h, 17, now.Add(300*time.Millisecond))
+	pathAck(t, h, 17, 17, now.Add(400*time.Millisecond), d)
+	require.True(t, lastFeedback(t, path).Delivery.Valid, "eligible sampling resumes")
 }
 
 func TestBBRPathOldGenerationFeedback(t *testing.T) {
@@ -194,7 +210,7 @@ func TestBBRPathOldGenerationFeedback(t *testing.T) {
 }
 
 func TestBBRPathAggregateDeliveryStore(t *testing.T) {
-	h, _, path := newRichPathFixture(t)
+	h, root, path := newRichPathFixture(t)
 	ctx := h.RecoveryOnPath(17).(*sentPacketHandler)
 	now := monotime.Time(2 * time.Second)
 	var tracker packetTracker
@@ -218,15 +234,23 @@ func TestBBRPathAggregateDeliveryStore(t *testing.T) {
 	require.Zero(t, ctx.bytesInFlight)
 	require.Equal(t, uint64(10*1200), lastFeedback(t, path).Delivery.Delivered, "only recorded evidence enters the sampler")
 
-	// Feedback scratch is bounded by the same aggregate: two contexts that
-	// saturate in turn cannot each keep a full-ceiling buffer.
-	pathAck(t, h, 0, 0, now.Add(200*time.Millisecond), zero...)
+	// Backing storage is bounded by the same allowance: two contexts that
+	// saturate in turn cannot each keep a full-ceiling allocation, and the
+	// peer's remaining records survive the reclamation.
+	held := zero[len(zero)-100:]
+	pathAck(t, h, 0, 0, now.Add(200*time.Millisecond), zero[:len(zero)-100]...)
 	pns = pns[:0]
-	for range maxDeliveryLive - 10 {
+	for range maxDeliveryLive - 200 {
 		pns = append(pns, sendRichPathPacket(h, 17, now.Add(300*time.Millisecond)))
 	}
+	require.Equal(t, uint64(10), ctx.DeliveryStats().Missing, "no new evidence is forgone")
 	pathAck(t, h, 17, 17, now.Add(400*time.Millisecond), pns...)
+	require.LessOrEqual(t, cap(h.congestionEvents.packets.recs)+cap(ctx.congestionEvents.packets.recs), deliveryRecordAllowance)
+	require.LessOrEqual(t, len(h.congestionEvents.packets.slots)+len(ctx.congestionEvents.packets.slots), 2*32768)
 	require.LessOrEqual(t, cap(h.congestionEvents.scratch)+cap(ctx.congestionEvents.scratch), maxDeliveryLive+maxDeliveryRetained)
+	delivered := lastFeedback(t, root).Delivery.Delivered
+	pathAck(t, h, 0, 0, now.Add(500*time.Millisecond), held...)
+	require.Equal(t, delivered+100*1200, lastFeedback(t, root).Delivery.Delivered, "the peer's records still settle")
 
 	// Retained loss evidence shares one ceiling too. A context never evicts
 	// another's records; with none of its own, it forgoes retention.
@@ -248,6 +272,17 @@ func TestBBRPathAggregateDeliveryStore(t *testing.T) {
 	require.Equal(t, uint64(lost), ctx2.DeliveryStats().Evicted)
 	require.Equal(t, maxDeliveryRetained, h2.DeliveryStats().Retained, "the root keeps its own evidence")
 	require.Equal(t, protocol.ByteCount(4-lost)*1200, ctx2.bytesInFlight, "forgone evidence still settles each loss")
+	// Once the root's evidence expires, the path can retain up to the ceiling
+	// without the root keeping its drained allocation.
+	h2.ExpireDelivery(now.Add(time.Hour))
+	require.Zero(t, h2.DeliveryStats().Retained)
+	for range maxDeliveryRetained / 2 {
+		last = sendRichPathPacket(h2, 17, now.Add(time.Hour))
+	}
+	pathAck(t, h2, 17, 17, now.Add(time.Hour+100*time.Millisecond), last)
+	require.Greater(t, ctx2.DeliveryStats().Retained, maxDeliveryRetained/4)
+	require.LessOrEqual(t, cap(h2.congestionEvents.sampler.order)+cap(ctx2.congestionEvents.sampler.order), deliveryRetainedAllowance)
+	require.LessOrEqual(t, cap(h2.congestionEvents.sampler.expiry)+cap(ctx2.congestionEvents.sampler.expiry), deliveryRetainedAllowance)
 }
 
 func TestBBRPathPendingLocalBelowAckWatermark(t *testing.T) {
@@ -314,6 +349,12 @@ func TestBBRPathAdmission(t *testing.T) {
 	require.Error(t, h.AddPath(17, 1200), "no silent Reno substitution beside BBR")
 	_, err = h.AddBBRPath(17, 1200, protocol.MaxPacketBufferSize, utils.NewRTTStats(), nil)
 	require.Error(t, err, "a path needs its own pending-local authority")
+	for _, size := range []protocol.ByteCount{-1, 0, protocol.MinInitialPacketSize - 1} {
+		require.NotPanics(t, func() {
+			_, err = h.AddBBRPath(17, size, protocol.MaxPacketBufferSize, utils.NewRTTStats(), func() protocol.ByteCount { return 0 })
+		})
+		require.Error(t, err)
+	}
 	_, err = h.AddBBRPath(17, 1500, 1400, utils.NewRTTStats(), func() protocol.ByteCount { return 0 })
 	require.Error(t, err)
 	b, err := h.AddBBRPath(17, 1200, protocol.MaxPacketBufferSize, utils.NewRTTStats(), func() protocol.ByteCount { return 0 })

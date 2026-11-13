@@ -2,8 +2,10 @@ package ackhandler
 
 import (
 	"container/heap"
+	"maps"
 	"math"
 	"math/bits"
+	"slices"
 	"time"
 	"unsafe"
 
@@ -130,13 +132,14 @@ func (d *congestionDispatch) retire(key congestionPacketKey, now monotime.Time, 
 	}
 	if s.retained == nil {
 		s.retained = make(map[congestionPacketKey]*retainedDelivery)
-		// Contexts sharing the ceiling grow on demand rather than each
+		// Contexts sharing the allowance grow on demand rather than each
 		// reserving all of it.
 		if d.root == nil {
 			s.order = make(retainedDeliveryHeap, 0, maxDeliveryRetained)
 			s.expiry = make(retainedExpiryHeap, 0, maxDeliveryRetained)
 		}
 	}
+	d.reserveRetained()
 	// Clamp before multiplication, including unusual restored PTO estimates.
 	ttl := 3 * min(max(pto, 0), 10*time.Second)
 	p.Retirement = congestion.DeliveryLost
@@ -179,6 +182,85 @@ func (d *congestionDispatch) expire(now monotime.Time) {
 	}
 	d.sampler.nextExpiry = next
 	endServiceWork(prior)
+}
+
+// A rich root and its paths share one context's delivery allowance: the
+// occupancy ceilings above, and backing storage within a quarter of them for
+// allocation slack. Before a context grows a store past the allowance, its
+// peers give back the capacity they hold beyond their records.
+const (
+	deliveryRecordAllowance   = maxDeliveryLive + maxDeliveryLive/4
+	deliveryRetainedAllowance = maxDeliveryRetained + maxDeliveryRetained/4
+)
+
+// eachPeer visits the other contexts sharing d's allowance.
+func (d *congestionDispatch) eachPeer(fn func(*congestionDispatch)) {
+	if p := d.root.congestionEvents; p != nil && p != d {
+		fn(p)
+	}
+	for _, path := range d.root.paths {
+		if p := path.congestionEvents; p != nil && p != d {
+			fn(p)
+		}
+	}
+}
+
+// reserveRecord makes room for one new live record. Live occupancy is already
+// below the shared ceiling, so a compacted peer set always leaves room.
+func (d *congestionDispatch) reserveRecord() {
+	if d.root == nil || !d.packets.slabFull() {
+		return
+	}
+	size := max(minDeliverySlots, 2*cap(d.packets.recs))
+	peers := 0
+	d.eachPeer(func(p *congestionDispatch) { peers += cap(p.packets.recs) })
+	if size+peers > deliveryRecordAllowance {
+		peers = 0
+		d.eachPeer(func(p *congestionDispatch) {
+			p.packets.compact()
+			peers += cap(p.packets.recs)
+		})
+	}
+	d.packets.growSlab(min(size, deliveryRecordAllowance-peers))
+}
+
+// reserveRetained makes room for one new retained record, as reserveRecord does.
+func (d *congestionDispatch) reserveRetained() {
+	s := &d.sampler
+	if d.root == nil || len(s.order) < cap(s.order) {
+		return
+	}
+	size := max(minDeliverySlots, 2*cap(s.order))
+	peers := 0
+	d.eachPeer(func(p *congestionDispatch) { peers += cap(p.sampler.order) })
+	if size+peers > deliveryRetainedAllowance {
+		peers = 0
+		d.eachPeer(func(p *congestionDispatch) {
+			p.sampler.compactRetained()
+			peers += cap(p.sampler.order)
+		})
+	}
+	size = min(size, deliveryRetainedAllowance-peers)
+	order, expiry := make(retainedDeliveryHeap, len(s.order), size), make(retainedExpiryHeap, len(s.expiry), size)
+	copy(order, s.order)
+	copy(expiry, s.expiry)
+	s.order, s.expiry = order, expiry
+}
+
+// compactRetained gives back retained capacity beyond the records. Records keep
+// their heap positions; only the backing storage is replaced.
+func (s *deliverySampler) compactRetained() {
+	if len(s.retained) == 0 {
+		s.retained, s.order, s.expiry = nil, nil, nil
+		return
+	}
+	if cap(s.order) == len(s.order) {
+		return
+	}
+	s.order, s.expiry = slices.Clone(s.order), slices.Clone(s.expiry)
+	retained := make(map[congestionPacketKey]*retainedDelivery, len(s.retained))
+	maps.Copy(retained, s.retained)
+	s.retained = retained
 }
 
 // deliveryUse is the live and retained record count under this context's

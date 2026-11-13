@@ -131,6 +131,7 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 			d.sampler.markLimited(congestion.SendProbeRTTLimited)
 		}
 		d.sampler.sent(&info, prior, h.bytesInFlight)
+		d.reserveRecord()
 		d.packets.set(congestionKey(p.EncryptionLevel, pn), info)
 	} else {
 		d.sampler.missing++ // Optional evidence never evicts mandatory recovery.
@@ -208,7 +209,8 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 		// sampling waits for a fresh path-local anchor.
 		d.sampler.fenceTiming()
 		d.event.RawRTT = 0
-	} else if d.localRoute {
+	} else if d.localRoute || d.root != nil {
+		// Either route can fence timing on a rich context.
 		origin := d.sampler.sendOrigin
 		fence := false
 		for _, p := range d.event.Acked {
