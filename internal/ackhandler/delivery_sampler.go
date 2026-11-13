@@ -206,7 +206,7 @@ func (d *congestionDispatch) eachPeer(fn func(*congestionDispatch)) {
 
 // deliveryHeadroom is the growth room a store keeps beyond n records, so a
 // context that resumes growing after peer reclamation does not reallocate on
-// every registration or feedback event.
+// every registration.
 func deliveryHeadroom(n int) int { return n/4 + minDeliverySlots }
 
 // reserveRecord makes room for one new live record. It grows into unused
@@ -303,30 +303,28 @@ func (s *deliverySampler) compactRetained(spare int) {
 	s.retained = retained
 }
 
-// scratchSize is the feedback buffer a context needs for this many records,
-// within the shared scratch allowance. It grows into unused allowance first. A
-// peer's buffer is idle outside its own synchronous feedback event, so only when
-// that room is short do peers give back buffers beyond their records and
-// headroom, and only if that is still short, all of them.
-func (d *congestionDispatch) scratchSize(needed int) int {
+// scratchOwner holds the feedback buffer d's events use. A rich root and its
+// paths share the root's, within the one scratch allowance. Sharing relies on
+// feedback events being synchronous: no context's event begins while another
+// context of the same root is inside one.
+func (d *congestionDispatch) scratchOwner() *congestionDispatch {
+	if d.root != nil && d.root.congestionEvents != nil {
+		return d.root.congestionEvents
+	}
+	return d
+}
+
+// growScratch replaces the shared feedback buffer with one that holds this many
+// records, doubling up to the scratch allowance. Between events a sharing
+// context's feedback slices may still alias the old buffer, so they are dropped
+// here: a superseded buffer never stays referenced beside its replacement.
+func (d *congestionDispatch) growScratch(needed int) {
 	const allowance = maxDeliveryLive + maxDeliveryRetained
-	if d.root == nil {
-		return min(allowance, max(needed, 2*cap(d.scratch)))
+	o := d.scratchOwner()
+	o.scratch = make([]congestion.PacketInfo, min(allowance, max(needed, 2*cap(o.scratch))))
+	if d.root != nil {
+		d.eachPeer(func(p *congestionDispatch) { p.event.Acked, p.event.Lost = nil, nil })
 	}
-	size := min(allowance, needed+deliveryHeadroom(needed))
-	for _, headroom := range [...]bool{true, false} {
-		peers := 0
-		d.eachPeer(func(p *congestionDispatch) { peers += cap(p.scratch) })
-		if allowance-peers >= needed {
-			return min(size, allowance-peers)
-		}
-		d.eachPeer(func(p *congestionDispatch) {
-			if !headroom || cap(p.scratch) > p.scratchNeed()+deliveryHeadroom(p.scratchNeed()) {
-				p.scratch, p.event.Acked, p.event.Lost = nil, nil, nil
-			}
-		})
-	}
-	return size
 }
 
 func (d *congestionDispatch) scratchNeed() int { return d.packets.len() + len(d.sampler.retained) }
@@ -410,6 +408,8 @@ func (h *sentPacketHandler) DeliveryStats() congestion.DeliveryStats {
 		return congestion.DeliveryStats{}
 	}
 	s := &d.sampler
+	// A rich root counts the feedback buffer it shares with its paths once;
+	// its paths hold none of their own.
 	return congestion.DeliveryStats{
 		OutcomeEntries: d.recovery.count, OutcomeEvicted: d.recovery.evicted,
 		Live: d.packets.len(), Retained: len(s.retained), Outstanding: s.outstanding,

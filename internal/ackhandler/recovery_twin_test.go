@@ -201,9 +201,10 @@ func (w *recoveryTwin) lose(level protocol.EncryptionLevel, tp *twinPacket) {
 	_, retained := d.packets.get(key)
 	d.recovery.lost(key, congestionLoss, retained, d.ordinal)
 	if info, ok := d.packets.get(key); ok && congestionLoss {
-		start := len(d.scratch) - len(d.event.Lost) - 1
-		d.scratch[start] = info
-		d.event.Lost = d.scratch[start:]
+		scratch := d.scratchOwner().scratch
+		start := len(scratch) - len(d.event.Lost) - 1
+		scratch[start] = info
+		d.event.Lost = scratch[start:]
 	}
 	d.retire(key, d.event.Time, w.pto, deliveryRetiredLoss)
 	ref := tp.p
