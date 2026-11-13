@@ -88,7 +88,7 @@ func TestSelectAggregatePacingCreditAndPMTU(t *testing.T) {
 		other := sampled(1)
 		other.ready = false
 		require.Equal(t, protocol.PathID(1), aggregateChoice(t, []pathView{limited, other}, 1, now, true), "with none ready, the primary waits for its ACK")
-		require.Equal(t, protocol.PathID(0), aggregateChoice(t, []pathView{limited, other}, noPrimary, now, true), "or the lowest wire ID without one")
+		require.Equal(t, protocol.PathID(0), aggregateChoice(t, []pathView{limited, other}, 7, now, true), "or the lowest wire ID while the primary is out of view")
 	})
 	t.Run("PMTU", func(t *testing.T) {
 		small, large := sampled(0), sampled(1)
@@ -155,4 +155,17 @@ func TestSelectAggregateComparisonIgnoresRates(t *testing.T) {
 	fast.rate, fast.scheduled = 100_000_000, 2400
 	require.Equal(t, protocol.PathID(0), aggregateChoice(t, []pathView{fast, slow}, 0, now, true))
 	require.Equal(t, protocol.PathID(1), aggregateChoice(t, []pathView{fast, slow}, 0, now, false))
+}
+
+// With no primary, a stale path awaiting revalidation carries nothing ordinary,
+// under either private policy, while its pending PTO still goes.
+func TestSelectAggregateHoldsWithoutPrimary(t *testing.T) {
+	now := monotime.Now()
+	for _, estimate := range []bool{true, false} {
+		_, _, _, held, _ := selectAggregate([]pathView{sampled(0), sampled(1)}, noPrimary, now, estimate)
+		require.True(t, held)
+		chosen, _, _, held, _ := selectAggregate([]pathView{sampled(0), {id: 1, probing: true}}, noPrimary, now, estimate)
+		require.False(t, held, "a stale path's pending PTO still goes")
+		require.Equal(t, protocol.PathID(1), chosen)
+	}
 }

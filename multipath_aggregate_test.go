@@ -188,3 +188,36 @@ func TestAggregateComparisonArmIgnoresSamples(t *testing.T) {
 		require.EqualValues(t, 10000, p.members[0].scheduled)
 	})
 }
+
+// A path's view projects its pacing to the controller's current rate, as the
+// opportunity's refresh will, so feedback since the path last sent moves its
+// next send time and credit limit in the view too. Reading it consumes nothing.
+func TestAggregateViewProjectsEnforcedPacing(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newBBRPathFixture(t, protocol.PerspectiveServer)
+		f.aggregate(t, scheduleAggregate)
+		f.write(t, 12000)
+		f.drain(t)
+		one := f.parseWrites(t, 1)
+		time.Sleep(20 * time.Millisecond)
+		f.ackPath(t, 1, 1, one)
+
+		p := f.bbrPath(1)
+		now := monotime.Now()
+		p.tokens, p.updated = 0, now // path 1's credit is spent
+		cached := p.rate
+		require.NotEqual(t, cached, p.controller.PacingRate()/100*99+p.controller.PacingRate()%100*99/100, "feedback moved the rate since path 1 last sent")
+		view := f.c.pathCredit.viewOf(f.c.pathCredit.members[1], now)
+		require.Equal(t, cached, p.rate, "the view changes nothing")
+		require.Zero(t, p.tokens)
+
+		size := f.c.pathCredit.members[1].route.mtu.CurrentSize()
+		p.update(p.controller.PacingRate(), size, now) // what the opportunity enforces
+		enforced := now
+		if deadline := p.deadline(size, now); deadline != 0 {
+			enforced = deadline
+		}
+		require.Equal(t, enforced, view.sendAt)
+		require.Equal(t, p.credit.admits(size, p.creditLimit()), view.ready)
+	})
+}

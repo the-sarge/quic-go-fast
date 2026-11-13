@@ -134,6 +134,17 @@ func (p *bbrSendPolicy) update(rate uint64, size protocol.ByteCount, now monotim
 	p.tokens = min(p.tokens, int64(p.quantum)*1e9)
 }
 
+// projected is this policy as an opportunity's refresh would leave it at now, for
+// its controller's current pacing rate, without changing the policy. A path's view
+// reads it, so selection sees the pacing and credit limit emission will enforce.
+func (p *bbrSendPolicy) projected(size protocol.ByteCount, now monotime.Time) bbrSendPolicy {
+	q := *p
+	if q.controller != nil {
+		q.update(q.controller.PacingRate(), size, now)
+	}
+	return q
+}
+
 // creditLimit bounds this path's local credit: two pacing quanta, for every
 // reservation and for selection's readiness alike.
 func (p *bbrSendPolicy) creditLimit() protocol.ByteCount { return 2 * p.quantum }

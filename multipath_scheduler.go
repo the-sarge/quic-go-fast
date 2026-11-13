@@ -72,7 +72,8 @@ func (p *pathCreditRegistry) noteScheduled(route *pathRoute, n protocol.ByteCoun
 }
 
 // selectAggregate is the aggregate policy. A pending PTO goes first, so a path's
-// probe retries its reliable data there. Active paths are the candidates while any is
+// probe retries its reliable data there. With no primary, ordinary work holds, as
+// it does under primary/backup. Otherwise active paths are the candidates while any is
 // eligible, and backups only when none is. Among candidates that can take a whole
 // packet, the earliest estimated arrival wins when every one has a valid rate sample
 // and estimate is set; otherwise paced byte round-robin chooses. Ties go to the lower
@@ -81,6 +82,10 @@ func (p *pathCreditRegistry) noteScheduled(route *pathRoute, n protocol.ByteCoun
 func selectAggregate(views []pathView, primary protocol.PathID, now monotime.Time, estimate bool) (chosen, steerTo protocol.PathID, steering, held bool, floor uint64) {
 	if index := slices.IndexFunc(views, func(view pathView) bool { return view.probing }); index >= 0 {
 		return views[index].id, 0, false, false, 0
+	}
+	if primary == noPrimary {
+		// No path is authorized to carry ordinary work: a stale one waits for revalidation.
+		return 0, 0, false, true, 0
 	}
 	active := false
 	for _, view := range views {

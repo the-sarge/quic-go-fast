@@ -167,7 +167,8 @@ func (e *packetEmission) packetSizeOn(route *pathRoute) protocol.ByteCount {
 // pathView reads one path's sending state for selection and consumes nothing.
 // Reno sends into any open window. A BBR opportunity needs a whole packet of window
 // and local credit, so only that makes its path ready; its own pacing, local queue
-// and delivery sampler supply the rest.
+// and delivery sampler supply the rest, projected to its controller's current rate
+// as the opportunity would refresh them.
 func (e *packetEmission) pathView(id protocol.PathID, route *pathRoute, recovery ackhandler.SentPacketHandler, now monotime.Time) pathView {
 	if e.bbr == nil {
 		mode := recovery.SendMode(now)
@@ -179,12 +180,13 @@ func (e *packetEmission) pathView(id protocol.PathID, route *pathRoute, recovery
 	}
 	size := e.packetSizeOn(route)
 	p := e.policyOn(route)
+	projected := p.projected(size, now)
 	mode, allowance := recovery.(boundedRecovery).SendAllowance(now)
 	return pathView{
 		id: id, fits: true,
 		probing: mode == ackhandler.SendPTOAppData,
-		ready:   mode == ackhandler.SendAny && allowance >= size && p.credit.admits(size, p.creditLimit()),
-		sendAt:  p.sendAt(size, now),
+		ready:   mode == ackhandler.SendAny && allowance >= size && p.credit.admits(size, projected.creditLimit()),
+		sendAt:  projected.sendAt(size, now),
 		queued:  e.bbrPendingBytes(p) + size,
 		rate:    p.controller.DeliveryRateEstimate(),
 	}
