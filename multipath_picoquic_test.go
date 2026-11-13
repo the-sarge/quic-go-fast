@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/quic-go/quic-go/internal/monotime"
-	"github.com/quic-go/quic-go/internal/multipathguard"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/qlog"
 	"github.com/quic-go/quic-go/qlogwriter"
@@ -95,8 +94,6 @@ func TestPicoquicMultipathSmoke(t *testing.T) {
 	require.NotEmpty(t, binary, "PICOQUIC_BINARY must name the pinned peer")
 	root := os.Getenv("PICOQUIC_LOG_DIR")
 	require.NotEmpty(t, root)
-	multipathguard.Active.Store(true)
-	t.Cleanup(func() { multipathguard.Active.Store(false) })
 	for _, role := range []string{"client", "server"} {
 		t.Run(role, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

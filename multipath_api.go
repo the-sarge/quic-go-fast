@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"runtime"
 	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/quic-go/quic-go/internal/monotime"
-	"github.com/quic-go/quic-go/internal/multipathguard"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/quic-go/quic-go/quicvarint"
@@ -48,8 +48,12 @@ type multipathSelection struct {
 // active and validating paths including path zero; policy is "primary-backup". Both are
 // ignored when disabling, which is the default. On error the Config is unchanged.
 //
-// A public constructor currently refuses an enabled Config with
-// [ErrMultipathUnsupportedV1]: no build certifies the profile yet.
+// Multipath is experimental and opt-in. Its one supported profile is draft-21 QUIC v1
+// with Reno on Linux amd64, over a socket granted with [Transport.ConfigureMultipathIOV1];
+// it was qualified with Go 1.26.11 and 1.27.4. Elsewhere, or with QUIC v2 or another
+// congestion controller, a public constructor refuses an enabled Config with
+// [ErrMultipathUnsupportedV1]. A connection whose peer doesn't negotiate multipath stays
+// ordinary.
 func (c *Config) ConfigureMultipathV1(enabled bool, maxPaths uint32, policy string) error {
 	if c == nil {
 		return fmt.Errorf("%w: a nil Config", ErrMultipathInvalidConfigV1)
@@ -80,10 +84,10 @@ func (c *Config) MultipathEnabledV1() bool {
 // bounds one native request, and is between 1 ms and 1 s. It takes neither read deadlines
 // nor close ownership.
 //
-// It currently returns [ErrMultipathUnsupportedV1]: no build certifies the profile yet.
+// Off Linux amd64 it returns [ErrMultipathUnsupportedV1].
 func (t *Transport) ConfigureMultipathIOV1(maxWriteDuration time.Duration) error {
-	if !multipathguard.Active.Load() {
-		return errMultipathNotCertified
+	if !multipathProfileSupported {
+		return errMultipathPlatform
 	}
 	return t.configureNativeIO(maxWriteDuration)
 }
@@ -96,7 +100,11 @@ func (t *Transport) WaitMultipathIOStoppedV1(ctx context.Context) error {
 	return t.waitNativeIOStopped(ctx)
 }
 
-var errMultipathNotCertified = fmt.Errorf("%w: no build certifies the multipath profile", ErrMultipathUnsupportedV1)
+// multipathProfileSupported names the one qualified platform of the public profile. Every
+// other build keeps refusing before any grant or advertisement.
+const multipathProfileSupported = runtime.GOOS == "linux" && runtime.GOARCH == "amd64"
+
+var errMultipathPlatform = fmt.Errorf("%w: multipath is qualified only on linux/amd64", ErrMultipathUnsupportedV1)
 
 // admitMultipath is the one capability gate. Every constructor and every server-selected
 // configuration passes it before advertisement or attachment, with the Config as the
@@ -105,8 +113,8 @@ func (t *Transport) admitMultipath(conf *Config) error {
 	if !conf.MultipathEnabledV1() {
 		return nil
 	}
-	if !multipathguard.Active.Load() {
-		return errMultipathNotCertified
+	if !multipathProfileSupported {
+		return errMultipathPlatform
 	}
 	if conf.CongestionControlV1() != "reno" {
 		return fmt.Errorf("%w: multipath requires reno", ErrMultipathUnsupportedV1)

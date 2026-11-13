@@ -9,24 +9,25 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"runtime"
 	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/quic-go/quic-go/internal/multipathguard"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
 
 	"github.com/stretchr/testify/require"
 )
 
-// activateMultipathProfile is the fixtures' one activation. A test using it stays
-// serial: Go holds every parallel test until the serial ones have finished.
-func activateMultipathProfile(t *testing.T) {
+// requireMultipathProfile skips a test that needs the public profile on a build where it
+// isn't qualified. TestMultipathPublicRefusal covers those builds.
+func requireMultipathProfile(t *testing.T) {
 	t.Helper()
-	multipathguard.Active.Store(true)
-	t.Cleanup(func() { multipathguard.Active.Store(false) })
+	if !multipathProfileSupported {
+		t.Skipf("multipath is qualified only on linux/amd64, not %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
 }
 
 func multipathConfig(t *testing.T) *Config {
@@ -38,6 +39,7 @@ func multipathConfig(t *testing.T) *Config {
 
 func grantedTransport(t *testing.T) *Transport {
 	t.Helper()
+	requireMultipathProfile(t)
 	tr := &Transport{Conn: newUDPConnLocalhost(t)}
 	require.NoError(t, tr.ConfigureMultipathIOV1(time.Second))
 	t.Cleanup(func() { tr.Close() })
@@ -52,7 +54,7 @@ type multipathPair struct {
 
 func newMultipathPair(t *testing.T) *multipathPair {
 	t.Helper()
-	activateMultipathProfile(t)
+	requireMultipathProfile(t)
 	p := &multipathPair{clientTr: grantedTransport(t), serverTr: grantedTransport(t)}
 	p.serverAddr = p.serverTr.Conn.LocalAddr().(*net.UDPAddr)
 	ln, err := p.serverTr.Listen(nativeServerTLS(), multipathConfig(t))
@@ -104,9 +106,12 @@ func TestMultipathConfigSelection(t *testing.T) {
 	require.False(t, conf.MultipathEnabledV1())
 }
 
-// Without the guard, every public entry point refuses and nothing advertises. This is
-// the semantic matrix of the one capability gate.
+// Off the qualified platform, every public entry point refuses and nothing advertises.
+// This is the semantic matrix of the one capability gate on those builds.
 func TestMultipathPublicRefusal(t *testing.T) {
+	if multipathProfileSupported {
+		t.Skip("the qualified platform accepts the profile; the lifecycle tests cover it")
+	}
 	conf := multipathConfig(t)
 	ctx := t.Context()
 	socket := func() *net.UDPConn { return newUDPConnLocalhost(t) }
@@ -202,7 +207,7 @@ func TestMultipathExplicitGrantLifecycle(t *testing.T) {
 }
 
 func TestMultipathAddrOwnedLifecycle(t *testing.T) {
-	activateMultipathProfile(t)
+	requireMultipathProfile(t)
 	var sockets []*net.UDPConn
 	listen := listenUDPConn
 	listenUDPConn = func(network string, addr *net.UDPAddr) (*net.UDPConn, error) {
@@ -295,7 +300,7 @@ func (c *socketTouchCounter) SetReadDeadline(deadline time.Time) error {
 }
 
 func TestMultipathCallerSocketRefusal(t *testing.T) {
-	activateMultipathProfile(t)
+	requireMultipathProfile(t)
 	socket := newUDPConnLocalhost(t)
 	addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 9}
 	conf := multipathConfig(t)
@@ -327,7 +332,7 @@ func TestMultipathCallerSocketRefusal(t *testing.T) {
 }
 
 func TestMultipathServerSelectedConfig(t *testing.T) {
-	activateMultipathProfile(t)
+	requireMultipathProfile(t)
 	selected := multipathConfig(t)
 	getConfig := func(*ClientInfo) (*Config, error) { return selected, nil }
 	dial := func(t *testing.T, srv *Transport) (*Conn, error) {
@@ -383,7 +388,7 @@ func TestMultipathServerSelectedConfig(t *testing.T) {
 }
 
 func TestMultipathUnsupportedCombinations(t *testing.T) {
-	activateMultipathProfile(t)
+	requireMultipathProfile(t)
 	addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 9}
 	try := func(t *testing.T, tr *Transport, conf *Config) error {
 		t.Helper()
@@ -454,7 +459,7 @@ func errString(err error) string {
 }
 
 func TestMultipathOrdinaryPeerFallback(t *testing.T) {
-	activateMultipathProfile(t)
+	requireMultipathProfile(t)
 	srv := &Transport{Conn: newUDPConnLocalhost(t)}
 	defer srv.Close()
 	ln, err := srv.Listen(nativeServerTLS(), nil)
@@ -465,6 +470,7 @@ func TestMultipathOrdinaryPeerFallback(t *testing.T) {
 	client, err := grantedTransport(t).Dial(ctx, srv.Conn.LocalAddr(), nativeClientTLS(), multipathConfig(t))
 	require.NoError(t, err)
 	defer client.CloseWithError(0, "")
+	require.Nil(t, client.peerParams.InitialMaxPathID, "a default server never advertises")
 	negotiated, err := client.MultipathNegotiatedV1()
 	require.NoError(t, err)
 	require.False(t, negotiated)
@@ -777,7 +783,7 @@ func TestMultipathTerminalObservations(t *testing.T) {
 // A session ticket doesn't record multipath, so resumption must not issue the ordinary
 // CID window before activation learns the peer's offer.
 func TestMultipathZeroRTTResumption(t *testing.T) {
-	activateMultipathProfile(t)
+	requireMultipathProfile(t)
 	srv := grantedTransport(t)
 	serverConf := multipathConfig(t)
 	serverConf.Allow0RTT = true
@@ -889,7 +895,7 @@ func TestMultipathErrorIdentities(t *testing.T) {
 // cap-plus-one: multipath setup takes the same refusal as an ordinary connection, on the
 // one participant owner.
 func TestMultipathSetupParticipantCap(t *testing.T) {
-	activateMultipathProfile(t)
+	requireMultipathProfile(t)
 	tr := grantedTransport(t)
 	require.NoError(t, tr.beginPacketIO())
 	endpoint := nativeTransportEndpoint(tr)
@@ -902,7 +908,7 @@ func TestMultipathSetupParticipantCap(t *testing.T) {
 }
 
 func TestPacketCeilingRefusesNativeMultipathIO(t *testing.T) {
-	activateMultipathProfile(t)
+	requireMultipathProfile(t)
 	for _, n := range []int{1452, 8972} {
 		t.Run(fmt.Sprint(n), func(t *testing.T) {
 			t.Run("ceiling first", func(t *testing.T) {

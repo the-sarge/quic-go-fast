@@ -8,8 +8,7 @@ import (
 
 var (
 	// ErrMultipathBackpressureV1 identifies local capacity or deadline backpressure.
-	// It does not establish non-submission or authorize replay. The native endpoint
-	// route currently operates only in private fixtures; no public constructor installs it.
+	// It does not establish non-submission or authorize replay.
 	ErrMultipathBackpressureV1 = errors.New("quic: native endpoint backpressure")
 	// ErrMultipathDeadlineV1 identifies expiry of a local endpoint request deadline.
 	// Returned deadline errors also match os.ErrDeadlineExceeded and ErrMultipathBackpressureV1.
@@ -17,9 +16,6 @@ var (
 	// ErrMultipathUncertainV1 identifies a native result that cannot prove non-submission.
 	// Neither this error nor a zero byte count authorizes replay.
 	ErrMultipathUncertainV1 = errors.New("quic: native endpoint transmission uncertain")
-
-	// The identities below belong to the same private route: until its public
-	// activation, only private fixtures can receive them.
 
 	// ErrMultipathInvalidConfigV1 identifies a refused native endpoint grant:
 	// a budget outside its range, a repeated grant or a late one.

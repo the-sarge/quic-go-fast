@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/quic-go/quic-go/internal/multipathguard"
 	"github.com/quic-go/quic-go/internal/testdata"
 
 	"github.com/stretchr/testify/require"
@@ -880,9 +879,6 @@ func TestOrdinaryCostRole(t *testing.T) {
 	}
 	var spec ordinaryCostSpec
 	require.NoError(t, json.Unmarshal([]byte(os.Getenv("ORDINARY_COST_SPEC")), &spec), "the driver supplies the spec")
-	if spec.granted() {
-		multipathguard.Active.Store(true)
-	}
 	var result any
 	switch spec.Role {
 	case "server":
@@ -983,9 +979,6 @@ func TestOrdinaryCostCells(t *testing.T) {
 	for _, profile := range []string{"unregistered", "opted-in"} {
 		for _, cell := range []string{"stream-gso-on", "stream-gso-off", "datagram-batch-on", "datagram-batch-off", "mixed-bulk", "stateless-pressure"} {
 			t.Run(profile+"/"+cell, func(t *testing.T) {
-				if profile == "opted-in" {
-					activateMultipathProfile(t)
-				}
 				off := cell == "stream-gso-off" || cell == "datagram-batch-off"
 				if off {
 					t.Setenv("QUIC_GO_DISABLE_GSO", "true")
