@@ -1,0 +1,7 @@
+Kernel Version: 7.0
+
+=== RUN   TestNativeQualification
+=== RUN   TestNativeQualification/request-contention
+--- PASS: TestNativeQualification (1.06s)
+    --- PASS: TestNativeQualification/request-contention (1.06s)
+PASS

@@ -1,0 +1,19 @@
+{
+  "program": "QGF-MP646-20261024",
+  "slice": "R21 #1313",
+  "candidate": "4aa238ed644f325753d95f0b42ec892ac3c3472f",
+  "profile": "writer-yield",
+  "prior_cumulative_activities": 863,
+  "prior_cumulative_host_seconds_lower_bound": "28620.89369800330706986",
+  "prior_source": "docs/audits/2026-11-12-multipath-r18-final-receipt.md",
+  "subjects_charged": 6,
+  "builds_charged": 2,
+  "instances_charged": 4,
+  "failed_attempts": 0,
+  "reruns": 0,
+  "host_seconds_charged": "11.665979264",
+  "charge_basis": "Each build and native instance is charged once; the charge is the driver's wall time from its start to its exit, covering both builds and all four instances. Host identity, staging and archiving overhead outside the driver is not charged, so the total is a lower bound.",
+  "cumulative_activities": 869,
+  "cumulative_host_seconds_lower_bound": "28632.55967726730706986",
+  "cumulative_cap": null
+}

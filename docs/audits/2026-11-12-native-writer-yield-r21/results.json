@@ -1,0 +1,87 @@
+{
+  "candidate": "4aa238ed644f325753d95f0b42ec892ac3c3472f",
+  "profile": "writer-yield",
+  "kernel": "Linux minimax 7.0.0-30-generic #30-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 31 18:22:54 UTC 2026 x86_64 GNU/Linux",
+  "os_release": "PRETTY_NAME=\"Ubuntu 26.04.1 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"26.04\"\nVERSION=\"26.04.1 LTS (Resolute Raccoon)\"\nVERSION_CODENAME=resolute\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=resolute\nLOGO=ubuntu-logo\n",
+  "strace": "strace -- version 6.19",
+  "toolchains": {
+    "go1.26.11": {
+      "internal/poll/fd_unix.go": "689fb78bb32b8e810fa1dd2ded475a79574f24a8f40260af2d4a3273392bc2cc"
+    },
+    "go1.27.4": {
+      "internal/poll/fd_unix.go": "675f74e8cbfc73170e08b43947c131706cd59e498d722555fe3b793618f5f162"
+    }
+  },
+  "instances": [
+    {
+      "go": "go1.26.11",
+      "class": "shutdown-join",
+      "command": [
+        "/home/josh/diagnostics/quic-go-fast/issue-1313-r21-native-2026-11-12/out/go1.26.11.test",
+        "-test.run=^TestNativeQualification$/^shutdown-join$",
+        "-test.count=1",
+        "-test.timeout=30s",
+        "-test.v"
+      ],
+      "exit": 0,
+      "seconds": 0.006,
+      "load_before": "0.20 0.12 0.17 1/557 2097406",
+      "load_after": "0.20 0.12 0.17 1/557 2097420",
+      "failure": null
+    },
+    {
+      "go": "go1.26.11",
+      "class": "request-contention",
+      "command": [
+        "/home/josh/diagnostics/quic-go-fast/issue-1313-r21-native-2026-11-12/out/go1.26.11.test",
+        "-test.run=^TestNativeQualification$/^request-contention$",
+        "-test.count=1",
+        "-test.timeout=30s",
+        "-test.v"
+      ],
+      "exit": 0,
+      "seconds": 1.067,
+      "load_before": "0.20 0.12 0.17 1/557 2097420",
+      "load_after": "0.20 0.12 0.17 1/557 2097437",
+      "failure": null
+    },
+    {
+      "go": "go1.27.4",
+      "class": "shutdown-join",
+      "command": [
+        "/home/josh/diagnostics/quic-go-fast/issue-1313-r21-native-2026-11-12/out/go1.27.4.test",
+        "-test.run=^TestNativeQualification$/^shutdown-join$",
+        "-test.count=1",
+        "-test.timeout=30s",
+        "-test.v"
+      ],
+      "exit": 0,
+      "seconds": 0.008,
+      "load_before": "0.20 0.12 0.17 1/557 2097437",
+      "load_after": "0.20 0.12 0.17 1/557 2097450",
+      "failure": null
+    },
+    {
+      "go": "go1.27.4",
+      "class": "request-contention",
+      "command": [
+        "/home/josh/diagnostics/quic-go-fast/issue-1313-r21-native-2026-11-12/out/go1.27.4.test",
+        "-test.run=^TestNativeQualification$/^request-contention$",
+        "-test.count=1",
+        "-test.timeout=30s",
+        "-test.v"
+      ],
+      "exit": 0,
+      "seconds": 1.076,
+      "load_before": "0.20 0.12 0.17 1/557 2097450",
+      "load_after": "0.20 0.12 0.17 1/557 2097467",
+      "failure": null
+    }
+  ],
+  "status": {
+    "profile": "writer-yield",
+    "instances": 4,
+    "status": "pass",
+    "full_qualification": false
+  }
+}
