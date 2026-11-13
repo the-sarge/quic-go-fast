@@ -49,11 +49,10 @@ type multipathSelection struct {
 // ignored when disabling, which is the default. On error the Config is unchanged.
 //
 // Multipath is experimental and opt-in. Its one supported profile is draft-21 QUIC v1
-// with Reno on Linux amd64, over a socket granted with [Transport.ConfigureMultipathIOV1];
-// it was qualified with Go 1.26.11 and 1.27.4. Elsewhere, or with QUIC v2 or another
-// congestion controller, a public constructor refuses an enabled Config with
-// [ErrMultipathUnsupportedV1]. A connection whose peer doesn't negotiate multipath stays
-// ordinary.
+// with Reno on Linux amd64, over a socket granted with [Transport.ConfigureMultipathIOV1].
+// Elsewhere, or with a QUIC v2 version listed or another congestion controller, a public
+// constructor refuses an enabled Config with [ErrMultipathUnsupportedV1]. A connection
+// that negotiates QUIC v2, or whose peer doesn't negotiate multipath, stays ordinary.
 func (c *Config) ConfigureMultipathV1(enabled bool, maxPaths uint32, policy string) error {
 	if c == nil {
 		return fmt.Errorf("%w: a nil Config", ErrMultipathInvalidConfigV1)
