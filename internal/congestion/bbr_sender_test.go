@@ -339,3 +339,66 @@ func TestBBRTimingIneligibleFeedbackBoundsWindow(t *testing.T) {
 		})
 	}
 }
+
+// The sampler anchors an event before it checks the anchor's snapshot or the
+// interval, so the first ACK of a connection is anchored with an invalid sample.
+// Anchoring alone, with a valid clock, admits aggregation evidence (#1338).
+func TestBBRAnchoredInvalidSampleAccruesAggregation(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		ordinal uint64
+	}{{"anchored", 1}, {"unanchored control", 0}} {
+		t.Run(tc.name, func(t *testing.T) {
+			b := NewBBRSender(1200)
+			// A registration before any send origin carries an invalid snapshot.
+			p := PacketInfo{Ordinal: 1, Length: 1200, AckEliciting: true, RegistrationValid: true, SendTime: monotime.Time(1900 * time.Millisecond)}
+			b.Sent(SendEvent{Packet: p})
+			now := monotime.Time(2 * time.Second)
+			b.Feedback(FeedbackEvent{Time: now, HasAck: true, RawRTT: 100 * time.Millisecond, Acked: []PacketInfo{p}, Delivery: DeliverySample{Delivered: 1200, Ordinal: tc.ordinal, Interval: 100 * time.Millisecond}})
+			require.EqualValues(t, 1200, b.delivered)
+			if tc.ordinal == 0 {
+				require.Zero(t, b.aggregationStart, "an unanchored event accrues nothing")
+				require.Zero(t, b.aggregationMaximum())
+				return
+			}
+			require.Equal(t, now, b.aggregationStart, "an invalid sample cannot suppress anchored accrual")
+			require.EqualValues(t, 1200, b.aggregationDelivered)
+			require.EqualValues(t, 1200, b.aggregationMaximum())
+		})
+	}
+}
+
+// An anchored ACK whose clock is backdated or zero settles delivery but accrues
+// no aggregation evidence, as the design rejects nonmonotonic inputs (#1338).
+// The window may still grow from the existing maximum, so it is not bounded here.
+func TestBBRBackdatedAnchoredAckSkipsAggregation(t *testing.T) {
+	for _, zero := range []bool{false, true} {
+		name := "backdated"
+		if zero {
+			name = "zero clock"
+		}
+		t.Run(name, func(t *testing.T) {
+			b := NewBBRSender(1200)
+			// Valid snapshots and samples: the setup does not rely on anchored
+			// accrual from invalid evidence.
+			feedbackRound(b, 1, 1200, 100000, SendUnknown, 20000)
+			feedbackRound(b, 2, 2400, 100000, SendUnknown, 20000)
+			require.EqualValues(t, 1200, b.aggregationMaximum())
+			start, accrued, slots, last := b.aggregationStart, b.aggregationDelivered, b.aggregation, b.lastEvent
+			now := start.Add(-500 * time.Millisecond)
+			if zero {
+				now = 0
+			}
+			require.Less(t, now, last)
+			p := PacketInfo{PathGeneration: b.pathGeneration, SampleGeneration: b.sampleGeneration, Ordinal: 3, Length: 1200, AckEliciting: true, RegistrationValid: true, SendTime: last.Add(-100 * time.Millisecond), Delivery: DeliverySnapshot{Delivered: 2400, Valid: true}}
+			b.Sent(SendEvent{Packet: p})
+			b.Feedback(FeedbackEvent{PathGeneration: b.pathGeneration, SampleGeneration: b.sampleGeneration, Time: now, HasAck: true, RawRTT: 100 * time.Millisecond, PostInFlight: 20000, Acked: []PacketInfo{p}, Delivery: DeliverySample{Delivered: 14400, Ordinal: 3, BytesPerSecond: 100000, Interval: 100 * time.Millisecond, Valid: true}})
+			require.EqualValues(t, 14400, b.delivered, "delivery still settles")
+			require.Equal(t, last, b.lastEvent)
+			require.Equal(t, start, b.aggregationStart, "the epoch cannot move to a rejected clock")
+			require.Equal(t, accrued, b.aggregationDelivered)
+			require.Equal(t, slots, b.aggregation)
+			require.EqualValues(t, 1200, b.aggregationMaximum())
+		})
+	}
+}
