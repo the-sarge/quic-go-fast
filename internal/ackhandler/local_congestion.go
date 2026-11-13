@@ -8,6 +8,7 @@ func (s *deliverySampler) fenceTiming() {
 	s.timingGeneration++
 	s.sendOrigin, s.deliveredTime = 0, 0
 	s.originlessRegistrations = false
+	s.timingFenced = true
 }
 
 func (h *sentPacketHandler) completeLocalCongestion(r *localRegistration) {

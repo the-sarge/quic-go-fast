@@ -91,6 +91,9 @@ type sentPacketHandler struct {
 	// it is a reclaimed or skipped path, and absent IDs can't be told apart.
 	largestPath protocol.PathID
 	paths       map[protocol.PathID]*sentPacketHandler
+	// richPaths is set on a rich root once it admits a rich path. From then on,
+	// only an ACK carried on the path it acknowledges trains a context's timing.
+	richPaths bool
 
 	mtuAcked                func(PacketContext, protocol.ByteCount, protocol.PacketNumber)
 	mtuLost                 func(PacketContext, protocol.ByteCount, monotime.Time)
@@ -525,9 +528,25 @@ func (h *sentPacketHandler) getPacketNumberSpace(encLevel protocol.EncryptionLev
 }
 
 func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.EncryptionLevel, rcvTime monotime.Time) (protocol.ApplicationKeyReceipt, error) {
+	return h.receivedAck(ack, encLevel, rcvTime, ackCarrier{})
+}
+
+// ReceivedPathAck is ReceivedAck for an ACK frame carried by an authenticated
+// packet on the carrier path.
+func (h *sentPacketHandler) ReceivedPathAck(ack *wire.AckFrame, encLevel protocol.EncryptionLevel, rcvTime monotime.Time, carrier protocol.PathID) (protocol.ApplicationKeyReceipt, error) {
+	return h.receivedAck(ack, encLevel, rcvTime, ackCarrier{path: carrier, known: true})
+}
+
+// ackCarrier is the path whose packet carried an ACK frame, when known.
+type ackCarrier struct {
+	path  protocol.PathID
+	known bool
+}
+
+func (h *sentPacketHandler) receivedAck(ack *wire.AckFrame, encLevel protocol.EncryptionLevel, rcvTime monotime.Time, carrier ackCarrier) (protocol.ApplicationKeyReceipt, error) {
 	if ack.HasPathID && ack.PathID != h.pathID {
 		if path := h.path(ack.PathID); path != nil && encLevel == protocol.Encryption1RTT {
-			return path.ReceivedAck(ack, encLevel, rcvTime)
+			return path.receivedAck(ack, encLevel, rcvTime, carrier)
 		}
 		if h.pathRoot == nil && encLevel == protocol.Encryption1RTT && ack.PathID <= h.largestPath {
 			return protocol.ApplicationKeyReceipt{}, nil
@@ -564,6 +583,13 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 	ackedPackets, hasAckEliciting, err := h.detectAndRemoveAckedPackets(ack, encLevel)
 	if err != nil {
 		return protocol.ApplicationKeyReceipt{}, err
+	}
+	// A rich multipath context trains RTT and delivery rate only from an ACK
+	// carried on its own path. Any other still settles delivery, flight and loss.
+	timingExcluded := h.congestionEvents != nil && (h.pathRoot != nil || h.richPaths) && (!carrier.known || carrier.path != h.pathID)
+	if timingExcluded {
+		h.congestionEvents.crossPath = true
+		defer func(d *congestionDispatch) { d.crossPath = false }(h.congestionEvents)
 	}
 	if encLevel == protocol.Encryption1RTT {
 		h.ackCarriers.acknowledge(ack, rcvTime, h.ignorePacketsBelow)
@@ -616,26 +642,34 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 	// * at least one new ack-eliciting packet was acknowledged
 	if len(ackedPackets) > 0 {
 		if p := ackedPackets[len(ackedPackets)-1]; p.PacketNumber == ack.LargestAcked() && !p.isPathProbePacket && hasAckEliciting && p.timingEligible() {
-			if h.congestionEvents != nil {
-				h.congestionEvents.event.RTTEligible = true
-			}
-			// don't use the ack delay for Initial and Handshake packets
-			var ackDelay time.Duration
-			if encLevel == protocol.Encryption1RTT {
-				ackDelay = min(ack.DelayTime, h.rttStats.MaxAckDelay())
-			}
-			if h.largestAckedTime.IsZero() || !p.SendTime.Before(h.largestAckedTime) {
-				h.rttStats.UpdateRTT(rcvTime.Sub(p.SendTime), ackDelay)
+			if timingExcluded {
+				// An excluded ACK trains nothing, but it still orders samples: a
+				// reordered same-path ACK cannot then sample an older packet.
+				if h.largestAckedTime.IsZero() || !p.SendTime.Before(h.largestAckedTime) {
+					h.largestAckedTime = p.SendTime
+				}
+			} else {
 				if h.congestionEvents != nil {
-					h.congestionEvents.event.RTTUpdated = rcvTime.After(p.SendTime)
-					h.captureDeliveryRTT(p, rcvTime)
+					h.congestionEvents.event.RTTEligible = true
 				}
-				if h.logger.Debug() {
-					h.logger.Debugf("\tupdated RTT: %s (σ: %s)", h.rttStats.SmoothedRTT(), h.rttStats.MeanDeviation())
+				// don't use the ack delay for Initial and Handshake packets
+				var ackDelay time.Duration
+				if encLevel == protocol.Encryption1RTT {
+					ackDelay = min(ack.DelayTime, h.rttStats.MaxAckDelay())
 				}
-				h.largestAckedTime = p.SendTime
+				if h.largestAckedTime.IsZero() || !p.SendTime.Before(h.largestAckedTime) {
+					h.rttStats.UpdateRTT(rcvTime.Sub(p.SendTime), ackDelay)
+					if h.congestionEvents != nil {
+						h.congestionEvents.event.RTTUpdated = rcvTime.After(p.SendTime)
+						h.captureDeliveryRTT(p, rcvTime)
+					}
+					if h.logger.Debug() {
+						h.logger.Debugf("\tupdated RTT: %s (σ: %s)", h.rttStats.SmoothedRTT(), h.rttStats.MeanDeviation())
+					}
+					h.largestAckedTime = p.SendTime
+				}
+				h.congestion.MaybeExitSlowStart()
 			}
-			h.congestion.MaybeExitSlowStart()
 		}
 	}
 

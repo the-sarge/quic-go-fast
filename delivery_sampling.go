@@ -29,6 +29,22 @@ func (e *packetEmission) deliveryPendingBytes() protocol.ByteCount {
 	return n
 }
 
+// bbrPendingBytes is one BBR policy's local work, the sampler's pending-local
+// authority. The current construction reservation is capacity for the packet
+// being registered, not older queued work. It stays charged for admission but
+// is excluded, from the credit that granted it only, when asking whether a
+// delivery sampling epoch can begin.
+func (e *packetEmission) bbrPendingBytes(p *bbrSendPolicy) protocol.ByteCount {
+	c := p.credit
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	pending := c.pending
+	if r := e.reservation; r != nil && r.owner == c {
+		pending -= r.bytes
+	}
+	return pending
+}
+
 // deliveryObserver is recovery's private sampler surface for emission stops.
 type deliveryObserver interface {
 	ObserveDeliveryStop(congestion.SendLimitation)

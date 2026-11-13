@@ -105,8 +105,45 @@ func (t *deliveryRecords) place(key uint64, r int32) {
 	t.slots[i] = deliverySlot{key: key, rec: r}
 }
 
-func (t *deliveryRecords) grow() {
-	size := max(minDeliverySlots, 2*len(t.slots))
+func (t *deliveryRecords) grow() { t.resize(max(minDeliverySlots, 2*len(t.slots))) }
+
+// slabFull reports whether a new key needs a larger record slab.
+func (t *deliveryRecords) slabFull() bool { return len(t.free) == 0 && len(t.recs) == cap(t.recs) }
+
+// growSlab moves the records into a slab of the given capacity.
+func (t *deliveryRecords) growSlab(size int) {
+	recs := make([]deliveryRecord, len(t.recs), size)
+	copy(recs, t.recs)
+	t.recs = recs
+}
+
+// compact gives back backing capacity beyond the live records and the given
+// spare slab room: the free list empties and the index becomes the smallest
+// table within its load bound. A record's identity is its key, so nothing
+// moves but storage.
+func (t *deliveryRecords) compact(spare int) {
+	if t.n == 0 && spare == 0 {
+		*t = deliveryRecords{}
+		return
+	}
+	size := minDeliverySlots
+	for t.n*8 > size*7 {
+		size *= 2
+	}
+	if len(t.free) == 0 && cap(t.recs) <= t.n+spare && len(t.slots) == size {
+		return
+	}
+	recs := make([]deliveryRecord, 0, t.n+spare)
+	for _, r := range t.recs {
+		if r.key != 0 {
+			recs = append(recs, r)
+		}
+	}
+	t.recs, t.free = recs, nil
+	t.resize(size)
+}
+
+func (t *deliveryRecords) resize(size int) {
 	shift := 64
 	for s := size; s > 1; s >>= 1 {
 		shift--

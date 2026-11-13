@@ -1,11 +1,13 @@
 package quic
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/quic-go/quic-go/internal/congestion"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/utils"
 )
 
 // bbrSendPolicy is connection-owned. rate includes BBR's 1% margin;
@@ -26,6 +28,43 @@ type bbrSendPolicy struct {
 	// supplyGap is the application or flow-control exhaustion observed at the
 	// latest opportunity, not yet established as supply limitation.
 	supplyGap congestion.SendLimitation
+	// paths holds, on the root policy only, each nonzero path's own policy.
+	paths map[protocol.PathID]*bbrSendPolicy
+}
+
+// addBBRPath gives a nonzero path its own BBR controller, pacing and local
+// credit beside the root's. Recovery owns the path context and its delivery
+// sampler, whose pending-local authority is this path's credit alone.
+func (e *packetEmission) addBBRPath(id protocol.PathID, size protocol.ByteCount, rtt *utils.RTTStats, now monotime.Time) (*bbrSendPolicy, error) {
+	recovery, ok := (*e.recovery).(interface {
+		AddBBRPath(protocol.PathID, protocol.ByteCount, protocol.ByteCount, *utils.RTTStats, func() protocol.ByteCount) (*congestion.BBRSender, error)
+	})
+	if e.bbr == nil || !ok || e.bbr.paths[id] != nil || size <= 0 || size > e.bbr.ceiling {
+		return nil, fmt.Errorf("BBR path unavailable: %d", id)
+	}
+	p := newBBRSendPolicyWithCeiling(1, size, e.bbr.ceiling, now)
+	b, err := recovery.AddBBRPath(id, size, e.bbr.ceiling, rtt, func() protocol.ByteCount { return e.bbrPendingBytes(p) })
+	if err != nil {
+		return nil, err
+	}
+	p.controller = b
+	p.update(b.PacingRate(), size, now)
+	if e.bbr.paths == nil {
+		e.bbr.paths = make(map[protocol.PathID]*bbrSendPolicy, 1)
+	}
+	e.bbr.paths[id] = p
+	return p, nil
+}
+
+// removeBBRPath reclaims a BBR path's recovery context and policy together, at
+// the path's final reclamation. Reservations still held by queued buffers
+// complete against the removed credit.
+func (e *packetEmission) removeBBRPath(id protocol.PathID) {
+	if e.bbr == nil || e.bbr.paths[id] == nil {
+		return
+	}
+	(*e.recovery).(interface{ RemovePath(protocol.PathID) }).RemovePath(id)
+	delete(e.bbr.paths, id)
 }
 
 func newBBRSendPolicy(rate uint64, size protocol.ByteCount, now monotime.Time) *bbrSendPolicy {

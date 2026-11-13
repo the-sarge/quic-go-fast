@@ -2,6 +2,7 @@ package ackhandler
 
 import (
 	"container/heap"
+	"maps"
 	"math"
 	"math/bits"
 	"time"
@@ -31,6 +32,9 @@ type deliverySampler struct {
 	evidenceLost              bool
 	nextExpiry                monotime.Time
 	originlessRegistrations   bool
+	// timingFenced is set from a timing fence until a fresh origin. Restoring
+	// that origin fences timing only; it never starts a new delivery generation.
+	timingFenced bool
 }
 
 const (
@@ -113,17 +117,28 @@ func (d *congestionDispatch) retire(key congestionPacketKey, now monotime.Time, 
 	}
 	d.expire(now)
 	s := &d.sampler
-	if len(s.order) == maxDeliveryRetained {
-		old := s.order[0].packet
-		d.removeRetained(congestionKey(old.EncryptionLevel, old.PacketNumber), true)
+	if _, retained := d.deliveryUse(); retained >= maxDeliveryRetained {
 		s.evicted++
 		s.evidenceLost = true
+		if len(s.order) == 0 {
+			// The ceiling is shared; another context's records are not ours to evict.
+			d.recovery.missing(p.Ordinal)
+			d.sampler.dispose(p)
+			return
+		}
+		old := s.order[0].packet
+		d.removeRetained(congestionKey(old.EncryptionLevel, old.PacketNumber), true)
 	}
 	if s.retained == nil {
 		s.retained = make(map[congestionPacketKey]*retainedDelivery)
-		s.order = make(retainedDeliveryHeap, 0, maxDeliveryRetained)
-		s.expiry = make(retainedExpiryHeap, 0, maxDeliveryRetained)
+		// Contexts sharing the allowance grow on demand rather than each
+		// reserving all of it.
+		if d.root == nil {
+			s.order = make(retainedDeliveryHeap, 0, maxDeliveryRetained)
+			s.expiry = make(retainedExpiryHeap, 0, maxDeliveryRetained)
+		}
 	}
+	d.reserveRetained()
 	// Clamp before multiplication, including unusual restored PTO estimates.
 	ttl := 3 * min(max(pto, 0), 10*time.Second)
 	p.Retirement = congestion.DeliveryLost
@@ -168,21 +183,204 @@ func (d *congestionDispatch) expire(now monotime.Time) {
 	endServiceWork(prior)
 }
 
-// DeliveryExpiry is independent of send permission and recovery's loss alarm.
-func (h *sentPacketHandler) DeliveryExpiry() monotime.Time {
-	if d := h.congestionEvents; d != nil {
-		return d.sampler.nextExpiry
+// A rich root and its paths share one context's delivery allowance: the
+// occupancy ceilings above, and backing storage within a quarter of them for
+// allocation slack. Before a context grows a store past the allowance, its
+// peers give back the capacity they hold beyond their records.
+const (
+	deliveryRecordAllowance   = maxDeliveryLive + maxDeliveryLive/4
+	deliveryRetainedAllowance = maxDeliveryRetained + maxDeliveryRetained/4
+)
+
+// eachPeer visits the other contexts sharing d's allowance.
+func (d *congestionDispatch) eachPeer(fn func(*congestionDispatch)) {
+	if p := d.root.congestionEvents; p != nil && p != d {
+		fn(p)
 	}
-	return 0
+	for _, path := range d.root.paths {
+		if p := path.congestionEvents; p != nil && p != d {
+			fn(p)
+		}
+	}
+}
+
+// deliveryHeadroom is the growth room a store keeps beyond n records, so a
+// context that resumes growing after peer reclamation does not reallocate on
+// every registration or feedback event.
+func deliveryHeadroom(n int) int { return n/4 + minDeliverySlots }
+
+// reserveRecord makes room for one new live record. It grows into unused
+// allowance first. Only when that is short do peers give back capacity beyond
+// their records and headroom, and only if that is still short, beyond their
+// records. Live occupancy is below the shared ceiling, so room always remains.
+func (d *congestionDispatch) reserveRecord() {
+	if d.root == nil || !d.packets.slabFull() {
+		return
+	}
+	n := len(d.packets.recs)
+	size := max(minDeliverySlots, 2*cap(d.packets.recs))
+	peers := d.peerRecordCapacity()
+	if size+peers > deliveryRecordAllowance {
+		for _, headroom := range [...]bool{true, false} {
+			if deliveryRecordAllowance-peers >= n+deliveryHeadroom(n) || (!headroom && deliveryRecordAllowance-peers > n) {
+				break
+			}
+			d.eachPeer(func(p *congestionDispatch) {
+				spare := 0
+				if headroom {
+					spare = deliveryHeadroom(p.packets.len())
+				}
+				p.packets.compact(spare)
+			})
+			peers = d.peerRecordCapacity()
+		}
+		size = min(size, deliveryRecordAllowance-peers)
+	}
+	d.packets.growSlab(size)
+}
+
+func (d *congestionDispatch) peerRecordCapacity() int {
+	peers := 0
+	d.eachPeer(func(p *congestionDispatch) { peers += cap(p.packets.recs) })
+	return peers
+}
+
+// reserveRetained makes room for one new retained record, as reserveRecord does.
+func (d *congestionDispatch) reserveRetained() {
+	s := &d.sampler
+	if d.root == nil || len(s.order) < cap(s.order) {
+		return
+	}
+	n := len(s.order)
+	size := max(minDeliverySlots, 2*cap(s.order))
+	peers := d.peerRetainedCapacity()
+	if size+peers > deliveryRetainedAllowance {
+		for _, headroom := range [...]bool{true, false} {
+			if deliveryRetainedAllowance-peers >= n+deliveryHeadroom(n) || (!headroom && deliveryRetainedAllowance-peers > n) {
+				break
+			}
+			d.eachPeer(func(p *congestionDispatch) {
+				spare := 0
+				if headroom {
+					spare = deliveryHeadroom(len(p.sampler.order))
+				}
+				p.sampler.compactRetained(spare)
+			})
+			peers = d.peerRetainedCapacity()
+		}
+		size = min(size, deliveryRetainedAllowance-peers)
+	}
+	order, expiry := make(retainedDeliveryHeap, n, size), make(retainedExpiryHeap, len(s.expiry), size)
+	copy(order, s.order)
+	copy(expiry, s.expiry)
+	s.order, s.expiry = order, expiry
+}
+
+func (d *congestionDispatch) peerRetainedCapacity() int {
+	peers := 0
+	d.eachPeer(func(p *congestionDispatch) { peers += cap(p.sampler.order) })
+	return peers
+}
+
+// compactRetained gives back retained capacity beyond the records and the
+// given spare room. Records keep their heap positions; only backing storage is
+// replaced.
+func (s *deliverySampler) compactRetained(spare int) {
+	n := len(s.order)
+	if n == 0 && spare == 0 {
+		s.retained, s.order, s.expiry = nil, nil, nil
+		return
+	}
+	if cap(s.order) <= n+spare {
+		return
+	}
+	order, expiry := make(retainedDeliveryHeap, n, n+spare), make(retainedExpiryHeap, n, n+spare)
+	copy(order, s.order)
+	copy(expiry, s.expiry)
+	s.order, s.expiry = order, expiry
+	retained := make(map[congestionPacketKey]*retainedDelivery, n)
+	maps.Copy(retained, s.retained)
+	s.retained = retained
+}
+
+// scratchSize is the feedback buffer a context needs for this many records,
+// within the shared scratch allowance. It grows into unused allowance first. A
+// peer's buffer is idle outside its own synchronous feedback event, so only when
+// that room is short do peers give back buffers beyond their records and
+// headroom, and only if that is still short, all of them.
+func (d *congestionDispatch) scratchSize(needed int) int {
+	const allowance = maxDeliveryLive + maxDeliveryRetained
+	if d.root == nil {
+		return min(allowance, max(needed, 2*cap(d.scratch)))
+	}
+	size := min(allowance, needed+deliveryHeadroom(needed))
+	for _, headroom := range [...]bool{true, false} {
+		peers := 0
+		d.eachPeer(func(p *congestionDispatch) { peers += cap(p.scratch) })
+		if allowance-peers >= needed {
+			return min(size, allowance-peers)
+		}
+		d.eachPeer(func(p *congestionDispatch) {
+			if !headroom || cap(p.scratch) > p.scratchNeed()+deliveryHeadroom(p.scratchNeed()) {
+				p.scratch, p.event.Acked, p.event.Lost = nil, nil, nil
+			}
+		})
+	}
+	return size
+}
+
+func (d *congestionDispatch) scratchNeed() int { return d.packets.len() + len(d.sampler.retained) }
+
+// deliveryUse is the live and retained record count under this context's
+// ceiling: its own, or the sum over a rich root and its paths.
+func (d *congestionDispatch) deliveryUse() (live, retained int) {
+	if d.root == nil {
+		return d.packets.len(), len(d.sampler.retained)
+	}
+	add := func(p *congestionDispatch) {
+		if p != nil {
+			live += p.packets.len()
+			retained += len(p.sampler.retained)
+		}
+	}
+	add(d.root.congestionEvents)
+	for _, path := range d.root.paths {
+		add(path.congestionEvents)
+	}
+	return live, retained
+}
+
+// DeliveryExpiry is independent of send permission and recovery's loss alarm.
+// A root reports the earliest deadline of all its contexts.
+func (h *sentPacketHandler) DeliveryExpiry() monotime.Time {
+	var next monotime.Time
+	if d := h.congestionEvents; d != nil {
+		next = d.sampler.nextExpiry
+	}
+	for _, path := range h.paths {
+		if d := path.congestionEvents; d != nil && !d.sampler.nextExpiry.IsZero() && (next.IsZero() || d.sampler.nextExpiry.Before(next)) {
+			next = d.sampler.nextExpiry
+		}
+	}
+	return next
 }
 
 func (h *sentPacketHandler) ExpireDelivery(now monotime.Time) {
 	if d := h.congestionEvents; d != nil {
 		d.expire(now)
 	}
+	for _, path := range h.paths {
+		if d := path.congestionEvents; d != nil {
+			d.expire(now)
+		}
+	}
 }
 
+// CloseDelivery closes this context's delivery state and, on a root, every path's.
 func (h *sentPacketHandler) CloseDelivery() {
+	for _, path := range h.paths {
+		path.CloseDelivery()
+	}
 	if b, ok := h.congestion.(*congestion.BBRSender); ok {
 		b.Close()
 	}

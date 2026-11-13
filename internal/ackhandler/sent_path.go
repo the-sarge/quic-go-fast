@@ -3,6 +3,7 @@ package ackhandler
 import (
 	"fmt"
 
+	"github.com/quic-go/quic-go/internal/congestion"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/utils"
@@ -23,19 +24,62 @@ func (h *sentPacketHandler) AddPath(id protocol.PathID, size protocol.ByteCount)
 // commitment, sampling the RTT object crypto already reads for key retention.
 // Neither an ACK nor an untrusted path identifier can allocate recovery state.
 // IDs only rise, and retired contexts don't count against the two live slots.
+// A rich root admits only rich paths: there is no silent Reno substitution.
 func (h *sentPacketHandler) AddPathWithRTT(id protocol.PathID, size protocol.ByteCount, rtt *utils.RTTStats) error {
-	if (h.local != nil && h.local.closed) || h.pathRoot != nil || id == 0 || id <= h.largestPath || h.liveContexts() >= 2 || len(h.paths) >= maxRecoveryPaths || !h.handshakeConfirmed ||
-		h.congestionEvents != nil || len(h.lostPackets.lostPackets) > 32 || len(h.ackCarriers.carriers) > maxRetiredAckCarriers/2 || size < protocol.MinInitialPacketSize {
+	if h.congestionEvents != nil {
 		return fmt.Errorf("ackhandler: recovery path unavailable: %d", id)
 	}
+	_, err := h.admitPath(id, size, rtt, false)
+	return err
+}
+
+// AddBBRPath installs a nonzero recovery context beside a BBR root with its own
+// controller, delivery sampler and pending-local authority. The connection's
+// logical delivery owner and the root's aggregate store ceilings stay shared.
+// The context validates no ECN, so it sends without ECN marks.
+func (h *sentPacketHandler) AddBBRPath(id protocol.PathID, size, ceiling protocol.ByteCount, rtt *utils.RTTStats, pending func() protocol.ByteCount) (*congestion.BBRSender, error) {
+	if _, ok := h.congestion.(*congestion.BBRSender); !ok || size < protocol.MinInitialPacketSize || size > ceiling {
+		return nil, fmt.Errorf("ackhandler: BBR path unavailable: %d", id)
+	}
+	b := congestion.NewBBRSenderWithPacketCeiling(size, ceiling)
+	path, err := h.addRichPath(id, size, rtt, b, pending)
+	if err != nil {
+		return nil, err
+	}
+	path.congestion = b
+	return b, nil
+}
+
+// addRichPath admits a context whose sink owns its model from this path's
+// value records alone. The fixture form takes any sink.
+func (h *sentPacketHandler) addRichPath(id protocol.PathID, size protocol.ByteCount, rtt *utils.RTTStats, sink congestionEventSink, pending func() protocol.ByteCount) (*sentPacketHandler, error) {
+	if h.congestionEvents == nil || sink == nil || pending == nil {
+		return nil, fmt.Errorf("ackhandler: rich recovery path unavailable: %d", id)
+	}
+	path, err := h.admitPath(id, size, rtt, true)
+	if err != nil {
+		return nil, err
+	}
+	path.congestionEvents = &congestionDispatch{sink: sink, pending: pending, localRoute: path.local != nil, root: h}
+	h.congestionEvents.root = h
+	h.richPaths = true
+	return path, nil
+}
+
+func (h *sentPacketHandler) admitPath(id protocol.PathID, size protocol.ByteCount, rtt *utils.RTTStats, rich bool) (*sentPacketHandler, error) {
+	if (h.local != nil && h.local.closed) || h.pathRoot != nil || id == 0 || id <= h.largestPath || h.liveContexts() >= 2 || len(h.paths) >= maxRecoveryPaths || !h.handshakeConfirmed ||
+		len(h.lostPackets.lostPackets) > 32 || len(h.ackCarriers.carriers) > maxRetiredAckCarriers/2 || size < protocol.MinInitialPacketSize {
+		return nil, fmt.Errorf("ackhandler: recovery path unavailable: %d", id)
+	}
 	rtt.SetMaxAckDelay(h.rttStats.MaxAckDelay())
-	path := newSentPacketHandler(0, size, rtt, h.connStats, true, h.enableECN, h.ignorePacketsBelow, h.perspective, newPathLossRecorder(h.qlogger), h.logger, nil)
+	// A rich path marks no ECN until its own validation exists.
+	path := newSentPacketHandler(0, size, rtt, h.connStats, true, h.enableECN && !rich, h.ignorePacketsBelow, h.perspective, newPathLossRecorder(h.qlogger), h.logger, nil)
 	path.pathID, path.pathRoot, path.pathPolicy = id, h, h.pathPolicy
 	path.initialPackets, path.handshakePackets = nil, nil
 	path.handshakeConfirmed, path.peerCompletedAddressValidation, path.peerAddressValidated = true, true, true
 	if h.local != nil {
 		path.local = &localCompletions{}
-		if h.local.ecn != nil && h.bbrECN == nil {
+		if h.local.ecn != nil && h.bbrECN == nil && !rich {
 			// Each path validates its own ECN, exactly as the root does.
 			path.local.ecn = &localECNEvidence{watermark: protocol.InvalidPacketNumber}
 			path.ecnTracker.(*ecnTracker).local = path.local.ecn
@@ -51,7 +95,7 @@ func (h *sentPacketHandler) AddPathWithRTT(id protocol.PathID, size protocol.Byt
 	}
 	h.paths[id] = path
 	h.largestPath = id
-	return nil
+	return path, nil
 }
 
 func (h *sentPacketHandler) liveContexts() int {
@@ -102,6 +146,9 @@ func (h *sentPacketHandler) RemovePath(id protocol.PathID) {
 	if id == h.pathID {
 		h.appDataPackets.history.releaseRetained()
 		return
+	}
+	if path := h.paths[id]; path != nil {
+		path.CloseDelivery()
 	}
 	delete(h.paths, id)
 }
