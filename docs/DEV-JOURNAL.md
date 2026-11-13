@@ -10573,3 +10573,38 @@ Merged [PR #1341](https://github.com/the-sarge/quic-go-fast/pull/1341) as `2eca2
 
 **Next:**
 - No follow-ups. The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## Multipath B3 BBR primary/backup lifecycle (#1042) - 2026-11-13 03:18 EST
+
+**Main:** `5875a716e2ba`
+**Actor:** Claude
+
+Merged [PR #1343](https://github.com/the-sarge/quic-go-fast/pull/1343) as `5875a716e2bad75569f44f436ccf6f2ed4751081`, closing [Multipath B3: Exercise BBR primary/backup through complete lifecycle (#1042)](https://github.com/the-sarge/quic-go-fast/issues/1042) under program #646. It implements plan commit `2dd43f63d`, section B3.
+
+**Completed:**
+- **Activation.** `enableMultipathCredit` no longer refuses BBR. The public gate `admitMultipath` still refuses BBR multipath until B6.
+- **Lifecycle.** Admission constructs each path's BBR context and policy through `addBBRPath`, and final reclamation removes them together through `removeBBRPath`. A multipath connection's ACKs go through `ReceivedPathAck` with the carrier path, so only a same-path ACK trains a BBR path.
+- **Emission.** BBR emission takes Reno's path turns in Reno's order, then takes native construction capacity again for the selected route. It uses that route's pacing, local credit and supply gap, and follows the route GSO rule. A steered DATAGRAM leaves alone. Probe and announcement turns don't touch any route's supply state. The pending-bytes check now excludes only the granting credit's reservation.
+- **Tests.** Nine fixture scenarios in `multipath_bbr_test.go` use real protection, path recovery and the native probe endpoint. They cover two-path transfer, retirement and replacement, suspect promotion, same-ID migration, failed and uncertain local writes, DATAGRAM steering, the held opportunity during a fence, capacity after a route change, and supply state across another path's probe.
+- **Evidence record.** The [B3 applicability record](audits/2026-11-13-multipath-b3-applicability.md) carries the R17, R18 and E6/R21 Reno and native evidence forward, and records the per-route ECN capability decision. BBR primary/backup relies on B5's planned revalidation.
+
+**Decisions:**
+- A preflight-triggered scoped re-audit ([PR #1340](https://github.com/the-sarge/quic-go-fast/pull/1340)) added the private credit guard to B3's blast radius, with no selector, flag or API.
+- Steering readiness under BBR's whole-packet allowance is route choice, so it was deferred to B4 #1043 with a regression spec.
+
+**Validation:**
+- **Preparation pass.** The code-review Standards and Spec reports produced 3 fix-now items, all fixed.
+- **Initial RAS review**, run `20261113T070216-05c08a0f3a1af10c7ef308f9`: C-002 (a reproduced registration panic after a route change) and C-004 (supply state erased by a probe turn) were fixed. Verification at `58df430d1` found them resolved.
+- **Replacement RAS review**, run `20261113T073704-d97f78b5e369573c135b6557`: one low finding, deferred to #1345.
+- **Hosted golangci-lint.** It failed on `unparam` (constant `addBBRPath` size). The fix was reviewed by RAS run `20261113T081048-23cdeca7aba1c1a729ffcef7`, which was clean. The full four-reviewer panel completed every run.
+- **Exact-head certification** at `9060aef20` on base `a036076af` passed:
+  - affected-package tests on darwin/arm64 and in a linux/arm64 container;
+  - `go test -race -run TestBBRPath .`;
+  - `go vet`, `go mod tidy -diff` and local golangci-lint.
+- **Hosted checks.** All 18 succeeded on that head after it was marked ready, including `independent-peer`.
+
+**Next:**
+- B4 #1043 is ready. The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+- Follow-up #1345 awaits triage.
