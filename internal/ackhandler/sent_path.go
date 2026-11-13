@@ -36,9 +36,11 @@ func (h *sentPacketHandler) AddPathWithRTT(id protocol.PathID, size protocol.Byt
 // AddBBRPath installs a nonzero recovery context beside a BBR root with its own
 // controller, delivery sampler and pending-local authority. The connection's
 // logical delivery owner and the root's aggregate store ceilings stay shared.
-// The context validates no ECN, so it sends without ECN marks.
-func (h *sentPacketHandler) AddBBRPath(id protocol.PathID, size, ceiling protocol.ByteCount, rtt *utils.RTTStats, pending func() protocol.ByteCount) (*congestion.BBRSender, error) {
-	if _, ok := h.congestion.(*congestion.BBRSender); !ok || size < protocol.MinInitialPacketSize || size > ceiling {
+// The context validates ECN exactly when the root does, through its own ledger
+// and the path's generation, drain and capability authority, since each path
+// numbers and counts its own packet space. Otherwise it sends unmarked.
+func (h *sentPacketHandler) AddBBRPath(id protocol.PathID, size, ceiling protocol.ByteCount, rtt *utils.RTTStats, pending func() protocol.ByteCount, ecn func(drain bool) (generation uint64, drained, capable bool)) (*congestion.BBRSender, error) {
+	if _, ok := h.congestion.(*congestion.BBRSender); !ok || size < protocol.MinInitialPacketSize || size > ceiling || (h.bbrECN != nil && ecn == nil) {
 		return nil, fmt.Errorf("ackhandler: BBR path unavailable: %d", id)
 	}
 	b := congestion.NewBBRSenderWithPacketCeiling(size, ceiling)
@@ -47,6 +49,12 @@ func (h *sentPacketHandler) AddBBRPath(id protocol.PathID, size, ceiling protoco
 		return nil, err
 	}
 	path.congestion = b
+	if h.bbrECN != nil {
+		if path.local != nil {
+			path.local.ecn = &localECNEvidence{watermark: protocol.InvalidPacketNumber}
+		}
+		EnableBBRECN(path, ecn)
+	}
 	return b, nil
 }
 
@@ -61,6 +69,10 @@ func (h *sentPacketHandler) addRichPath(id protocol.PathID, size protocol.ByteCo
 		return nil, err
 	}
 	path.congestionEvents = &congestionDispatch{sink: sink, pending: pending, localRoute: path.local != nil, root: h}
+	// The root keeps one context's outcome ring; the nonzero contexts divide one
+	// further ring allowance, so the aggregate stays bounded whatever their
+	// history. Each context's fixed-size slot indexes stay undivided.
+	path.congestionEvents.recovery.capacity = pathRecoveryOutcomes
 	h.congestionEvents.root = h
 	h.richPaths = true
 	return path, nil
@@ -72,7 +84,7 @@ func (h *sentPacketHandler) admitPath(id protocol.PathID, size protocol.ByteCoun
 		return nil, fmt.Errorf("ackhandler: recovery path unavailable: %d", id)
 	}
 	rtt.SetMaxAckDelay(h.rttStats.MaxAckDelay())
-	// A rich path marks no ECN until its own validation exists.
+	// A rich path marks no ECN until AddBBRPath installs its own validation.
 	path := newSentPacketHandler(0, size, rtt, h.connStats, true, h.enableECN && !rich, h.ignorePacketsBelow, h.perspective, newPathLossRecorder(h.qlogger), h.logger, nil)
 	path.pathID, path.pathRoot, path.pathPolicy = id, h, h.pathPolicy
 	path.initialPackets, path.handshakePackets = nil, nil

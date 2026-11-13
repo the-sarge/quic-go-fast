@@ -34,16 +34,17 @@ type bbrSendPolicy struct {
 
 // addBBRPath gives a nonzero path its own BBR controller, pacing and local
 // credit beside the root's. Recovery owns the path context and its delivery
-// sampler, whose pending-local authority is this path's credit alone.
+// sampler, whose pending-local authority is this path's credit alone. When the
+// root validates ECN, so does the path, fenced by this credit's generation.
 func (e *packetEmission) addBBRPath(id protocol.PathID, size protocol.ByteCount, rtt *utils.RTTStats, now monotime.Time) (*bbrSendPolicy, error) {
 	recovery, ok := (*e.recovery).(interface {
-		AddBBRPath(protocol.PathID, protocol.ByteCount, protocol.ByteCount, *utils.RTTStats, func() protocol.ByteCount) (*congestion.BBRSender, error)
+		AddBBRPath(protocol.PathID, protocol.ByteCount, protocol.ByteCount, *utils.RTTStats, func() protocol.ByteCount, func(bool) (uint64, bool, bool)) (*congestion.BBRSender, error)
 	})
 	if e.bbr == nil || !ok || e.bbr.paths[id] != nil || size <= 0 || size > e.bbr.ceiling {
 		return nil, fmt.Errorf("BBR path unavailable: %d", id)
 	}
 	p := newBBRSendPolicyWithCeiling(1, size, e.bbr.ceiling, now)
-	b, err := recovery.AddBBRPath(id, size, e.bbr.ceiling, rtt, func() protocol.ByteCount { return e.bbrPendingBytes(p) })
+	b, err := recovery.AddBBRPath(id, size, e.bbr.ceiling, rtt, func() protocol.ByteCount { return e.bbrPendingBytes(p) }, e.bbrECNAuthority(func() *bbrSendPolicy { return p }))
 	if err != nil {
 		return nil, err
 	}
@@ -54,6 +55,19 @@ func (e *packetEmission) addBBRPath(id protocol.PathID, size protocol.ByteCount,
 	}
 	e.bbr.paths[id] = p
 	return p, nil
+}
+
+// resetBBRPath starts a nonzero BBR path's next tuple generation, as
+// resetLocalPath does for path zero. It pairs with the MigratedPath call on the
+// path's recovery context in the same cutover: both generations start at zero
+// and advance once per migration, so the context's ECN validation waits for
+// exactly this credit's older sends.
+func (e *packetEmission) resetBBRPath(id protocol.PathID, now monotime.Time) {
+	if e.bbr == nil || e.bbr.paths[id] == nil {
+		return
+	}
+	p := e.bbr.paths[id]
+	p.resetGeneration(p.credit.generation+1, now)
 }
 
 // removeBBRPath reclaims a BBR path's recovery context and policy together, at

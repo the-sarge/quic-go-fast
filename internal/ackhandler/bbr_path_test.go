@@ -372,7 +372,7 @@ func TestBBRPathEarlyAckExcludedFromTiming(t *testing.T) {
 func TestBBRPathAdmission(t *testing.T) {
 	now := monotime.Time(time.Second)
 	reno := newSentPathFixture(t)
-	_, err := reno.AddBBRPath(18, 1200, protocol.MaxPacketBufferSize, utils.NewRTTStats(), func() protocol.ByteCount { return 0 })
+	_, err := reno.AddBBRPath(18, 1200, protocol.MaxPacketBufferSize, utils.NewRTTStats(), func() protocol.ByteCount { return 0 }, nil)
 	require.Error(t, err, "a Reno root cannot gain a BBR path")
 
 	h := NewSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger).(*sentPacketHandler)
@@ -380,23 +380,23 @@ func TestBBRPathAdmission(t *testing.T) {
 	h.DropPackets(protocol.EncryptionInitial, now)
 	h.DropPackets(protocol.EncryptionHandshake, now)
 	require.Error(t, h.AddPath(17, 1200), "no silent Reno substitution beside BBR")
-	_, err = h.AddBBRPath(17, 1200, protocol.MaxPacketBufferSize, utils.NewRTTStats(), nil)
+	_, err = h.AddBBRPath(17, 1200, protocol.MaxPacketBufferSize, utils.NewRTTStats(), nil, nil)
 	require.Error(t, err, "a path needs its own pending-local authority")
 	for _, size := range []protocol.ByteCount{-1, 0, protocol.MinInitialPacketSize - 1} {
 		require.NotPanics(t, func() {
-			_, err = h.AddBBRPath(17, size, protocol.MaxPacketBufferSize, utils.NewRTTStats(), func() protocol.ByteCount { return 0 })
+			_, err = h.AddBBRPath(17, size, protocol.MaxPacketBufferSize, utils.NewRTTStats(), func() protocol.ByteCount { return 0 }, nil)
 		})
 		require.Error(t, err)
 	}
-	_, err = h.AddBBRPath(17, 1500, 1400, utils.NewRTTStats(), func() protocol.ByteCount { return 0 })
+	_, err = h.AddBBRPath(17, 1500, 1400, utils.NewRTTStats(), func() protocol.ByteCount { return 0 }, nil)
 	require.Error(t, err)
-	b, err := h.AddBBRPath(17, 1200, protocol.MaxPacketBufferSize, utils.NewRTTStats(), func() protocol.ByteCount { return 0 })
+	b, err := h.AddBBRPath(17, 1200, protocol.MaxPacketBufferSize, utils.NewRTTStats(), func() protocol.ByteCount { return 0 }, nil)
 	require.NoError(t, err)
 	require.NotSame(t, rootBBR, b)
 	ctx := h.RecoveryOnPath(17).(*sentPacketHandler)
 	require.Same(t, b, ctx.congestion)
 	require.Equal(t, protocol.ECNUnsupported, ctx.ECNMode(true), "no marking before the path validates ECN")
-	_, err = h.AddBBRPath(17, 1200, protocol.MaxPacketBufferSize, utils.NewRTTStats(), func() protocol.ByteCount { return 0 })
+	_, err = h.AddBBRPath(17, 1200, protocol.MaxPacketBufferSize, utils.NewRTTStats(), func() protocol.ByteCount { return 0 }, nil)
 	require.Error(t, err)
 
 	// Delivery expiry, close and reclamation reach every context.
@@ -416,12 +416,12 @@ func TestBBRPathAdmission(t *testing.T) {
 	h.RetirePath(17)
 	h.RemovePath(17)
 	require.Nil(t, ctx.congestionEvents, "reclamation closes the path's delivery state")
-	_, err = h.AddBBRPath(18, 1200, protocol.MaxPacketBufferSize, utils.NewRTTStats(), func() protocol.ByteCount { return 0 })
+	_, err = h.AddBBRPath(18, 1200, protocol.MaxPacketBufferSize, utils.NewRTTStats(), func() protocol.ByteCount { return 0 }, nil)
 	require.NoError(t, err)
 	next := h.RecoveryOnPath(18).(*sentPacketHandler)
 	h.CloseDelivery()
 	require.Nil(t, h.congestionEvents)
 	require.Nil(t, next.congestionEvents, "close reaches every path")
-	_, err = h.AddBBRPath(19, 1200, protocol.MaxPacketBufferSize, utils.NewRTTStats(), func() protocol.ByteCount { return 0 })
+	_, err = h.AddBBRPath(19, 1200, protocol.MaxPacketBufferSize, utils.NewRTTStats(), func() protocol.ByteCount { return 0 }, nil)
 	require.Error(t, err)
 }

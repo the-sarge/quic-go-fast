@@ -70,3 +70,40 @@ func TestBBRPathCreditExhaustionIsNotLoss(t *testing.T) {
 		RecoveryOnPath(protocol.PathID) ackhandler.SentPacketHandler
 	}).RecoveryOnPath(17), "the policy and its recovery context are reclaimed together")
 }
+
+// A BBR path validates ECN beside a validating root, fenced by its own credit:
+// after a migration, only this path's old-generation sends hold its marking.
+func TestBBRPathECNFollowsPathCredit(t *testing.T) {
+	c := newEmissionTestConnection(t, false).conn
+	now := monotime.Now()
+	conn := &ecnTestSendConn{sendConn: c.conn, capable: true}
+	c.conn = conn
+	e := &c.emission
+	e.enableBBR(now, protocol.MaxPacketBufferSize)
+	e.enableBBRECN()
+	c.sentPacketHandler.DropPackets(protocol.EncryptionInitial, now)
+	c.sentPacketHandler.DropPackets(protocol.EncryptionHandshake, now)
+	path, err := e.addBBRPath(17, 1200, utils.NewRTTStats(), now)
+	require.NoError(t, err)
+	recovery := c.sentPacketHandler.(interface {
+		RecoveryOnPath(protocol.PathID) ackhandler.SentPacketHandler
+	}).RecoveryOnPath(17)
+	require.Equal(t, protocol.ECT0, recovery.ECNMode(true))
+
+	old := path.credit.reserve(1200, 2*path.quantum, false, false)
+	require.NotNil(t, old)
+	path.sent(path.budget(now), now)
+	recovery.MigratedPath(now, protocol.MinInitialPacketSize)
+	e.resetBBRPath(17, now)
+	e.resetBBRPath(18, now) // no such path
+	require.Equal(t, path.quantum, path.budget(now), "the new tuple starts with full pacing credit")
+	require.Equal(t, protocol.ECNNon, recovery.ECNMode(true), "this path's old-generation send is pending")
+	root := e.bbr.credit.reserve(1200, 2*e.bbr.quantum, false, false)
+	require.NotNil(t, root)
+	old.complete()
+	require.Equal(t, protocol.ECT0, recovery.ECNMode(true), "another path's pending work does not hold the fence")
+	root.complete()
+
+	conn.capable = false
+	require.Equal(t, protocol.ECNUnsupported, recovery.ECNMode(true))
+}
