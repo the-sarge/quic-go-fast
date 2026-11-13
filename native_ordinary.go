@@ -290,16 +290,74 @@ func (s *nativeOrdinarySender) participantOf(route *pathRoute) *endpointParticip
 // a slow socket can't hold back a path on an independent one. The total is unchanged,
 // and a connection without path admission keeps every record.
 func (s *nativeOrdinarySender) routeSaturated(endpoint *nativeEndpoint) bool {
+	return s.saturatedExcept(endpoint, nil)
+}
+
+func (s *nativeOrdinarySender) saturatedExcept(endpoint *nativeEndpoint, released *ordinaryLocalRecord) bool {
 	if credit := s.connection.pathCredit; len(s.targets) == 0 || credit == nil || !credit.hasAdmission() {
 		return false
 	}
 	held := 0
 	for index := range s.records {
-		if s.records[index].state != ordinaryFree && s.records[index].endpoint == endpoint {
+		if record := &s.records[index]; record != released && record.state != ordinaryFree && record.endpoint == endpoint {
 			held++
 		}
 	}
 	return held >= len(s.records)-1
+}
+
+// canConstruct reports whether an opportunity on route would hold construction
+// capacity, as wouldBlock and reserve decide it, without reserving, attaching a
+// participant or finishing a record. A building record for route counts; one for
+// another route that holds nothing yet is released by the switch. An endpoint
+// this connection hasn't attached to yet holds none of its records.
+func (s *nativeOrdinarySender) canConstruct(route *pathRoute) bool {
+	if s.drained || s.closed || s.err != nil || !s.recovery.CanRegisterLocalPackets(1) || !s.bufferRoom(route, 0) {
+		return false
+	}
+	var released *ordinaryLocalRecord
+	if pending := s.pending; pending != nil {
+		if s.route == route {
+			identity := s.constructionIdentity(route)
+			identity.registration = pending.identity.registration
+			if identity == pending.identity && (len(pending.members) == 0 || pending.request.epoch == s.constructionEpoch()) {
+				return true
+			}
+		}
+		if len(pending.members) == 0 {
+			released = pending
+		}
+	}
+	packets := 1
+	if !s.connection.handshakeConfirmed {
+		packets = 3
+	}
+	if !s.recovery.CanRegisterLocalPackets(packets) {
+		return false
+	}
+	var endpoint *nativeEndpoint
+	switch {
+	case route == nil:
+		endpoint = s.endpoint
+	case route.transport == nil:
+		if s.origin == nil {
+			return false
+		}
+		endpoint = s.origin.endpoint
+	default:
+		if endpoint = nativeTransportEndpoint(route.transport); endpoint == nil {
+			return false
+		}
+	}
+	if s.saturatedExcept(endpoint, released) {
+		return false
+	}
+	for i := range s.records {
+		if record := &s.records[i]; record == released || record.state == ordinaryFree {
+			return true
+		}
+	}
+	return false
 }
 
 // useRoute changes only the current local builder. Frozen staged requests retain

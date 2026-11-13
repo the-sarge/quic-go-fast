@@ -170,17 +170,6 @@ func (p *bbrSendPolicy) accrued(now monotime.Time) int64 {
 	return p.tokens + int64(delta*p.rate) // bounded above by missing
 }
 
-// sendAt is when this pacing next lets size leave: now when credit covers it,
-// otherwise when credit reaches a full quantum, as deadline wakes. It spends and
-// records nothing.
-func (p *bbrSendPolicy) sendAt(size protocol.ByteCount, now monotime.Time) monotime.Time {
-	tokens := p.accrued(now)
-	if max(0, protocol.ByteCount(tokens/1e9)) >= size {
-		return now
-	}
-	return now.Add(time.Duration(ceilSendDelay(uint64(int64(p.quantum)*1e9-tokens), p.rate)))
-}
-
 func ceilSendDelay(deficit, rate uint64) uint64 {
 	d := deficit / rate
 	if deficit%rate != 0 {

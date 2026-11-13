@@ -70,11 +70,13 @@ func (e *packetEmission) reserveOn(p *bbrSendPolicy, n protocol.ByteCount, ordin
 // boundedGSO applies Reno's route rule to the opportunity's capability: a target
 // transport or a tuple's own fallback disables segmentation, as does a terminal
 // control datagram awaiting its receipt.
-func (e *packetEmission) boundedGSO() bool {
+func (e *packetEmission) boundedGSO() bool { return e.boundedGSOOn(e.route) }
+
+func (e *packetEmission) boundedGSOOn(r *pathRoute) bool {
 	if e.pathCredit != nil && e.pathCredit.needsReceipt() {
 		return false
 	}
-	if r := e.route; r != nil && (r.transport != nil || r.writeState.gsoDisabled.Load()) {
+	if r != nil && (r.transport != nil || r.writeState.gsoDisabled.Load()) {
 		return false
 	}
 	return e.opportunityCapabilities().GSO
@@ -202,63 +204,47 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 	p.quantum = max(2*size, protocol.ByteCount(min(uint64(65536), p.rate/1000)))
 	p.tokens = min(p.tokens, int64(p.quantum)*1e9)
 	mode, allowance := recovery.SendAllowance(now)
-	switch mode {
-	case ackhandler.SendNone:
+	var intent emissionIntent
+	if mode == ackhandler.SendAny {
+		intent = e.policy.prepareEmission(now)
+		if intent.transport != nil {
+			err := e.clientProbe(intent.connID, intent.frame, intent.transport, intent.addr, now)
+			return emissionResult{err: err, retry: err == nil}
+		}
+	}
+	plan := e.planBounded(e.route, p, mode, allowance, size, intent.mtu, e.steered, confirmed, now)
+	switch plan.step {
+	case stepSend:
+	case stepHardBlocked:
 		return emissionResult{stop: emissionHardBlocked, blocked: blockModeHardBlocked}
-	case ackhandler.SendAck:
-		if !e.reserveLocal(size, false, false, now) {
-			return e.localBlocked()
-		}
-		progress, err := e.maybeSendAckOnlyPacket(now, confirmed)
-		return emissionResult{progress: progress, err: err, stop: emissionCongestionLimited, blocked: blockModeCongestionLimited}
-	case ackhandler.SendPTOInitial, ackhandler.SendPTOHandshake, ackhandler.SendPTOAppData:
-		if !e.reserveLocal(size, false, false, now) {
-			return e.localBlocked()
-		}
-		err := e.sendProbePacket(mode, now)
-		return emissionResult{progress: err == nil, retry: err == nil, err: err}
-	case ackhandler.SendAny:
-		// Continue below, preserving recovery's flight and anti-amplification gates.
-	case ackhandler.SendPacingLimited:
-		panic("invalid unpaced recovery mode")
-	}
-	intent := e.policy.prepareEmission(now)
-	if intent.transport != nil {
-		err := e.clientProbe(intent.connID, intent.frame, intent.transport, intent.addr, now)
-		return emissionResult{err: err, retry: err == nil}
-	}
-	if intent.mtu != nil {
-		if deadline := p.deadline(min(intent.mtu.probeSize(), p.quantum), now); deadline != 0 {
-			if !e.reserveLocal(size, false, false, now) {
-				return e.localBlocked()
-			}
-			progress, err := e.maybeSendAckOnlyPacket(now, confirmed)
-			return emissionResult{progress: progress, err: err, stop: emissionPaced, deadline: deadline}
-		}
-		if !e.reserveLocal(intent.mtu.probeSize(), false, true, now) {
-			return e.waitForReservation(now, confirmed, size, intent.mtu.probeSize(), false, true)
-		}
-		result := e.mtuProbe(intent.mtu, now)
-		result.retry = result.progress
-		return result
-	}
-	if allowance < size {
+	case stepAck:
 		// ACKs retain their exemption when the remaining window cannot fit M.
 		if !e.reserveLocal(size, false, false, now) {
 			return e.localBlocked()
 		}
 		progress, err := e.maybeSendAckOnlyPacket(now, confirmed)
 		return emissionResult{progress: progress, err: err, stop: emissionCongestionLimited, blocked: blockModeCongestionLimited}
-	}
-	if deadline := p.deadline(size, now); deadline != 0 {
+	case stepProbe:
+		if !e.reserveLocal(size, false, false, now) {
+			return e.localBlocked()
+		}
+		err := e.sendProbePacket(mode, now)
+		return emissionResult{progress: err == nil, retry: err == nil, err: err}
+	case stepPaced, stepMTUPaced:
 		if !e.reserveLocal(size, false, false, now) {
 			return e.localBlocked()
 		}
 		progress, err := e.maybeSendAckOnlyPacket(now, confirmed)
-		return emissionResult{progress: progress, err: err, stop: emissionPaced, deadline: deadline}
-	}
-	e.confirmSupplyGap(now)
-	if e.steered {
+		return emissionResult{progress: progress, err: err, stop: emissionPaced, deadline: plan.deadline}
+	case stepMTUProbe:
+		if !e.reserveLocal(plan.request, false, true, now) {
+			return e.waitForReservation(now, confirmed, size, plan.request, false, true)
+		}
+		result := e.mtuProbe(intent.mtu, now)
+		result.retry = result.progress
+		return result
+	case stepSteered:
+		e.confirmSupplyGap(now)
 		// The steered DATAGRAM leaves alone, so no stream data follows it off
 		// the primary; selection then runs again for whatever is next.
 		if !e.reserveLocal(size, true, false, now) {
@@ -268,13 +254,9 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 		result.retry = result.progress
 		return result
 	}
-	limit := size
-	if confirmed && e.boundedGSO() {
-		limit = min(p.budget(now), allowance, gsoPacketSendLimit(size))
-		limit -= limit % size
-	}
-	if !e.reserveLocal(limit, true, false, now) {
-		return e.waitForReservation(now, confirmed, size, limit, true, false)
+	e.confirmSupplyGap(now)
+	if !e.reserveLocal(plan.request, true, false, now) {
+		return e.waitForReservation(now, confirmed, size, plan.request, true, false)
 	}
 	if !confirmed {
 		result := e.coalesced(now)
@@ -282,7 +264,70 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 		result.retry = result.progress
 		return result
 	}
-	return e.boundedDatagrams(now, size, limit)
+	return e.boundedDatagrams(now, size, plan.request)
+}
+
+// boundedStep is the work a BBR opportunity does once its path turns are done.
+type boundedStep uint8
+
+const (
+	stepSend        boundedStep = iota // an ordinary batch
+	stepHardBlocked                    // recovery allows nothing
+	stepAck                            // congestion-limited: ACKs only
+	stepProbe                          // a PTO probe
+	stepMTUPaced                       // a due MTU probe waits for pacing; ACKs only
+	stepMTUProbe                       // the isolated MTU probe
+	stepPaced                          // ordinary work waits for pacing; ACKs only
+	stepSteered                        // the steered DATAGRAM alone
+)
+
+// boundedPlan is an opportunity's step and the local reservation its work takes.
+type boundedPlan struct {
+	step               boundedStep
+	request            protocol.ByteCount // zero for a step that sends only ACKs or a probe
+	ordinary, isolated bool
+	deadline           monotime.Time // a paced step's wake
+}
+
+// planBounded decides a BBR opportunity on route from recovery's mode and
+// allowance, the route's pacing p, a due MTU probe and GSO capability. It
+// spends and reserves nothing. sendBounded executes the plan, and a path's
+// readiness consumes the same plan, so readiness can't promise a reservation
+// the opportunity won't get.
+func (e *packetEmission) planBounded(route *pathRoute, p *bbrSendPolicy, mode ackhandler.SendMode, allowance, size protocol.ByteCount, mtu *mtuFinder, steered, confirmed bool, now monotime.Time) boundedPlan {
+	switch mode {
+	case ackhandler.SendNone:
+		return boundedPlan{step: stepHardBlocked}
+	case ackhandler.SendAck:
+		return boundedPlan{step: stepAck}
+	case ackhandler.SendPTOInitial, ackhandler.SendPTOHandshake, ackhandler.SendPTOAppData:
+		return boundedPlan{step: stepProbe}
+	case ackhandler.SendAny:
+		// Continue below, preserving recovery's flight and anti-amplification gates.
+	case ackhandler.SendPacingLimited:
+		panic("invalid unpaced recovery mode")
+	}
+	if mtu != nil {
+		if deadline := p.deadline(min(mtu.probeSize(), p.quantum), now); deadline != 0 {
+			return boundedPlan{step: stepMTUPaced, deadline: deadline}
+		}
+		return boundedPlan{step: stepMTUProbe, request: mtu.probeSize(), isolated: true}
+	}
+	if allowance < size {
+		return boundedPlan{step: stepAck}
+	}
+	if deadline := p.deadline(size, now); deadline != 0 {
+		return boundedPlan{step: stepPaced, deadline: deadline}
+	}
+	if steered {
+		return boundedPlan{step: stepSteered, request: size, ordinary: true}
+	}
+	limit := size
+	if confirmed && e.boundedGSOOn(route) {
+		limit = min(p.budget(now), allowance, gsoPacketSendLimit(size))
+		limit -= limit % size
+	}
+	return boundedPlan{step: stepSend, request: limit, ordinary: true}
 }
 
 func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protocol.ByteCount) emissionResult {

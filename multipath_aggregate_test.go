@@ -189,35 +189,165 @@ func TestAggregateComparisonArmIgnoresSamples(t *testing.T) {
 	})
 }
 
-// A path's view projects its pacing to the controller's current rate, as the
-// opportunity's refresh will, so feedback since the path last sent moves its
-// next send time and credit limit in the view too. Reading it consumes nothing.
-func TestAggregateViewProjectsEnforcedPacing(t *testing.T) {
-	nativeOrdinaryTest(t, func(t *testing.T) {
-		f := newBBRPathFixture(t, protocol.PerspectiveServer)
-		f.aggregate(t, scheduleAggregate)
-		f.write(t, 12000)
-		f.drain(t)
-		one := f.parseWrites(t, 1)
-		time.Sleep(20 * time.Millisecond)
-		f.ackPath(t, 1, 1, one)
+// gsoCapableConn reports segmentation offload over a socket that lacks it.
+type gsoCapableConn struct{ sendConn }
 
-		p := f.bbrPath(1)
-		now := monotime.Now()
-		p.tokens, p.updated = 0, now // path 1's credit is spent
-		cached := p.rate
-		require.NotEqual(t, cached, p.controller.PacingRate()/100*99+p.controller.PacingRate()%100*99/100, "feedback moved the rate since path 1 last sent")
-		view := f.c.pathCredit.viewOf(f.c.pathCredit.members[1], now)
-		require.Equal(t, cached, p.rate, "the view changes nothing")
-		require.Zero(t, p.tokens)
+func (c gsoCapableConn) capabilities() connCapabilities {
+	capabilities := c.sendConn.capabilities()
+	capabilities.GSO = true
+	return capabilities
+}
 
-		size := f.c.pathCredit.members[1].route.mtu.CurrentSize()
-		p.update(p.controller.PacingRate(), size, now) // what the opportunity enforces
-		enforced := now
-		if deadline := p.deadline(size, now); deadline != 0 {
-			enforced = deadline
+// prefer makes byte round-robin choose path id while both are ready.
+func (f *reliableFixture) prefer(id protocol.PathID) {
+	for other, m := range f.c.pathCredit.members {
+		m.scheduled = 0
+		if other != id {
+			m.scheduled = 1 << 20
 		}
-		require.Equal(t, enforced, view.sendAt)
-		require.Equal(t, p.credit.admits(size, p.creditLimit()), view.ready)
+	}
+}
+
+// A BBR path is ready only when its local credit admits the reservation its own
+// opportunity plan takes: the credit limit at the controller's current rate, a
+// whole GSO batch, and a due MTU probe's isolated reservation. A path that would
+// be refused leaves the other path sending, and its turn returns with its credit.
+func TestAggregateReadinessMatchesCreditReservation(t *testing.T) {
+	t.Run("limit and pacing at the current rate", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newBBRPathFixture(t, protocol.PerspectiveServer)
+			f.aggregate(t, scheduleAggregate)
+			f.write(t, 12000)
+			f.drain(t)
+			one := f.parseWrites(t, 1)
+			time.Sleep(20 * time.Millisecond)
+			f.ackPath(t, 1, 1, one)
+
+			p := f.bbrPath(1)
+			now := monotime.Now()
+			p.tokens, p.updated = 0, now // path 1's pacing credit is spent
+			cached := p.rate
+			rate := p.controller.PacingRate()
+			require.NotEqual(t, cached, rate/100*99+rate%100*99/100, "feedback moved the rate since path 1 last sent")
+			view := f.view(1)
+			require.Equal(t, cached, p.rate, "the view changes nothing")
+			require.Zero(t, p.tokens)
+
+			size := f.c.pathCredit.members[1].route.mtu.CurrentSize()
+			p.update(rate, size, now) // what the opportunity enforces
+			require.Equal(t, p.deadline(size, now), view.sendAt)
+		})
+	})
+	t.Run("a GSO batch", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newBBRPathFixture(t, protocol.PerspectiveServer)
+			f.aggregate(t, scheduleAggregate)
+			e := &f.c.emission
+			// Path zero plans GSO batches; the endpoint still writes each segment.
+			native := f.c.conn.(*nativeOrdinaryConn)
+			native.sendConn = gsoCapableConn{native.sendConn}
+			e.local.(*nativeOrdinarySender).nativeGSO = false
+			require.True(t, e.boundedGSOOn(nil), "path zero segments")
+			time.Sleep(10 * time.Millisecond) // pacing refills a whole quantum: a batch of two packets
+			now := monotime.Now()
+			size := e.packetSizeOn(nil)
+			projected := e.bbr.projected(size, now)
+			limit := projected.creditLimit()
+			held := e.bbr.credit.reserve(limit-size, limit, false, false) // still with the worker
+			require.NotNil(t, held)
+			require.True(t, e.bbr.credit.admits(size, limit, true, false), "one packet would fit")
+			require.False(t, f.view(0).ready, "but path zero's opportunity reserves a batch")
+
+			f.prefer(0)
+			f.write(t, 6000)
+			f.pass(t)
+			require.Positive(t, reliableBytes(f.parseWrites(t, 1)), "path 1 keeps sending")
+			require.Zero(t, reliableBytes(f.parseWrites(t, 0)))
+			f.socket.writes = nil
+
+			held.completeLocal()
+			f.prefer(0)
+			f.drain(t)
+			require.Positive(t, reliableBytes(f.parseWrites(t, 0)), "path zero's turn returns with its credit")
+		})
+	})
+	t.Run("a due MTU probe", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newBBRPathFixture(t, protocol.PerspectiveServer)
+			f.aggregate(t, scheduleAggregate)
+			e := &f.c.emission
+			route := &f.c.pathCredit.members[1].route
+			route.mtu.init(protocol.MinInitialPacketSize, 1400)
+			route.mtu.Start(monotime.Now())
+			time.Sleep(time.Until(route.mtu.NextProbeTime().ToTime()))
+			now := monotime.Now()
+			require.NotNil(t, e.dueMTU(route, now))
+			p := f.bbrPath(1)
+			size := route.mtu.CurrentSize()
+			projected := p.projected(size, now)
+			limit := projected.creditLimit()
+			held := p.credit.reserve(size, limit, false, false)
+			require.NotNil(t, held)
+			require.True(t, p.credit.admits(size, limit, true, false), "an ordinary packet would fit")
+			require.False(t, f.view(1).ready, "but the probe needs path 1's credit to itself")
+
+			f.prefer(1)
+			f.write(t, 6000)
+			f.pass(t)
+			require.Positive(t, reliableBytes(f.parseWrites(t, 0)), "path zero keeps sending")
+			require.Zero(t, reliableBytes(f.parseWrites(t, 1)))
+
+			held.completeLocal()
+			f.prefer(1)
+			f.pass(t)
+			require.NotEqual(t, protocol.InvalidByteCount, route.mtu.inFlight, "the probe leaves once the credit is its own")
+		})
+	})
+}
+
+// A path is ready only when its route's native endpoint would give the connection
+// construction capacity. With path zero's socket stalled and its records held, path
+// 1 on an independent endpoint keeps sending.
+func TestAggregateReadinessMatchesConstructionCapacity(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newAdmissionFixture(t, protocol.PerspectiveClient)
+		f.supplyPeerCIDs(t)
+		target, socket, _ := newTargetTransport(t, f)
+		t.Cleanup(socket.release)
+		openOnTarget(t, f, target, socket)
+		p := f.c.pathCredit
+		p.scheduler = scheduleAggregate
+		require.NoError(t, p.setLocalUsePrivate(1, false, monotime.Now()))
+		s := targetStream(t, f)
+		sender := f.c.emission.local.(*nativeOrdinarySender)
+		f.socket.hold = func([]byte) bool { return true }
+		t.Cleanup(f.socket.release)
+
+		prefer := func() { p.members[0].scheduled, p.members[1].scheduled = 0, 1<<20 }
+		prefer()
+		writeAsync(t, s, 1<<20)
+		// Each paced opportunity on path zero stages its own record behind the stall.
+		for range 32 {
+			prefer()
+			f.pass(t)
+			if !sender.canConstruct(nil) {
+				break
+			}
+			if deadline := f.c.pacingDeadline; deadline != 0 && deadline != deadlineSendImmediately {
+				time.Sleep(time.Until(deadline.ToTime()) + time.Microsecond)
+			}
+		}
+		require.False(t, sender.canConstruct(nil), "path zero's endpoint holds this connection's records")
+		require.True(t, sender.canConstruct(&p.members[1].route), "path 1's endpoint has one")
+
+		// Path zero's window and pacing would send now; only its endpoint refuses.
+		zero := f.c.sentPacketHandler
+		time.Sleep(time.Until(zero.TimeUntilSend().ToTime()) + time.Microsecond)
+		require.Equal(t, ackhandler.SendAny, zero.SendMode(monotime.Now()))
+		require.False(t, p.viewOf(p.members[0], monotime.Now()).ready, "so it isn't ready")
+		socket.writes = nil
+		prefer()
+		f.pass(t)
+		require.NotEmpty(t, socket.writes, "path 1 keeps sending through its own endpoint")
 	})
 }

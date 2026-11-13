@@ -24,6 +24,7 @@ type localPacketSender interface {
 	probesPending(*Transport, *responseEpoch) bool
 	useRoute(*pathRoute)
 	steer(*pathRoute) bool
+	canConstruct(*pathRoute) bool
 	routeUsable(*Transport) bool
 	reserveTarget(*Transport) error
 	finish()

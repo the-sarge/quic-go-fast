@@ -164,15 +164,19 @@ func (e *packetEmission) packetSizeOn(route *pathRoute) protocol.ByteCount {
 	return e.policy.maxPacketSize()
 }
 
-// pathView reads one path's sending state for selection and consumes nothing.
-// Reno sends into any open window. A BBR opportunity needs a whole packet of window
-// and local credit, so only that makes its path ready; its own pacing, local queue
-// and delivery sampler supply the rest, projected to its controller's current rate
-// as the opportunity would refresh them.
+// pathView reads one path's sending state for selection and consumes nothing. A
+// path is ready when the opportunity it would run gets its local reservation:
+// native construction capacity on its route and, for BBR, the local credit the
+// opportunity's own plan reserves. Reno sends into any open window. A BBR path's
+// pacing is projected to its controller's current rate, and a paced path is
+// judged by the work it would do once pacing allows. Readiness never runs the
+// controller's send-time preparation, so a window that moves there stops the
+// opportunity on congestion, which is the network's verdict, not a local refusal.
 func (e *packetEmission) pathView(id protocol.PathID, route *pathRoute, recovery ackhandler.SentPacketHandler, now monotime.Time) pathView {
 	if e.bbr == nil {
 		mode := recovery.SendMode(now)
 		view := pathViewFor(id, mode)
+		view.ready = view.ready && e.canConstruct(route)
 		if mode == ackhandler.SendPacingLimited {
 			view.sendAt = recovery.TimeUntilSend()
 		}
@@ -182,14 +186,37 @@ func (e *packetEmission) pathView(id protocol.PathID, route *pathRoute, recovery
 	p := e.policyOn(route)
 	projected := p.projected(size, now)
 	mode, allowance := recovery.(boundedRecovery).SendAllowance(now)
-	return pathView{
-		id: id, fits: true,
-		probing: mode == ackhandler.SendPTOAppData,
-		ready:   mode == ackhandler.SendAny && allowance >= size && p.credit.admits(size, projected.creditLimit()),
-		sendAt:  projected.sendAt(size, now),
-		queued:  e.bbrPendingBytes(p) + size,
-		rate:    p.controller.DeliveryRateEstimate(),
+	mtu, confirmed := e.dueMTU(route, now), e.pathCredit.conn.handshakeConfirmed
+	view := pathView{id: id, fits: true, probing: mode == ackhandler.SendPTOAppData, sendAt: now}
+	plan := e.planBounded(route, &projected, mode, allowance, size, mtu, false, confirmed, now)
+	if plan.step == stepPaced || plan.step == stepMTUPaced {
+		view.sendAt = plan.deadline
+		plan = e.planBounded(route, &projected, mode, allowance, size, mtu, false, confirmed, plan.deadline)
 	}
+	view.ready = (plan.step == stepSend || plan.step == stepMTUProbe) &&
+		p.credit.admits(plan.request, projected.creditLimit(), plan.ordinary, plan.isolated) && e.canConstruct(route)
+	view.queued = e.bbrPendingBytes(p) + size
+	view.rate = p.controller.DeliveryRateEstimate()
+	return view
+}
+
+// dueMTU is the route's path MTU finder when the opportunity on it would probe.
+func (e *packetEmission) dueMTU(route *pathRoute, now monotime.Time) *mtuFinder {
+	finder := e.pathCredit.conn.mtuDiscoverer
+	if route != nil {
+		finder = route.mtu
+	}
+	if !e.pathCredit.conn.handshakeConfirmed || finder == nil || !finder.ShouldSendProbe(now) {
+		return nil
+	}
+	return finder
+}
+
+// canConstruct reports, without reserving, whether the route's native endpoint
+// would give this connection construction capacity. The ordinary send queue is
+// shared by every route, so it never distinguishes one.
+func (e *packetEmission) canConstruct(route *pathRoute) bool {
+	return e.local == nil || e.local.canConstruct(route)
 }
 
 // announcePath sends the non-probing packet a cutover owes on its new tuple. It is an
