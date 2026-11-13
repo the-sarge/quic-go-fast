@@ -10387,3 +10387,28 @@ Merged [PR #1327](https://github.com/the-sarge/quic-go-fast/pull/1327) as `52145
 - All 18 hosted checks succeeded on that head, including the post-ready independent multipath peer job.
 
 **Next:** B2 #1041 is the B-track frontier. The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## B3 send-time and wiring scope amendment - 2026-11-13 00:18 EST
+
+**Main:** `e7aa046a535b`
+**Actor:** Claude
+
+Merged [PR #1332](https://github.com/the-sarge/quic-go-fast/pull/1332) as `e7aa046a535bb0263fb9d01331ad39d8f16a072d`. It is a docs-only amendment to the B3 section of the [BBR plan](adr/2026-10-24-multipath-bbr-plan.md#b3), made before [B3 (#1042)](https://github.com/the-sarge/quic-go-fast/issues/1042) is dispatched. No behavior, representation or design changed, and nothing was dispatched.
+
+**Completed:**
+- B3's blast radius now names send-time selection of the route's BBR send policy (pacing, local credit, supply gap) in `packet_emission_bbr.go`, `bbr_send_policy.go` and the supply-gap and pending-byte consumers in `delivery_sampling.go`. It also names the path admission and final-reclamation `addBBRPath`/`removeBBRPath` call sites in `multipath_admission.go`. Their tests are included. B1 [#1040](https://github.com/the-sarge/quic-go-fast/issues/1040) had handed all of this to B3, but B3's file list omitted it.
+- B3's authority line says emission selects the chosen route's send policy but does not choose the route; scheduling choice stays with B4.
+- B3 and its slice-graph row now record the owner-approved [BBR window-policy fix #1329](https://github.com/the-sarge/quic-go-fast/issues/1329) as a blocker beside B2.
+- #1042's plan pointer and links now point at `e7aa046a5`. Its blockers, #1041 and #1329, are unchanged.
+
+**Decisions:**
+- The send-time selection files joined B3 by [owner decision on 2026-11-12](https://github.com/the-sarge/quic-go-fast/issues/1042#issuecomment-6844439624). The orchestrator read the `delivery_sampling.go` consumers as inside that decision, because emission calls them at send time. The `multipath_admission.go` call sites joined by [owner decision on 2026-11-13](https://github.com/the-sarge/quic-go-fast/issues/1042#issuecomment-6844725977); they are controller construction and disposal, which B3 already owned.
+- B3's context and evidence budgets are unchanged. Its existing network-suspect promotion scenario already covers sending on the backup after failover.
+
+**Validation:**
+- RAS run `20261113T045540-1b3951eab670c3302413174a` had no Fix First items. Its two scope gaps went to the decisions above. Replacement run `20261113T050912-8996d6ffbf88e12e9c95c260` had no Fix First or Follow Up items. Dispositions are in the [PR #1332 review history](https://github.com/the-sarge/quic-go-fast/pull/1332#issuecomment-6844861412).
+- Docs certification ran at head `f6531abd2` on base `dd69e96be`: clean tree, `git diff --check`, and the links resolved. All 17 hosted checks succeeded on that head.
+
+**Next:** B3 #1042 stays blocked by B2 #1041 and #1329. One pre-dispatch question from the replacement review remains open: whether B3 must relax the private BBR credit guard at `multipath_credit.go:77`. The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
