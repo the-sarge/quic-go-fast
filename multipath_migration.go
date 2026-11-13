@@ -364,6 +364,7 @@ func (p *pathCreditRegistry) commitTuple(m *pathMember, candidate *pathCandidate
 	} else {
 		m.tuple++
 		recovery.MigratedPath(now, protocol.MinInitialPacketSize)
+		c.emission.resetBBRPath(m.id, now)
 		c.emission.local.resetWriteState(&m.route)
 		p.startPMTU(m, m.transport, now)
 	}

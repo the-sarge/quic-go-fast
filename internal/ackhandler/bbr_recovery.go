@@ -10,10 +10,8 @@ import (
 	"github.com/quic-go/quic-go/internal/wire"
 )
 
-const (
-	maxRecoveryOutcomes = 32768
-	recoverySlotMask    = maxRecoveryOutcomes - 1
-)
+// maxRecoveryOutcomes is one context's outcome-ring allowance, a power of two.
+const maxRecoveryOutcomes = 32768
 
 type recoveryOutcomeState uint8
 
@@ -41,9 +39,12 @@ type recoveryOutcome struct {
 // creates a summary that could bridge unknown history. Derived indexes let ACK
 // service visit only the outcomes an ACK resolves or a query returns.
 type recoveryEvidence struct {
-	local           *localRecoveryEvidence
-	index           *recoveryIndex
-	head, count     int
+	local       *localRecoveryEvidence
+	index       *recoveryIndex
+	head, count int
+	// capacity is the ring's power-of-two size, or zero for one context's full
+	// allowance, and survives reset; mask is that of the allocated ring.
+	capacity, mask  int
 	evicted         uint64
 	measured        bool
 	reported        uint64
@@ -99,8 +100,8 @@ func (r *recoveryEvidence) recordBytes() uintptr {
 	return n
 }
 
-func (r *recoveryEvidence) slot(l int) int    { return (r.head + l) & recoverySlotMask }
-func (r *recoveryEvidence) logical(p int) int { return (p - r.head) & recoverySlotMask }
+func (r *recoveryEvidence) slot(l int) int    { return (r.head + l) & r.mask }
+func (r *recoveryEvidence) logical(p int) int { return (p - r.head) & r.mask }
 
 func (r *recoveryEvidence) sent(p congestion.PacketInfo, generation uint64) {
 	r.sentLocal(p, generation, nil)
@@ -108,15 +109,19 @@ func (r *recoveryEvidence) sent(p congestion.PacketInfo, generation uint64) {
 
 func (r *recoveryEvidence) sentLocal(p congestion.PacketInfo, generation uint64, local *localRegistration) {
 	if r.index == nil {
-		r.index = &recoveryIndex{outcomes: make([]recoveryOutcome, maxRecoveryOutcomes)}
+		size := r.capacity
+		if size == 0 {
+			size = maxRecoveryOutcomes
+		}
+		r.index, r.mask = &recoveryIndex{outcomes: make([]recoveryOutcome, size)}, size-1
 	}
 	x := r.index
 	slot := r.slot(r.count)
-	if r.count == maxRecoveryOutcomes {
+	if r.count == len(x.outcomes) {
 		r.evicted++
 		r.missing(x.outcomes[slot].ordinal)
 		r.evict(slot)
-		r.head = (r.head + 1) & recoverySlotMask
+		r.head = (r.head + 1) & r.mask
 	} else {
 		r.count++
 	}
@@ -132,7 +137,7 @@ func (r *recoveryEvidence) sentLocal(p congestion.PacketInfo, generation uint64,
 	}
 	if local != nil {
 		if r.local == nil {
-			r.local = &localRecoveryEvidence{outcomes: make([]localRecoveryOutcome, maxRecoveryOutcomes)}
+			r.local = &localRecoveryEvidence{outcomes: make([]localRecoveryOutcome, len(x.outcomes))}
 		}
 		r.local.outcomes[slot] = localRecoveryOutcome{registration: local}
 	}
@@ -326,7 +331,7 @@ func (r *recoveryEvidence) discardSpace(level protocol.EncryptionLevel) {
 func (r *recoveryEvidence) reset() {
 	// Connection-wide episode identities, like transmission ordinals, never
 	// repeat; every path/Retry reset abandons the old evidence and RTT eligibility.
-	*r = recoveryEvidence{episode: congestion.RecoveryEpisode{ID: r.episode.ID}}
+	*r = recoveryEvidence{episode: congestion.RecoveryEpisode{ID: r.episode.ID}, capacity: r.capacity}
 }
 
 // ack resolves only covered outcomes that are not yet ACKed or disposed. The
@@ -457,7 +462,7 @@ func (r *recoveryEvidence) nextL(set *slotSet, a, b int, clear bool) int {
 	if pa <= pb {
 		return r.logicalOrNone(set.next(pa, pb, clear))
 	}
-	if p := set.next(pa, recoverySlotMask, clear); p >= 0 {
+	if p := set.next(pa, r.mask, clear); p >= 0 {
 		return r.logical(p)
 	}
 	return r.logicalOrNone(set.next(0, pb, clear))
@@ -474,7 +479,7 @@ func (r *recoveryEvidence) prevL(set *slotSet, a, b int, clear bool) int {
 	if p := set.prev(0, pb, clear); p >= 0 {
 		return r.logical(p)
 	}
-	return r.logicalOrNone(set.prev(pa, recoverySlotMask, clear))
+	return r.logicalOrNone(set.prev(pa, r.mask, clear))
 }
 
 func (r *recoveryEvidence) logicalOrNone(p int) int {
@@ -568,7 +573,7 @@ func (r *recoveryEvidence) rightmostRun(threshold time.Duration) int {
 	if l := r.rightmostRunIn(0, r.head-1, threshold); l >= 0 {
 		return l
 	}
-	return r.rightmostRunIn(r.head, recoverySlotMask, threshold)
+	return r.rightmostRunIn(r.head, r.mask, threshold)
 }
 
 func (r *recoveryEvidence) rightmostRunIn(lo, hi int, threshold time.Duration) int {

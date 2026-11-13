@@ -1,6 +1,6 @@
 # BBR and aggregation implementation plan
 
-**Status:** accepted design and audited slices; 1/6 complete. [B1 #1040](#b1) partitioned BBR delivery sampling, pacing and local credit into private per-path contexts; [B2 #1041](#b2) is ready. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** B, 3 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** pending.
+**Status:** accepted design and audited slices; 2/6 complete. [B1 #1040](#b1) partitioned BBR delivery sampling, pacing and local credit into private per-path contexts; [B2 #1041](#b2) gave those contexts their own ECN validation, migration fence and bounded recovery evidence. [B3 #1042](#b3) is blocked only by the owner BBR window-policy decision #1329. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** B, 3 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** pending.
 
 ## Binding contract and operating discipline
 
@@ -103,7 +103,7 @@ The 18 listed repeats are required BBR-candidate evidence, not optional reuse of
 | Slice | Disposition | Delivery | Blocked by |
 | --- | --- | --- | --- |
 | [B1](#b1) | complete | Partition BBR delivery sampling and send credit | R19 |
-| [B2](#b2) | new | Preserve BBR ECN, recovery and migration evidence | B1 |
+| [B2](#b2) | complete | Preserve BBR ECN, recovery and migration evidence | B1 |
 | [B3](#b3) | new | Exercise BBR primary/backup through complete lifecycle | B2, [BBR window-policy fix #1329](https://github.com/the-sarge/quic-go-fast/issues/1329) |
 | [B4](#b4) | new | Add the private aggregate scheduling policy | B3 |
 | [B5](#b5) | new | Measure aggregation benefit and shared-bottleneck cost | B4 |

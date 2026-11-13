@@ -55,11 +55,15 @@ func (e *packetEmission) resetLocalPath(generation uint64, now monotime.Time) {
 	if e.bbr == nil {
 		return
 	}
-	e.bbr.credit.resetGeneration(generation)
-	e.bbr.tokens = int64(e.bbr.quantum) * 1e9
-	e.bbr.updated, e.bbr.refilledAt = now, now
+	e.bbr.resetGeneration(generation, now)
+}
+
+func (p *bbrSendPolicy) resetGeneration(generation uint64, now monotime.Time) {
+	p.credit.resetGeneration(generation)
+	p.tokens = int64(p.quantum) * 1e9
+	p.updated, p.refilledAt = now, now
 	// An open supply gap belongs to the old path's samples.
-	e.bbr.supplyGap = congestion.SendUnknown
+	p.supplyGap = congestion.SendUnknown
 }
 
 // sendBounded performs at most one owned handoff per opportunity. Continuation
