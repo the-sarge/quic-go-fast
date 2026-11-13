@@ -1,0 +1,31 @@
+# Native parent closure applicability note
+
+**Scope:** this note records the postmerge applicability assessment that the [native endpoint efficiency plan](../adr/2026-11-04-native-endpoint-efficiency-plan.md#acceptance-and-operating-discipline) requires on the final merged candidate, and closes [efficiency parent #1193](https://github.com/the-sarge/quic-go-fast/issues/1193) and [admission tracker #1141](https://github.com/the-sarge/quic-go-fast/issues/1141). The governing [orchestrator decision (#1193)](https://github.com/the-sarge/quic-go-fast/issues/1193#issuecomment-6842225323) is a delegated decision under the owner's 2026-11-12 `/orchestrate-architecture-program` request for program #646; it is not owner approval. No campaign, rerun, threshold change, Host runtime, gate or budget follows from it. All source reads are pinned to default-branch `d7854ed7276a046ba06a33b9fe6e24203e0d555e`.
+
+## Source applicability
+
+The [R18 #1038](https://github.com/the-sarge/quic-go-fast/issues/1038) measured source `56e011367705ce3adb31a70ce23f4b5ff29b5521` and the delivered source `08c6cf28420e78c75f69c7a7ee8268be615a3f88` have no non-documentation differences. The [R21 #1313](2026-11-12-native-writer-yield-r21/README.md) counted candidate `4aa238ed644f325753d95f0b42ec892ac3c3472f` differs from `08c6cf28` only in the native qualification fixture and its driver.
+
+Between `08c6cf28` and `d7854ed72`, the only production change is [R19 #1039](https://github.com/the-sarge/quic-go-fast/issues/1039) in [PR #1317](https://github.com/the-sarge/quic-go-fast/pull/1317). `multipath_api.go` replaces `multipathguard.Active.Load()` with the compile-time constant `multipathProfileSupported` (`linux` and `amd64`) in `ConfigureMultipathIOV1` and `admitMultipath`, and `internal/multipathguard` is deleted. `native_endpoint.go`, `native_transport.go` and `endpoint_responses.go` change only in comments. Both checks run at configuration, constructor or accept time, not per packet. The measured granted fixtures set the guard on, so on Linux amd64 the delivered code takes the same branch. R19 is therefore outside the measured path.
+
+## Carried native and admission evidence
+
+R21 counted `request-contention` on the delivered writer yield. On Go 1.26.11, public writes were 53/53 and stateless admissions 55/55; on Go 1.27.4, public writes were 63/63 and stateless admissions 65/65. Expired and uncertain outcomes were 0 in both. The roughly 16.8 thousand `refusals` (16,825 and 16,869) count data-lane `errEndpointCapacity` retries that the fixture drives on purpose (`native_qualification_test.go`, the participant offer loop); they are not public or stateless refusals. The fixture asserts only that this count is positive, so the attempted-equals-admitted equality is recorded data rather than an assertion. R21's `shutdown-join` passed on both Go versions under the unchanged bounds.
+
+The other eight E6 cases (`expired-before-dispatch`, `eagain-to-deadline`, `retry-fallback` and `queued-expiry`, each on both Go versions) carry from the #1305 package `4e115954e7e54e747a9f3292d1561c6447c299c8` under the case-by-case disposition in the [writer-yield applicability handoff](2026-11-12-native-writer-yield-handoff.md#native-evidence-applicability).
+
+## R18 delivery evidence
+
+The [R18 delivery receipt (#1038)](2026-11-12-multipath-r18-delivery-receipt.md) records all 36 observations. Four cells pass numerically: STREAM with GSO on and off, DATAGRAM with batching off, and stateless pressure. STREAM/GSO-off echo passed numerically, so its earlier owner-accepted tradeoff was not needed. Two cells strictly fail the 1.10 CPU-per-useful-byte limit: DATAGRAM with batching on at 1.121686× and mixed bulk at 1.108585×. The [owner decision (#1038)](https://github.com/the-sarge/quic-go-fast/issues/1038#issuecomment-6837253248) accepts exactly those two exceptions. The [raw summary](2026-11-12-multipath-r18-delivery-raw-summary.json) keeps the strict failed verdict, separate from the [exact disposition](2026-11-12-multipath-r18-delivery-disposition.json). The 1.10 CPU and 10% native RSS growth limits remain in force.
+
+Background progress was not starved: every mixed-bulk row delivered 2,516,582,400 background bytes. The receipt and raw summary report the offered stateless traffic and reset receive share for both profiles.
+
+## Other required work
+
+[R17 #1037](https://github.com/the-sarge/quic-go-fast/issues/1037) is closed, and the independent peer job passed on the R19 PR #1317 head. All eleven N slices are closed: N0 #1199, N1 #1200, N2 #1201, N4 #1213, N6 #1235, N7 #1237, N8 #1238, N9 #1236, N10 #1239, N11 #1240 and N3 #1202. Hosted check runs on `d7854ed72` are 17/17 successful. The #1141 acceptance families map to existing coverage, as recorded in the [admission contract](../agents/native-endpoint-admission-1141.md#acceptance-criteria-for-the-implementation-brief).
+
+## Exception applicability judgment
+
+The owner's CPU exception names source `56e011367` and binary SHA-256 `bedeb0e80d54503e76bf51ffc09d5f8588deeb164cee7fb4093ff054c84e9a7b`. The delivered binary differs from it only by R19's configuration-time constant, which lies outside the measured per-packet path. On that basis the orchestrator judges that the exception still applies to the delivered candidate. This judgment comes from reading the code; it is not a new measurement.
+
+[B1 #1040](https://github.com/the-sarge/quic-go-fast/issues/1040) and [Q2 #599](https://github.com/the-sarge/quic-go-fast/issues/599) are unchanged.
