@@ -10297,3 +10297,25 @@ Delivered [Multipath: release settled failed path operation slots before reporti
 - This is fixture evidence. It isn't Linux qualification, and no native campaign ran.
 
 At merge, R19 [#1039](https://github.com/the-sarge/quic-go-fast/issues/1039) stopped waiting on this fix. Since then R17 [#1037](https://github.com/the-sarge/quic-go-fast/issues/1037), R18 [#1038](https://github.com/the-sarge/quic-go-fast/issues/1038) and R19 have closed; [#1193](https://github.com/the-sarge/quic-go-fast/issues/1193) and [#1141](https://github.com/the-sarge/quic-go-fast/issues/1141) remain open. No follow-up was filed. The live frontier is maintained in [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## Deferred Q2 dropped as a multipath B-track prerequisite - 2026-11-12 21:59 EST
+
+**Main:** `0f841e05f2b2`
+**Actor:** Claude
+
+Merged [PR #1323](https://github.com/the-sarge/quic-go-fast/pull/1323) as `0f841e05f2b2714efd0c786f8fab2d3719a6a6b2`. By owner decision, deferred full Q2 [#599](https://github.com/the-sarge/quic-go-fast/issues/599) is no longer a prerequisite of any multipath B slice. #599 stays open as an independent deferred campaign; its pinned inventory and accounting are unchanged.
+
+**Decisions:**
+- The [BBR plan goal](adr/2026-10-24-multipath-bbr-plan.md#goal-and-current-shape) no longer requires a single-path Q2 receipt. The B-track correctness, native, ordinary-cost and comparative evidence qualifies only the multipath candidate.
+- B6 must state that the underlying BBRv3 controller remains experimental and unqualified while #599 is deferred, as single-path BBR is labeled today.
+- B1's own slice already listed only R19. The [program index](adr/2026-10-24-multipath-program.md) and Reno sequencing note now agree.
+- B1–B6 contracts, evidence budgets, thresholds and the program ledger are unchanged.
+
+**Validation:**
+- An independent contract review found no must-fix issue. One optional ambiguity, an "existing BBR qualification gate" sentence, was clarified.
+- Docs certification passed on the exact head.
+- All 17 hosted checks succeeded on `33f6167d871c6691fba60f552f5d02f65ed51632`, after the branch was updated for the unrelated journal [PR #1322](https://github.com/the-sarge/quic-go-fast/pull/1322).
+
+**Next:** B1 [#1040](https://github.com/the-sarge/quic-go-fast/issues/1040) has no open blocker and becomes the frontier once its issue dependency and label are reconciled. The live frontier is maintained in [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
