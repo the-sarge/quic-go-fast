@@ -10456,3 +10456,44 @@ Merged [PR #1331](https://github.com/the-sarge/quic-go-fast/pull/1331) as `23e15
 - B3 #1042 waits on #1329.
 - The deferred root defect is filed for triage as [#1335](https://github.com/the-sarge/quic-go-fast/issues/1335): jumbo-MTU fallback advances the recovery generation but not `c.pathGeneration`, so BBR ECN can stay off afterward.
 - The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## BBR timing-excluded aggregation fix (#1329) - 2026-11-13 01:03 EST
+
+**Main:** `c017d6ada45c`
+**Actor:** Claude
+
+Merged [PR #1333](https://github.com/the-sarge/quic-go-fast/pull/1333) as `c017d6ada45c0646b3d44d7f326b462583ca1255`, closing [BBR window policy for timing-excluded feedback (#1329)](https://github.com/the-sarge/quic-go-fast/issues/1329). This was a standalone `planit` fix under program #646, implementing [plan r1](https://github.com/the-sarge/quic-go-fast/issues/1329#issuecomment-6844603056) as [approved under delegated authority](https://github.com/the-sarge/quic-go-fast/issues/1329#issuecomment-6844625639). Public BBR+multipath stays refused.
+
+**Completed:**
+- **Fix.** `BBRSender` now accrues ACK-aggregation evidence only from an event that recovery anchored on a timing-eligible acknowledged packet: `timed := clockValid && anchor != nil`. This mirrors the existing invalid-clock skip.
+  - Cross-path and locally excluded ACKs still settle delivery, flight and loss.
+  - A path with no timing evidence stays within twice its initial window instead of growing toward the packet-count cap.
+  - Loss-driven reductions stay gated on valid samples.
+  - The code now conforms to [BBR plan line 33](adr/2026-10-24-multipath-bbr-plan.md).
+- **Regressions.** `TestBBRTimingIneligibleFeedbackBoundsWindow` tests the reducer, and `TestBBRPathCrossPathOnlyFeedbackBoundsWindow` tests real recovery dispatch with a `BBRSender` sink. Against the pre-fix code, both fail with the issue's numbers:
+  - loss-free: `[492000 4812000]` at rounds 40/400;
+  - half lost: `[2412000 12000000]` at rounds 400/2000.
+
+**Decisions:**
+- Owner decision of 2026-11-12: [exclude timing-ineligible ACKs from aggregation](https://github.com/the-sarge/quic-go-fast/issues/1329). Single-path behavior is unchanged for every anchored event. The single-path effect of the remaining cases is unmeasured, as the owner accepted.
+
+**Validation:**
+- **Preparation pass.** The code-review pass (Standards and Spec) tightened the cross-path test to assert `Delivery.Ordinal == 0` ([receipt](https://github.com/the-sarge/quic-go-fast/pull/1333#issuecomment-6844694621)).
+- **Initial RAS review**, run `20261113T050653-6984c700bd9aa0e552992b39`: no Fix First items; one finding rejected, one deferred.
+- **Replacement RAS review**, run `20261113T054101-a01f9b59aa931b50a40a47c4`, after the rebase onto B2 #1331: no Fix First items and no adverse B2 interaction; two findings deferred. The full panel completed both runs.
+- **Mutations.** "Never accrue" fails three existing aggregation tests. Deleting `anchor != nil` fails both new tests.
+- **Re-gating.** Main advanced four times (#1332, #1334, #1331, #1336). Each time the branch was rebased and recertified. After B2 merged, the pre-fix overlay still reproduced the issue's numbers.
+- **Exact-head certification** at `a5ed93772b7a0278802ee089dd444c988e346623` on base `2cdc76e40` passed:
+  - `./internal/congestion` and `./internal/ackhandler`;
+  - root BBR-related tests (81 pass, 17 skip);
+  - `go vet`, `gofmt`, `go mod tidy -diff` and `git diff --check`.
+- **Hosted checks.** All 18 succeeded on that head, including the post-ready independent multipath peer job (run 43374881969).
+
+**Next:**
+- B3 #1042 is no longer blocked by #1329. The current-status prose that still names #1329 as outstanding is left for the orchestrator's bookkeeping:
+  - `docs/adr/2026-10-24-multipath-bbr-plan.md:3`;
+  - `docs/adr/2026-10-24-multipath-program.md:11,16`.
+- The deferred test-only gaps are filed for triage as [#1338](https://github.com/the-sarge/quic-go-fast/issues/1338): accrual for anchored events with invalid samples, and the `clockValid` guard on backdated ACKs.
+- The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
