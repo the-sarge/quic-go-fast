@@ -465,11 +465,15 @@ Rejected split/merge alternatives have no revisit trigger except the stated cont
 - Pending native completion records hold their token and slot in the history until `CompleteLocalPacket` resolves them (`local_completion.go:254`).
 - The periodic PING counter is one global packer counter (`packet_packer.go:149`, `:818`). On a single path it caps a run of ACK-only packets at `MaxNonAckElicitingAcks`. With aggregate routes, a path can already exceed that cap today.
 
-**Retirement rule:** The path's recovery context owns the decision, on the connection goroutine, at two points: when it registers a non-ack-eliciting packet, and when a local completion resolves one.
+**Retirement rule:** The path's recovery context owns the decision, on the connection goroutine. It runs the same retirement wherever the trigger can newly hold:
+
+- when it registers a non-ack-eliciting packet;
+- when a local completion resolves one;
+- when acknowledgment, loss or PTO handling removes the path's last ack-eliciting record. Later ACK-only records can't be declared lost past `largestAcked`, and the alarm is cancelled once nothing is outstanding (`sent_packet_handler.go:1045`, `:1124`).
 
 - **Trigger:** the path's application history holds no ack-eliciting record, and it holds more than `MaxNonAckElicitingAcks` completed non-ack-eliciting records.
   - A record is completed when it has no local registration, or when its native outcome is `LocalPacketAccepted`.
-  - A `LocalPacketUncertain` record is never retired. Retiring it would run `retireLocal`'s terminal ECN reconciliation (`local_completion.go:340`, `local_ecn.go:370`), which fails local ECN for an unacknowledged ECT-marked uncertain record, although retirement is no evidence of non-delivery. Skipping that reconciliation would leave the ECN owner's record unreconciled, which changes the ECN owner's terminal contract. Uncertain records therefore keep today's exits: acknowledgment or loss. Only uncertain native submissions create them, and those also make B7's home path unusable, so they add at most the turns already sent before then. B7's history-room share caps the whole span regardless.
+  - A `LocalPacketUncertain` record is never retired. Retiring it would run `retireLocal`'s terminal ECN reconciliation (`local_completion.go:340`, `local_ecn.go:370`), which fails local ECN for an unacknowledged ECT-marked uncertain record, although retirement is no evidence of non-delivery. Skipping that reconciliation would leave the ECN owner's record unreconciled, which changes the ECN owner's terminal contract. Uncertain records therefore keep today's exits: acknowledgment or loss. Only uncertain native submissions create them. A native timeout or capacity error stays nonfatal local backpressure and leaves the path usable (`native_endpoint.go:1424–1429`), so turns can continue after one. B8 doesn't bound uncertain records; B7's strict history-room share bounds the span they pin.
   - Pending records are never retired. Their tokens, disposal and completion authority stay untouched; they pin the span only until native completion resolves them.
 - **Disposal:** retire the oldest completed records, in send order, through a non-loss disposal:
   - take the congestion packet record and mark its recovery outcome disposed, through the existing `discardCongestionPacket` (`congestion_dispatch.go:280`; `recoveryEvidence.discard`, `bbr_recovery.go:278`, `outcomeDisposed`), which also disposes the delivery-sampler record;
@@ -514,7 +518,7 @@ No persisted state is introduced. Retirement runs on the existing registration a
 | Retired record's targets | Kept in the carrier store; a later ACK prunes them once | Carrier store | Late-ACK pruning case |
 | ACK covering a retired number | Ignored | Acknowledgment processing | Same case |
 | ACK covering a skipped number | Still a protocol violation | Skipped list | Same case |
-| History holding an ack-eliciting record | No retirement; today's exits apply | Recovery retirement | No-retirement case |
+| History holding an ack-eliciting record | No retirement while it remains; removing the last one runs retirement | Recovery retirement | No-retirement case, then retirement on its removal |
 | ECN-marked ACK-only record | An accepted or unregistered record is retired with no ECN validation or ledger effect. An uncertain record is not retired, so terminal ECN reconciliation never runs on retirement | Recovery retirement | ECN case |
 | BBR context | Disposal marks the outcome disposed; no lost outcome, `unconfirmedLoss` or lost-run change | Recovery retirement, through `discardCongestionPacket` | BBR case |
 | Single path with the periodic PING | Retires at most records that time-threshold loss would declare anyway; otherwise unchanged | Packer PING, existing | Characterization case |
@@ -524,7 +528,7 @@ No persisted state is introduced. Retirement runs on the existing registration a
 1. Sustained ACK-only registration and completion on two paths, more than `MaxTrackedSentPackets` packets with no peer acknowledgment: completed history stays within the bound and both paths keep a sending mode.
 2. A pending completion is never retired and still resolves.
 3. A retired record's targets are pruned by a later ACK. An ACK covering the retired number is ignored, and an ACK covering a skipped number still fails.
-4. A history holding an ack-eliciting record retires nothing.
+4. A history holding an ack-eliciting record retires nothing. When an ACK removes that last record behind more than `MaxNonAckElicitingAcks` completed ACK-only records, retirement runs at that removal.
 5. ECN: an ECN-marked accepted record that is retired leaves ECN validation and the local or BBR ledger unchanged. An ECT-marked `LocalPacketUncertain` record is not retired, and local ECN stays capable.
 6. A BBR context's retirement marks the outcome disposed and leaves `unconfirmedLoss` and the lost-run index unchanged.
 7. Single-path receive with the periodic PING: after an acknowledged PING, B8 retires only records that time-threshold loss would also declare lost, and acknowledgment and loss outcomes are otherwise unchanged.
