@@ -379,11 +379,13 @@ func TestBBRPathAnnouncementPacing(t *testing.T) {
 		now := monotime.Now()
 		path.budget(now)
 		path.tokens, path.updated = tokens(path), now
+		attempts := m.announces
 		f.write(t, 1000)
 		f.pass(t)
 		writes := f.parseWrites(t, 1)
 		require.Len(t, writes, 1, "the announcement leaves on the new tuple")
-		require.True(t, m.announceAt.After(monotime.Now()), "and the attempt backs off")
+		require.Equal(t, attempts+1, m.announces, "the attempt is recorded")
+		require.True(t, m.announceAt.After(monotime.Now()), "and backs off")
 		return writes
 	}
 	pingOnly := func(t *testing.T, write reliableWrite) {
@@ -435,7 +437,7 @@ func TestBBRPathAnnouncementPacing(t *testing.T) {
 			}), "with its PING")
 			require.Equal(t, before-protocol.ByteCount(len(writes[0].data)), path.budget(monotime.Now()), "the announced route pays the packet's bytes")
 			require.True(t, path.refilledAt.After(refilled), "and its refill moves")
-			require.Equal(t, root.tokens, e.bbr.tokens, "the selected route's policy pays nothing")
+			require.Equal(t, root.tokens, e.bbr.tokens, "the root policy pays nothing")
 			require.Equal(t, root.refilledAt, e.bbr.refilledAt)
 			require.Equal(t, root.supplyGap, e.bbr.supplyGap, "and no route's supply is observed")
 			require.Equal(t, gap, path.supplyGap)

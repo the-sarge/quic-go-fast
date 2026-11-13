@@ -225,8 +225,9 @@ func (e *packetEmission) announcePath(now monotime.Time) (bool, error) {
 	return e.announce(now, false)
 }
 
-// announce is announcePath. A control-only announcement is a PING with any queued
-// ACKs, and its route's payload waits for an ordinary opportunity.
+// announce is announcePath with BBR's choice of packing; announcePath stays Reno's
+// entry, which always packs payload. A control-only announcement is a PING with any
+// queued ACKs, and its route's payload waits for an ordinary opportunity.
 func (e *packetEmission) announce(now monotime.Time, controlOnly bool) (bool, error) {
 	m := e.pathCredit.nextAnnouncement(now)
 	if m == nil {
