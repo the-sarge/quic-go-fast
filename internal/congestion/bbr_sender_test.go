@@ -341,8 +341,9 @@ func TestBBRTimingIneligibleFeedbackBoundsWindow(t *testing.T) {
 }
 
 // The sampler anchors an event before it checks the anchor's snapshot or the
-// interval, so the first ACK of a connection is anchored with an invalid sample.
-// Anchoring alone, with a valid clock, admits aggregation evidence (#1338).
+// interval, so an anchored event can carry an invalid snapshot (an originless
+// registration) or an invalid sample (a failed interval check). Anchoring alone,
+// with a valid clock, admits aggregation evidence (#1338).
 func TestBBRAnchoredInvalidSampleAccruesAggregation(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
