@@ -2538,8 +2538,21 @@ func (c *Conn) handleHandshakeDoneFrame(rcvTime monotime.Time) error {
 	return nil
 }
 
+// pathAckReceiver takes the carrier path, which only a multipath connection knows.
+type pathAckReceiver interface {
+	ReceivedPathAck(*wire.AckFrame, protocol.EncryptionLevel, monotime.Time, protocol.PathID) (protocol.ApplicationKeyReceipt, error)
+}
+
 func (c *Conn) handleAckFrame(frame *wire.AckFrame, encLevel protocol.EncryptionLevel, rcvTime monotime.Time) error {
-	acked1RTTPacket, err := c.sentPacketHandler.ReceivedAck(frame, encLevel, c.lastPacketReceivedTime)
+	var acked1RTTPacket protocol.ApplicationKeyReceipt
+	var err error
+	if h, ok := c.sentPacketHandler.(pathAckReceiver); ok && c.pathCredit != nil {
+		// A BBR path context trains its RTT and delivery rate only from an ACK
+		// its own path carried.
+		acked1RTTPacket, err = h.ReceivedPathAck(frame, encLevel, c.lastPacketReceivedTime, c.ingressPath)
+	} else {
+		acked1RTTPacket, err = c.sentPacketHandler.ReceivedAck(frame, encLevel, c.lastPacketReceivedTime)
+	}
 	if err != nil {
 		return err
 	}

@@ -90,8 +90,16 @@ func newAdmissionFixtureWith(t *testing.T, perspective protocol.Perspective, tra
 
 func buildAdmissionFixture(t *testing.T, perspective protocol.Perspective, tracer func(context.Context, bool, ConnectionID) qlogwriter.Trace, unactivated bool) *admissionFixture {
 	t.Helper()
+	return buildAdmissionFixtureFor(t, perspective, tracer, unactivated, "reno")
+}
+
+// buildAdmissionFixtureFor selects the connection's congestion controller before
+// emission exists, as a Config does.
+func buildAdmissionFixtureFor(t *testing.T, perspective protocol.Perspective, tracer func(context.Context, bool, ConnectionID) qlogwriter.Trace, unactivated bool, controller string) *admissionFixture {
+	t.Helper()
 	ctrl := gomock.NewController(t)
 	conf := &Config{InitialPacketSize: 1200, EnableDatagrams: true, DisablePathMTUDiscovery: true, Tracer: tracer}
+	require.NoError(t, conf.SetCongestionControlV1(controller))
 	var tc *testConnection
 	if perspective == protocol.PerspectiveServer {
 		tc = newServerTestConnection(t, ctrl, conf, false, connectionOptHandshakeConfirmed())

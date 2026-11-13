@@ -35,12 +35,15 @@ type bbrSendPolicy struct {
 // addBBRPath gives a nonzero path its own BBR controller, pacing and local
 // credit beside the root's. Recovery owns the path context and its delivery
 // sampler, whose pending-local authority is this path's credit alone. When the
-// root validates ECN, so does the path, fenced by this credit's generation.
-func (e *packetEmission) addBBRPath(id protocol.PathID, size protocol.ByteCount, rtt *utils.RTTStats, now monotime.Time) (*bbrSendPolicy, error) {
+// root validates ECN, so does the path, fenced by this credit's generation. Like
+// a Reno path context, it starts at the minimum initial size; the route's own
+// PMTU raises it at send time.
+func (e *packetEmission) addBBRPath(id protocol.PathID, rtt *utils.RTTStats, now monotime.Time) (*bbrSendPolicy, error) {
+	const size = protocol.MinInitialPacketSize
 	recovery, ok := (*e.recovery).(interface {
 		AddBBRPath(protocol.PathID, protocol.ByteCount, protocol.ByteCount, *utils.RTTStats, func() protocol.ByteCount, func(bool) (uint64, bool, bool)) (*congestion.BBRSender, error)
 	})
-	if e.bbr == nil || !ok || e.bbr.paths[id] != nil || size <= 0 || size > e.bbr.ceiling {
+	if e.bbr == nil || !ok || e.bbr.paths[id] != nil || size > e.bbr.ceiling {
 		return nil, fmt.Errorf("BBR path unavailable: %d", id)
 	}
 	p := newBBRSendPolicyWithCeiling(1, size, e.bbr.ceiling, now)
@@ -79,6 +82,35 @@ func (e *packetEmission) removeBBRPath(id protocol.PathID) {
 	}
 	(*e.recovery).(interface{ RemovePath(protocol.PathID) }).RemovePath(id)
 	delete(e.bbr.paths, id)
+}
+
+// policyOn is the BBR send policy of the route that carries an opportunity: the
+// root for path zero, otherwise the path's own. Admission installs a path's
+// policy before its route can be selected, and final reclamation removes it only
+// after the route can no longer be selected.
+func (e *packetEmission) policyOn(route *pathRoute) *bbrSendPolicy {
+	if route == nil {
+		return e.bbr
+	}
+	if p := e.bbr.paths[route.context.PathID]; p != nil {
+		return p
+	}
+	panic("BBR route without its path policy")
+}
+
+func (e *packetEmission) routePolicy() *bbrSendPolicy { return e.policyOn(e.route) }
+
+// grantor is the policy whose credit granted r, which pays for its packet.
+func (e *packetEmission) grantor(r *sendReservation) *bbrSendPolicy {
+	if r.owner == e.bbr.credit {
+		return e.bbr
+	}
+	for _, p := range e.bbr.paths {
+		if p.credit == r.owner {
+			return p
+		}
+	}
+	panic("BBR reservation without its policy")
 }
 
 func newBBRSendPolicy(rate uint64, size protocol.ByteCount, now monotime.Time) *bbrSendPolicy {

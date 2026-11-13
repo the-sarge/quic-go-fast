@@ -443,14 +443,8 @@ func (p *pathCreditRegistry) admitMember(id protocol.PathID, target *Transport, 
 	if p.historyUnits >= maxPathHistoryUnits {
 		return nil, fmt.Errorf("%w: retained path history is full", ErrMultipathResourceLimitV1)
 	}
-	recovery, ok := p.conn.sentPacketHandler.(interface {
-		AddPathWithRTT(protocol.PathID, protocol.ByteCount, *utils.RTTStats) error
-	})
-	if !ok {
-		return nil, ErrMultipathUnsupportedV1
-	}
-	if err := recovery.AddPathWithRTT(id, protocol.MinInitialPacketSize, p.rtt[id]); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrMultipathResourceLimitV1, err)
+	if err := p.addRecoveryPath(id, now); err != nil {
+		return nil, err
 	}
 	if err := p.conn.receivedPacketHandler.AddPath(id); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrMultipathResourceLimitV1, err)
@@ -467,6 +461,28 @@ func (p *pathCreditRegistry) admitMember(id protocol.PathID, target *Transport, 
 	p.members[id] = member
 	p.observe(member, "admitted")
 	return member, nil
+}
+
+// addRecoveryPath installs the path's recovery context. Under BBR, emission's
+// adapter constructs the context with its own controller, pacing and local
+// credit; there is no silent Reno substitution.
+func (p *pathCreditRegistry) addRecoveryPath(id protocol.PathID, now monotime.Time) error {
+	if p.conn.emission.bbr != nil {
+		if _, err := p.conn.emission.addBBRPath(id, p.rtt[id], now); err != nil {
+			return fmt.Errorf("%w: %w", ErrMultipathResourceLimitV1, err)
+		}
+		return nil
+	}
+	recovery, ok := p.conn.sentPacketHandler.(interface {
+		AddPathWithRTT(protocol.PathID, protocol.ByteCount, *utils.RTTStats) error
+	})
+	if !ok {
+		return ErrMultipathUnsupportedV1
+	}
+	if err := recovery.AddPathWithRTT(id, protocol.MinInitialPacketSize, p.rtt[id]); err != nil {
+		return fmt.Errorf("%w: %w", ErrMultipathResourceLimitV1, err)
+	}
+	return nil
 }
 
 // reserveHistory takes one retained-history unit, which commitment, a pending
@@ -991,7 +1007,12 @@ func (p *pathCreditRegistry) releaseMember(id protocol.PathID) {
 		p.conn.receivedPacketHandler.RemovePath(id)
 	}
 	if p.members[id] != nil {
-		p.sentPaths().RemovePath(id)
+		if id != 0 && p.conn.emission.bbr != nil {
+			// The context and its policy are reclaimed together.
+			p.conn.emission.removeBBRPath(id)
+		} else {
+			p.sentPaths().RemovePath(id)
+		}
 	}
 	m := p.members[id]
 	if m == nil {

@@ -26,9 +26,9 @@ func TestBBRPathCreditExhaustionIsNotLoss(t *testing.T) {
 	e.enableBBR(now, protocol.MaxPacketBufferSize)
 	c.sentPacketHandler.DropPackets(protocol.EncryptionInitial, now)
 	c.sentPacketHandler.DropPackets(protocol.EncryptionHandshake, now)
-	path, err := e.addBBRPath(17, 1200, utils.NewRTTStats(), now)
+	path, err := e.addBBRPath(17, utils.NewRTTStats(), now)
 	require.NoError(t, err)
-	_, err = e.addBBRPath(17, 1200, utils.NewRTTStats(), now)
+	_, err = e.addBBRPath(17, utils.NewRTTStats(), now)
 	require.Error(t, err)
 	require.NotSame(t, e.bbr.credit, path.credit)
 	require.NotSame(t, e.bbr.controller, path.controller)
@@ -57,6 +57,8 @@ func TestBBRPathCreditExhaustionIsNotLoss(t *testing.T) {
 	require.NotNil(t, e.reservation)
 	require.Zero(t, e.bbrPendingBytes(e.bbr))
 	require.Equal(t, 2*path.quantum, e.bbrPendingBytes(path))
+	require.Zero(t, e.deliveryPendingBytes(), "the root's supply gap doesn't subtract another credit's allowance")
+	require.Equal(t, 2*path.quantum, e.currentPendingBytes(path))
 	require.True(t, root.DeliveryStats().Idle)
 	e.reservation.completeLocal()
 	e.reservation = nil
@@ -83,7 +85,7 @@ func TestBBRPathECNFollowsPathCredit(t *testing.T) {
 	e.enableBBRECN()
 	c.sentPacketHandler.DropPackets(protocol.EncryptionInitial, now)
 	c.sentPacketHandler.DropPackets(protocol.EncryptionHandshake, now)
-	path, err := e.addBBRPath(17, 1200, utils.NewRTTStats(), now)
+	path, err := e.addBBRPath(17, utils.NewRTTStats(), now)
 	require.NoError(t, err)
 	recovery := c.sentPacketHandler.(interface {
 		RecoveryOnPath(protocol.PathID) ackhandler.SentPacketHandler
