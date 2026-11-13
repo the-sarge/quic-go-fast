@@ -561,6 +561,7 @@ func TestNativeQualMarkedWitness(t *testing.T) {
 	destination := netip.MustParseAddrPort("127.0.0.1:1234")
 	// held runs one request through a writer held at send holdAt, sampling it there.
 	held := func(t *testing.T, native *nativeQualHeld, holdAt int64, m *nativeQualMarked, request endpointRequest) (*nativeEndpoint, *endpointParticipant, *endpointToken) {
+		t.Helper()
 		native.holdAt.Store(holdAt)
 		e := startNativeEndpoint(native, nativeQualBudget, nil)
 		p, err := e.attach(1)
@@ -1056,6 +1057,8 @@ func TestNativeQualification(t *testing.T) {
 		evidence.Facts["pressure_uncertain"] = pressure.uncertain.Load()
 		evidence.TimingMS["pressure_native_return_overrun"] = nativeQualMS(time.Duration(pressure.overrun.Load()))
 		evidence.TimingMS["pressure_publication"] = nativeQualMS(time.Duration(pressure.publication.Load()))
+		_, faulted = e.faultObservation()
+		require.False(t, faulted, "the pressure witness needs an unfaulted endpoint")
 		require.Positive(t, pressure.marked.record(evidence, "pressure_"), "no successful marked group reached the writer yield under pressure")
 
 		releaseSink.Do(func() { close(sinkRelease) })
