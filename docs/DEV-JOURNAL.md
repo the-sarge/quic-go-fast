@@ -10351,3 +10351,39 @@ Merged [PR #1324](https://github.com/the-sarge/quic-go-fast/pull/1324) as `088b2
 - The branch took two merges from `main`, which journal and docs PRs #1322, #1323 and #1325 had advanced. The last merge changed only `docs/DEV-JOURNAL.md`, so the four certified files are byte-identical at the final head `9173db8185cbb775392cec5be5f3e07db9a6b23e`. All 17 hosted checks succeeded there.
 
 **Next:** The N track is closed. The live frontier is maintained in [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## B1 per-path BBR sampling and send credit landed - 2026-11-12 23:28 EST
+
+**Main:** `52145e704127`
+**Actor:** Claude
+
+Merged [PR #1327](https://github.com/the-sarge/quic-go-fast/pull/1327) as `52145e7041278a533d0940b52b71a3c34f935d6f`. It delivers [B1 (#1040)](https://github.com/the-sarge/quic-go-fast/issues/1040), which is now closed. The contract is the B1 section of the [BBR plan](adr/2026-10-24-multipath-bbr-plan.md#b1) at plan commit `0f841e05f`. Each nonzero recovery context beside a BBR root now has its own BBR controller, delivery sampler, pacing and local send credit. These contexts are private: public BBR+multipath stays disabled, and the connection does not yet construct them.
+
+**Completed:**
+- `AddPathWithRTT` still refuses a BBR root, so there is no Reno substitution. `AddBBRPath` and the emission's `addBBRPath`/`removeBBRPath` install and reclaim a path's controller, sampler, pacing policy and credit together.
+- Only an ACK carried on the path it acknowledges trains that path's RTT and delivery rate. `ReceivedPathAck` takes the carrier path. A cross-path ACK, or an ACK without carrier provenance once BBR paths exist, still settles delivery once, retires flight and records loss. It fences timing so that no rate interval bridges it, while still ordering later RTT samples. Stale-generation deliveries keep their send-spacing bound on either route. Reno contexts ignore the carrier.
+- Delivery stores share the single-context ceilings across the root and its paths: live and retained records, record slab and index, retained heaps and map, and feedback scratch. One central allocation owner grows into slack and reclaims peer capacity with headroom. No context evicts another's records.
+- Each pending-local authority excludes only its own construction reservation.
+- The plan and program index record B1 complete and B2 #1041 ready.
+
+**Decisions:**
+- Delivery-store allocation is closed as a family under one owner. A later stale-allocation finding involved a different allocation seam from an earlier one, so the approach stop did not apply; the shared invariant got one central owner instead. Dispositions are in the [PR #1327 review history](https://github.com/the-sarge/quic-go-fast/pull/1327#issuecomment-6843852678).
+- Deferred to successors, not fixed in B1:
+  - The per-context recovery outcome ring bound and per-path BBR ECN validation go to B2 #1041.
+  - Carrier wiring (`c.ingressPath`), path construction and reclamation, per-route policy selection in emission, and the supply-gap reservation-owner check go to B3.
+  - Scratch reallocation near the shared scratch allowance is a performance follow-up.
+- Open policy question before B3: with only timing-excluded feedback, BBR's aggregation term can grow the Startup window up to `size × MaxCongestionWindowPackets`. Changing that is outside B1's named files and would alter the accepted controller algorithm.
+
+**Validation:**
+- A code-review preparation pass (Standards and Spec) ran first. RAS initial review `20261113T032450-4d2238ebfe3762db9f85da04` found three Fix First clusters. All were fixed, along with one regression introduced by a fix that verification caught. Verification at `06216f67a` was clear.
+- Replacement review `20261113T040020-215b7208215cd522c9c9a750` had no Fix First items.
+- The new tests are nine deterministic scenario tests. Deleting each guard made its test fail.
+- Exact-head certification at `06216f67ac58cf91aad4c6bf117dc4e0951f93a8` on base `c0729cf5b` passed:
+  - affected-package tests for `.`, `./internal/ackhandler` and `./internal/congestion`
+  - `go vet`, `golangci-lint`, `go mod tidy -diff` and `git diff --check`
+  - one focused `-race` run
+- All 18 hosted checks succeeded on that head, including the post-ready independent multipath peer job.
+
+**Next:** B2 #1041 is the B-track frontier. The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
