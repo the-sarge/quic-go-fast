@@ -297,7 +297,7 @@ The 18 listed repeats are required BBR-candidate evidence, not optional reuse of
   - restore the selected route and steering.
 
   The turn packs acknowledgment frames only. It never takes stream, retransmission or DATAGRAM payload, and never adds the periodic PING. It neither reads nor writes the packer's PING counter. Its packet is therefore never ack-eliciting, never in flight, and never arms a PTO. A turn that sends ends the call. Under BBR it returns `pathTurnSignaling`, so the call's delivery observation attributes nothing to the selected route; under Reno it asks to retry, as a sent announcement does.
-- *Alternation.* A sent turn sets one emission fact, which is cleared the next time a selected or held opportunity runs. While the fact is set, no turn runs; due home targets wait, not released, for that one opportunity. Turns and selected opportunities therefore alternate at worst one to one, and recurring receives on another path can't starve the selected route's acknowledgments or credit updates. No timer or concurrency is added. A target that waits keeps its past-due alarm, so the connection runs again at once and the next call gives it its turn.
+- *Alternation.* A sent turn sets one emission fact. The next emission call skips its turn because the fact is set, and it clears the fact unconditionally, whatever the outcome of that call. The call can run the selected or held opportunity, packet-size recovery or a client probe, or it can end hard-blocked, local-blocked or queue-full. Due home targets wait during that one call without being released. If any is waiting when the call clears the fact, the call requests a retry. A due ACK can be queued by threshold, missing packets or ECN-CE with no alarm armed, so the alarm alone doesn't wake the loop; the retry does. Turns and other calls therefore alternate at worst one to one, and recurring receives on another path can't starve the selected route's acknowledgments or credit updates. No timer or concurrency is added.
 - *Release.* A home target's turn may be refused because the shared send queue is full, its route has no native construction capacity, BBR local credit refuses it, or its recovery reports `SendNone`. A refused target joins the released set. A released target may ride any carrier under today's rules, in the same call.
 - *Selection.* Every short-header packet's ACK selection receives its carrier (the route's path ID) and the call's released set. The receive owner first selects the carrier's own target, under today's piggyback rules. It selects another target only when that target is released, again under today's rules. The existing capacity rule still applies: ACK(0) and at most one PATH_ACK, with the rest left queued. The receive owner stays the sole owner of acknowledgment construction and consumption.
   - The due read that the turn uses and the consumption that `GetAckFrame` performs share one predicate, so a due target always packs.
@@ -309,7 +309,7 @@ The 18 listed repeats are required BBR-candidate evidence, not optional reuse of
 **Invariant, relative to today:** B7 changes only which carrier takes an acknowledgment, plus two bounded waits.
 
 - A home target that is not yet due no longer piggybacks on another path's data packet. It leaves when its own space's due rule fires (the threshold or the `max_ack_delay` alarm), or earlier on a packet on its own path.
-- After a sent turn, a due home target may wait for one selected or held opportunity.
+- After a sent turn, a due home target may wait for one emission call, which then requests a retry.
 
 Otherwise each due home target leaves in its own turn. A refused or non-home target leaves within the same call under today's rules. Those rules can still defer it as they do today, through the capacity rule, a full queue or `SendNone`. The threshold, `max_ack_delay` and ACK Delay obligations of each space are unchanged.
 
@@ -347,7 +347,7 @@ Otherwise each due home target leaves in its own turn. A refused or non-home tar
 - The receive owner owns acknowledgment construction, consumption and the carrier capacity rule.
 - The packer keeps its one periodic-PING counter, which the turn never touches, and decides nothing.
 
-No persisted state is introduced. The alternation fact is constructed with emission and cleared by the next selected or held opportunity; close sends nothing further. Cover those constructors and consumers in this slice.
+No persisted state is introduced. The alternation fact is constructed with emission and cleared unconditionally by the next emission call; close sends nothing further. Cover those constructors and consumers in this slice.
 
 **Temporary seams:** none. The released set lives for one call and is never stored.
 
@@ -376,7 +376,7 @@ Receive only this slice, binding discipline, its referenced owner/closure sectio
 | Non-due home target on another path | Withheld from that path's data packet until due, or until a packet on its own path | Receive owner selection | Withheld-piggyback test |
 | Turn refused: queue, native capacity, BBR credit or `SendNone` | Released; carried in the same call under today's rules | Emission release | Refusal table test, one case per owner |
 | Not home: validating, retiring/abandoned, fencing, suspect (path zero included), failed endpoint, no destination CID | Released | Registry home predicate | Non-home table test, one case per state |
-| Turn just sent | Next call's selected or held opportunity runs before another turn | Emission alternation | Sustained-receive test |
+| Turn just sent | The next call skips its turn and clears the fact whatever its outcome. If a due home target waits, that call requests a retry | Emission alternation | Sustained-receive test; held-ACK retry test |
 | Announcement packet before the turn | Its carrier's own target, plus released targets | Receive owner selection | Covered by the selection tests; the announcement path is unchanged |
 | Packets carrying no ACK: steered DATAGRAM-only, isolated MTU probe, path-validation probe | Unchanged; no ACK selection runs | Packer, existing | Existing tests |
 | `pathCredit` nil | Every target released; unchanged | Emission | Existing bundling test, unchanged |
@@ -393,7 +393,10 @@ Receive only this slice, binding discipline, its referenced owner/closure sectio
    - it is never ack-eliciting and never touches the PING counter;
    - it debits no pacing and charges the route's credit;
    - it returns `pathTurnSignaling`, so the selected route's supply observation is unchanged.
-7. Under sustained receive on a backup, the selected route's pending acknowledgment and flow-control credit update still leave between turns.
+7. Alternation:
+   - Under sustained receive on a backup, the selected route's pending acknowledgment and flow-control credit update still leave between turns.
+   - The call after a turn clears the fact even when it ends hard-blocked or queue-full.
+   - A threshold-queued home target that waited through that call is sent by its requested retry, with no alarm armed.
 8. After a same-ID migration, the turn uses the current tuple.
 9. An alarm-due acknowledgment leaves in its turn, carrying its own space's ACK Delay.
 10. Two fork connections, with a BBR aggregate sender and a primary/backup receiver: each path's acknowledgments arrive on that path, and both sender paths get valid rate samples.
@@ -417,7 +420,7 @@ Rejected split/merge alternatives have no revisit trigger except the stated cont
 **Stop:**
 
 - The turn needs a scheduler, view or readiness change, a new wakeup or timer, new concurrency, or reselection inside the opportunity.
-- Bounding turn recurrence needs more than the one alternation fact.
+- Bounding turn recurrence needs more than the one alternation fact and the retry request of the call that clears it.
 - The turn must become ack-eliciting, or must add traffic on backup paths beyond acknowledgments.
 - The due read and the consumption can't share one predicate.
 - The carrier capacity must grow beyond two targets.
