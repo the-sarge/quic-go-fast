@@ -460,7 +460,7 @@ Rejected split/merge alternatives have no revisit trigger except the stated cont
   - `retainAckCarrier` (`:1661`) moves its `ackTargets` into the carrier store and expires each carrier after three PTOs (`sent_packet_handler.go:1668`). The store evicts its oldest carrier at capacity (`lost_packet_tracker.go:99–110`). Capacity is 64 on an ordinary connection; under multipath it is 32 for path zero and 8 for each nonzero path (`sent_path.go:104`);
   - `retireLocal` releases the local record, and `DeclareLost` removes the history entry.
 
-  Spurious-loss, congestion and ECN consequences apply only to ack-eliciting or outstanding records.
+  Spurious-loss, congestion and ECN consequences apply only to ack-eliciting or outstanding records. The exception is BBR's persistent-congestion run: a lost ACK-only outcome joins the run that connects PTO-confirmed ack-eliciting endpoints (`recoveryEvidence.lost`, `bbr_recovery.go:230–235`; `runFrom`, `:510–528`).
 - Loss detection needs a later acknowledgment on the path, and with no ack-eliciting record outstanding the loss timer doesn't arm (`:1045`). A path whose peer never acknowledges it therefore keeps every ACK-only record.
 - The tracked count is each history's span, holes included (`sent_packet_history.go:190`, `sent_packet_handler.go:1389`). It is shared across paths (`:1374`), and at `MaxTrackedSentPackets` every path returns `SendNone` (`:1434`).
 - Removing the oldest records shrinks the span (`sent_packet_history.go` `Remove`/`cleanupStart`). Skipped packet numbers live in a separate list (`:22`) that acknowledgment processing checks first (`sent_packet_handler.go:847`). Records that aren't in the history are not visited (`sent_packet_history.go:128`), so an ACK covering one yields no acknowledged packet.
@@ -479,11 +479,12 @@ Rejected split/merge alternatives have no revisit trigger except the stated cont
   - Pending records are never retired. Their tokens, disposal and completion authority stay untouched; they pin the span only until native completion resolves them.
   - A context whose ECN validation reads acknowledged history records retires nothing until that validation fails. The ordinary ECN tracker does that on a context without the local completion route: `HandleNewlyAcked` (`sent_packet_handler.go:677–678`) is the only ECN consumer of newly acknowledged records. It confirms testing, checks the acknowledged ECT counts against the peer's (bleaching) and takes the CE response at the ACK that newly acknowledges a record. Retiring any record there would let a later ACK covering it bypass that evidence. ECN could then stay unvalidated, a bleaching path could stay capable, or a CE response could be lost. The BBR and local ECN ledgers settle from the ACK's ranges, not from history records, so they need no exception, and a failed tracker reads no further evidence. Multipath requires the native grant, so its contexts always have the local route. The exception therefore reaches only ordinary connections, where the periodic PING already caps a run of ACK-only packets at `MaxNonAckElicitingAcks` and every record keeps acknowledgment or loss as its exit, as today.
 - **Disposal:** retire the oldest completed records, in send order, through a non-loss disposal:
-  - take the congestion packet record and mark its recovery outcome disposed, through the existing `discardCongestionPacket` (`congestion_dispatch.go:280`; `recoveryEvidence.discard`, `bbr_recovery.go:279`, `outcomeDisposed`), which also disposes the delivery-sampler record;
+  - take the congestion packet record and dispose of its delivery-sampler record, as the existing `discardCongestionPacket` does (`congestion_dispatch.go:280`);
+  - hand its BBR recovery outcome to `recoveryEvidence.retire` in `bbr_recovery.go`, not to `recoveryEvidence.discard`. That one method leaves the outcome as loss detection would have left it. An unresolved outcome becomes lost for persistent-congestion runs, and an ACK range that later covers it resolves it as acknowledged, as for any lost outcome (`recoveryEvidence.ack`). Without retirement, the record would stay in the history. Loss detection would then declare it lost through `recoveryEvidence.lost` before any later endpoint could be PTO-confirmed, because both use the same cutoff, `lossDelay` (`congestion_dispatch.go:373`), and the record precedes that endpoint. A disposed slot would instead split the lost run, delaying or missing the persistent-congestion verdict;
   - keep its targets with `retainAckCarrier`, release it with `retireLocal`, and remove the history entry.
 
-  Retirement never calls `captureCongestionLoss`, so no record turns lost, `unconfirmedLoss` stays unset, and the lost-run index doesn't change. It writes no loss trace and has no congestion, ECN or spurious-loss consequence.
-- **Late acknowledgments:** an ACK that later covers a retired number is ignored. If the record's carrier is still retained and unexpired, the carrier store prunes its targets once. Otherwise those targets' receive history stays within its existing range cap. Retirement never touches skipped numbers, so an ACK for a skipped number remains a protocol violation.
+  Retirement never calls `captureCongestionLoss`. It enters no recovery episode, leaves `unconfirmedLoss` unset, and writes no loss trace. On the local route, the qualification cursor later treats the retired outcome as it treats any lost outcome (`local_congestion.go:110–113`). It has no congestion-loss, ECN or spurious-loss consequence. Its only recovery-evidence effect is the lost-run standing above, which keeps the persistent-congestion verdict the same as without retirement. Every other disposal of a recovery outcome keeps `recoveryEvidence.discard` and `outcomeDisposed` unchanged. That covers ack-eliciting, in-flight, unsubmitted, path-probe, MTU-probe and key-drop disposal.
+- **Late acknowledgments:** acknowledgment processing ignores an ACK that later covers a retired number. On a BBR context, the ACK's ranges still resolve the retired record's recovery outcome as acknowledged, as they would have for the record left in the history. If the record's carrier is still retained and unexpired, the carrier store prunes its targets once. Otherwise those targets' receive history stays within its existing range cap. Retirement never touches skipped numbers, so an ACK for a skipped number remains a protocol violation.
 - **While an ack-eliciting record remains:** acknowledgment, loss or PTO handles it, and the path's suspicion follows, as today. Records behind it wait for those exits, as ACK-only records already wait behind an outstanding PING. On a single path that costs only that connection. In multipath the span count is shared, so [B7](#b7) stops sending turns on a path whose span or oldest ack-eliciting record crosses its stated bound.
 
 **Rejected alternatives (do not do this):**
@@ -496,6 +497,7 @@ Rejected split/merge alternatives have no revisit trigger except the stated cont
 **Single owner and authority completeness:**
 
 - The path's recovery context (`sentPacketHandler`) owns retirement.
+- B2's recovery evidence (`recoveryEvidence.retire`) owns a retired record's persistent-congestion standing.
 - The history performs removal.
 - The carrier store holds retired targets until their expiry.
 - Local completion keeps its token authority.
@@ -504,7 +506,7 @@ No persisted state is introduced. Retirement runs on the existing registration a
 
 **Temporary seams:** none.
 
-**Blast radius and context:** `internal/ackhandler/sent_packet_handler.go`, `sent_packet_history.go`, `local_completion.go`, `congestion_dispatch.go` (read only, to confirm the never-in-flight capture), `lost_packet_tracker.go` (carrier store, unchanged), and their tests. Receive only this slice, binding discipline, its referenced owner/closure sections, direct blocker interface receipts and the bounded governing diff; omit complete historical plans. Target at most 24k input tokens, leaving the fresh context room for implementation, review fixes and verification. If the named source cannot fit after focused symbol reads, re-slice before editing. The touched owners and their tests bound shared state, concurrency, API, failure, performance/security and dependency effects; any newly discovered effect outside them stops the slice. Native completion is the only crossing between execution contexts, and it already reaches the connection goroutine through `CompleteLocalPacket`.
+**Blast radius and context:** `internal/ackhandler/sent_packet_handler.go`, `sent_packet_history.go`, `local_completion.go`, `bbr_recovery.go` (one method, `recoveryEvidence.retire`; no other B2 behavior changes), `congestion_dispatch.go` and `local_congestion.go` (read only, to confirm the never-in-flight capture, the shared loss cutoff and that the local qualification cursor treats a retired outcome as a lost one), `lost_packet_tracker.go` (carrier store, unchanged), and their tests. Receive only this slice, binding discipline, its referenced owner/closure sections, direct blocker interface receipts and the bounded governing diff; omit complete historical plans. Target at most 24k input tokens, leaving the fresh context room for implementation, review fixes and verification. If the named source cannot fit after focused symbol reads, re-slice before editing. The touched owners and their tests bound shared state, concurrency, API, failure, performance/security and dependency effects; any newly discovered effect outside them stops the slice. Native completion is the only crossing between execution contexts, and it already reaches the connection goroutine through `CompleteLocalPacket`.
 
 **Representation, artifacts and closure:**
 
@@ -512,7 +514,7 @@ No persisted state is introduced. Retirement runs on the existing registration a
 - **Guarantee:** universal within that domain, with finite representative tests.
 - **Artifact classes:** runtime is shipped behavior; the retirement guard is required safety enforcement; tests are maintained regression aids.
 - **Closure is triggered.** Exhausting the shared count stops every path, and pending, completed, skipped, retained and ECN-marked records reach the rule independently.
-- **Invariant:** a path with no ack-eliciting record never holds more than `MaxNonAckElicitingAcks` completed non-ack-eliciting records; pending and uncertain records keep their existing exits. A context whose ECN validation reads acknowledged history records is outside the bound until that validation fails; its records keep today's exits, and only ordinary connections, which the periodic PING bounds, have one. Retiring a record never alters a pending completion, a skipped-number check, an ECN verdict or a congestion signal.
+- **Invariant:** a path with no ack-eliciting record never holds more than `MaxNonAckElicitingAcks` completed non-ack-eliciting records; pending and uncertain records keep their existing exits. A context whose ECN validation reads acknowledged history records is outside the bound until that validation fails; its records keep today's exits, and only ordinary connections, which the periodic PING bounds, have one. Retiring a record never alters a pending completion, a skipped-number check, an ECN verdict or a congestion signal, including BBR's persistent-congestion verdict.
 
 | Semantic class | Expected disposition | Enforcement owner | Evidence |
 | --- | --- | --- | --- |
@@ -523,7 +525,8 @@ No persisted state is introduced. Retirement runs on the existing registration a
 | ACK covering a skipped number | Still a protocol violation | Skipped list | Same case |
 | History holding an ack-eliciting record | No retirement while it remains; removing the last one runs retirement | Recovery retirement | No-retirement case, then retirement on its removal |
 | ECN-marked ACK-only record | An accepted or unregistered record is retired with no ECN validation or ledger effect. A context whose ordinary ECN tracker reads history records and hasn't failed retires nothing, so testing confirmation, the count checks and the CE response at a later ACK are unchanged. An uncertain record is not retired, so terminal ECN reconciliation never runs on retirement | Recovery retirement | ECN case |
-| BBR context | Disposal marks the outcome disposed; no lost outcome, `unconfirmedLoss` or lost-run change | Recovery retirement, through `discardCongestionPacket` | BBR case |
+| BBR context | The delivery-sampler record is disposed of. The recovery outcome stands as the loss that detection would have declared. No congestion loss, episode or `unconfirmedLoss` | Recovery retirement, through `recoveryEvidence.retire` | BBR case |
+| BBR persistent-congestion run across retired ACK-only records | Same verdict as without retirement; an ACK range covering a retired record still resolves it as acknowledged | `recoveryEvidence.retire` | Persistent-congestion case |
 | Single path with the periodic PING, ECN validation not reading history | May retire a few ACK-only records early, after a selective ACK of the PING or during a PTO's extraction of it; wire, ownership and congestion behavior unchanged | Packer PING, existing | Characterization case |
 
 **TDD / evidence budget:** At most 16 deterministic scenario tests under the binding rule. Start with:
@@ -533,9 +536,10 @@ No persisted state is introduced. Retirement runs on the existing registration a
 3. A retired record's targets are pruned by a later ACK while the carrier is retained, and not after eviction. An ACK covering the retired number is ignored, and an ACK covering a skipped number still fails.
 4. A history holding an ack-eliciting record retires nothing. When an ACK removes that last record behind more than `MaxNonAckElicitingAcks` completed ACK-only records, retirement runs at that removal.
 5. ECN: an ECN-marked accepted record that is retired leaves ECN validation and the local or BBR ledger unchanged. On the ordinary tracker, after a PTO extracts the PING, nothing is retired: a later ACK covering the ACK-only records behind it still confirms testing, still fails a capable path whose ECT count falls short, and still takes the CE response. An ECT-marked `LocalPacketUncertain` record is not retired, and local ECN stays capable.
-6. A BBR context's retirement marks the outcome disposed and leaves `unconfirmedLoss` and the lost-run index unchanged.
+6. A BBR context's retirement disposes of the delivery-sampler record. It leaves the recovery outcome lost for persistent-congestion runs, with no episode and with `unconfirmedLoss` unset.
 7. Single-path receive with the periodic PING, with ECN disabled, covers two sequences. In the first, ACK-only 0–18, PING 19 and ACK-only 20–38 are sent, and an ACK covers only the PING; retirement disposes of the records left beyond the bound. In the second, a PTO extracts the PING with completed records on either side. In both, no congestion, ECN or spurious-loss outcome changes, and a later ACK of a retired number is ignored.
 8. Path removal with retired carriers keeps its existing reclamation.
+9. Persistent congestion on a BBR context: one ack-eliciting packet, then 30 ACK-only records, then three PTO rounds, each extracting two records and registering a replacement probe after each extraction, then an ACK of the newest probes. The verdict matches the one without retirement (`{2,36}`), and the 19-record control is `{2,25}` either way.
 
 One focused race run covers native completion.
 
@@ -553,9 +557,10 @@ Rejected split/merge alternatives have no revisit trigger except the stated cont
 
 - Retirement would need to change the span-based count, the shared ceiling or the carrier store's bound.
 - Retirement would need to touch a pending completion or skipped-number handling, or to run or skip terminal ECN reconciliation for an uncertain record.
-- Retirement would need `captureCongestionLoss`, or would otherwise carry a congestion, ECN, spurious-loss or BBR loss signal, for a never-in-flight record.
+- Retirement would need `captureCongestionLoss`, or would otherwise carry a congestion-loss, ECN, spurious-loss, recovery-episode or `unconfirmedLoss` signal, for a never-in-flight record.
+- Keeping the persistent-congestion verdict would need more than `recoveryEvidence.retire`, or would change any other B2 behavior.
 - A path with no ack-eliciting record can't be kept within the bound without new traffic.
-- A second behaviorally distinct counterexample appears at the retirement rule.
+- Another behaviorally distinct counterexample appears at the retirement rule. Three are already resolved: ordinary-tracker ECN testing confirmation, the count check and CE response, and the BBR persistent-congestion run.
 
 ## Acceptance and validation
 
