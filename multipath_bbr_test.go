@@ -290,3 +290,62 @@ func TestBBRPathHeldDuringFence(t *testing.T) {
 		require.Zero(t, reliableBytes(f.parseWrites(t, 0)), "no stream data left on path zero while held")
 	})
 }
+
+// Selection can move the opportunity off the route whose native construction
+// capacity the opportunity's first check reserved. An ACK sent while the new
+// route is paced still has capacity to register on.
+func TestBBRPathRouteChangeReacquiresCapacity(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newBBRPathFixture(t, protocol.PerspectiveServer)
+		p := f.c.pathCredit
+		p.selectPrimaryPrivate(1)
+		f.write(t, 1000)
+		f.drain(t)
+		require.Equal(t, 1000, reliableBytes(f.parseWrites(t, 1)))
+
+		p.selectPrimaryPrivate(0)
+		zero := f.c.emission.bbr
+		require.True(t, f.receive(t, 0, f.c.RemoteAddr(), 0, &wire.PingFrame{}))
+		f.socket.writes = nil
+		time.Sleep(50 * time.Millisecond) // the ACK is due
+		zero.tokens, zero.updated = 0, monotime.Now()
+		f.pass(t)
+		var acks int
+		for _, write := range f.parseWrites(t, 0) {
+			acks += len(write.acks)
+		}
+		require.Equal(t, 1, acks, "path zero's ACK leaves while its data is paced")
+	})
+}
+
+// An admission probe for another path is not the selected route's opportunity:
+// it leaves path zero's supply gap and idle state as they were.
+func TestBBRPathProbeKeepsSelectedSupplyState(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newBBRPathFixture(t, protocol.PerspectiveClient)
+		e := &f.c.emission
+		require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathNewConnectionIDFrame{PathID: 1, SequenceNumber: 1, ConnectionID: replacementPeerCID(1), StatelessResetToken: protocol.StatelessResetToken{0xab}}))
+		f.write(t, 1000)
+		f.drain(t)
+		f.ackPath(t, 0, 0, f.parseWrites(t, 0))
+		f.drain(t)
+		root := f.c.sentPacketHandler.(deliveryProbe)
+		require.Equal(t, congestion.SendApplicationLimited, e.bbr.supplyGap)
+		require.True(t, root.DeliveryStats().Idle)
+
+		target, socket := migrationTarget(t, f.admissionFixture)
+		ctx, cancel := context.WithCancel(context.Background())
+		errs := migrateAsync(ctx, f.admissionFixture, 1, target)
+		synctest.Wait()
+		require.NoError(t, f.c.pathCredit.expire(monotime.Now()))
+		result := f.c.triggerSending(monotime.Now())
+		require.NoError(t, result.err)
+		synctest.Wait()
+		require.NotEmpty(t, socketChallenges(t, f.admissionFixture, socket, 1), "this opportunity was path 1's challenge")
+		require.Equal(t, congestion.SendApplicationLimited, e.bbr.supplyGap, "path zero's gap stays")
+		require.True(t, root.DeliveryStats().Idle, "and so does its idle state")
+		cancel()
+		f.pass(t)
+		require.ErrorIs(t, <-errs, context.Canceled)
+	})
+}

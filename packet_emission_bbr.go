@@ -77,13 +77,22 @@ func (e *packetEmission) boundedGSO() bool {
 	return e.opportunityCapabilities().GSO
 }
 
+// pathTurn is how a multipath connection's path turns ended an opportunity.
+type pathTurn uint8
+
+const (
+	pathTurnNone      pathTurn = iota // the opportunity continues on the selected route
+	pathTurnHeld                      // the selected route's opportunity, holding ordinary work
+	pathTurnSignaling                 // an admission probe or announcement, which isn't the selected route's opportunity
+)
+
 // boundedPathTurns gives a multipath connection Reno's turns in Reno's order:
 // admission probes, route selection, the announcement a cutover owes and the
 // held opportunity. Each packet charges the credit and pacing of the route that
-// carries it. It reports whether the opportunity ended.
-func (e *packetEmission) boundedPathTurns(now monotime.Time, confirmed bool) (emissionResult, bool) {
+// carries it.
+func (e *packetEmission) boundedPathTurns(now monotime.Time, confirmed bool) (emissionResult, pathTurn) {
 	if sent, err := e.pathProbeOpportunity(now); err != nil || sent {
-		return emissionResult{err: err, retry: err == nil}, true
+		return emissionResult{err: err, retry: err == nil}, pathTurnSignaling
 	}
 	e.selectRoute(now)
 	if m := e.pathCredit.nextAnnouncement(now); m != nil {
@@ -98,7 +107,7 @@ func (e *packetEmission) boundedPathTurns(now monotime.Time, confirmed bool) (em
 			e.pathCredit.noteAnnounced(m, now)
 		} else {
 			if sent, err := e.announcePath(now); err != nil || sent {
-				return emissionResult{err: err, retry: err == nil}, true
+				return emissionResult{err: err, retry: err == nil}, pathTurnSignaling
 			}
 			e.reservation.completeLocal()
 			e.reservation = nil
@@ -106,11 +115,11 @@ func (e *packetEmission) boundedPathTurns(now monotime.Time, confirmed bool) (em
 	}
 	if e.held {
 		if !e.reserveLocal(e.packetSize(), false, false, now) {
-			return e.localBlocked(), true
+			return e.localBlocked(), pathTurnHeld
 		}
-		return e.heldOpportunity(now, confirmed), true
+		return e.heldOpportunity(now, confirmed), pathTurnHeld
 	}
-	return emissionResult{}, false
+	return emissionResult{}, pathTurnNone
 }
 
 func (e *packetEmission) resetLocalPath(generation uint64, now monotime.Time) {
@@ -135,6 +144,7 @@ func (p *bbrSendPolicy) resetGeneration(generation uint64, now monotime.Time) {
 func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result emissionResult) {
 	e.inOpportunity = true
 	defer func() { e.inOpportunity, e.capsTaken = false, false }()
+	turn := pathTurnNone
 	defer func() {
 		e.reservation.completeLocal() // unused construction allowance / packing failure
 		e.reservation = nil
@@ -145,7 +155,11 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 				result.stop, result.available, result.deadline = emissionQueueFull, available, 0
 				result.blocked, result.retry = blockModeHardBlocked, false
 			}
-			e.observeDeliveryResult(route, result, now)
+			// A signaling turn says nothing about any route's supply: the probe
+			// or announcement can leave on a route other than the selected one.
+			if turn != pathTurnSignaling {
+				e.observeDeliveryResult(route, result, now)
+			}
 		}
 	}()
 	if e.queue.WouldBlock() {
@@ -155,8 +169,14 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 		e.policy.applyHandshakeMTUFallback()
 	}
 	if e.pathCredit != nil {
-		if result, done := e.boundedPathTurns(now, confirmed); done {
-			return result
+		var turnResult emissionResult
+		if turnResult, turn = e.boundedPathTurns(now, confirmed); turn != pathTurnNone {
+			return turnResult
+		}
+		// Selection can move the opportunity off the route whose native
+		// construction capacity the first check reserved, so take it again.
+		if e.queue.WouldBlock() {
+			return emissionResult{stop: emissionQueueFull, available: e.queue.Available(), blocked: blockModeHardBlocked}
 		}
 	}
 	if intent := e.policy.preparePacketSizeRecovery(now); intent.probe != nil {
