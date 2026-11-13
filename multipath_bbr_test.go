@@ -5,6 +5,7 @@ package quic
 import (
 	"context"
 	"os"
+	"slices"
 	"syscall"
 	"testing"
 	"testing/synctest"
@@ -347,5 +348,115 @@ func TestBBRPathProbeKeepsSelectedSupplyState(t *testing.T) {
 		cancel()
 		f.pass(t)
 		require.ErrorIs(t, <-errs, context.Canceled)
+	})
+}
+
+// A cutover's announcement never waits on pacing, but whatever payload it carries
+// is the announced route's ordinary paced work: with that route's pacing or
+// ordinary credit refusing a whole packet, it is a PING alone and spends nothing.
+func TestBBRPathAnnouncementPacing(t *testing.T) {
+	// announce migrates path 1, the primary, holding prepare's reservation across
+	// the cutover, then sets path 1's pacing tokens, queues 1,000 bytes and runs one
+	// pass with the announcement due. It returns the packets on the new tuple.
+	announce := func(t *testing.T, f *reliableFixture, tokens func(*bbrSendPolicy) int64, prepare func(*bbrSendPolicy) *sendReservation) []reliableWrite {
+		t.Helper()
+		p := f.c.pathCredit
+		p.selectPrimaryPrivate(1)
+		require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathNewConnectionIDFrame{PathID: 1, SequenceNumber: 1, ConnectionID: replacementPeerCID(1), StatelessResetToken: protocol.StatelessResetToken{0xab}}))
+		path := f.bbrPath(1)
+		var held *sendReservation
+		if prepare != nil {
+			held = prepare(path)
+			t.Cleanup(held.completeLocal)
+		}
+		target, socket := migrationTarget(t, f.admissionFixture)
+		migrate(t, f.admissionFixture, 1, target, socket)
+		f.socket = socket
+		f.socket.writes = nil
+		m := p.members[1]
+		require.True(t, m.announcing)
+		m.announceAt = monotime.Now()
+		now := monotime.Now()
+		path.budget(now)
+		path.tokens, path.updated = tokens(path), now
+		f.write(t, 1000)
+		f.pass(t)
+		writes := f.parseWrites(t, 1)
+		require.Len(t, writes, 1, "the announcement leaves on the new tuple")
+		require.True(t, m.announceAt.After(monotime.Now()), "and the attempt backs off")
+		return writes
+	}
+	pingOnly := func(t *testing.T, write reliableWrite) {
+		t.Helper()
+		require.Empty(t, write.streams, "no STREAM payload")
+		require.Empty(t, write.datagrams, "no DATAGRAM payload")
+		require.Len(t, write.frames, 1)
+		require.IsType(t, &wire.PingFrame{}, write.frames[0], "a PING alone")
+	}
+
+	t.Run("zero budget", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newBBRPathFixture(t, protocol.PerspectiveClient)
+			path := f.bbrPath(1)
+			var refilled monotime.Time
+			writes := announce(t, f, func(p *bbrSendPolicy) int64 {
+				refilled = p.refilledAt
+				return 0
+			}, nil)
+			pingOnly(t, writes[0])
+			require.Zero(t, path.tokens, "the exempt announcement spends no pacing")
+			require.Equal(t, refilled, path.refilledAt)
+
+			f.ackPath(t, 1, 0, writes)
+			require.False(t, f.c.pathCredit.members[1].announcing, "path 1's recovery registered it, so its ACK discharges the obligation")
+			f.drain(t)
+			require.Equal(t, 1000, reliableBytes(f.parseWrites(t, 1)), "the data waited for pacing")
+		})
+	})
+
+	t.Run("budget covers", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newBBRPathFixture(t, protocol.PerspectiveClient)
+			e := &f.c.emission
+			path := f.bbrPath(1)
+			var root bbrSendPolicy
+			var refilled monotime.Time
+			var before protocol.ByteCount
+			var gap congestion.SendLimitation
+			writes := announce(t, f, func(p *bbrSendPolicy) int64 {
+				refilled, before, gap = p.refilledAt, p.quantum, p.supplyGap
+				root = *e.bbr
+				return int64(p.quantum) * 1e9
+			}, nil)
+			require.Equal(t, 1000, reliableBytes(writes), "payload rides the paced announcement")
+			require.True(t, slices.ContainsFunc(writes[0].frames, func(f wire.Frame) bool {
+				_, ok := f.(*wire.PingFrame)
+				return ok
+			}), "with its PING")
+			require.Equal(t, before-protocol.ByteCount(len(writes[0].data)), path.budget(monotime.Now()), "the announced route pays the packet's bytes")
+			require.True(t, path.refilledAt.After(refilled), "and its refill moves")
+			require.Equal(t, root.tokens, e.bbr.tokens, "the selected route's policy pays nothing")
+			require.Equal(t, root.refilledAt, e.bbr.refilledAt)
+			require.Equal(t, root.supplyGap, e.bbr.supplyGap, "and no route's supply is observed")
+			require.Equal(t, gap, path.supplyGap)
+		})
+	})
+
+	t.Run("older generation pending", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newBBRPathFixture(t, protocol.PerspectiveClient)
+			path := f.bbrPath(1)
+			var refilled monotime.Time
+			writes := announce(t, f, func(p *bbrSendPolicy) int64 {
+				refilled = p.refilledAt
+				return int64(p.quantum) * 1e9
+			}, func(p *bbrSendPolicy) *sendReservation {
+				// Old-tuple bytes still pending refuse ordinary credit after the cutover.
+				return p.credit.reserve(100, p.creditLimit(), false, false)
+			})
+			pingOnly(t, writes[0])
+			require.Equal(t, int64(path.quantum)*1e9, path.tokens, "ordinary credit refused the payload, so nothing is paced")
+			require.Equal(t, refilled, path.refilledAt)
+		})
 	})
 }

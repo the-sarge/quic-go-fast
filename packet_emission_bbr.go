@@ -106,12 +106,17 @@ func (e *packetEmission) boundedPathTurns(now monotime.Time, confirmed bool) (em
 		if route != nil {
 			size = route.mtu.CurrentSize()
 		}
-		if !e.reserveOn(e.policyOn(route), size, false, false, now) {
+		// The announcement never waits on pacing. Its payload is the announced
+		// route's ordinary paced work; when that route's pacing or ordinary credit
+		// refuses a whole packet, it is a PING alone, exempt as ACKs are.
+		p := e.policyOn(route)
+		paced := p.deadline(size, now) == 0 && e.reserveOn(p, size, true, false, now)
+		if !paced && !e.reserveOn(p, size, false, false, now) {
 			// Like a full endpoint, local credit is no reason to hold the
 			// selected route's work; the announcement retries after backoff.
 			e.pathCredit.noteAnnounced(m, now)
 		} else {
-			if sent, err := e.announcePath(now); err != nil || sent {
+			if sent, err := e.announce(now, !paced); err != nil || sent {
 				return emissionResult{err: err, retry: err == nil}, pathTurnSignaling
 			}
 			e.reservation.completeLocal()

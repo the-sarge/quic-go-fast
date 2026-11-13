@@ -222,6 +222,12 @@ func (e *packetEmission) canConstruct(route *pathRoute) bool {
 // announcePath sends the non-probing packet a cutover owes on its new tuple. It is an
 // ordinary registered packet, so recovery tracks it and an acknowledgment discharges it.
 func (e *packetEmission) announcePath(now monotime.Time) (bool, error) {
+	return e.announce(now, false)
+}
+
+// announce is announcePath. A control-only announcement is a PING with any queued
+// ACKs, and its route's payload waits for an ordinary opportunity.
+func (e *packetEmission) announce(now monotime.Time, controlOnly bool) (bool, error) {
 	m := e.pathCredit.nextAnnouncement(now)
 	if m == nil {
 		return false, nil
@@ -234,9 +240,15 @@ func (e *packetEmission) announcePath(now monotime.Time) (bool, error) {
 		e.useRoute(selected)
 		return false, nil
 	}
-	// An ACK alone would fill the payload, and recovery wouldn't track the packet.
-	e.pathCredit.conn.framer.QueueControlFrame(&wire.PingFrame{})
-	packet, err := e.packer.packPTOProbePacket(e.route, protocol.Encryption1RTT, e.packetSize(), true, now, e.version)
+	var packet *coalescedPacket
+	var err error
+	if controlOnly {
+		packet, err = e.packer.packPingPacket1RTT(e.route, e.packetSize(), now, e.version)
+	} else {
+		// An ACK alone would fill the payload, and recovery wouldn't track the packet.
+		e.pathCredit.conn.framer.QueueControlFrame(&wire.PingFrame{})
+		packet, err = e.packer.packPTOProbePacket(e.route, protocol.Encryption1RTT, e.packetSize(), true, now, e.version)
+	}
 	if err != nil {
 		return false, err
 	}
