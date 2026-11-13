@@ -26,9 +26,9 @@ func TestBBRPathCreditExhaustionIsNotLoss(t *testing.T) {
 	e.enableBBR(now, protocol.MaxPacketBufferSize)
 	c.sentPacketHandler.DropPackets(protocol.EncryptionInitial, now)
 	c.sentPacketHandler.DropPackets(protocol.EncryptionHandshake, now)
-	path, err := e.addBBRPath(17, 1200, utils.NewRTTStats(), now)
+	path, err := e.addBBRPath(17, utils.NewRTTStats(), now)
 	require.NoError(t, err)
-	_, err = e.addBBRPath(17, 1200, utils.NewRTTStats(), now)
+	_, err = e.addBBRPath(17, utils.NewRTTStats(), now)
 	require.Error(t, err)
 	require.NotSame(t, e.bbr.credit, path.credit)
 	require.NotSame(t, e.bbr.controller, path.controller)
@@ -85,7 +85,7 @@ func TestBBRPathECNFollowsPathCredit(t *testing.T) {
 	e.enableBBRECN()
 	c.sentPacketHandler.DropPackets(protocol.EncryptionInitial, now)
 	c.sentPacketHandler.DropPackets(protocol.EncryptionHandshake, now)
-	path, err := e.addBBRPath(17, 1200, utils.NewRTTStats(), now)
+	path, err := e.addBBRPath(17, utils.NewRTTStats(), now)
 	require.NoError(t, err)
 	recovery := c.sentPacketHandler.(interface {
 		RecoveryOnPath(protocol.PathID) ackhandler.SentPacketHandler

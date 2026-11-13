@@ -468,7 +468,7 @@ func (p *pathCreditRegistry) admitMember(id protocol.PathID, target *Transport, 
 // credit; there is no silent Reno substitution.
 func (p *pathCreditRegistry) addRecoveryPath(id protocol.PathID, now monotime.Time) error {
 	if p.conn.emission.bbr != nil {
-		if _, err := p.conn.emission.addBBRPath(id, protocol.MinInitialPacketSize, p.rtt[id], now); err != nil {
+		if _, err := p.conn.emission.addBBRPath(id, p.rtt[id], now); err != nil {
 			return fmt.Errorf("%w: %w", ErrMultipathResourceLimitV1, err)
 		}
 		return nil

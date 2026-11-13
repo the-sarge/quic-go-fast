@@ -35,12 +35,15 @@ type bbrSendPolicy struct {
 // addBBRPath gives a nonzero path its own BBR controller, pacing and local
 // credit beside the root's. Recovery owns the path context and its delivery
 // sampler, whose pending-local authority is this path's credit alone. When the
-// root validates ECN, so does the path, fenced by this credit's generation.
-func (e *packetEmission) addBBRPath(id protocol.PathID, size protocol.ByteCount, rtt *utils.RTTStats, now monotime.Time) (*bbrSendPolicy, error) {
+// root validates ECN, so does the path, fenced by this credit's generation. Like
+// a Reno path context, it starts at the minimum initial size; the route's own
+// PMTU raises it at send time.
+func (e *packetEmission) addBBRPath(id protocol.PathID, rtt *utils.RTTStats, now monotime.Time) (*bbrSendPolicy, error) {
+	const size = protocol.MinInitialPacketSize
 	recovery, ok := (*e.recovery).(interface {
 		AddBBRPath(protocol.PathID, protocol.ByteCount, protocol.ByteCount, *utils.RTTStats, func() protocol.ByteCount, func(bool) (uint64, bool, bool)) (*congestion.BBRSender, error)
 	})
-	if e.bbr == nil || !ok || e.bbr.paths[id] != nil || size <= 0 || size > e.bbr.ceiling {
+	if e.bbr == nil || !ok || e.bbr.paths[id] != nil || size > e.bbr.ceiling {
 		return nil, fmt.Errorf("BBR path unavailable: %d", id)
 	}
 	p := newBBRSendPolicyWithCeiling(1, size, e.bbr.ceiling, now)
