@@ -285,8 +285,9 @@ func (m *nativeQualMarked) produce(e *nativeEndpoint, p *endpointParticipant, de
 // awaitInFlight returns a marked request still inside its native borrow, and the
 // time close begins. The request is first sighted in a sample that began after a
 // witness was already established. Its completion is checked again just before
-// closing is taken, which leaves only the writer's own return-to-publication step
-// as a window; the caller's assertion on the published return fails closed there.
+// closing is taken. A return that lands between the writer's timestamp and that
+// check, or between the check and closing, is still possible; the caller's
+// assertion on the published return fails closed there rather than passing.
 func (m *nativeQualMarked) awaitInFlight(t *testing.T, e *nativeEndpoint) (*endpointToken, time.Time) {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
