@@ -1,6 +1,6 @@
 # Bounded native endpoint I/O implementation plan
 
-**Status:** all nine slices complete, including E6 #1020; the endpoint route remains inactive in public construction until R19. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012).
+**Status:** all nine slices complete, including E6 #1020; R19 #1039 activated the public grant on Linux amd64 only. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012).
 
 ## Binding contract and operating discipline
 

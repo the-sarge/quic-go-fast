@@ -1,6 +1,6 @@
 # Reno-first QUIC multipath implementation plan
 
-**Status:** implementation in progress. R1–R18, R20 and R21 are complete (20/21 slices). [R18 #1038](../audits/2026-11-12-multipath-r18-delivery-receipt.md) delivered with two exact CPU exceptions and a preserved strict numerical failure. [R21 #1313](../audits/2026-11-12-native-writer-yield-r21/README.md) supplied the scoped native writer-yield evidence in PR #1315. R19 #1039 is the frontier, with unaffected qualification carried forward. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
+**Status:** complete (21/21 slices). [R19 #1039](#r19) enabled the experimental Linux amd64 Reno profile in PR #1317. [R18 #1038](../audits/2026-11-12-multipath-r18-delivery-receipt.md) delivered with two exact CPU exceptions and a preserved strict numerical failure. [R21 #1313](../audits/2026-11-12-native-writer-yield-r21/README.md) supplied the scoped native writer-yield evidence in PR #1315. B1 #1040 still requires Q2 #599. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
 
 ## Binding contract and operating discipline
 
@@ -409,7 +409,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 | [R16](#r16) | new | Complete additive APIs and constructor gates behind disablement | E6, R11, R13, R14, R15 |
 | [R17](#r17) | new | Complete the independent interoperability matrix | R16, R20, [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3) |
 | [R18](#r18) | split/rework fixture into N0; retain campaign | Measure ordinary-peer costs on granted endpoints | R16, R20, [N3](2026-11-04-native-endpoint-efficiency-plan.md#n3), delivered [production repair #1302](https://github.com/the-sarge/quic-go-fast/issues/1302) and [progress repair #1305](https://github.com/the-sarge/quic-go-fast/issues/1305) |
-| [R19](#r19) | retain; ready | Enable the qualified experimental Reno profile | R17, R18, R21 |
+| [R19](#r19) | complete | Enable the qualified experimental Reno profile | R17, R18, R21 |
 | [R20](#r20) | new | Keep the connection on a healthy path after an endpoint fails | R13, R14, R15 |
 | [R21](#r21) | complete | Qualify native contention and shutdown with the delivered writer yield | R18 (complete) |
 
@@ -1010,6 +1010,8 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 <a id="r19"></a>
 
 ### R19 — Enable the qualified experimental Reno profile
+
+**State:** complete as #1039 in PR #1317. `admitMultipath`, the one capability gate, and `Transport.ConfigureMultipathIOV1` admit the profile on Linux amd64 only; every other build keeps the `ErrMultipathUnsupportedV1` refusal before any grant or advertisement. Go 1.26.11/1.27.4 and the recorded kernel image are published support boundaries, not runtime checks. `internal/multipathguard` and every fixture activation are deleted; no `pathZeroContext` consumer remains outside path zero or ordinary construction. [Usage](../usage.md#packet-io-and-socket-ownership) publishes the opt-in boundary. Evidence reachable from main: the [E6 native receipt](../audits/2026-11-03-multipath-e6-receipt.md) with the [R21 supplement](../audits/2026-11-12-native-writer-yield-r21/README.md), the [R17 interop receipt](../audits/2026-11-09-multipath-r17-receipt.md) and the [R18 ordinary-cost receipt](../audits/2026-11-12-multipath-r18-delivery-receipt.md). Default-off construction and ordinary peers are unchanged. No successor becomes ready: B1 #1040 still requires Q2 #599.
 
 **Delivers:** Remove private activation for the exact supported Linux native v1 Reno profile, publish opt-in usage/support boundaries, and delete temporary fixture selectors/unqualified context access. Record evidence reachability and default-off preservation. Keep BBR+multipath and aggregate rejected until the B track.
 
