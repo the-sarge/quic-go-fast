@@ -82,8 +82,9 @@ func (e *packetEmission) removeBBRPath(id protocol.PathID) {
 }
 
 // policyOn is the BBR send policy of the route that carries an opportunity: the
-// root for path zero, otherwise the path's own. Admission installs a route's
-// policy before the route exists, and reclamation removes it only after.
+// root for path zero, otherwise the path's own. Admission installs a path's
+// policy before its route can be selected, and final reclamation removes it only
+// after the route can no longer be selected.
 func (e *packetEmission) policyOn(route *pathRoute) *bbrSendPolicy {
 	if route == nil {
 		return e.bbr

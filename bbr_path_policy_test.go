@@ -57,6 +57,8 @@ func TestBBRPathCreditExhaustionIsNotLoss(t *testing.T) {
 	require.NotNil(t, e.reservation)
 	require.Zero(t, e.bbrPendingBytes(e.bbr))
 	require.Equal(t, 2*path.quantum, e.bbrPendingBytes(path))
+	require.Zero(t, e.deliveryPendingBytes(), "the root's supply gap doesn't subtract another credit's allowance")
+	require.Equal(t, 2*path.quantum, e.currentPendingBytes(path))
 	require.True(t, root.DeliveryStats().Idle)
 	e.reservation.completeLocal()
 	e.reservation = nil
