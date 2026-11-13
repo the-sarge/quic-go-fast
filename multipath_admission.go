@@ -223,7 +223,8 @@ func (p *pathCreditRegistry) recoveryOn(id protocol.PathID) ackhandler.SentPacke
 
 // selectRoute reads each eligible path into an immutable view and asks the
 // scheduler. Congestion, pacing and local capacity never choose the primary. They
-// only tell whether a path the next DATAGRAM needs could carry it now.
+// tell whether a path the next DATAGRAM needs could carry it now, and which paths
+// aggregate may choose.
 func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pathRoute, steering, held bool) {
 	if !p.hasAdmission() || p.closed {
 		return nil, nil, false, false
@@ -233,19 +234,15 @@ func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pat
 	limit := protocol.MaxByteCount
 	var ordered [maxPathHistoryUnits + 1]*pathMember
 	for _, m := range p.orderedMembers(ordered[:0]) {
-		id := m.id
 		if !p.primaryEligible(m) {
 			continue // a suspect path's only probes are its revalidation challenges
 		}
-		var view pathView
+		view := p.viewOf(m, now)
 		var size protocol.ByteCount
-		if id == 0 {
-			view = pathViewFor(id, p.conn.sentPacketHandler.SendMode(now))
+		if m.id == 0 {
 			size = datagramPayloadLimit(p.conn.maxPacketSize(), p.conn.connIDManager.Get())
 		} else {
-			connID := p.refreshRoute(m)
-			view = pathViewFor(id, m.route.recovery.SendMode(now))
-			size = datagramPayloadLimit(protocol.ByteCount(p.pmtuObservation(id)), connID)
+			size = datagramPayloadLimit(protocol.ByteCount(p.pmtuObservation(m.id)), m.route.connID)
 		}
 		limit = min(limit, size)
 		views = append(views, view)
@@ -266,7 +263,7 @@ func (p *pathCreditRegistry) selectRoute(now monotime.Time) (route, steerTo *pat
 	// A fencing path counted for placement above, so a fence drops nothing, and it
 	// keeps the primary, but nothing may pack against its revoked epoch.
 	views = slices.DeleteFunc(views, func(view pathView) bool { return p.members[view.id].fencing() })
-	chosen, steer, steering, held := selectPath(views, p.primary)
+	chosen, steer, steering, held := p.schedule(views, now)
 	if held {
 		return p.heldRoute(), nil, false, true
 	}

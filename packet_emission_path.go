@@ -3,6 +3,7 @@ package quic
 import (
 	"net"
 	"slices"
+	"time"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
@@ -31,8 +32,16 @@ type pathView struct {
 	id      protocol.PathID
 	probing bool               // a PTO is pending on this path
 	fits    bool               // a fresh packet can carry the next DATAGRAM, or none is queued
-	ready   bool               // not congestion-limited, so that DATAGRAM could leave here now
+	ready   bool               // a whole packet could leave here now or once paced
 	room    protocol.ByteCount // frame length a fresh packet here holds, once read
+
+	// What only aggregate reads.
+	backup    bool
+	sendAt    monotime.Time      // the next send pacing allows; zero or past is now
+	queued    protocol.ByteCount // bytes held locally for this path, plus the next packet
+	rate      uint64             // conservative delivery rate in bytes per second; zero is no valid sample
+	rtt       time.Duration      // smoothed path-local RTT; zero is none measured
+	scheduled uint64             // the round-robin ledger
 }
 
 // selectPath takes views in path ID order. A pending PTO goes first so the probe
@@ -42,24 +51,27 @@ type pathView struct {
 // traffic continues while the DATAGRAM stays queued until an ACK. A paced one is
 // named, and its deadline wakes the connection.
 func selectPath(views []pathView, primary protocol.PathID) (chosen, steerTo protocol.PathID, steering, held bool) {
-	for _, view := range views {
-		if view.probing {
-			return view.id, 0, false, false
-		}
+	if index := slices.IndexFunc(views, func(view pathView) bool { return view.probing }); index >= 0 {
+		return views[index].id, 0, false, false
 	}
 	index := slices.IndexFunc(views, func(view pathView) bool { return view.id == primary })
 	if index < 0 {
 		return 0, 0, false, true
 	}
-	first := views[index]
-	if !first.fits {
-		for _, view := range views {
-			if view.fits && view.ready {
-				return first.id, view.id, true, false
-			}
-		}
+	steerTo, steering = steerFor(views[index], views)
+	return views[index].id, steerTo, steering, false
+}
+
+// steerFor is every policy's per-message DATAGRAM rule: when the next DATAGRAM
+// doesn't fit the choice, name the first path it fits that could send it now.
+func steerFor(choice pathView, views []pathView) (protocol.PathID, bool) {
+	if choice.fits {
+		return 0, false
 	}
-	return first.id, 0, false, false
+	if index := slices.IndexFunc(views, func(view pathView) bool { return view.fits && view.ready }); index >= 0 {
+		return views[index].id, true
+	}
+	return 0, false
 }
 
 // selectRoute binds this opportunity before any capacity read or destructive
@@ -143,11 +155,68 @@ func (e *packetEmission) selected() ackhandler.SentPacketHandler {
 }
 
 // packetSize is the current path's own limit.
-func (e *packetEmission) packetSize() protocol.ByteCount {
-	if e.route != nil {
-		return e.route.mtu.CurrentSize()
+func (e *packetEmission) packetSize() protocol.ByteCount { return e.packetSizeOn(e.route) }
+
+func (e *packetEmission) packetSizeOn(route *pathRoute) protocol.ByteCount {
+	if route != nil {
+		return route.mtu.CurrentSize()
 	}
 	return e.policy.maxPacketSize()
+}
+
+// pathView reads one path's sending state for selection and consumes nothing. A
+// path is ready when the opportunity it would run gets its local reservation:
+// native construction capacity on its route and, for BBR, the local credit the
+// opportunity's own plan reserves, up to its ceiling. Reno sends into any open window. A BBR path's
+// pacing is projected to its controller's current rate, and a paced path is
+// judged by the work it would do once pacing allows. Readiness never runs the
+// controller's send-time preparation, so a window that moves there stops the
+// opportunity on congestion, which is the network's verdict, not a local refusal.
+func (e *packetEmission) pathView(id protocol.PathID, route *pathRoute, recovery ackhandler.SentPacketHandler, now monotime.Time) pathView {
+	if e.bbr == nil {
+		mode := recovery.SendMode(now)
+		view := pathViewFor(id, mode)
+		view.ready = view.ready && e.canConstruct(route)
+		if mode == ackhandler.SendPacingLimited {
+			view.sendAt = recovery.TimeUntilSend()
+		}
+		return view
+	}
+	size := e.packetSizeOn(route)
+	p := e.policyOn(route)
+	projected := p.projected(size, now)
+	mode, allowance := recovery.(boundedRecovery).SendAllowance(now)
+	mtu, confirmed := e.dueMTU(route, now), e.pathCredit.conn.handshakeConfirmed
+	view := pathView{id: id, fits: true, probing: mode == ackhandler.SendPTOAppData, sendAt: now}
+	plan := e.planBounded(route, &projected, mode, allowance, size, mtu, false, confirmed, now)
+	if plan.step == stepPaced || plan.step == stepMTUPaced {
+		view.sendAt = plan.deadline
+		plan = e.planBounded(route, &projected, mode, allowance, size, mtu, false, confirmed, plan.deadline)
+	}
+	view.ready = (plan.step == stepSend || plan.step == stepMTUProbe) &&
+		p.credit.admits(plan.ceiling, projected.creditLimit(), plan.ordinary, plan.isolated) && e.canConstruct(route)
+	view.queued = e.bbrPendingBytes(p) + size
+	view.rate = p.controller.DeliveryRateEstimate()
+	return view
+}
+
+// dueMTU is the route's path MTU finder when the opportunity on it would probe.
+func (e *packetEmission) dueMTU(route *pathRoute, now monotime.Time) *mtuFinder {
+	finder := e.pathCredit.conn.mtuDiscoverer
+	if route != nil {
+		finder = route.mtu
+	}
+	if !e.pathCredit.conn.handshakeConfirmed || finder == nil || !finder.ShouldSendProbe(now) {
+		return nil
+	}
+	return finder
+}
+
+// canConstruct reports, without reserving, whether the route's native endpoint
+// would give this connection construction capacity. The ordinary send queue is
+// shared by every route, so it never distinguishes one.
+func (e *packetEmission) canConstruct(route *pathRoute) bool {
+	return e.local == nil || e.local.canConstruct(route)
 }
 
 // announcePath sends the non-probing packet a cutover owes on its new tuple. It is an

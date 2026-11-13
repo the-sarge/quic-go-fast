@@ -580,49 +580,60 @@ func TestPathReliableTerminalReschedule(t *testing.T) {
 	})
 }
 
+// newTargetTransport is a Transport on its own native endpoint and socket, for a
+// path whose route targets an independent endpoint.
+func newTargetTransport(t *testing.T, f *admissionFixture) (*Transport, *nativeProbeSocket, *nativeEndpoint) {
+	t.Helper()
+	socket := newNativeProbeSocket()
+	endpoint := startNativeProbeEndpoint(t, socket)
+	target := &Transport{ConnectionIDLength: f.tc.srcConnID.Len(), connIDLen: f.tc.srcConnID.Len(), handlers: make(map[protocol.ConnectionID]packetHandlerEntry), resetTokens: make(map[protocol.StatelessResetToken]packetHandler), logger: utils.DefaultLogger}
+	target.initOnce.Do(func() {})
+	target.responses = newEndpointResponses(endpoint)
+	return target, socket, endpoint
+}
+
+// openOnTarget opens and validates path 1 at admissionTupleA through target.
+func openOnTarget(t *testing.T, f *admissionFixture, target *Transport, socket *nativeProbeSocket) {
+	t.Helper()
+	errs := f.openAsync(context.Background(), target, admissionTupleA)
+	f.pass(t)
+	require.Len(t, socket.writes, 1)
+	unpacker := newPacketUnpacker(f.peer, admissionPeerCID.Len())
+	_, _, _, payload, err := unpacker.UnpackShortHeader(1, monotime.Now(), bytes.Clone(socket.writes[0].data))
+	require.NoError(t, err)
+	parser := wire.NewFrameParser(true, false, false)
+	parser.EnableMultipath()
+	var challenge *wire.PathChallengeFrame
+	for len(payload) > 0 && challenge == nil {
+		typ, n, err := parser.ParseType(payload, protocol.Encryption1RTT)
+		require.NoError(t, err)
+		payload = payload[n:]
+		frame, n, err := parser.ParseLessCommonFrame(typ, payload, protocol.Version1)
+		require.NoError(t, err)
+		payload = payload[n:]
+		challenge, _ = frame.(*wire.PathChallengeFrame)
+	}
+	require.NotNil(t, challenge)
+	require.True(t, f.receive(t, 1, admissionTupleA, 1200, &wire.PathResponseFrame{Data: challenge.Data}))
+	require.NoError(t, <-errs)
+	require.True(t, f.c.pathCredit.members[1].live)
+	socket.writes = nil
+}
+
+// targetStream opens a stream with ample flow control on an admission fixture.
+func targetStream(t *testing.T, f *admissionFixture) *SendStream {
+	t.Helper()
+	c := f.c
+	c.peerParams = &wire.TransportParameters{InitialMaxData: 1 << 24, InitialMaxStreamDataUni: 1 << 24, MaxUniStreamNum: 16}
+	c.streamsMap.HandleTransportParameters(c.peerParams)
+	c.connFlowController.UpdateSendWindow(1 << 24)
+	s, err := c.OpenUniStream()
+	require.NoError(t, err)
+	return s
+}
+
 func TestPathReliableTargetTransportRoute(t *testing.T) {
-	newTarget := func(t *testing.T, f *admissionFixture) (*Transport, *nativeProbeSocket, *nativeEndpoint) {
-		socket := newNativeProbeSocket()
-		endpoint := startNativeProbeEndpoint(t, socket)
-		target := &Transport{ConnectionIDLength: f.tc.srcConnID.Len(), connIDLen: f.tc.srcConnID.Len(), handlers: make(map[protocol.ConnectionID]packetHandlerEntry), resetTokens: make(map[protocol.StatelessResetToken]packetHandler), logger: utils.DefaultLogger}
-		target.initOnce.Do(func() {})
-		target.responses = newEndpointResponses(endpoint)
-		return target, socket, endpoint
-	}
-	open := func(t *testing.T, f *admissionFixture, target *Transport, socket *nativeProbeSocket) {
-		errs := f.openAsync(context.Background(), target, admissionTupleA)
-		f.pass(t)
-		require.Len(t, socket.writes, 1)
-		unpacker := newPacketUnpacker(f.peer, admissionPeerCID.Len())
-		_, _, _, payload, err := unpacker.UnpackShortHeader(1, monotime.Now(), bytes.Clone(socket.writes[0].data))
-		require.NoError(t, err)
-		parser := wire.NewFrameParser(true, false, false)
-		parser.EnableMultipath()
-		var challenge *wire.PathChallengeFrame
-		for len(payload) > 0 && challenge == nil {
-			typ, n, err := parser.ParseType(payload, protocol.Encryption1RTT)
-			require.NoError(t, err)
-			payload = payload[n:]
-			frame, n, err := parser.ParseLessCommonFrame(typ, payload, protocol.Version1)
-			require.NoError(t, err)
-			payload = payload[n:]
-			challenge, _ = frame.(*wire.PathChallengeFrame)
-		}
-		require.NotNil(t, challenge)
-		require.True(t, f.receive(t, 1, admissionTupleA, 1200, &wire.PathResponseFrame{Data: challenge.Data}))
-		require.NoError(t, <-errs)
-		require.True(t, f.c.pathCredit.members[1].live)
-		socket.writes = nil
-	}
-	stream := func(t *testing.T, f *admissionFixture) *SendStream {
-		c := f.c
-		c.peerParams = &wire.TransportParameters{InitialMaxData: 1 << 24, InitialMaxStreamDataUni: 1 << 24, MaxUniStreamNum: 16}
-		c.streamsMap.HandleTransportParameters(c.peerParams)
-		c.connFlowController.UpdateSendWindow(1 << 24)
-		s, err := c.OpenUniStream()
-		require.NoError(t, err)
-		return s
-	}
+	newTarget, open, stream := newTargetTransport, openOnTarget, targetStream
 	waiting := func(endpoint *nativeEndpoint, participant *endpointParticipant) (pending, granted bool) {
 		endpoint.do(func(state *endpointState) {
 			pending = participant.wait[0].pending

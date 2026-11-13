@@ -34,6 +34,8 @@ type pathPolicy struct {
 	peerBackup bool // advisory, and only ever a tie-break under local use
 	peerSeq    uint64
 	peerSet    bool
+
+	scheduled uint64 // bytes this path carried, rebased; aggregate's round-robin ledger
 }
 
 // primaryEligible means live, validated and authorized, neither suspect nor

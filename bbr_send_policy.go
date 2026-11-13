@@ -134,18 +134,40 @@ func (p *bbrSendPolicy) update(rate uint64, size protocol.ByteCount, now monotim
 	p.tokens = min(p.tokens, int64(p.quantum)*1e9)
 }
 
+// projected is this policy as an opportunity's refresh would leave it at now, for
+// its controller's current pacing rate, without changing the policy. A path's view
+// reads it, so selection sees the pacing and credit limit emission will enforce.
+func (p *bbrSendPolicy) projected(size protocol.ByteCount, now monotime.Time) bbrSendPolicy {
+	q := *p
+	if q.controller != nil {
+		q.update(q.controller.PacingRate(), size, now)
+	}
+	return q
+}
+
+// creditLimit bounds this path's local credit: two pacing quanta, for every
+// reservation and for selection's readiness alike.
+func (p *bbrSendPolicy) creditLimit() protocol.ByteCount { return 2 * p.quantum }
+
 func (p *bbrSendPolicy) budget(now monotime.Time) protocol.ByteCount {
 	if now > p.updated {
-		missing := int64(p.quantum)*1e9 - p.tokens
-		delta := uint64(now.Sub(p.updated))
-		if p.rate != 0 && delta >= ceilSendDelay(uint64(missing), p.rate) {
-			p.tokens += missing
-		} else {
-			p.tokens += int64(delta * p.rate) // bounded above by missing
-		}
-		p.updated = now
+		p.tokens, p.updated = p.accrued(now), now
 	}
 	return max(0, protocol.ByteCount(p.tokens/1e9))
+}
+
+// accrued is the credit, in byte-nanoseconds, that refill gives by now, without
+// recording it.
+func (p *bbrSendPolicy) accrued(now monotime.Time) int64 {
+	if now <= p.updated {
+		return p.tokens
+	}
+	missing := int64(p.quantum)*1e9 - p.tokens
+	delta := uint64(now.Sub(p.updated))
+	if p.rate != 0 && delta >= ceilSendDelay(uint64(missing), p.rate) {
+		return p.tokens + missing
+	}
+	return p.tokens + int64(delta*p.rate) // bounded above by missing
 }
 
 func ceilSendDelay(deficit, rate uint64) uint64 {
