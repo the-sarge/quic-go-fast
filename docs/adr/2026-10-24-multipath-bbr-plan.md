@@ -66,7 +66,7 @@ The fixture-only byte-round-robin comparison is a maintained verification aid so
 
 ## Program budget and prior-evidence validity
 
-B5 uses 54 of the shared 118 regular run instances. The [Reno program ledger](2026-10-24-multipath-reno-plan.md#program-qualification-ledger-and-sequencing) owns the cumulative 210-run/eight-host-hour ceiling and execution preflight. Inspect B1–B4 and B7 changes against prior native/ordinary evidence. Unchanged owners/domain may retain receipts with a source-based applicability record; changed behavior needs the affected existing cases rerun within the same ceiling. Do not automatically replay an entire matrix or inherit a stale result. If more scope/budget is necessary, stop for a decision.
+B5 uses 54 of the shared 118 regular run instances. The [Reno program ledger](2026-10-24-multipath-reno-plan.md#program-qualification-ledger-and-sequencing) owns the cumulative 210-run/eight-host-hour ceiling and execution preflight. Inspect B1–B4, B7 and B8 changes against prior native/ordinary evidence. Unchanged owners/domain may retain receipts with a source-based applicability record; changed behavior needs the affected existing cases rerun within the same ceiling. Do not automatically replay an entire matrix or inherit a stale result. If more scope/budget is necessary, stop for a decision.
 
 ### Controller-matched aggregation arms
 
@@ -306,7 +306,7 @@ The 18 listed repeats are required BBR-candidate evidence, not optional reuse of
   - the path's oldest outstanding ack-eliciting record is older than one of that path's PTOs.
 
   On a no, the target is released, as on a refusal, so its acknowledgment falls back to today's carriage. Recovery reports a fact; emission alone decides. Because the turns on every path stop at their share, the turns alone can't fill the ceiling, even when an outstanding record pins a path's front and B8 can't shrink its span. A path whose return direction fails while it carries our data trips the age clause within one PTO, before suspicion.
-- *Selection.* Every short-header packet's ACK selection receives its carrier (the route's path ID) and the call's released set. The receive owner first selects the carrier's own target, under today's piggyback rules. It selects another target only when that target is released, again under today's rules. The existing capacity rule still applies: ACK(0) and at most one PATH_ACK, with the rest left queued. The receive owner stays the sole owner of acknowledgment construction and consumption.
+- *Selection.* Every short-header packet's ACK selection receives its carrier (the route's path ID) and the call's released set. The receive owner first selects the carrier's own target, under today's piggyback rules. It selects another target only when that target is released, again under today's rules. The existing capacity rule still applies: ACK(0) and at most one PATH_ACK, with the rest left queued. Released targets are served in turn. When a packet gives its one PATH_ACK slot to the carrier's own target while a released target is due, the receive owner marks the released target as passed over. The next packet that may carry it gives it the slot ahead of the carrier's own target. The mark is one fact on the target's receive tracker, cleared when that target is consumed, so a released target waits at most one packet for the slot. The receive owner stays the sole owner of acknowledgment construction and consumption.
   - The due read that the turn uses and the consumption that `GetAckFrame` performs share one predicate, so a due target always packs.
   - The packer passes the carrier and released set through and decides nothing.
   - When `pathCredit` is nil, emission releases every target, which is today's behavior. That covers ordinary connections, single-path BBR and private fixtures without admission.
@@ -327,7 +327,7 @@ Otherwise each due home target leaves in its own turn. A refused or non-home tar
 - A peer's Reno contexts ignore the carrier. A Reno path's RTT samples now come from that path's own return direction.
 - Under primary/backup sending, data stays on the primary, whose acknowledgment was already on the same path. Only the acknowledgments of probes on backup paths move.
 - **Backup paths** (the [Reno primary/backup and failure policy](2026-10-24-multipath-reno-plan.md#primary-backup-and-failure-policy)). Because the turn adds no ack-eliciting packet, it adds no periodic backup traffic, arms no PTO there, and can't make a backup suspect. It also creates no liveness evidence of its own, so freshness and promotion keep their existing inputs. A backup's own ack-eliciting traffic remains whatever the existing policy sends.
-- **Sent and receive history.** The peer acknowledges a turn's packets only after a later ack-eliciting packet on that path. Until then, B8 bounds the path's completed sent records and keeps their targets in the carrier store. The target's receive history is bounded by the existing range cap (`MaxNumAckRanges`), and a lossy path's PATH_ACK can grow to that cap. This is an efficiency cost, not a correctness one.
+- **Sent and receive history.** The peer acknowledges a turn's packets only after a later ack-eliciting packet on that path. Until then, B8 bounds the path's completed sent records and moves their targets into the bounded carrier store, where a later ACK prunes them only while the carrier remains retained. The target's receive history is bounded by the existing range cap (`MaxNumAckRanges`), and a lossy path's PATH_ACK can grow to that cap. This is an efficiency cost, not a correctness one.
 - **One-way failure.** Suppose a home path's return direction fails while the peer's packets still arrive on it. Its acknowledgments are then lost, and the peer's own policy observes the loss: its PTOs and suspicion on that path, and then its failover. That is the peer's failure policy acting on true path evidence, which today's cross-path carriage masks.
 
 **Rejected alternatives (do not do this):**
@@ -391,12 +391,12 @@ Receive only this slice, binding discipline, its referenced owner/closure sectio
 | Announcement packet before the turn | Its carrier's own target, plus released targets | Receive owner selection | Covered by the selection tests; the announcement path is unchanged |
 | Packets carrying no ACK: steered DATAGRAM-only, isolated MTU probe, path-validation probe | Unchanged; no ACK selection runs | Packer, existing | Existing tests |
 | `pathCredit` nil | Every target released; unchanged | Emission | Existing bundling test, unchanged |
-| Carrier capacity | Own target first; a released PATH_ACK only when the own one is absent; the rest stays queued | Receive owner | Capacity case in the selection test |
+| Carrier capacity | Own target first, except that a due released target passed over once takes the next packet's PATH_ACK slot; the rest stays queued | Receive owner | Capacity case in the selection test, including a continuously replenished own target X and a released target Y |
 
 **TDD / evidence budget:** At most 16 deterministic scenario tests under the binding rule. Write these 13 first:
 
 1. A primary/backup receiver sends a due backup-path PATH_ACK as an ACK-only packet on the backup route, and the primary's packet doesn't carry it.
-2. Path zero's ACK rides a nonzero carrier only when released, and the capacity rule holds.
+2. Path zero's ACK rides a nonzero carrier only when released, and the capacity rule holds. With path zero retired, carrier X's own target replenished between single-packet calls, and released target Y due, Y leaves on the packet after it was passed over.
 3. The carrier's own target still piggybacks on data, and a non-due home target is withheld from another path's data packet.
 4. Each non-home state releases its target, as one table test including suspect path zero.
 5. Each refusal owner releases its target into the same call, with no stale alarm, as one table test.
@@ -446,7 +446,7 @@ Rejected split/merge alternatives have no revisit trigger except the stated cont
 
 ### B8 — Bound completed ACK-only sent history
 
-**Delivers:** Each path's sent history stays bounded when that path sends only non-ack-eliciting packets. Today the periodic PING bounds a single path. When a path's application history holds no ack-eliciting record and holds more than `protocol.MaxNonAckElicitingAcks` completed non-ack-eliciting records, the recovery owner retires the oldest of them until that many remain. Retirement moves each record's `ackTargets` into the existing time-bounded carrier store. The change is behavior-preserving wherever the periodic PING already reaches the path; elsewhere it bounds a growth that today has no bound. It adds no wire traffic, timer, API or configuration, and it is independently green. [B7](#b7) relies on it, because B7's ACK-only turns are never ack-eliciting.
+**Delivers:** Each path's sent history stays bounded when that path sends only non-ack-eliciting packets. Today the periodic PING bounds a single path. When a path's application history holds no ack-eliciting record and holds more than `protocol.MaxNonAckElicitingAcks` completed non-ack-eliciting records, the recovery owner retires the oldest of them until that many remain. Retirement moves each record's `ackTargets` into the existing bounded carrier store. Where there is no periodic PING, B8 bounds a growth that has no bound today. On a path that the periodic PING reaches, retirement can dispose of a few ACK-only records early, before acknowledgment or loss would remove them. That happens after a selective ACK of the PING, or while a PTO extracts the PING before its replacement registers. It changes no wire, ownership or congestion behavior. A later ACK may find a retired number instead of a live record, and pruning then depends on carrier retention. It adds no wire traffic, timer, API or configuration, and it is independently green. [B7](#b7) relies on it, because B7's ACK-only turns are never ack-eliciting.
 
 **Blocked by:** none. It uses the R6/R7 carrier history and the B2 recovery contexts, all complete. **Existing work:** new slice; no unmerged implementation accepted.
 
@@ -455,7 +455,7 @@ Rejected split/merge alternatives have no revisit trigger except the stated cont
 - Every registered packet enters its path's sent history, ack-eliciting or not (`internal/ackhandler/sent_packet_handler.go:458`).
 - A record leaves the history only when the peer acknowledges it or loss detection declares it lost. A non-ack-eliciting record that is declared lost gets the carrier, completion and history disposal (`:1184–1191`):
   - `captureCongestionLoss` records a never-in-flight loss (`congestion_dispatch.go:188`). Under BBR that call marks the outcome lost, sets `unconfirmedLoss` and feeds the lost-run index that persistent congestion reads (`bbr_recovery.go:230–235`, `:430–534`);
-  - `retainAckCarrier` (`:1661`) moves its `ackTargets` into the carrier store, which holds at most 64 carriers and expires each after three PTOs (`lost_packet_tracker.go:97`, `sent_packet_handler.go:1668`);
+  - `retainAckCarrier` (`:1661`) moves its `ackTargets` into the carrier store and expires each carrier after three PTOs (`sent_packet_handler.go:1668`). The store evicts its oldest carrier at capacity (`lost_packet_tracker.go:99–110`). Capacity is 64 on an ordinary connection; under multipath it is 32 for path zero and 8 for each nonzero path (`sent_path.go:104`);
   - `retireLocal` releases the local record, and `DeclareLost` removes the history entry.
 
   Spurious-loss, congestion and ECN consequences apply only to ack-eliciting or outstanding records.
@@ -476,11 +476,11 @@ Rejected split/merge alternatives have no revisit trigger except the stated cont
   - A `LocalPacketUncertain` record is never retired. Retiring it would run `retireLocal`'s terminal ECN reconciliation (`local_completion.go:340`, `local_ecn.go:370`), which fails local ECN for an unacknowledged ECT-marked uncertain record, although retirement is no evidence of non-delivery. Skipping that reconciliation would leave the ECN owner's record unreconciled, which changes the ECN owner's terminal contract. Uncertain records therefore keep today's exits: acknowledgment or loss. Only uncertain native submissions create them. A native timeout or capacity error stays nonfatal local backpressure and leaves the path usable (`native_endpoint.go:1424–1429`), so turns can continue after one. B8 doesn't bound uncertain records; B7's strict history-room share bounds the span they pin.
   - Pending records are never retired. Their tokens, disposal and completion authority stay untouched; they pin the span only until native completion resolves them.
 - **Disposal:** retire the oldest completed records, in send order, through a non-loss disposal:
-  - take the congestion packet record and mark its recovery outcome disposed, through the existing `discardCongestionPacket` (`congestion_dispatch.go:280`; `recoveryEvidence.discard`, `bbr_recovery.go:278`, `outcomeDisposed`), which also disposes the delivery-sampler record;
+  - take the congestion packet record and mark its recovery outcome disposed, through the existing `discardCongestionPacket` (`congestion_dispatch.go:280`; `recoveryEvidence.discard`, `bbr_recovery.go:279`, `outcomeDisposed`), which also disposes the delivery-sampler record;
   - keep its targets with `retainAckCarrier`, release it with `retireLocal`, and remove the history entry.
 
   Retirement never calls `captureCongestionLoss`, so no record turns lost, `unconfirmedLoss` stays unset, and the lost-run index doesn't change. It writes no loss trace and has no congestion, ECN or spurious-loss consequence.
-- **Late acknowledgments:** an ACK that later covers a retired number is ignored, and the carrier store prunes that record's targets once. Retirement never touches skipped numbers, so an ACK for a skipped number remains a protocol violation.
+- **Late acknowledgments:** an ACK that later covers a retired number is ignored. If the record's carrier is still retained and unexpired, the carrier store prunes its targets once. Otherwise those targets' receive history stays within its existing range cap. Retirement never touches skipped numbers, so an ACK for a skipped number remains a protocol violation.
 - **While an ack-eliciting record remains:** acknowledgment, loss or PTO handles it, and the path's suspicion follows, as today. Records behind it wait for those exits, as ACK-only records already wait behind an outstanding PING. On a single path that costs only that connection. In multipath the span count is shared, so [B7](#b7) stops sending turns on a path whose span or oldest ack-eliciting record crosses its stated bound.
 
 **Rejected alternatives (do not do this):**
@@ -515,23 +515,23 @@ No persisted state is introduced. Retirement runs on the existing registration a
 | --- | --- | --- | --- |
 | ACK-only stream on a path with no ack-eliciting record | Retire the oldest completed records beyond the bound; the span shrinks; paths stay sendable | Recovery retirement | Sustained exhaustion scenario on two paths |
 | Pending native completion record | Not retired; resolves through its token as today | Local completion | Pending-record case |
-| Retired record's targets | Kept in the carrier store; a later ACK prunes them once | Carrier store | Late-ACK pruning case |
+| Retired record's targets | Enter the bounded carrier store; a later ACK prunes them once while the carrier is retained and unexpired; an evicted or expired carrier leaves the capped receive history | Carrier store | Late-ACK pruning case, retained and evicted |
 | ACK covering a retired number | Ignored | Acknowledgment processing | Same case |
 | ACK covering a skipped number | Still a protocol violation | Skipped list | Same case |
 | History holding an ack-eliciting record | No retirement while it remains; removing the last one runs retirement | Recovery retirement | No-retirement case, then retirement on its removal |
 | ECN-marked ACK-only record | An accepted or unregistered record is retired with no ECN validation or ledger effect. An uncertain record is not retired, so terminal ECN reconciliation never runs on retirement | Recovery retirement | ECN case |
 | BBR context | Disposal marks the outcome disposed; no lost outcome, `unconfirmedLoss` or lost-run change | Recovery retirement, through `discardCongestionPacket` | BBR case |
-| Single path with the periodic PING | Retires at most records that time-threshold loss would declare anyway; otherwise unchanged | Packer PING, existing | Characterization case |
+| Single path with the periodic PING | May retire a few ACK-only records early, after a selective ACK of the PING or during a PTO's extraction of it; wire, ownership and congestion behavior unchanged | Packer PING, existing | Characterization case |
 
 **TDD / evidence budget:** At most 16 deterministic scenario tests under the binding rule. Start with:
 
 1. Sustained ACK-only registration and completion on two paths, more than `MaxTrackedSentPackets` packets with no peer acknowledgment: completed history stays within the bound and both paths keep a sending mode.
 2. A pending completion is never retired and still resolves.
-3. A retired record's targets are pruned by a later ACK. An ACK covering the retired number is ignored, and an ACK covering a skipped number still fails.
+3. A retired record's targets are pruned by a later ACK while the carrier is retained, and not after eviction. An ACK covering the retired number is ignored, and an ACK covering a skipped number still fails.
 4. A history holding an ack-eliciting record retires nothing. When an ACK removes that last record behind more than `MaxNonAckElicitingAcks` completed ACK-only records, retirement runs at that removal.
 5. ECN: an ECN-marked accepted record that is retired leaves ECN validation and the local or BBR ledger unchanged. An ECT-marked `LocalPacketUncertain` record is not retired, and local ECN stays capable.
 6. A BBR context's retirement marks the outcome disposed and leaves `unconfirmedLoss` and the lost-run index unchanged.
-7. Single-path receive with the periodic PING: after an acknowledged PING, B8 retires only records that time-threshold loss would also declare lost, and acknowledgment and loss outcomes are otherwise unchanged.
+7. Single-path receive with the periodic PING covers two sequences. In the first, ACK-only 0–18, PING 19 and ACK-only 20–38 are sent, and an ACK covers only the PING; retirement disposes of the records left beyond the bound. In the second, a PTO extracts the PING with completed records on either side. In both, no congestion, ECN or spurious-loss outcome changes, and a later ACK of a retired number is ignored.
 8. Path removal with retired carriers keeps its existing reclamation.
 
 One focused race run covers native completion.
