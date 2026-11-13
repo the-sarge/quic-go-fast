@@ -56,12 +56,15 @@ func (e *packetEmission) addBBRPath(id protocol.PathID, size protocol.ByteCount,
 	return p, nil
 }
 
-// removeBBRPath follows recovery's reclamation of the path. Reservations still
-// held by queued buffers complete against the removed credit.
+// removeBBRPath reclaims a BBR path's recovery context and policy together, at
+// the path's final reclamation. Reservations still held by queued buffers
+// complete against the removed credit.
 func (e *packetEmission) removeBBRPath(id protocol.PathID) {
-	if e.bbr != nil {
-		delete(e.bbr.paths, id)
+	if e.bbr == nil || e.bbr.paths[id] == nil {
+		return
 	}
+	(*e.recovery).(interface{ RemovePath(protocol.PathID) }).RemovePath(id)
+	delete(e.bbr.paths, id)
 }
 
 func newBBRSendPolicy(rate uint64, size protocol.ByteCount, now monotime.Time) *bbrSendPolicy {

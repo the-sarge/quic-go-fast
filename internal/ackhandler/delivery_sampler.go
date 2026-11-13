@@ -130,8 +130,12 @@ func (d *congestionDispatch) retire(key congestionPacketKey, now monotime.Time, 
 	}
 	if s.retained == nil {
 		s.retained = make(map[congestionPacketKey]*retainedDelivery)
-		s.order = make(retainedDeliveryHeap, 0, maxDeliveryRetained)
-		s.expiry = make(retainedExpiryHeap, 0, maxDeliveryRetained)
+		// Contexts sharing the ceiling grow on demand rather than each
+		// reserving all of it.
+		if d.root == nil {
+			s.order = make(retainedDeliveryHeap, 0, maxDeliveryRetained)
+			s.expiry = make(retainedExpiryHeap, 0, maxDeliveryRetained)
+		}
 	}
 	// Clamp before multiplication, including unusual restored PTO estimates.
 	ttl := 3 * min(max(pto, 0), 10*time.Second)

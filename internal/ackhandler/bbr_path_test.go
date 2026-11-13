@@ -111,6 +111,14 @@ func TestBBRPathCrossPathAckNoSample(t *testing.T) {
 		pathAck(t, h, 0, 17, now.Add(90*time.Millisecond), zero)
 		require.False(t, lastFeedback(t, root).Delivery.Valid, "path zero is excluded the same way")
 		require.False(t, h.rttStats.HasMeasurement())
+
+		// The excluded ACK still orders samples: a reordered same-path ACK of an
+		// older packet takes no RTT sample.
+		older := sendRichPathPacket(h, 17, now.Add(100*time.Millisecond))
+		newer := sendRichPathPacket(h, 17, now.Add(110*time.Millisecond))
+		pathAck(t, h, 17, 0, now.Add(150*time.Millisecond), newer)
+		pathAck(t, h, 17, 17, now.Add(400*time.Millisecond), older)
+		require.False(t, ctx.rttStats.HasMeasurement())
 	})
 
 	t.Run("unknown carrier", func(t *testing.T) {

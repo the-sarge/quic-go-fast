@@ -641,27 +641,35 @@ func (h *sentPacketHandler) receivedAck(ack *wire.AckFrame, encLevel protocol.En
 	// * the largest acked is newly acknowledged, AND
 	// * at least one new ack-eliciting packet was acknowledged
 	if len(ackedPackets) > 0 {
-		if p := ackedPackets[len(ackedPackets)-1]; p.PacketNumber == ack.LargestAcked() && !p.isPathProbePacket && hasAckEliciting && p.timingEligible() && !timingExcluded {
-			if h.congestionEvents != nil {
-				h.congestionEvents.event.RTTEligible = true
-			}
-			// don't use the ack delay for Initial and Handshake packets
-			var ackDelay time.Duration
-			if encLevel == protocol.Encryption1RTT {
-				ackDelay = min(ack.DelayTime, h.rttStats.MaxAckDelay())
-			}
-			if h.largestAckedTime.IsZero() || !p.SendTime.Before(h.largestAckedTime) {
-				h.rttStats.UpdateRTT(rcvTime.Sub(p.SendTime), ackDelay)
+		if p := ackedPackets[len(ackedPackets)-1]; p.PacketNumber == ack.LargestAcked() && !p.isPathProbePacket && hasAckEliciting && p.timingEligible() {
+			if timingExcluded {
+				// An excluded ACK trains nothing, but it still orders samples: a
+				// reordered same-path ACK cannot then sample an older packet.
+				if h.largestAckedTime.IsZero() || !p.SendTime.Before(h.largestAckedTime) {
+					h.largestAckedTime = p.SendTime
+				}
+			} else {
 				if h.congestionEvents != nil {
-					h.congestionEvents.event.RTTUpdated = rcvTime.After(p.SendTime)
-					h.captureDeliveryRTT(p, rcvTime)
+					h.congestionEvents.event.RTTEligible = true
 				}
-				if h.logger.Debug() {
-					h.logger.Debugf("\tupdated RTT: %s (σ: %s)", h.rttStats.SmoothedRTT(), h.rttStats.MeanDeviation())
+				// don't use the ack delay for Initial and Handshake packets
+				var ackDelay time.Duration
+				if encLevel == protocol.Encryption1RTT {
+					ackDelay = min(ack.DelayTime, h.rttStats.MaxAckDelay())
 				}
-				h.largestAckedTime = p.SendTime
+				if h.largestAckedTime.IsZero() || !p.SendTime.Before(h.largestAckedTime) {
+					h.rttStats.UpdateRTT(rcvTime.Sub(p.SendTime), ackDelay)
+					if h.congestionEvents != nil {
+						h.congestionEvents.event.RTTUpdated = rcvTime.After(p.SendTime)
+						h.captureDeliveryRTT(p, rcvTime)
+					}
+					if h.logger.Debug() {
+						h.logger.Debugf("\tupdated RTT: %s (σ: %s)", h.rttStats.SmoothedRTT(), h.rttStats.MeanDeviation())
+					}
+					h.largestAckedTime = p.SendTime
+				}
+				h.congestion.MaybeExitSlowStart()
 			}
-			h.congestion.MaybeExitSlowStart()
 		}
 	}
 

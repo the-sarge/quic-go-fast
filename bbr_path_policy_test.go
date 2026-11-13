@@ -66,4 +66,7 @@ func TestBBRPathCreditExhaustionIsNotLoss(t *testing.T) {
 
 	e.removeBBRPath(17)
 	require.Nil(t, e.bbr.paths[17])
+	require.Nil(t, c.sentPacketHandler.(interface {
+		RecoveryOnPath(protocol.PathID) ackhandler.SentPacketHandler
+	}).RecoveryOnPath(17), "the policy and its recovery context are reclaimed together")
 }
