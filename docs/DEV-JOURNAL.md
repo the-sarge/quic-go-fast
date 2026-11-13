@@ -10271,3 +10271,29 @@ Delivered [Multipath usage: document transport-wide native routing and the parti
 - Local certification found a clean tree, a clean `git diff --check`, and a +2/−0 diff. All 17 hosted checks succeeded on `45b6eeedf6d8ff32ccae7afbc4c43cc6baf234b2` before the squash merge.
 
 No follow-up was filed. The live frontier is maintained in [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## Failed path operation slot order fixed (late record) - 2026-11-12 21:38 EST
+
+**Main:** `d7854ed7276a`
+**Actor:** Claude
+
+Delivered [Multipath: release settled failed path operation slots before reporting (#1192)](https://github.com/the-sarge/quic-go-fast/issues/1192) in [PR #1195](https://github.com/the-sarge/quic-go-fast/pull/1195), merged on 2026-11-04 as `c1fc06f10c7ba4e6d2eed3f9a2906ff2cf88dbe9`. This entry is recorded late: its original journal PR, [PR #1196](https://github.com/the-sarge/quic-go-fast/pull/1196), conflicted at EOF after later journal entries merged, and this entry supersedes it. When the connection fails an admitted open or migration, it now frees the connection's one local path operation before it reports the error. A retry can no longer be refused with `ErrMultipathBackpressureV1` merely by the attempt it follows.
+
+- `failCandidate` and `beginTerminal` now claim the outcome, establish the cutoff and then report through `failOperation`. This covers validation timeout, target failure, member retirement and the peer retiring a migration candidate's connection ID.
+- `releaseOperation` is now the one check for whether a decided request's slot can be freed. It replaces the copies in `serviceRequest` and `serviceMigration`.
+- A failure whose probe is still unresolved reports at once and keeps the slot. The slot now frees in the pass that settles the obligation, not one pass later.
+- `OpenPathV1`, `MigrateV1` and the accepted Reno plan state the conditional guarantee and its exclusions.
+- The owner accepted the [contract](https://github.com/the-sarge/quic-go-fast/issues/1192#issuecomment-6647681026) and then the plan. Caller-won cancellation keeps its existing cleanup, and the guarantee promises no retry success.
+- A migration's old-tuple fence holds its path, not the operation, as it did before. A retry takes the slot and waits there, bounded by its context.
+
+**Validation:**
+- 14 new scenarios in `multipath_failure_test.go`, on an unbuffered result channel where the order matters. Run against the base production code, 12 fail. The later-cancellation case passes because it preserves existing behavior, and the newer-request case calls a new function, so it can't run there.
+- A guard mutation that removed the hold check from `releaseOperation` failed exactly the two held-obligation tests.
+- At head `d676d07ab3404c49686ee76f482804f1a45d829a` on macOS, with `main` at `689517410ca2`: root-package and `http3` tests, a focused race run, `go vet`, `go mod tidy -diff` and `git diff --check`. Lint for Linux, Darwin, Windows and OpenBSD passed on the same contents before the commit.
+- RAS review `20261105T023726-025d63ca96275b326ed1ae18` at that head had no findings. `claude-opus`, `codex-astra` and `codex-sol` completed; `claude-fable` failed with `process_failed`, with the cause unconfirmed, and contributed nothing.
+- All 17 hosted checks succeeded on that head before the squash merge.
+- This is fixture evidence. It isn't Linux qualification, and no native campaign ran.
+
+At merge, R19 [#1039](https://github.com/the-sarge/quic-go-fast/issues/1039) stopped waiting on this fix. Since then R17 [#1037](https://github.com/the-sarge/quic-go-fast/issues/1037), R18 [#1038](https://github.com/the-sarge/quic-go-fast/issues/1038) and R19 have closed; [#1193](https://github.com/the-sarge/quic-go-fast/issues/1193) and [#1141](https://github.com/the-sarge/quic-go-fast/issues/1141) remain open. No follow-up was filed. The live frontier is maintained in [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).

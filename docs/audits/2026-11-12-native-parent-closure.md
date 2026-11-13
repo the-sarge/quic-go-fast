@@ -28,4 +28,4 @@ Background progress was not starved: every mixed-bulk row delivered 2,516,582,40
 
 The owner's CPU exception names source `56e011367` and binary SHA-256 `bedeb0e80d54503e76bf51ffc09d5f8588deeb164cee7fb4093ff054c84e9a7b`. The delivered production source differs from the measured source only by R19's configuration-time activation check and comments; the check lies outside the measured per-packet path. The remaining non-documentation differences are test and fixture code, including the ordinary-cost fixture's removed guard setup. The supplied evidence contains no comparison of a delivered binary with `bedeb0e8`. On that basis the orchestrator judges that the exception still applies to the delivered candidate. This judgment comes from reading the code; it is not a new measurement.
 
-[B1 #1040](https://github.com/the-sarge/quic-go-fast/issues/1040) and [Q2 #599](https://github.com/the-sarge/quic-go-fast/issues/599) are unchanged.
+This closure does not change [B1 #1040](https://github.com/the-sarge/quic-go-fast/issues/1040) or [Q2 #599](https://github.com/the-sarge/quic-go-fast/issues/599).
