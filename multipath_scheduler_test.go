@@ -148,13 +148,20 @@ func TestSelectAggregateSamePathRetryFirst(t *testing.T) {
 }
 
 // The fixture's comparison arm ignores valid rate samples and stays on paced byte
-// round-robin.
+// round-robin; aggregate uses them.
 func TestSelectAggregateComparisonIgnoresRates(t *testing.T) {
 	now := monotime.Now()
 	fast, slow := sampled(0), sampled(1)
 	fast.rate, fast.scheduled = 100_000_000, 2400
-	require.Equal(t, protocol.PathID(0), aggregateChoice(t, []pathView{fast, slow}, 0, now, true))
-	require.Equal(t, protocol.PathID(1), aggregateChoice(t, []pathView{fast, slow}, 0, now, false))
+	for _, tc := range []struct {
+		scheduler pathScheduler
+		chosen    protocol.PathID
+	}{{scheduleAggregate, 0}, {scheduleRoundRobin, 1}} {
+		p := &pathCreditRegistry{scheduler: tc.scheduler}
+		chosen, _, _, held := p.schedule([]pathView{fast, slow}, now)
+		require.False(t, held)
+		require.Equal(t, tc.chosen, chosen)
+	}
 }
 
 // With no primary, a stale path awaiting revalidation carries nothing ordinary,
