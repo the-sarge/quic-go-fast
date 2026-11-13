@@ -31,6 +31,9 @@ type deliverySampler struct {
 	evidenceLost              bool
 	nextExpiry                monotime.Time
 	originlessRegistrations   bool
+	// timingFenced is set from a timing fence until a fresh origin. Restoring
+	// that origin fences timing only; it never starts a new delivery generation.
+	timingFenced bool
 }
 
 const (
@@ -113,11 +116,17 @@ func (d *congestionDispatch) retire(key congestionPacketKey, now monotime.Time, 
 	}
 	d.expire(now)
 	s := &d.sampler
-	if len(s.order) == maxDeliveryRetained {
-		old := s.order[0].packet
-		d.removeRetained(congestionKey(old.EncryptionLevel, old.PacketNumber), true)
+	if _, retained := d.deliveryUse(); retained >= maxDeliveryRetained {
 		s.evicted++
 		s.evidenceLost = true
+		if len(s.order) == 0 {
+			// The ceiling is shared; another context's records are not ours to evict.
+			d.recovery.missing(p.Ordinal)
+			d.sampler.dispose(p)
+			return
+		}
+		old := s.order[0].packet
+		d.removeRetained(congestionKey(old.EncryptionLevel, old.PacketNumber), true)
 	}
 	if s.retained == nil {
 		s.retained = make(map[congestionPacketKey]*retainedDelivery)
@@ -168,21 +177,85 @@ func (d *congestionDispatch) expire(now monotime.Time) {
 	endServiceWork(prior)
 }
 
-// DeliveryExpiry is independent of send permission and recovery's loss alarm.
-func (h *sentPacketHandler) DeliveryExpiry() monotime.Time {
-	if d := h.congestionEvents; d != nil {
-		return d.sampler.nextExpiry
+// deliveryUse is the live and retained record count under this context's
+// ceiling: its own, or the sum over a rich root and its paths.
+func (d *congestionDispatch) deliveryUse() (live, retained int) {
+	if d.root == nil {
+		return d.packets.len(), len(d.sampler.retained)
 	}
-	return 0
+	add := func(p *congestionDispatch) {
+		if p != nil {
+			live += p.packets.len()
+			retained += len(p.sampler.retained)
+		}
+	}
+	add(d.root.congestionEvents)
+	for _, path := range d.root.paths {
+		add(path.congestionEvents)
+	}
+	return live, retained
+}
+
+// releasePeerScratch keeps the contexts' feedback buffers, together with one
+// of the given size, within a single context's ceiling. A peer's buffer is idle
+// outside its own synchronous feedback event.
+func (d *congestionDispatch) releasePeerScratch(size int) {
+	if d.root == nil {
+		return
+	}
+	total := size
+	visit := func(p *congestionDispatch, release bool) {
+		if p == nil || p == d {
+			return
+		}
+		if release {
+			p.scratch, p.event.Acked, p.event.Lost = nil, nil, nil
+		} else {
+			total += cap(p.scratch)
+		}
+	}
+	for _, release := range []bool{false, true} {
+		if release && total <= maxDeliveryLive+maxDeliveryRetained {
+			return
+		}
+		visit(d.root.congestionEvents, release)
+		for _, path := range d.root.paths {
+			visit(path.congestionEvents, release)
+		}
+	}
+}
+
+// DeliveryExpiry is independent of send permission and recovery's loss alarm.
+// A root reports the earliest deadline of all its contexts.
+func (h *sentPacketHandler) DeliveryExpiry() monotime.Time {
+	var next monotime.Time
+	if d := h.congestionEvents; d != nil {
+		next = d.sampler.nextExpiry
+	}
+	for _, path := range h.paths {
+		if d := path.congestionEvents; d != nil && !d.sampler.nextExpiry.IsZero() && (next.IsZero() || d.sampler.nextExpiry.Before(next)) {
+			next = d.sampler.nextExpiry
+		}
+	}
+	return next
 }
 
 func (h *sentPacketHandler) ExpireDelivery(now monotime.Time) {
 	if d := h.congestionEvents; d != nil {
 		d.expire(now)
 	}
+	for _, path := range h.paths {
+		if d := path.congestionEvents; d != nil {
+			d.expire(now)
+		}
+	}
 }
 
+// CloseDelivery closes this context's delivery state and, on a root, every path's.
 func (h *sentPacketHandler) CloseDelivery() {
+	for _, path := range h.paths {
+		path.CloseDelivery()
+	}
 	if b, ok := h.congestion.(*congestion.BBRSender); ok {
 		b.Close()
 	}

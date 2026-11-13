@@ -45,7 +45,13 @@ func congestionKey(level protocol.EncryptionLevel, pn protocol.PacketNumber) con
 }
 
 type congestionDispatch struct {
-	localRoute       bool
+	localRoute bool
+	// crossPath marks the current ACK's feedback as ineligible for timing: it
+	// was carried on another path, or its carrier is unknown.
+	crossPath bool
+	// root is the rich root once it has rich paths; every context's delivery
+	// stores then share one aggregate ceiling.
+	root             *sentPacketHandler
 	pending          func() protocol.ByteCount
 	sampler          deliverySampler
 	recovery         recoveryEvidence
@@ -104,20 +110,23 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 		// A genuine idle restart and the legacy route retain their lifecycle
 		// semantics. Local origin restoration fences timing only: intervening
 		// registrations still belong to the current logical delivery generation.
-		if !d.sampler.sendOrigin.IsZero() || (!d.localRoute && d.sampler.originlessRegistrations) {
+		// A timing fence restores the same way on either route.
+		fenced := d.localRoute || d.sampler.timingFenced
+		if !d.sampler.sendOrigin.IsZero() || (!fenced && d.sampler.originlessRegistrations) {
 			d.sampleGeneration++
-		} else if d.localRoute && d.sampler.originlessRegistrations {
+		} else if fenced && d.sampler.originlessRegistrations {
 			d.sampler.fenceTiming()
 		}
 		d.sampler.sendOrigin, d.sampler.deliveredTime = p.SendTime, p.SendTime
 		d.sampler.evidenceLost = false
 		d.sampler.originlessRegistrations = false
+		d.sampler.timingFenced = false
 	}
 	info.SampleGeneration = d.sampleGeneration
 	info.TimingGeneration = d.sampler.timingGeneration
 	d.registrationTime = max(d.registrationTime, p.SendTime)
 
-	if d.packets.len() < maxDeliveryLive {
+	if live, _ := d.deliveryUse(); live < maxDeliveryLive {
 		if b, ok := h.congestion.(*congestion.BBRSender); ok && b.InProbeRTT() {
 			d.sampler.markLimited(congestion.SendProbeRTTLimited)
 		}
@@ -143,7 +152,9 @@ func (h *sentPacketHandler) beginCongestionFeedback(now monotime.Time, level pro
 	// buffer. Registration cannot interleave this connection-owned event.
 	needed := d.packets.len() + len(d.sampler.retained)
 	if cap(d.scratch) < needed {
-		d.scratch = make([]congestion.PacketInfo, min(maxDeliveryLive+maxDeliveryRetained, max(needed, 2*cap(d.scratch))))
+		size := min(maxDeliveryLive+maxDeliveryRetained, max(needed, 2*cap(d.scratch)))
+		d.releasePeerScratch(size)
+		d.scratch = make([]congestion.PacketInfo, size)
 	}
 	d.scratch = d.scratch[:cap(d.scratch)]
 	d.event = congestion.FeedbackEvent{
@@ -192,7 +203,12 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 	if h.bbrECN != nil {
 		d.event.ECN.Failed = h.bbrECN.state == ecnStateFailed || h.bbrECN.evidenceLost
 	}
-	if d.localRoute {
+	if d.crossPath && len(d.event.Acked) > 0 {
+		// Delivery counts once below, but no interval may bridge this ACK:
+		// sampling waits for a fresh path-local anchor.
+		d.sampler.fenceTiming()
+		d.event.RawRTT = 0
+	} else if d.localRoute {
 		origin := d.sampler.sendOrigin
 		fence := false
 		for _, p := range d.event.Acked {
@@ -243,6 +259,7 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 				d.sampler.minimumRTT = 0
 				d.sampler.sendOrigin, d.sampler.deliveredTime = 0, 0
 				d.sampler.originlessRegistrations = false
+				d.sampler.timingFenced = false
 			}
 			if b.InProbeRTT() {
 				d.sampler.markLimited(congestion.SendProbeRTTLimited)
@@ -288,6 +305,7 @@ func (h *sentPacketHandler) discardCongestionSpace(level protocol.EncryptionLeve
 			d.sampleGeneration++
 			d.sampler.sendOrigin, d.sampler.deliveredTime = 0, 0
 			d.sampler.originlessRegistrations = false
+			d.sampler.timingFenced = false
 		}
 	}
 }
