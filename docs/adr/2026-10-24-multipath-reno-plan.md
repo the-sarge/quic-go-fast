@@ -445,7 +445,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R2 — Parse the bounded draft-21 wire profile without advertisement
 
-**State:** complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 is complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082) and R4 #1024 is complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091); R5 #1025 is complete; R6 #1026 is complete; R7 #1027 is complete; R8 #1028 is complete. Public negotiation remains disabled.
+**State:** complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 is complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082) and R4 #1024 is complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091); R5 #1025 is complete; R6 #1026 is complete; R7 #1027 is complete; R8 #1028 is complete. Public negotiation stayed disabled until R19 #1039.
 
 **Delivers:** Adapt multipath codecs/transport parameter into the real parser and canonical validator, with path-zero ACK compatibility and 1-RTT-only gates. Keep public negotiation disabled; receiving unsupported extension frames follows the selected protocol error. Add wire path identity distinct from tuple generation.
 
@@ -497,7 +497,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R4 — Bind CID routing to bounded protocol-path identity
 
-**State:** complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091). R5 #1025 is complete; R6 #1026 is complete; R7 #1027 is complete; R8 #1028 is complete; their direct predecessors are complete. Production issuance remains path zero and public negotiation remains disabled.
+**State:** complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091). R5 #1025 is complete; R6 #1026 is complete; R7 #1027 is complete; R8 #1028 is complete; their direct predecessors are complete. Production issuance remains path zero and public negotiation stayed disabled until R19 #1039.
 
 **Delivers:** Extend CID lookup/registration with a bounded wire-path binding before decryption while preserving ordinary routing, reset-token and closed-handler behavior. Unknown/unissued IDs cannot allocate path state. Exercise duplicate tuple/path-zero cases through real ingress routing.
 
@@ -523,7 +523,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R5 — Protect path-qualified packets under one key schedule
 
-**State:** complete. R6 #1026 is complete; R7 #1027 is complete; R8 #1028 is complete; public negotiation remains disabled.
+**State:** complete. R6 #1026 is complete; R7 #1027 is complete; R8 #1028 is complete; public negotiation stayed disabled until R19 #1039.
 
 **Delivers:** Integrate path nonce/PN reconstruction and per-path transition evidence under one TLS/key-phase owner. Include previous/current/next receive-key decisions, silent/abandoned path retention, global AEAD limits and ACK confirmation by sent key generation. Public negotiation remains off. Capture actual key generation at sealing, carry it in registration, extract it before acknowledged packet records are pooled and forward it through the real connection ACK caller.
 
@@ -549,7 +549,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R6 — Route receive ACK histories by target and carrier
 
-**State:** complete. R7 #1027 is complete; R8 #1028 is complete; public negotiation remains disabled.
+**State:** complete. R7 #1027 is complete; R8 #1028 is complete; public negotiation stayed disabled until R19 #1039.
 
 **Delivers:** Extend receive tracking and ACK construction for independent application path spaces. Store each PATH_ACK target/watermark in its carrier registration; acknowledgment prunes target history even when carrier differs. Preserve ordinary ACK for path zero and unique Initial/Handshake spaces.
 
@@ -575,7 +575,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R7 — Give Reno paths independent recovery and pacing
 
-**State:** complete. R8 #1028 is complete. R9 #1029 is complete. Public negotiation remains disabled.
+**State:** complete. R8 #1028 is complete. R9 #1029 is complete. Public negotiation stayed disabled until R19 #1039.
 
 **Delivers:** Partition application sent histories, loss/PTO, Reno registration prefix/undo and adaptive-loss state by protocol path, with aggregate logical delivery/resource ceilings. Demultiplex target ACK independent of carrier; preserve per-generation retained evidence and path-zero behavior. Create one stable connection-owned RTT observation/accessor for connection and already-created stream flow controllers; constructors/readers use it while per-path recovery retains separate RTT state. Later retirement/primary transitions update that same owner.
 
@@ -613,7 +613,7 @@ The thirteen deterministic new scenarios and one focused race run terminate this
 
 ### R8 — Issue bounded path credit and CID windows
 
-**State:** complete. Two slots and the fixed initial unused-ID/CID window are available only through private activation. R9 #1029 is complete. Public negotiation remains disabled.
+**State:** complete. Two slots and the fixed initial unused-ID/CID window were available only through private activation until R19 #1039. R9 #1029 is complete. Public negotiation stayed disabled until R19 #1039.
 
 **Delivers:** Implement two live slots, one unused-ID issuance window, monotonic grants, per-path CID limits and compliant-churn resource decline through real control handlers. Do not allocate arrays from sparse peer IDs or grant replacement credit while an unresolved submission still occupies a slot. Establish the common terminal-transition owner via unused-issued-ID abandonment: real control ingress queues the reciprocal frame and retains bounded CID/terminal evidence. Compliant resource decline uses this owner; no terminal cleanup is deferred to a successor.
 
@@ -654,7 +654,7 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 ### R9 — Admit and validate a second authenticated path
 
-**State:** complete. `multipath_admission.go` holds the private driver, and `multipath_admission_test.go` the 16 scenarios. R10 #1030 is ready. Public negotiation remains disabled.
+**State:** complete. `multipath_admission.go` holds the private driver, and `multipath_admission_test.go` the 16 scenarios. R10 #1030 is ready. Public negotiation stayed disabled until R19 #1039.
 
 **Delivers:** Connect bounded path membership to authenticated ingress and client initiation in a private driver: per-path tuple candidates, anti-amplification, challenge publication, deadline/contention and validated activation. Handle legal new-path packets without PATH_CHALLENGE and previously validated tuples. Extend the same registry terminal owner through consumed/validating/initial-live abort, timeout, decline and received abandonment, including submission cutoff, reciprocal signaling, retained PN/CID obligations and connection cleanup. Keep replacement credit at the initial window until R12. Admission reserves the two live slots, shared four-history-unit budget and eight distinct transport-attachment ceiling before establishing authoritative routes.
 
@@ -694,7 +694,7 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 ### R10 — Carry reliable traffic over the selected path
 
-**State:** complete. `packet_emission_path.go` holds the scheduler and route, and `multipath_reliable_test.go` the scenarios. Public negotiation remains disabled.
+**State:** complete. `packet_emission_path.go` holds the scheduler and route, and `multipath_reliable_test.go` the scenarios. Public negotiation stayed disabled until R19 #1039.
 
 **Delivers:** Select path before destructive packing; send STREAM/control through its CID/PN/nonce/recovery/endpoint context in deterministic real-owner fixtures, preserving logical reliable delivery across retransmission. Do not yet negotiate with an independent peer; the first live-peer smoke moves to R14 after complete path-qualified close/cache behavior.
 
@@ -735,7 +735,7 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 ### R11 — Schedule DATAGRAMs with path-qualified PMTU
 
-**State:** complete. `multipath_admission.go` holds per-path PMTU and DATAGRAM placement, `packet_emission_path.go` the steering, and `multipath_datagram_test.go` the 12 scenarios. Public negotiation remains disabled.
+**State:** complete. `multipath_admission.go` holds per-path PMTU and DATAGRAM placement, `packet_emission_path.go` the steering, and `multipath_datagram_test.go` the 12 scenarios. Public negotiation stayed disabled until R19 #1039.
 
 **Delivers:** Add per-path PMTU state and immutable observations, common eligible payload admission and non-destructive queue selection. Keep DATAGRAM single-shot; drop with bounded observation when no eligible path can carry an admitted message. Preserve PathMTUSettledV1 meaning.
 
@@ -775,7 +775,7 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 ### R12 — Replenish retired path credit and reconcile late delivery
 
-**State:** complete. `multipath_credit.go` and `multipath_admission.go` hold replenishment, reclamation and path-zero retirement, and `multipath_replacement_test.go` the 15 scenarios. R13 #1033 and R14 #1034 are ready. Public negotiation remains disabled.
+**State:** complete. `multipath_credit.go` and `multipath_admission.go` hold replenishment, reclamation and path-zero retirement, and `multipath_replacement_test.go` the 15 scenarios. R13 #1033 and R14 #1034 are ready. Public negotiation stayed disabled until R19 #1039.
 
 **Delivers:** Extend the existing R8/R9 terminal owner with established-path replacement/replenishment and retained late-delivery integration. Local/remote abandonment and failed initiation already clean up completely. Admit a replacement only after the old submission fence and retained-state reservation; late ACK/original logical delivery stay exact-once. Path-zero retirement updates the stable connection RTT observation from R7. Share retained-history capacity with old migration generations and release charges only after retention plus submission/callback fences.
 
@@ -817,7 +817,7 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 ### R13 — Migrate one path and observe safe transport detachment
 
-**State:** complete. `multipath_migration.go` holds cutover, retention and detachment, and `multipath_migration_test.go` the 15 connection scenarios, with `TestSentPathTupleECN` the sixteenth. R16 #1036 is ready. Public negotiation remains disabled.
+**State:** complete. `multipath_migration.go` holds cutover, retention and detachment, and `multipath_migration_test.go` the 15 connection scenarios, with `TestSentPathTupleECN` the sixteenth. R16 #1036 is ready. Public negotiation stayed disabled until R19 #1039.
 
 **Delivers:** Validate a target native transport with matching CID length, fence the old tuple and commit same-wire-ID cutover without resetting PN/ECN continuity. Retain old routing for the selected interval; publish detachment only after routing/captured callbacks/submissions can no longer destroy or send for this connection. Reserve retained-generation and distinct-attachment capacity before migration; reused transports still consume generation history.
 
@@ -867,7 +867,7 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 ### R14 — Close via surviving paths and publish path-qualified diagnostics
 
-**State:** complete. `multipath_close.go` holds close selection and the cached close, `connection_logging.go` the recorder indirection, `multipath_close_test.go` and `multipath_qlog_test.go` the 15 deterministic scenarios, and `multipath_picoquic_test.go` the independent smoke, with its [receipt](../audits/2026-11-04-multipath-r14-receipt.md). R16 #1036 still requires R13 #1033. Public negotiation remains disabled.
+**State:** complete. `multipath_close.go` holds close selection and the cached close, `connection_logging.go` the recorder indirection, `multipath_close_test.go` and `multipath_qlog_test.go` the 15 deterministic scenarios, and `multipath_picoquic_test.go` the independent smoke, with its [receipt](../audits/2026-11-04-multipath-r14-receipt.md). R16 #1036 still requires R13 #1033. Public negotiation stayed disabled until R19 #1039.
 
 **Delivers:** Route live/cached close through each retained valid path identity, including path-zero loss, and apply bounded close/drain snapshots. Add qlog frame/path/generation identity and bounded lifecycle observations at owners without blocking native progress. Once this complete close/cache contract is in place, run the first independent two-role useful STREAM smoke via R1. The fixed scenario has normal, abort and close cleanup; it does not claim the full later interoperability matrix.
 
@@ -895,7 +895,7 @@ At most 16 new deterministic scenarios cover these classes, including receipt ev
 
 ### R15 — Apply sticky primary and bounded backup promotion policy
 
-**State:** complete. `multipath_policy.go` holds the policy, `packet_emission_path.go` the scheduler's hold, and `multipath_policy_test.go` the 13 scenarios. Public negotiation remains disabled.
+**State:** complete. `multipath_policy.go` holds the policy, `packet_emission_path.go` the scheduler's hold, and `multipath_policy_test.go` the 13 scenarios. Public negotiation stayed disabled until R19 #1039.
 
 **Delivers:** Implement the selected active/backup preference and qualified PTO-attempt detector. Local backpressure never promotes or marks failed; suspect paths keep bounded probes. Revalidate stale backups, preserve all-backup progress and keep recovered paths as backups. Apply the selected native destination-error table, atomic designated-primary succession and recovered-path local-use demotion; preserve local timeout as backpressure.
 
