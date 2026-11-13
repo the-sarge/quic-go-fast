@@ -10412,3 +10412,47 @@ Merged [PR #1332](https://github.com/the-sarge/quic-go-fast/pull/1332) as `e7aa0
 - Docs certification ran at head `f6531abd2` on base `dd69e96be`: clean tree, `git diff --check`, and the links resolved. All 17 hosted checks succeeded on that head.
 
 **Next:** B3 #1042 stays blocked by B2 #1041 and #1329. One pre-dispatch question from the replacement review remains open: whether B3 must relax the private BBR credit guard at `multipath_credit.go:77`. The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## B2 per-path BBR ECN and recovery bounds - 2026-11-13 00:38 EST
+
+**Main:** `23e1579af947`
+**Actor:** Claude
+
+Merged [PR #1331](https://github.com/the-sarge/quic-go-fast/pull/1331) as `23e1579af9476929c2884201f8067003c638b006`, closing [B2 (#1041)](https://github.com/the-sarge/quic-go-fast/issues/1041). It implements the B2 section of the [BBR plan](adr/2026-10-24-multipath-bbr-plan.md#b2), whose text is unchanged from plan commit `be54eb1ba`. Public BBR+multipath stays refused, and the connection still does not construct BBR path contexts.
+
+**Completed:**
+- **Per-path ECN validation.** A nonzero BBR recovery context now validates ECN whenever its root does.
+  - It has its own mark ledger, its own local ECN evidence on the local route, and an authority bound to its own credit's generation and drain.
+  - Each path validates the cumulative counts of its own packet space, whichever path carried the ACK. An invalid report fails only that path.
+  - Changes: `AddBBRPath` takes the path's ECN authority; `packetEmission.addBBRPath` supplies it.
+- **Same-ID migration.** The path keeps its PN space and cumulative counts.
+  - `commitTuple` calls the new `resetBBRPath` beside `MigratedPath`. It advances the path credit's generation in lockstep with the context's generation.
+  - The existing counter fence then holds marking until this path's old-generation sends drain.
+  - Late old-generation CE is still accounted, but it is not attributed to the new tuple.
+- **Recovery ring bound.** The root keeps its 32768-outcome ring. Each nonzero rich context gets 8192, together one further allowance.
+  - The share survives reset.
+  - A compile-time guard requires both ring sizes to be powers of two.
+  - Saturation evicts only optional undo and persistent-congestion evidence. Frames and flight still settle once.
+- **Status.** The plan and program index record B2 complete (2/6; 43 of 47 slices). B3 #1042 is blocked only by the owner-approved BBR window-policy fix #1329.
+
+**Decisions:**
+- Path ECN capability stays endpoint-level, the same as the root. Route-specific capability is B3's per-route emission wiring ([PR #1331 dispositions](https://github.com/the-sarge/quic-go-fast/pull/1331#issuecomment-6844861215)).
+- ECN ledgers are not divided between contexts. Each stays capped by `maxECNMarkRanges` with at most five contexts, matching Reno's per-path local ECN evidence. Dividing them would bring forward the ledger exhaustion accepted in #793/#803.
+
+**Validation:**
+- **Preparation pass.** The code-review pass (Standards and Spec) added the ring-size guard, the local-route uncertainty test and a comment correction ([receipt](https://github.com/the-sarge/quic-go-fast/pull/1331#issuecomment-6844524238)).
+- **RAS review.** Initial run `20261113T045729-ecde0c65dae3ad8d636ad18e`: all four reviewers completed, with no Fix First items. Two findings were rejected and two deferred, so no replacement round was needed.
+- **New tests.** Eight deterministic scenario tests, within the budget of 16. Removing the path ECN install, the ring share, the reset-preserved share or the path credit binding each made its test fail.
+- **Re-gating.** Main advanced twice, with docs PRs #1332 and #1334. Each time the branch was rebased and the graph rows resolved. The code diff stayed byte-identical to the reviewed head `becd2833b`.
+- **Exact-head certification** at `b54c456585d0646f11c57d340f1d22a63ef9b527` on base `7eda0adf9` passed:
+  - affected-package tests for `.`, `./internal/ackhandler` and `./internal/congestion`
+  - `go vet`, `go mod tidy -diff` and `git diff --check`
+  - one focused `-race` run
+- **Hosted checks.** All 18 succeeded on that head, including the post-ready independent multipath peer job (run 43372394198).
+
+**Next:**
+- B3 #1042 waits on #1329.
+- The deferred root defect is filed for triage as [#1335](https://github.com/the-sarge/quic-go-fast/issues/1335): jumbo-MTU fallback advances the recovery generation but not `c.pathGeneration`, so BBR ECN can stay off afterward.
+- The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
