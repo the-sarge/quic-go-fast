@@ -8,14 +8,17 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/quic-go/quic-go"
-	"github.com/quic-go/quic-go/internal/multipathguard" //nolint:depguard // the one activation guard, removed in R19
 
 	"github.com/stretchr/testify/require"
 )
+
+// multipathProfileSupported names the one qualified platform of the public profile.
+const multipathProfileSupported = runtime.GOOS == "linux" && runtime.GOARCH == "amd64"
 
 func multipathQUICConfig(t *testing.T) *quic.Config {
 	t.Helper()
@@ -24,15 +27,19 @@ func multipathQUICConfig(t *testing.T) *quic.Config {
 	return conf
 }
 
-// activateMultipathProfile keeps its test serial: Go holds parallel tests until the
-// serial ones have finished.
-func activateMultipathProfile(t *testing.T) {
+// requireMultipathProfile skips a test that needs the public profile on a build where it
+// isn't qualified. TestMultipathHTTP3PublicRefusal covers those builds.
+func requireMultipathProfile(t *testing.T) {
 	t.Helper()
-	multipathguard.Active.Store(true)
-	t.Cleanup(func() { multipathguard.Active.Store(false) })
+	if !multipathProfileSupported {
+		t.Skipf("multipath is qualified only on linux/amd64, not %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
 }
 
 func TestMultipathHTTP3PublicRefusal(t *testing.T) {
+	if multipathProfileSupported {
+		t.Skip("the qualified platform accepts the profile; the lifecycle tests cover it")
+	}
 	conf := multipathQUICConfig(t)
 	t.Run("default client", func(t *testing.T) {
 		tr := &Transport{QUICConfig: conf, TLSClientConfig: getTLSClientConfig()}
@@ -49,7 +56,7 @@ func TestMultipathHTTP3PublicRefusal(t *testing.T) {
 }
 
 func TestMultipathHTTP3DefaultClientOwnsItsEndpoint(t *testing.T) {
-	activateMultipathProfile(t)
+	requireMultipathProfile(t)
 	serverTr := &quic.Transport{Conn: newUDPConnLocalhost(t)}
 	require.NoError(t, serverTr.ConfigureMultipathIOV1(time.Second))
 	defer serverTr.Close()
@@ -97,7 +104,7 @@ func TestMultipathHTTP3DefaultClientOwnsItsEndpoint(t *testing.T) {
 }
 
 func TestMultipathHTTP3CallerSockets(t *testing.T) {
-	activateMultipathProfile(t)
+	requireMultipathProfile(t)
 	t.Run("Serve can't grant a caller's socket", func(t *testing.T) {
 		s := &Server{TLSConfig: getTLSConfig(), QUICConfig: multipathQUICConfig(t)}
 		socket := newUDPConnLocalhost(t)

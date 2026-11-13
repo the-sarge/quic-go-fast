@@ -350,7 +350,7 @@ func (s *matrixSession) finish() {
 }
 
 func TestPicoquicMultipathMatrix(t *testing.T) {
-	activateMultipathProfile(t)
+	requireMultipathProfile(t)
 	cases := []struct {
 		name string
 		run  func(*matrixSession)
@@ -628,7 +628,7 @@ func TestMultipathNegotiatedZeroVectors(t *testing.T) {
 // This controlled self-to-self exchange exercises the real V1 constructors with
 // initial_max_path_id present and zero. It makes no independent-interop claim.
 func TestMultipathNegotiatedZeroControlledPeer(t *testing.T) {
-	activateMultipathProfile(t)
+	requireMultipathProfile(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 	clientTr, serverTr := matrixTransport(t, 1, nil), matrixTransport(t, 1, nil)

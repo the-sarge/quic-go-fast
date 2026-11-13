@@ -21,9 +21,9 @@ import (
 	"github.com/quic-go/quic-go/internal/monotime"
 )
 
-// This route is deliberately private: only Transport.configureNativeIO selects
-// it, and no exported constructor does. R19 owns public activation. In particular,
-// this is not a PacketConn provider or permission to unwrap a caller's socket.
+// Only Transport.configureNativeIO selects this route, behind the public
+// ConfigureMultipathIOV1 grant on the qualified platform. In particular, this is
+// not a PacketConn provider or permission to unwrap a caller's socket.
 const (
 	endpointRequests     = 128
 	endpointRecords      = 256

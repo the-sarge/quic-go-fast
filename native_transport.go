@@ -21,7 +21,7 @@ var nativeIOGrants = struct {
 // configureNativeIO grants the endpoint exclusive write and deadline authority
 // over the exact unconnected socket in Conn until waitNativeIOStopped succeeds. It
 // must run before initialization. It doesn't take read deadlines or close ownership.
-// This is the only installer of the private route; R19 owns public activation.
+// This is the only installer of the native route, behind ConfigureMultipathIOV1.
 func (t *Transport) configureNativeIO(maxWriteDuration time.Duration) error {
 	if maxWriteDuration < time.Millisecond || maxWriteDuration > time.Second {
 		return fmt.Errorf("%w: write budget %s outside [1ms, 1s]", ErrMultipathInvalidConfigV1, maxWriteDuration)

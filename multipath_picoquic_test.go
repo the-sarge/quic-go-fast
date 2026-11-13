@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/quic-go/quic-go/internal/monotime"
-	"github.com/quic-go/quic-go/internal/multipathguard"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/qlog"
 	"github.com/quic-go/quic-go/qlogwriter"
@@ -90,13 +89,12 @@ func (s *smokeTrace) report(t *testing.T) (map[uint64]int64, map[uint64]int) {
 // data on both paths, a stream abort and a close, in both roles. It is example-level
 // evidence and doesn't replace R17's matrix.
 func TestPicoquicMultipathSmoke(t *testing.T) {
+	requireMultipathProfile(t)
 	require.Equal(t, protocol.Version1, protocol.SupportedVersions[0])
 	binary := os.Getenv("PICOQUIC_BINARY")
 	require.NotEmpty(t, binary, "PICOQUIC_BINARY must name the pinned peer")
 	root := os.Getenv("PICOQUIC_LOG_DIR")
 	require.NotEmpty(t, root)
-	multipathguard.Active.Store(true)
-	t.Cleanup(func() { multipathguard.Active.Store(false) })
 	for _, role := range []string{"client", "server"} {
 		t.Run(role, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -167,12 +165,12 @@ func smokeTransport(t *testing.T, ip net.IP) *Transport {
 	socket, err := net.ListenUDP("udp4", &net.UDPAddr{IP: ip})
 	require.NoError(t, err)
 	tr := &Transport{Conn: socket, ConnectionIDLength: 8}
-	require.NoError(t, tr.configureNativeIO(100*time.Millisecond))
+	require.NoError(t, tr.ConfigureMultipathIOV1(100*time.Millisecond))
 	t.Cleanup(func() {
 		tr.Close()
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		require.NoError(t, tr.waitNativeIOStopped(ctx))
+		require.NoError(t, tr.WaitMultipathIOStoppedV1(ctx))
 		socket.Close()
 	})
 	return tr
