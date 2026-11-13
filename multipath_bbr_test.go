@@ -356,8 +356,8 @@ func TestBBRPathProbeKeepsSelectedSupplyState(t *testing.T) {
 // ordinary credit refusing a whole packet, it is a PING alone and spends nothing.
 func TestBBRPathAnnouncementPacing(t *testing.T) {
 	// announce migrates path 1, the primary, holding prepare's reservation across
-	// the cutover, then sets path 1's pacing tokens, queues 1,000 bytes and runs one
-	// pass with the announcement due. It returns the packets on the new tuple.
+	// the cutover, then sets path 1's pacing tokens, queues 1,000 bytes and runs the
+	// one opportunity the due announcement takes. It returns the packets on the new tuple.
 	announce := func(t *testing.T, f *reliableFixture, tokens func(*bbrSendPolicy) int64, prepare func(*bbrSendPolicy) *sendReservation) []reliableWrite {
 		t.Helper()
 		p := f.c.pathCredit
@@ -381,7 +381,13 @@ func TestBBRPathAnnouncementPacing(t *testing.T) {
 		path.tokens, path.updated = tokens(path), now
 		attempts := m.announces
 		f.write(t, 1000)
-		f.pass(t)
+		// Only the announcement's own opportunity, so no later ordinary one can
+		// restore the supply state it might have changed.
+		require.NoError(t, f.c.emission.consumeLocal())
+		require.NoError(t, p.expire(monotime.Now()))
+		require.NoError(t, f.c.triggerSending(monotime.Now()).err)
+		synctest.Wait()
+		require.NoError(t, f.c.emission.consumeLocal())
 		writes := f.parseWrites(t, 1)
 		require.Len(t, writes, 1, "the announcement leaves on the new tuple")
 		require.Equal(t, attempts+1, m.announces, "the attempt is recorded")
