@@ -10652,3 +10652,42 @@ Merged [PR #1347](https://github.com/the-sarge/quic-go-fast/pull/1347) as `f57cc
 - B5 #1044 is ready. B5 needs its own private hook to select aggregate on a real connection. Reno aggregation switches path per opportunity burst, which matters for arm D.
 - #1345, held until this merge, can proceed. The planner split left `boundedPathTurns` unchanged.
 - The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## BBR multipath announcement pacing (#1345) - 2026-11-13 12:18 EST
+
+**Main:** `ba811bfcc6b3`
+**Actor:** Claude
+
+Merged [PR #1351](https://github.com/the-sarge/quic-go-fast/pull/1351) as `ba811bfcc6b3434d8ae9e8fad4252bd13ae665b3`, closing [BBR multipath: a migration announcement's payload bypasses the announced route's pacing (#1345)](https://github.com/the-sarge/quic-go-fast/issues/1345) under program #646. It implements [plan revision 1](https://github.com/the-sarge/quic-go-fast/issues/1345#issuecomment-6858999480), which the orchestrator approved under delegated authority ([receipt](https://github.com/the-sarge/quic-go-fast/issues/1345#issuecomment-6859018529)).
+
+**Completed:**
+- **Paced announcement.** The BBR announcement turn (`boundedPathTurns`) never waits on pacing. When the announced route's budget covers a whole packet and its credit admits an ordinary reservation, the announcement packs as before. `handoff` then charges that route's pacing for the bytes actually sent, which moves `refilledAt`.
+- **PING-only fallback.** Otherwise the announcement is a PING alone, plus any queued ACKs, exempt as ACKs and PTO probes are. The new `packPingPacket1RTT` packs it and reads no framer, retransmission or DATAGRAM queue.
+- **Reno unchanged.** `announcePath(now)` stays Reno's entry and now runs `announce(now, false)`, with the same statements as before. Single-path BBR PTO probes and the obligation's backoff are untouched.
+- **Tests.** `TestBBRPathAnnouncementPacing` covers zero budget, budget covers, and older-generation bytes pending; all three were red at base `cfa73ac2a`. `TestPackPingPacket1RTT` uses a strict mock framer.
+
+**Decisions:**
+- **Accepted tradeoffs.** The approval accepted four tradeoffs:
+  - a PING-only announcement while older-generation bytes are pending;
+  - other control frames wait for the next ordinary packet;
+  - a lost PING-only announcement is retried by the obligation's backoff and the path's PTO;
+  - the budget is read without a controller rate refresh, which can only make PING-only more frequent.
+
+**Validation:**
+- **Preparation pass.** The code-review Standards and Spec reports produced 3 fix-now items: an `announces` assertion, the `announce` doc comment, and a test message label ([receipt](https://github.com/the-sarge/quic-go-fast/pull/1351#issuecomment-6859189841)).
+- **Initial RAS review,** run `20261113T164614-092692939cdd7336ee5adf27`:
+  - C-002, fix-now: the seam-2 supply assertions now run after the announcement's single opportunity. Verified at `e1dafb1ea`.
+  - C-001, deferred: filed as #1352.
+- **Replacement RAS review,** run `20261113T170334-26d92acefc9b9d67f784f92a`: no findings.
+- **Guard mutations.** Neither was committed.
+  - Deleting the pacing-covered guard panics `zero budget`.
+  - Changing the turn to `pathTurnHeld` fails `budget covers` at the supply-gap assertion.
+- **Exact-head certification** on `e1dafb1ea`: the full root package, a focused race run, `go vet`, and golangci-lint with 0 issues ([receipt](https://github.com/the-sarge/quic-go-fast/pull/1351#issuecomment-6859804494)).
+- **Hosted checks.** All 18 succeeded on `e1dafb1ea` after it was marked ready, including `independent-peer` (run 43470550284).
+
+**Next:**
+- B5 #1044 can start its counted runs. Its measured candidate includes this change.
+- #1352 (cover an announcement on a route other than the selected one) awaits triage.
+- The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
