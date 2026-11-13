@@ -20,6 +20,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/stretchr/testify/require"
 )
 
@@ -281,10 +282,12 @@ func (m *nativeQualMarked) produce(e *nativeEndpoint, p *endpointParticipant, de
 	}
 }
 
-// awaitInFlight returns a marked request still inside its native borrow. It is first
-// sighted in a sample that began after a witness was already established, so the
-// close that follows starts while that activity is outstanding.
-func (m *nativeQualMarked) awaitInFlight(t *testing.T, e *nativeEndpoint) *endpointToken {
+// awaitInFlight returns a marked request still inside its native borrow, and the
+// time close begins. The request is first sighted in a sample that began after a
+// witness was already established. Its completion is checked again just before
+// closing is taken, which leaves only the writer's own return-to-publication step
+// as a window; the caller's assertion on the published return fails closed there.
+func (m *nativeQualMarked) awaitInFlight(t *testing.T, e *nativeEndpoint) (*endpointToken, time.Time) {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
 	for {
@@ -295,8 +298,8 @@ func (m *nativeQualMarked) awaitInFlight(t *testing.T, e *nativeEndpoint) *endpo
 				token = current
 			}
 		})
-		if token != nil {
-			return token
+		if token != nil && token.completion.Load() == nil {
+			return token, time.Now()
 		}
 		require.True(t, time.Now().Before(deadline), "no fresh marked request reached the writer after a witnessed success")
 		time.Sleep(50 * time.Microsecond)
@@ -424,6 +427,9 @@ func (b *nativeQualBlast) note(result endpointResult, deadline, seen time.Time) 
 	b.uncertain.Add(int64(result.members[0].uncertain))
 	if result.members[0].unsubmitted != 0 {
 		b.expired.Add(1)
+	}
+	// Only a request with no attempted datagram never reached native I/O.
+	if result.members[0].accepted == 0 && result.members[0].uncertain == 0 {
 		return
 	}
 	returned := result.members[0].returnedAt.ToTime()
@@ -518,6 +524,33 @@ func (b *nativeQualBlast) participant(t *testing.T, e *nativeEndpoint, p *endpoi
 			}
 		}
 	}
+}
+
+// A marked group can return an attempted prefix with an unsubmitted suffix. It still
+// counts as expired, but its native return and publication stay in the maxima.
+func TestNativeQualBlastKeepsPartialTiming(t *testing.T) {
+	deadline := time.Now()
+	returned := deadline.Add(10 * time.Millisecond)
+	b := &nativeQualBlast{marked: newNativeQualMarked("abc", 1, nativeQualSegments)}
+	b.note(endpointResult{
+		identity: endpointIdentity{path: nativeQualMarkedLane},
+		members:  []endpointMemberResult{{accepted: 2, unsubmitted: 2, err: os.ErrDeadlineExceeded, returnedAt: monotime.FromTime(returned)}},
+	}, deadline, returned.Add(30*time.Millisecond))
+	require.EqualValues(t, 1, b.expired.Load())
+	require.EqualValues(t, 2, b.accepted[nativeQualMarkedLane].Load())
+	require.EqualValues(t, 10*time.Millisecond, b.overrun.Load())
+	require.EqualValues(t, 30*time.Millisecond, b.publication.Load())
+	require.Empty(t, b.marked.succeeded, "a partial group is not a witness")
+
+	// A wholly unsubmitted request never reached native I/O: no native timing.
+	late := deadline.Add(time.Second)
+	b.note(endpointResult{
+		identity: endpointIdentity{path: 1},
+		members:  []endpointMemberResult{{unsubmitted: 1, err: os.ErrDeadlineExceeded, returnedAt: monotime.FromTime(late)}},
+	}, deadline, late.Add(time.Second))
+	require.EqualValues(t, 2, b.expired.Load())
+	require.EqualValues(t, 10*time.Millisecond, b.overrun.Load())
+	require.EqualValues(t, 30*time.Millisecond, b.publication.Load())
 }
 
 func TestNativeQualRaiseKeepsMaximum(t *testing.T) {
@@ -671,8 +704,7 @@ func TestNativeQualMarkedWitness(t *testing.T) {
 			native.holdAt.Store(7)
 			native.release <- struct{}{}
 			synctest.Wait()
-			token := m.awaitInFlight(t, e)
-			closing := time.Now()
+			token, closing := m.awaitInFlight(t, e)
 			stopped := e.stop()
 			time.Sleep(time.Millisecond)
 			native.release <- struct{}{}
@@ -855,13 +887,13 @@ func TestNativeQualification(t *testing.T) {
 		for name, tr := range map[string]*Transport{"client": clientTransport, "server": serverTransport} {
 			require.ErrorIs(t, tr.waitNativeIOStopped(ctx), ErrMultipathNotStoppingV1)
 			var inFlight *endpointToken
+			closing := time.Now()
 			if tr == clientTransport {
 				activity, err := clientEndpoint.attach(nativeQualActivityID)
 				require.NoError(t, err)
 				go func() { activityDone <- marked.produce(clientEndpoint, activity, sink, nativeQualActivityRequests) }()
-				inFlight = marked.awaitInFlight(t, clientEndpoint)
+				inFlight, closing = marked.awaitInFlight(t, clientEndpoint)
 			}
-			closing := time.Now()
 			require.NoError(t, tr.Close())
 			require.NoError(t, tr.waitNativeIOStopped(ctx))
 			joined := time.Since(closing)

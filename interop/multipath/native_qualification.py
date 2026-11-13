@@ -182,7 +182,6 @@ def main():
     results = {
         "candidate": args.candidate,
         "profile": args.profile,
-        "full_qualification": args.profile == "full",
         "kernel": capture("uname", "-a"),
         "os_release": Path("/etc/os-release").read_text(),
         "strace": capture("strace", "-V").splitlines()[0],
@@ -205,7 +204,10 @@ def main():
     if failure is not None:
         raise SystemExit(f"stopped: {failure}")
     check_accounting([(record["go"], record["class"]) for record in results["instances"]], args.profile)
-    print(json.dumps(status_for(args.profile)))
+    # Only a complete passing run records a status, so a stopped run claims nothing.
+    results["status"] = status_for(args.profile)
+    (args.output / "results.json").write_text(json.dumps(results, indent=2) + "\n")
+    print(json.dumps(results["status"]))
 
 
 if __name__ == "__main__":
