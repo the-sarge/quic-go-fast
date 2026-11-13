@@ -62,8 +62,10 @@ type congestionDispatch struct {
 	sink             congestionEventSink
 	packets          deliveryRecords
 	event            congestion.FeedbackEvent
-	scratch          []congestion.PacketInfo
-	discovered       []*retainedDelivery
+	// scratch backs feedback events; on a rich path it stays nil because the
+	// path's events use the root's (see scratchOwner).
+	scratch    []congestion.PacketInfo
+	discovered []*retainedDelivery
 }
 
 func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *packet, ecn protocol.ECN, prior protocol.ByteCount) {
@@ -151,10 +153,12 @@ func (h *sentPacketHandler) beginCongestionFeedback(now monotime.Time, level pro
 	}
 	// ACK values grow from the front and losses from the back of one bounded
 	// buffer. Registration cannot interleave this connection-owned event.
-	if needed := d.scratchNeed(); cap(d.scratch) < needed {
-		d.scratch = make([]congestion.PacketInfo, d.scratchSize(needed))
+	o := d.scratchOwner()
+	if needed := d.scratchNeed(); cap(o.scratch) < needed {
+		d.growScratch(needed)
 	}
-	d.scratch = d.scratch[:cap(d.scratch)]
+	scratch := o.scratch[:cap(o.scratch)]
+	o.scratch = scratch
 	d.event = congestion.FeedbackEvent{
 		PathGeneration:   d.pathGeneration,
 		SampleGeneration: d.sampleGeneration,
@@ -163,8 +167,8 @@ func (h *sentPacketHandler) beginCongestionFeedback(now monotime.Time, level pro
 		HasAck:           largest != protocol.InvalidPacketNumber,
 		LargestAcked:     largest,
 		PriorInFlight:    prior,
-		Acked:            d.scratch[:0],
-		Lost:             d.scratch[len(d.scratch):],
+		Acked:            scratch[:0],
+		Lost:             scratch[len(scratch):],
 	}
 
 	for _, p := range acked {
@@ -183,9 +187,10 @@ func (h *sentPacketHandler) captureCongestionLoss(level protocol.EncryptionLevel
 	info, retained := d.packets.get(key)
 	d.recovery.lost(key, p.includedInBytesInFlight && !p.IsPathMTUProbePacket && !p.isPathProbePacket, retained, d.ordinal)
 	if retained && p.includedInBytesInFlight && !p.IsPathMTUProbePacket && !p.isPathProbePacket {
-		start := len(d.scratch) - len(d.event.Lost) - 1
-		d.scratch[start] = info
-		d.event.Lost = d.scratch[start:]
+		scratch := d.scratchOwner().scratch
+		start := len(scratch) - len(d.event.Lost) - 1
+		scratch[start] = info
+		d.event.Lost = scratch[start:]
 	}
 	d.retire(key, d.event.Time, h.rttStats.PTO(level == protocol.Encryption1RTT), deliveryRetiredLoss)
 }

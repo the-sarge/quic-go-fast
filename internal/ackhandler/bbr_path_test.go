@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/quic-go/quic-go/internal/congestion"
 	"github.com/quic-go/quic-go/internal/monotime"
@@ -368,6 +369,101 @@ func TestBBRPathAggregateDeliveryStore(t *testing.T) {
 	require.Greater(t, ctx2.DeliveryStats().Retained, maxDeliveryRetained/4)
 	require.LessOrEqual(t, cap(h2.congestionEvents.sampler.order)+cap(ctx2.congestionEvents.sampler.order), deliveryRetainedAllowance)
 	require.LessOrEqual(t, cap(h2.congestionEvents.sampler.expiry)+cap(ctx2.congestionEvents.sampler.expiry), deliveryRetainedAllowance)
+}
+
+func TestBBRPathFeedbackScratchNearAllowance(t *testing.T) {
+	const allowance = maxDeliveryLive + maxDeliveryRetained
+	now := monotime.Time(2 * time.Second)
+
+	t.Run("alternating feedback at the allowance", func(t *testing.T) {
+		h, _, _ := newRichPathFixture(t)
+		ctx := h.RecoveryOnPath(17).(*sentPacketHandler)
+		root, path := h.congestionEvents, ctx.congestionEvents
+		// Each context retains half the retained ceiling and holds just under
+		// half the live one: together their needs nearly fill the allowance.
+		const retained, live = maxDeliveryRetained / 2, 12202
+		oldest := map[protocol.PathID][]protocol.PacketNumber{}
+		for _, id := range []protocol.PathID{0, 17} {
+			var pns []protocol.PacketNumber
+			for range retained + 3 {
+				pns = append(pns, sendRichPathPacket(h, id, now))
+			}
+			// The packet threshold declares every packet below the last three lost.
+			pathAck(t, h, id, id, now.Add(10*time.Millisecond), pns[retained:]...)
+		}
+		for _, id := range []protocol.PathID{0, 17} {
+			for range live {
+				oldest[id] = append(oldest[id], sendRichPathPacket(h, id, now.Add(20*time.Millisecond)))
+			}
+		}
+		require.Equal(t, 14250, root.scratchNeed())
+		require.Equal(t, 14250, path.scratchNeed())
+
+		arrays := func() []*congestion.PacketInfo {
+			return []*congestion.PacketInfo{unsafe.SliceData(root.scratch), unsafe.SliceData(path.scratch)}
+		}
+		allocations := 0
+		for i := range 20 {
+			for _, id := range []protocol.PathID{0, 17} {
+				before := arrays()
+				pathAck(t, h, id, id, now.Add(30*time.Millisecond), oldest[id][i])
+				for _, a := range arrays() {
+					if a != nil && !slices.Contains(before, a) {
+						allocations++
+					}
+				}
+				require.LessOrEqual(t, cap(root.scratch)+cap(path.scratch), allowance)
+			}
+		}
+		require.LessOrEqual(t, allocations, 2, "40 alternating feedback events reuse one buffer")
+		require.Zero(t, root.sampler.evicted+path.sampler.evicted+root.sampler.expired+path.sampler.expired)
+	})
+
+	// Between events a context's feedback slices may still alias the buffer. A
+	// new buffer must not leave an older one pinned beside it.
+	t.Run("a new buffer leaves no older one referenced", func(t *testing.T) {
+		h, _, _ := newRichPathFixture(t)
+		ctx := h.RecoveryOnPath(17).(*sentPacketHandler)
+		root, path := h.congestionEvents, ctx.congestionEvents
+		end := func(s []congestion.PacketInfo) *congestion.PacketInfo {
+			if cap(s) == 0 {
+				return nil
+			}
+			return &s[:cap(s)][cap(s)-1]
+		}
+		requireCurrent := func() {
+			t.Helper()
+			current := end(root.scratch)
+			for _, d := range []*congestionDispatch{root, path} {
+				for _, s := range [][]congestion.PacketInfo{d.event.Acked, d.event.Lost} {
+					if e := end(s); e != nil {
+						require.Same(t, current, e, "feedback slices reference only the current buffer")
+					}
+				}
+			}
+		}
+
+		var pns []protocol.PacketNumber
+		for range 4 {
+			pns = append(pns, sendRichPathPacket(h, 17, now))
+		}
+		pathAck(t, h, 17, 17, now.Add(10*time.Millisecond), pns[0])
+		require.NotZero(t, cap(path.event.Acked), "a finished event keeps its slice")
+		var zero []protocol.PacketNumber
+		for range 100 {
+			zero = append(zero, sendRichPathPacket(h, 0, now))
+		}
+		pathAck(t, h, 0, 0, now.Add(10*time.Millisecond), zero[0])
+		requireCurrent()
+
+		pathAck(t, h, 17, 17, now.Add(20*time.Millisecond), pns[1])
+		h.resetCongestionCapture(true)
+		require.Nil(t, root.scratch)
+		last := sendRichPathPacket(h, 0, now.Add(30*time.Millisecond))
+		pathAck(t, h, 0, 0, now.Add(40*time.Millisecond), last)
+		requireCurrent()
+		require.LessOrEqual(t, cap(root.scratch)+cap(path.scratch), allowance)
+	})
 }
 
 func TestBBRPathPendingLocalBelowAckWatermark(t *testing.T) {
