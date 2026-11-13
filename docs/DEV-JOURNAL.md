@@ -10691,3 +10691,44 @@ Merged [PR #1351](https://github.com/the-sarge/quic-go-fast/pull/1351) as `ba811
 - B5 #1044 can start its counted runs. Its measured candidate includes this change.
 - #1352 (cover an announcement on a route other than the selected one) awaits triage.
 - The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## Same-path ACK carriage handoff and 210-run ceiling (#1014) - 2026-11-13 14:18 EST
+
+**Main:** `94331faf148b`
+**Actor:** Claude
+
+Merged [PR #1354](https://github.com/the-sarge/quic-go-fast/pull/1354) as `94331faf148b2dc63355ced7f0c505b0a3fb4bec`. It is a scoped `$architecture-handoff` docs amendment to program #646, B track #1014, and it changes no Go code.
+
+It acts on two owner decisions from 2026-11-13:
+- [same-path feedback on #1044](https://github.com/the-sarge/quic-go-fast/issues/1044#issuecomment-6859584262): add a fix slice before B5;
+- [run budget on #646](https://github.com/the-sarge/quic-go-fast/issues/646#issuecomment-6859592089): raise the cumulative ceiling from 180 to 210 runs, with host-hours unchanged.
+
+**Completed:**
+- **B8 — Bound completed ACK-only sent history** (new, no blockers, the frontier).
+  - A path whose sent history holds no ack-eliciting record keeps at most `MaxNonAckElicitingAcks` completed ACK-only records. The recovery owner retires older ones through a non-loss disposal: `discardCongestionPacket`, `retainAckCarrier`, `retireLocal` and history removal.
+  - Pending and `LocalPacketUncertain` records are never retired, and skipped-number handling is unchanged.
+  - Retirement also runs when the last ack-eliciting record leaves the history.
+- **B7 — Prefer same-path ACK carriage at the multipath receiver** (new, blocked by B4 and B8).
+  - Emission gives a due acknowledgment a non-ack-eliciting ACK-only turn on its own home path. A non-home path or a refused turn falls back to today's carriage.
+  - A read-only `ackTurnRoom` query releases a target when its path's span would exceed a strict 4,999 share of the 25,000 ceiling, or when the path's oldest ack-eliciting record is older than one PTO.
+  - Turns alternate with ordinary sending calls. Every due eligible target leaves within `maxRecoveryPaths` packets, and the implementation owns the exact order.
+- **Graph.** B8 → B7 → B5 #1044. B5's Blocked-by is now B7. B4's readiness paragraph lists the new turn. The program has 49 intended slices, 45 complete, and B is at 4/8.
+- **Ledger.** The Reno and BBR plans now carry the 210-run ceiling with eight host-hours. The reserve is derived from the live ledger: 120 charged, 90 remaining, about 18 after B5's 72. The live remainder on #646 binds first. The endpoint plan and D0 now point to the Reno ledger.
+
+**Decisions:**
+- **B8 as a split.** RAS C-003 showed that never-ack-eliciting turns would exhaust the shared sent-history ceiling, so the bound became its own prefactor slice, B8. A per-path PING was rejected because it would move the Reno backup-traffic policy ([dispositions](https://github.com/the-sarge/quic-go-fast/pull/1354#issuecomment-6861071880)).
+- **Slot service as an invariant.** B7's slot service is now a bounded-service invariant, with a non-normative reference design. Three counterexamples showed that fixed priorities can starve a target ([decision record](https://github.com/the-sarge/quic-go-fast/pull/1354#issuecomment-6861900774)).
+
+**Validation:**
+- **Independent slice audit.** It passed, with 11 corrections, followed by three verification rounds, all applied.
+- **Initial RAS review,** run `20261113T173922-097800600879c5703ed23070`: all six clusters were resolved or no longer apply at verification.
+- **Replacement RAS review,** run `20261113T181330-c22546284ecd3cf9b5df27e3`. Every new concern its verifications raised was addressed, and the final verification at `b50c2dc7a` left nothing blocking. Its one low wording finding was fixed in `36ff9c583`, with no rerun under the docs low/nit policy ([receipt](https://github.com/the-sarge/quic-go-fast/pull/1354#issuecomment-6861986483)).
+- **Certification of `36ff9c583`.** The tree was clean, `git diff --check` was clean, and all added links resolve.
+- **Hosted checks.** All 17 checks succeeded. One macOS integration job was cancelled with no runner and zero steps, and its single failed-job rerun passed.
+
+**Next:**
+- B8 is the dispatchable frontier once the orchestrator creates the child issues from plan commit `94331faf148b2dc63355ced7f0c505b0a3fb4bec`.
+- Draft PR #1350 (B5 scope) must be rechecked against B7 before it merges.
+- The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
