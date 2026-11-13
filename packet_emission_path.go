@@ -51,24 +51,27 @@ type pathView struct {
 // traffic continues while the DATAGRAM stays queued until an ACK. A paced one is
 // named, and its deadline wakes the connection.
 func selectPath(views []pathView, primary protocol.PathID) (chosen, steerTo protocol.PathID, steering, held bool) {
-	for _, view := range views {
-		if view.probing {
-			return view.id, 0, false, false
-		}
+	if index := slices.IndexFunc(views, func(view pathView) bool { return view.probing }); index >= 0 {
+		return views[index].id, 0, false, false
 	}
 	index := slices.IndexFunc(views, func(view pathView) bool { return view.id == primary })
 	if index < 0 {
 		return 0, 0, false, true
 	}
-	first := views[index]
-	if !first.fits {
-		for _, view := range views {
-			if view.fits && view.ready {
-				return first.id, view.id, true, false
-			}
-		}
+	steerTo, steering = steerFor(views[index], views)
+	return views[index].id, steerTo, steering, false
+}
+
+// steerFor is every policy's per-message DATAGRAM rule: when the next DATAGRAM
+// doesn't fit the choice, name the first path it fits that could send it now.
+func steerFor(choice pathView, views []pathView) (protocol.PathID, bool) {
+	if choice.fits {
+		return 0, false
 	}
-	return first.id, 0, false, false
+	if index := slices.IndexFunc(views, func(view pathView) bool { return view.fits && view.ready }); index >= 0 {
+		return views[index].id, true
+	}
+	return 0, false
 }
 
 // selectRoute binds this opportunity before any capacity read or destructive
@@ -180,7 +183,7 @@ func (e *packetEmission) pathView(id protocol.PathID, route *pathRoute, recovery
 	return pathView{
 		id: id, fits: true,
 		probing: mode == ackhandler.SendPTOAppData,
-		ready:   mode == ackhandler.SendAny && allowance >= size && p.credit.admits(size, 2*p.quantum),
+		ready:   mode == ackhandler.SendAny && allowance >= size && p.credit.admits(size, p.creditLimit()),
 		sendAt:  p.sendAt(size, now),
 		queued:  e.bbrPendingBytes(p) + size,
 		rate:    p.controller.DeliveryRateEstimate(),

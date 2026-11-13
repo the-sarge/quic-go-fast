@@ -62,7 +62,7 @@ func (e *packetEmission) reserveLocal(n protocol.ByteCount, ordinary, isolated b
 }
 
 func (e *packetEmission) reserveOn(p *bbrSendPolicy, n protocol.ByteCount, ordinary, isolated bool, now monotime.Time) bool {
-	e.reservation = p.credit.reserve(n, 2*p.quantum, ordinary, isolated)
+	e.reservation = p.credit.reserve(n, p.creditLimit(), ordinary, isolated)
 	e.paceReservation, e.reservationTime, e.pacingBytes = ordinary, now, 0
 	return e.reservation != nil
 }
@@ -365,7 +365,7 @@ func (e *packetEmission) waitForReservation(now monotime.Time, confirmed bool, s
 	e.reservation = nil
 	p := e.routePolicy()
 	result := e.localBlockedOn(p)
-	if p.credit.waitForReservation(requested, 2*p.quantum, size, ordinary, isolated) {
+	if p.credit.waitForReservation(requested, p.creditLimit(), size, ordinary, isolated) {
 		result.blocked = blockModeCongestionLimited
 	}
 	return result

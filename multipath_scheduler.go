@@ -2,6 +2,7 @@ package quic
 
 import (
 	"math/bits"
+	"slices"
 	"time"
 
 	"github.com/quic-go/quic-go/internal/monotime"
@@ -78,10 +79,8 @@ func (p *pathCreditRegistry) noteScheduled(route *pathRoute, n protocol.ByteCoun
 // wire ID. With no candidate ready, the primary waits, as it does under primary/backup.
 // floor is the least ledger among the round-robin candidates.
 func selectAggregate(views []pathView, primary protocol.PathID, now monotime.Time, estimate bool) (chosen, steerTo protocol.PathID, steering, held bool, floor uint64) {
-	for _, view := range views {
-		if view.probing {
-			return view.id, 0, false, false, 0
-		}
+	if index := slices.IndexFunc(views, func(view pathView) bool { return view.probing }); index >= 0 {
+		return views[index].id, 0, false, false, 0
 	}
 	active := false
 	for _, view := range views {
@@ -117,14 +116,8 @@ func selectAggregate(views []pathView, primary protocol.PathID, now monotime.Tim
 		}
 		pick = wait
 	}
-	if choice := views[pick]; !choice.fits {
-		for _, view := range views {
-			if view.fits && view.ready {
-				return choice.id, view.id, true, false, floor
-			}
-		}
-	}
-	return views[pick].id, 0, false, false, floor
+	steerTo, steering = steerFor(views[pick], views)
+	return views[pick].id, steerTo, steering, false, floor
 }
 
 // arrival estimates when a packet sent on this path next would arrive: its next

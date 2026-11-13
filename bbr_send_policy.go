@@ -134,6 +134,10 @@ func (p *bbrSendPolicy) update(rate uint64, size protocol.ByteCount, now monotim
 	p.tokens = min(p.tokens, int64(p.quantum)*1e9)
 }
 
+// creditLimit bounds this path's local credit: two pacing quanta, for every
+// reservation and for selection's readiness alike.
+func (p *bbrSendPolicy) creditLimit() protocol.ByteCount { return 2 * p.quantum }
+
 func (p *bbrSendPolicy) budget(now monotime.Time) protocol.ByteCount {
 	if now > p.updated {
 		p.tokens, p.updated = p.accrued(now), now
