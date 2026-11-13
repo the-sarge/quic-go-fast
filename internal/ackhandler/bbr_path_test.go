@@ -185,13 +185,16 @@ func TestBBRPathFreshAnchorAfterCrossPathInterval(t *testing.T) {
 }
 
 // bbrAnchorTap feeds a real controller and counts events in which recovery
-// named a sampler anchor among the acknowledged packets.
+// named a sampler anchor ordinal, or matched one among the acknowledged packets.
 type bbrAnchorTap struct {
 	*congestion.BBRSender
-	anchored int
+	named, anchored int
 }
 
 func (b *bbrAnchorTap) Feedback(e congestion.FeedbackEvent) {
+	if e.Delivery.Ordinal != 0 {
+		b.named++
+	}
 	for _, p := range e.Acked {
 		if p.Ordinal == e.Delivery.Ordinal {
 			b.anchored++
@@ -226,7 +229,8 @@ func TestBBRPathCrossPathOnlyFeedbackBoundsWindow(t *testing.T) {
 			windows = append(windows, bbr.GetCongestionWindow())
 		}
 	}
-	require.Zero(t, bbr.anchored, "a cross-path ACK never names a sampler anchor")
+	require.Zero(t, bbr.named, "a cross-path ACK never names a sampler anchor")
+	require.Zero(t, bbr.anchored, "no acknowledged packet matches the absent anchor")
 	for i, w := range windows {
 		require.LessOrEqual(t, w, bound, "checkpoint %d; windows at rounds 40 and 400: %v", i, windows)
 	}
