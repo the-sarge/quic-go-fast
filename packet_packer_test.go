@@ -1077,6 +1077,47 @@ func TestPack1RTTProbePacket(t *testing.T) {
 	require.Equal(t, maxPacketSize, packet.Length)
 }
 
+// A control-only announcement packs a PING with any queued ACK and reads no
+// payload: the framer (whose mock expects nothing), retransmissions and DATAGRAMs
+// stay queued.
+func TestPackPingPacket1RTT(t *testing.T) {
+	const maxPacketSize protocol.ByteCount = 1234
+	for _, withAck := range []bool{true, false} {
+		name := "PING alone"
+		if withAck {
+			name = "ACK and PING"
+		}
+		t.Run(name, func(t *testing.T) {
+			mockCtrl := gomock.NewController(t)
+			tp := newTestPacketPacker(t, mockCtrl, protocol.PerspectiveClient)
+			tp.sealingManager.EXPECT().Get1RTTSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
+			tp.pnManager.EXPECT().PeekPacketNumber(protocol.Encryption1RTT).Return(protocol.PacketNumber(0x42), protocol.PacketNumberLen2)
+			tp.pnManager.EXPECT().PopPacketNumber(protocol.Encryption1RTT).Return(protocol.PacketNumber(0x42))
+			var ack *wire.AckFrame
+			if withAck {
+				ack = &wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: 1, Largest: 10}}}
+			}
+			tp.ackFramer.EXPECT().GetAckFrame(protocol.Encryption1RTT, gomock.Any(), true).Return(ack)
+			tp.retransmissionQueue.addAppData(&wire.MaxDataFrame{MaximumData: 0x1337})
+			require.NoError(t, tp.datagramQueue.Add(&wire.DatagramFrame{Data: []byte("foobar")}))
+
+			p, err := tp.packer.packPingPacket1RTT(nil, maxPacketSize, monotime.Now(), protocol.Version1)
+			require.NoError(t, err)
+			require.True(t, p.IsOnlyShortHeaderPacket())
+			packet := p.shortHdrPacket
+			require.Equal(t, ack, packet.Ack)
+			require.Len(t, packet.Frames, 1)
+			require.IsType(t, &wire.PingFrame{}, packet.Frames[0].Frame)
+			require.Empty(t, packet.StreamFrames)
+			require.True(t, packet.IsAckEliciting())
+			require.LessOrEqual(t, packet.Length, maxPacketSize)
+			require.Equal(t, packet.Length, p.buffer.Len())
+			require.True(t, tp.retransmissionQueue.HasData(protocol.Encryption1RTT), "retransmissions stay queued")
+			require.NotNil(t, tp.datagramQueue.Peek(), "and so does the DATAGRAM")
+		})
+	}
+}
+
 func TestPackPTOProbePacketNothingToPack(t *testing.T) {
 	t.Run("Initial", func(t *testing.T) {
 		testPackPTOProbePacketNothingToPack(t, protocol.EncryptionInitial)

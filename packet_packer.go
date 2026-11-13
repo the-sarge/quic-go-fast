@@ -1028,6 +1028,33 @@ func (p *packetPacker) packPTOProbePacket1RTT(route *pathRoute, maxPacketSize pr
 	return packet, nil
 }
 
+// packPingPacket1RTT packs an ack-eliciting PING on route with any queued ACKs and
+// nothing else: the framer, retransmission and DATAGRAM queues keep their frames.
+func (p *packetPacker) packPingPacket1RTT(route *pathRoute, maxPacketSize protocol.ByteCount, now monotime.Time, v protocol.Version) (*coalescedPacket, error) {
+	s, err := p.cryptoSetup.Get1RTTSealer()
+	if err != nil {
+		return nil, err
+	}
+	kp := s.KeyPhase()
+	context, numbers, connID := p.shortHeaderIdentity(route)
+	pn, pnLen := numbers.PeekPacketNumber(protocol.Encryption1RTT)
+	hdrLen := wire.ShortHeaderLen(connID, pnLen)
+	ping := &wire.PingFrame{}
+	pl := p.composeNextPacket(maxPacketSize-protocol.ByteCount(s.Overhead())-hdrLen-ping.Length(v), true, true, now, v, nil)
+	pl.frames = append(pl.frames, ackhandler.Frame{Frame: ping, Handler: emptyHandler{}})
+	pl.length += ping.Length(v)
+	p.numNonAckElicitingAcks = 0
+	buffer := getPacketBufferForCeiling(packetCeiling(maxPacketSize))
+	packet := &coalescedPacket{buffer: buffer}
+	shp, err := p.appendShortHeaderPacket(context, buffer, connID, pn, pnLen, kp, pl, 0, maxPacketSize, s, false, v)
+	if err != nil {
+		buffer.Release()
+		return nil, err
+	}
+	packet.shortHdrPacket = &shp
+	return packet, nil
+}
+
 func (p *packetPacker) PackMTUProbePacket(ping ackhandler.Frame, size protocol.ByteCount, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
 	return p.packMTUProbePacket(nil, ping, size, v)
 }
