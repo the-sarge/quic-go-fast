@@ -236,6 +236,23 @@ func TestAggregateReadinessMatchesCreditReservation(t *testing.T) {
 			size := f.c.pathCredit.members[1].route.mtu.CurrentSize()
 			p.update(rate, size, now) // what the opportunity enforces
 			require.Equal(t, p.deadline(size, now), view.sendAt)
+
+			// A stale, larger quantum would admit bytes the current rate's limit refuses.
+			p.quantum, p.tokens, p.updated = 65536, 65536*1e9, now
+			projected := p.projected(size, now)
+			require.Less(t, projected.creditLimit(), p.creditLimit())
+			held := p.credit.reserve(projected.creditLimit()-size+1, p.creditLimit(), false, false)
+			require.NotNil(t, held)
+			t.Cleanup(held.completeLocal)
+			require.True(t, p.credit.admits(size, p.creditLimit(), true, false), "the stale limit admits a packet")
+			require.False(t, f.view(1).ready, "the current limit doesn't")
+
+			f.socket.writes = nil
+			f.prefer(1)
+			f.write(t, 6000)
+			f.pass(t)
+			require.Positive(t, reliableBytes(f.parseWrites(t, 0)), "path zero keeps sending")
+			require.Zero(t, reliableBytes(f.parseWrites(t, 1)))
 		})
 	})
 	t.Run("a GSO batch", func(t *testing.T) {
