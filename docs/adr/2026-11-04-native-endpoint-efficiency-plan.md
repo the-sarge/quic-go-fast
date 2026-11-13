@@ -66,7 +66,7 @@ Native I/O, protection, sinks, callbacks, blocking waits, writer join and grant 
 
 ## Slice graph
 
-The new child issue fields are `pending` until this plan is merged and exact default-branch reachability is verified. Stable identities use the track prefix plus the slice ID. Withdrawn N5 is not reused. Ten completed slices plus one remaining slice make eleven; six new child issues are created and existing N3 #1202 is reworked.
+The new child issue fields are `pending` until this plan is merged and exact default-branch reachability is verified. Stable identities use the track prefix plus the slice ID. Withdrawn N5 is not reused. All eleven slices are complete; six new child issues were created and existing N3 #1202 was reworked.
 
 | Slice | Current disposition / delivery | Genuine blockers | Transitional seam removed |
 | --- | --- | --- | --- |
@@ -82,7 +82,7 @@ The new child issue fields are `pending` until this plan is merged and exact def
 | [N11](#n11) | Complete — immutable protection on native writer ([PR #1278](https://github.com/the-sarge/quic-go-fast/pull/1278)) | N8, N10 (complete) | Eligible synchronous transform on connection |
 | [N3](#n3) | Complete — synchronized control/pump and combined qualification ([PR #1280](https://github.com/the-sarge/quic-go-fast/pull/1280)) | N0, N1, N2, N4, N11 (complete) | Actor rendezvous and mandatory successor dispatch |
 
-N6 #1235, N7 #1237, N8 #1238, N9 #1236, N10 #1239, N11 #1240 and N3 #1202 are complete. Independent request and recovery work uses separate contexts/worktrees and reconciles source overlap without a convenience dependency. N11 joins the request and recovery branches. N3 consumes the complete chosen candidate, including N8/N10 transitively; its exact-head qualification edge is intentional even where a mutex rewrite could compile earlier. R17 #1037/R18 #1038 remain blocked by N3's merged runtime/evidence, not parent #1193. They can run independently after N3 but serialize shared-host occupancy. Parent #1193 remains open through all eleven children and full R18 qualification; #1141 retains its separate admission criteria without blocking its own qualification.
+N6 #1235, N7 #1237, N8 #1238, N9 #1236, N10 #1239, N11 #1240 and N3 #1202 are complete. Independent request and recovery work uses separate contexts/worktrees and reconciles source overlap without a convenience dependency. N11 joins the request and recovery branches. N3 consumes the complete chosen candidate, including N8/N10 transitively; its exact-head qualification edge is intentional even where a mutex rewrite could compile earlier. R17 #1037 and R18 #1038 depended on N3's merged runtime/evidence, not parent #1193, and are complete. Parent #1193 stayed open through all eleven children and full R18 qualification, and #1141 kept its separate admission criteria; both closed with the [native parent closure note](../audits/2026-11-12-native-parent-closure.md).
 
 ## Shared slice contract and evidence
 
