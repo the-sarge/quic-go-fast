@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/netip"
 	"runtime"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
+	"github.com/quic-go/quic-go/qlog"
 
 	"github.com/stretchr/testify/require"
 )
@@ -923,4 +925,88 @@ func TestPacketCeilingRefusesNativeMultipathIO(t *testing.T) {
 			})
 		})
 	}
+}
+
+// Two fork connections: the receiver is a primary/backup server, and the sender
+// moves its primary to path 1, so data arrives on both paths. Each path's
+// acknowledgment then arrives on that path. The BBR sender this would also show
+// rate samples for needs a private hook the public Reno gate doesn't offer here.
+func TestMultipathSamePathAckCarriage(t *testing.T) {
+	requireMultipathProfile(t)
+	sink := newQlogSink()
+	serverTr, clientTr := grantedTransport(t), grantedTransport(t)
+	serverAddr := serverTr.Conn.LocalAddr().(*net.UDPAddr)
+	ln, err := serverTr.Listen(nativeServerTLS(), multipathConfig(t))
+	require.NoError(t, err)
+	t.Cleanup(func() { ln.Close() })
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	conf := multipathConfig(t)
+	conf.Tracer = sink.tracer
+	client, err := clientTr.Dial(ctx, serverAddr, nativeClientTLS(), conf)
+	require.NoError(t, err)
+	t.Cleanup(func() { client.CloseWithError(0, "") })
+	server, err := ln.Accept(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { server.CloseWithError(0, "") })
+
+	const chunk = 32 << 10
+	received := make(chan int, 1)
+	go func() {
+		str, err := server.AcceptUniStream(ctx)
+		if err != nil {
+			received <- 0
+			return
+		}
+		n, _ := io.Copy(io.Discard, str)
+		received <- int(n)
+	}()
+	str, err := client.OpenUniStream()
+	require.NoError(t, err)
+	_, err = str.Write(make([]byte, chunk))
+	require.NoError(t, err)
+
+	path, err := client.OpenPathV1(ctx, grantedTransport(t), serverAddr)
+	require.NoError(t, err)
+	require.NoError(t, path.SetLocalUseV1("active"))
+	require.NoError(t, client.PathsV1()[0].SetLocalUseV1("backup"))
+	from := len(sink.recorded())
+	_, err = str.Write(make([]byte, chunk))
+	require.NoError(t, err)
+	require.NoError(t, str.Close())
+	select {
+	case n := <-received:
+		require.Equal(t, 2*chunk, n)
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	// Every acknowledgment received after the cutover arrives on its own path, and
+	// path 1's acknowledgments do arrive.
+	carried := func() (counts map[uint64]int, crossed []uint64) {
+		counts = map[uint64]int{}
+		for _, event := range sink.recorded()[from:] {
+			packet, ok := event.(qlog.PacketReceived)
+			if !ok || packet.Path == nil {
+				continue
+			}
+			for _, frame := range packet.Frames {
+				ack, ok := frame.Frame.(*qlog.AckFrame)
+				if !ok {
+					continue
+				}
+				var target uint64
+				if ack.HasPathID {
+					target = uint64(ack.PathID)
+				}
+				if target != packet.Path.PathID {
+					crossed = append(crossed, target)
+				}
+				counts[target]++
+			}
+		}
+		return counts, crossed
+	}
+	require.Eventually(t, func() bool { counts, _ := carried(); return counts[1] > 0 }, 5*time.Second, 10*time.Millisecond, "path 1's data is acknowledged on path 1")
+	_, crossed := carried()
+	require.Empty(t, crossed, "these targets' acknowledgments arrived on another path")
 }

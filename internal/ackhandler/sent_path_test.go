@@ -398,9 +398,9 @@ func TestSentPathReplacement(t *testing.T) {
 		require.NoError(t, received.ReceivedPacketOnPath(id, 0, protocol.ECNNon, now0, true))
 		require.NoError(t, received.ReceivedPacketOnPath(id, 1, protocol.ECNNon, now0, true))
 	}
-	first, _ := received.AppendPathAckFrames(nil, 1000, now0, false, protocol.Version1)
+	first, _ := received.AppendPathAckFrames(nil, 1000, now0, false, protocol.Version1, AckCarriage{}, 0)
 	require.Len(t, first, 1, "one PATH_ACK per carrier")
-	second, _ := received.AppendPathAckFrames(nil, 1000, now0, false, protocol.Version1)
+	second, _ := received.AppendPathAckFrames(nil, 1000, now0, false, protocol.Version1, AckCarriage{}, 0)
 	require.Len(t, second, 1, "and the other waits for the next")
 	require.NotEqual(t, first[0].Frame.(*wire.AckFrame).PathID, second[0].Frame.(*wire.AckFrame).PathID)
 }
@@ -462,4 +462,36 @@ func TestSentPathTupleECN(t *testing.T) {
 		require.Equal(t, ecnStateFailed, e.state)
 		require.Equal(t, protocol.ECNNon, e.Mode())
 	})
+}
+
+// A turn may take a path's span to exactly its strict share, not past it, and no
+// turn runs once the oldest outstanding ack-eliciting record is older than one PTO.
+// Both reads leave recovery unchanged.
+func TestAckTurnRoom(t *testing.T) {
+	require.Equal(t, 4999, ackTurnShare)
+	rtt := utils.NewRTTStats()
+	rtt.UpdateRTT(10*time.Millisecond, 0)
+	h := NewSentPacketHandler(0, 1200, rtt, &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger).(*sentPacketHandler)
+	start := monotime.Now()
+	ping := func(pn protocol.PacketNumber) {
+		h.SentPacket(start, pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, protocol.ECNNon, 30, false, false)
+	}
+	require.True(t, h.AckTurnRoom(start), "an empty history reserves one record")
+	require.True(t, h.OnlyPingsOutstanding(), "nothing outstanding")
+	for pn := range protocol.PacketNumber(ackTurnShare - 1) {
+		ping(pn)
+	}
+	require.True(t, h.AckTurnRoom(start), "the turn takes the span to exactly 4,999")
+	ping(ackTurnShare - 1)
+	require.False(t, h.AckTurnRoom(start), "the turn would take the span past 4,999")
+	require.True(t, h.OnlyPingsOutstanding())
+	require.Equal(t, ackTurnShare, h.appDataPackets.history.Len(), "the reads change nothing")
+
+	fresh := NewSentPacketHandler(0, 1200, rtt, &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger).(*sentPacketHandler)
+	fresh.SentPacket(start, 0, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, protocol.ECNNon, 30, false, false)
+	pto := rtt.PTO(true)
+	require.True(t, fresh.AckTurnRoom(start.Add(pto)), "a record exactly one PTO old leaves room")
+	require.False(t, fresh.AckTurnRoom(start.Add(pto+1)), "an older one pins the path's front")
+	fresh.SentPacket(start, 1, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.MaxDataFrame{MaximumData: 1}}}, protocol.Encryption1RTT, protocol.ECNNon, 30, false, false)
+	require.False(t, fresh.OnlyPingsOutstanding(), "any other frame fails it")
 }

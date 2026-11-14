@@ -4,6 +4,7 @@ package quic
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"slices"
 	"syscall"
@@ -11,6 +12,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/congestion"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
@@ -466,5 +468,139 @@ func TestBBRPathAnnouncementPacing(t *testing.T) {
 			require.Equal(t, int64(path.quantum)*1e9, path.tokens, "ordinary credit refused the payload, so nothing is paced")
 			require.Equal(t, refilled, path.refilledAt)
 		})
+	})
+}
+
+// A BBR receiver's ACK turn on a backup charges that route's local credit, but no
+// pacing, and is a signaling turn: path zero's supply state stays as it was. Turns
+// take no payload, whatever is queued. The backup's own count puts the periodic PING
+// on every twentieth turn, however much the primary sends between them.
+func TestBBRPathAckTurn(t *testing.T) {
+	noKeyUpdates(t)
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newBBRPathFixture(t, protocol.PerspectiveServer)
+		e := &f.c.emission
+		f.peerSends(t, 1, 2)
+		f.write(t, 1000)
+		f.drain(t)
+		f.ackPath(t, 0, 0, f.parseWrites(t, 0))
+		f.drain(t)
+		f.socket.writes = nil
+		root := f.c.sentPacketHandler.(deliveryProbe)
+		require.Equal(t, congestion.SendApplicationLimited, e.bbr.supplyGap)
+		require.True(t, root.DeliveryStats().Idle)
+
+		path := f.bbrPath(1)
+		tokens := path.tokens
+		f.peerSends(t, 1, 2)
+		// Hold the write, so the turn's credit is still pending when it's read.
+		f.socket.hold = nativeProbeHoldAll
+		result := f.c.triggerSending(monotime.Now())
+		require.NoError(t, result.err)
+		require.True(t, result.retry, "a sent turn requests continuation")
+		synctest.Wait()
+		path.credit.mu.Lock()
+		charged := path.credit.pending
+		path.credit.mu.Unlock()
+		require.Positive(t, charged, "the turn holds its route's credit")
+		f.socket.hold = nil
+		f.socket.release()
+		synctest.Wait()
+		require.NoError(t, e.consumeLocal())
+		require.Equal(t, tokens, path.tokens, "and debits no pacing")
+		require.Equal(t, congestion.SendApplicationLimited, e.bbr.supplyGap, "path zero's gap stays")
+		require.True(t, root.DeliveryStats().Idle, "and so does its idle state")
+		onOne := f.parseWrites(t, 1)
+		require.Len(t, onOne, 1)
+		require.Equal(t, 1, acksFor(onOne, 1))
+
+		// The call after a turn runs none, even when the selected route's local credit
+		// blocks it. That isn't queue exhaustion, so a waiting home target still gets
+		// its retry.
+		f.peerSends(t, 1, 2)
+		held := e.bbr.credit.reserve(e.bbr.creditLimit(), e.bbr.creditLimit(), false, false)
+		require.NotNil(t, held)
+		f.socket.writes = nil
+		result = f.c.triggerSending(monotime.Now())
+		require.NoError(t, result.err)
+		require.Equal(t, emissionQueueFull, result.stop, "path zero's credit blocks the call")
+		require.True(t, result.retry, "the waiting home target is retried")
+		require.Empty(t, f.parseWrites(t, 1), "and waited out the skipped call")
+		held.completeLocal()
+		f.drain(t)
+		f.c.peerParams.MaxDatagramFrameSize = wire.MaxDatagramSize
+		f.c.pathCredit.routeOf(1).numNonAckElicitingAcks = 0
+		// turn runs one ACK turn on path 1 with every kind of payload queued, then lets
+		// the primary send it, and reports whether the turn carried the PING.
+		turn := func(label string) bool {
+			t.Helper()
+			f.socket.writes = nil
+			f.peerSends(t, 1, 2)
+			f.c.retransmissionQueue.addAppData(&wire.MaxStreamsFrame{Type: protocol.StreamTypeUni, MaxStreamNum: 100})
+			f.queueDatagram(t, 100)
+			f.write(t, 100)
+			tokens := path.tokens
+			f.sendOnce(t)
+			require.Equal(t, tokens, path.tokens, "%s debits no pacing", label)
+			onOne := f.parseWrites(t, 1)
+			require.Len(t, onOne, 1, label)
+			require.Equal(t, 1, acksFor(onOne, 1))
+			require.Empty(t, onOne[0].streams)
+			require.Empty(t, onOne[0].datagrams)
+			ping := len(onOne[0].frames) != 0
+			if ping {
+				require.Len(t, onOne[0].frames, 1, label)
+				require.IsType(t, &wire.PingFrame{}, onOne[0].frames[0])
+			}
+			// The primary's data, retransmission and DATAGRAM leave between turns.
+			f.drain(t)
+			onZero := f.parseWrites(t, 0)
+			require.Equal(t, 100, reliableBytes(onZero))
+			require.NotEmpty(t, slices.DeleteFunc(slices.Clone(onZero), func(w reliableWrite) bool { return len(w.datagrams) == 0 }))
+			require.False(t, f.c.retransmissionQueue.HasData(protocol.Encryption1RTT))
+			f.ackPath(t, 0, 0, onZero)
+			return ping
+		}
+		const interval = protocol.MaxNonAckElicitingAcks + 1
+		for i := 1; i <= interval+5; i++ {
+			require.Equal(t, i == interval, turn(fmt.Sprintf("turn %d", i)), "only the twentieth turn carries the PING")
+		}
+
+		// Five turns after that PING, an ack-eliciting packet on path 1 resets its count:
+		// the unanswered PING's PTO sends bare PING probes there.
+		f.socket.writes = nil
+		f.expirePTO(t, 1)
+		f.drain(t)
+		probes := f.parseWrites(t, 1)
+		require.NotEmpty(t, probes)
+		for _, probe := range probes {
+			require.Empty(t, probe.streams)
+			require.Len(t, probe.frames, 1)
+			require.IsType(t, &wire.PingFrame{}, probe.frames[0])
+		}
+		f.ackPath(t, 1, 1, probes)
+		f.drain(t)
+		for i := 1; i <= interval; i++ {
+			require.Equal(t, i == interval, turn(fmt.Sprintf("turn %d after the probe", i)), "the next PING is twenty turns after the probe, not after the last PING")
+		}
+
+		// A PTO probe with nothing to carry is a PING, which resets its own carrier's
+		// count on every multipath carrier, path zero included, and no other. Packed
+		// last, since nothing registers it.
+		p := e.packer
+		route := f.c.pathCredit.routeOf(1)
+		for _, carrier := range []*pathRoute{route, nil} {
+			route.numNonAckElicitingAcks, p.numNonAckElicitingAcks = 5, 5
+			packet, err := p.packPTOProbePacket(carrier, ackhandler.AckCarriage{}, protocol.Encryption1RTT, 1200, true, monotime.Now(), protocol.Version1)
+			require.NoError(t, err)
+			require.True(t, packet.shortHdrPacket.IsAckEliciting())
+			packet.buffer.Release()
+			require.Zero(t, *p.pingCount(carrier), "the probe resets its carrier's count")
+			other := route
+			if carrier != nil {
+				other = nil
+			}
+			require.Equal(t, 5, *p.pingCount(other), "and leaves the other carrier's alone")
+		}
 	})
 }

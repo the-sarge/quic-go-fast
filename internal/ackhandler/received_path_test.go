@@ -114,11 +114,11 @@ func TestPathAckRemainsQueuedWhenCarrierIsFull(t *testing.T) {
 	require.NoError(t, h.ReceivedPacketOnPath(17, 9, protocol.ECT0, now, true))
 	deadline := h.GetAlarmTimeout()
 	require.Equal(t, now.Add(protocol.MaxAckDelay), deadline)
-	frames, size := h.AppendPathAckFrames(nil, 1, deadline, true, protocol.Version1)
+	frames, size := h.AppendPathAckFrames(nil, 1, deadline, true, protocol.Version1, AckCarriage{}, 0)
 	require.Empty(t, frames)
 	require.Zero(t, size)
 	require.Equal(t, deadline, h.GetAlarmTimeout())
-	frames, size = h.AppendPathAckFrames(nil, 100, deadline, true, protocol.Version1)
+	frames, size = h.AppendPathAckFrames(nil, 100, deadline, true, protocol.Version1, AckCarriage{}, 0)
 	require.Len(t, frames, 1)
 	require.Equal(t, frames[0].Frame.Length(protocol.Version1), size)
 	require.True(t, h.GetAlarmTimeout().IsZero())
@@ -201,4 +201,104 @@ func TestRetiredCarrierReceiptCap(t *testing.T) {
 	_, err = sent.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: 64, Largest: 64}}}, protocol.Encryption1RTT, now)
 	require.NoError(t, err)
 	require.True(t, h.IsPotentiallyDuplicateOnPath(17, 8))
+}
+
+// pathAckTargets returns the PATH_ACK target one packet on carrier selects.
+func pathAckTargets(h *ReceivedPacketHandler, acks AckCarriage, carrier protocol.PathID, now monotime.Time, onlyIfQueued bool) []protocol.PathID {
+	frames, _ := h.AppendPathAckFrames(nil, 1000, now, onlyIfQueued, protocol.Version1, acks, carrier)
+	var ids []protocol.PathID
+	for _, f := range frames {
+		ids = append(ids, f.Frame.(*wire.AckFrame).PathID)
+	}
+	return ids
+}
+
+// A packet carries its own path's target and the released ones, one PATH_ACK at a
+// time, and path zero only on its own path or once released. Under any
+// replenishment of the others, every due target leaves within maxRecoveryPaths
+// packets that may carry it.
+func TestPathAckCarriageBoundedService(t *testing.T) {
+	now := monotime.Now()
+	var next protocol.PacketNumber
+	receive := func(h *ReceivedPacketHandler, ids ...protocol.PathID) {
+		for _, id := range ids {
+			next++ // fresh on every path, with no gap to report
+			require.NoError(t, h.ReceivedPacketOnPath(id, next, protocol.ECNNon, now, true))
+		}
+	}
+	t.Run("path zero rides a nonzero carrier only when released", func(t *testing.T) {
+		h := NewReceivedPacketHandler(utils.DefaultLogger)
+		require.NoError(t, h.AddPath(1))
+		receive(h, 0)
+		var held AckCarriage
+		held.Hold(0)
+		require.Nil(t, h.GetAckFrameOn(held, 1, now, false), "a home path zero is withheld from path 1")
+		require.NotNil(t, h.GetAckFrameOn(held, 0, now, false), "path zero carries its own")
+		receive(h, 0)
+		held.Release(0)
+		require.NotNil(t, h.GetAckFrameOn(held, 1, now, false), "released, it rides any carrier")
+	})
+	t.Run("a home target stays off another carrier", func(t *testing.T) {
+		h := NewReceivedPacketHandler(utils.DefaultLogger)
+		require.NoError(t, h.AddPath(1))
+		require.NoError(t, h.AddPath(2))
+		receive(h, 2, 2)
+		var held AckCarriage
+		held.Hold(2)
+		require.Empty(t, pathAckTargets(h, held, 1, now, false))
+		require.True(t, h.AckDueOnPath(2, now), "the due read agrees with consumption")
+		require.Equal(t, []protocol.PathID{2}, pathAckTargets(h, held, 2, now, true))
+		require.False(t, h.AckDueOnPath(2, now))
+	})
+	// Path zero is retired; carrier X=1 owns its target, Y=2 and Z=3 are released.
+	bound := func(t *testing.T, refill func(h *ReceivedPacketHandler, served protocol.PathID)) {
+		h := NewReceivedPacketHandler(utils.DefaultLogger)
+		for _, id := range []protocol.PathID{1, 2, 3} {
+			require.NoError(t, h.AddPath(id))
+		}
+		receive(h, 1, 2, 3)
+		var held AckCarriage
+		held.Hold(1)
+		waiting := map[protocol.PathID]int{1: 0, 2: 0, 3: 0}
+		for range 40 {
+			served := pathAckTargets(h, held, 1, now, false)
+			require.Len(t, served, 1, "one PATH_ACK per packet")
+			for id := range waiting {
+				if id == served[0] {
+					waiting[id] = 0
+					continue
+				}
+				waiting[id]++
+				require.Less(t, waiting[id], maxRecoveryPaths, "path %d waited past the bound", id)
+			}
+			refill(h, served[0])
+		}
+	}
+	t.Run("own target replenished while a released target waits", func(t *testing.T) {
+		bound(t, func(h *ReceivedPacketHandler, served protocol.PathID) { receive(h, served) })
+	})
+	t.Run("released targets refilled while the own target waits", func(t *testing.T) {
+		bound(t, func(h *ReceivedPacketHandler, served protocol.PathID) {
+			receive(h, served)
+			if served != 2 {
+				receive(h, 2)
+			}
+			if served != 3 {
+				receive(h, 3)
+			}
+		})
+	})
+	t.Run("the own turn carries an earlier-waiting released target", func(t *testing.T) {
+		h := NewReceivedPacketHandler(utils.DefaultLogger)
+		require.NoError(t, h.AddPath(1))
+		require.NoError(t, h.AddPath(2))
+		receive(h, 1, 1, 2, 2)
+		var held AckCarriage
+		held.Hold(1)
+		// Path 1's own packet serves X=1 and passes Y=2 over.
+		require.Equal(t, []protocol.PathID{1}, pathAckTargets(h, held, 1, now, true))
+		receive(h, 1, 1)
+		require.Equal(t, []protocol.PathID{2}, pathAckTargets(h, held, 1, now, true), "the earlier-waiting target goes first")
+		require.Equal(t, []protocol.PathID{1}, pathAckTargets(h, held, 1, now, true), "the own target follows within the bound")
+	})
 }

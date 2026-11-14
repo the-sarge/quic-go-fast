@@ -17,6 +17,8 @@ type ReceivedPacketHandler struct {
 	lowest1RTTPacket protocol.PacketNumber
 	paths            map[protocol.PathID]*appDataReceivedPacketTracker
 	largestPath      protocol.PathID
+	// selections counts PATH_ACK slot selections; it orders the pass-over marks.
+	selections uint64
 }
 
 func NewReceivedPacketHandler(logger utils.Logger) *ReceivedPacketHandler {
@@ -210,33 +212,82 @@ func (h *ReceivedPacketHandler) IgnorePacketsBelowOnPath(id protocol.PathID, pn 
 	}
 }
 
-// AppendPathAckFrames selects only admitted nonzero targets. Space is checked
-// before consuming a queued ACK so a full carrier cannot lose its wakeup. A carrier
-// takes one, because ackTargets holds path zero and one other. Retained contexts can
-// make more pending, and each stays queued for the next packet.
-func (h *ReceivedPacketHandler) AppendPathAckFrames(frames []Frame, maxSize protocol.ByteCount, now monotime.Time, onlyIfQueued bool, v protocol.Version) ([]Frame, protocol.ByteCount) {
-	var length protocol.ByteCount
-	for id, tracker := range h.paths {
-		if !tracker.hasNewAck {
-			continue
-		}
-		ranges := tracker.packetHistory.ranges
-		if len(ranges) == 0 {
-			continue
-		}
-		newest := ranges[len(ranges)-1]
-		minimum := wire.AckFrame{HasPathID: true, PathID: id, DelayTime: max(0, now.Sub(tracker.largestObservedRcvdTime)), ECT0: tracker.ect0, ECT1: tracker.ect1, ECNCE: tracker.ecnce, AckRanges: []wire.AckRange{{Smallest: newest.Start, Largest: newest.End}}}
-		if minimum.Length(v) > maxSize-length {
-			continue
-		}
-		ack := h.GetPathAckFrame(id, now, onlyIfQueued)
-		if ack == nil {
-			continue
-		}
-		ack.Truncate(maxSize-length, v)
-		frames = append(frames, Frame{Frame: ack})
-		length += ack.Length(v)
-		break
+// GetAckFrameOn is path zero's 1-RTT ACK for a packet on carrier. A packet on
+// another path takes it only while carriage releases path zero.
+func (h *ReceivedPacketHandler) GetAckFrameOn(acks AckCarriage, carrier protocol.PathID, now monotime.Time, onlyIfQueued bool) *wire.AckFrame {
+	if !acks.carries(0, carrier) {
+		return nil
 	}
-	return frames, length
+	return h.GetAckFrame(protocol.Encryption1RTT, now, onlyIfQueued)
+}
+
+// AckDueOnPath reports whether target's acknowledgment would leave on an
+// ACK-only packet now, by the same rule that packet consumes it with.
+func (h *ReceivedPacketHandler) AckDueOnPath(target protocol.PathID, now monotime.Time) bool {
+	tracker := h.appDataOnPath(target)
+	return tracker != nil && tracker.takes(now, true)
+}
+
+// AppendPathAckFrames selects one admitted nonzero target that carriage lets a
+// packet on carrier take. Path zero keeps its own ACK slot and never competes. A
+// carrier takes one PATH_ACK, because ackTargets holds path zero and one other;
+// the rest stay queued for a later packet. Space is checked before consuming a
+// queued ACK so a full carrier cannot lose its wakeup.
+//
+// Service is first come, first served: a target passed over for the slot while it
+// could have ridden is marked with this selection's count, marked targets go first
+// with the earliest mark first and ties to the lower ID, and consumption clears
+// the mark. So with n competing targets, each leaves within n packets that may
+// carry it, however the others are replenished.
+func (h *ReceivedPacketHandler) AppendPathAckFrames(frames []Frame, maxSize protocol.ByteCount, now monotime.Time, onlyIfQueued bool, v protocol.Version, acks AckCarriage, carrier protocol.PathID) ([]Frame, protocol.ByteCount) {
+	h.selections++
+	var (
+		chosenID protocol.PathID
+		chosen   *appDataReceivedPacketTracker
+	)
+	for id, tracker := range h.paths {
+		if !acks.carries(id, carrier) || !tracker.takes(now, onlyIfQueued) || !h.minimumPathAckFits(id, tracker, maxSize, now, v) {
+			continue
+		}
+		if chosen == nil || servedBefore(id, tracker, chosenID, chosen) {
+			chosenID, chosen = id, tracker
+		}
+	}
+	if chosen == nil {
+		return frames, 0
+	}
+	for id, tracker := range h.paths {
+		if tracker != chosen && tracker.passedOver == 0 && acks.carries(id, carrier) && tracker.takes(now, onlyIfQueued) {
+			tracker.passedOver = h.selections
+		}
+	}
+	ack := h.GetPathAckFrame(chosenID, now, onlyIfQueued)
+	if ack == nil {
+		return frames, 0
+	}
+	ack.Truncate(maxSize, v)
+	return append(frames, Frame{Frame: ack}), ack.Length(v)
+}
+
+// minimumPathAckFits reports whether target's newest range alone fits maxSize.
+func (h *ReceivedPacketHandler) minimumPathAckFits(id protocol.PathID, tracker *appDataReceivedPacketTracker, maxSize protocol.ByteCount, now monotime.Time, v protocol.Version) bool {
+	ranges := tracker.packetHistory.ranges
+	newest := ranges[len(ranges)-1]
+	minimum := wire.AckFrame{HasPathID: true, PathID: id, DelayTime: max(0, now.Sub(tracker.largestObservedRcvdTime)), ECT0: tracker.ect0, ECT1: tracker.ect1, ECNCE: tracker.ecnce, AckRanges: []wire.AckRange{{Smallest: newest.Start, Largest: newest.End}}}
+	return minimum.Length(v) <= maxSize
+}
+
+// servedBefore orders two candidates for the PATH_ACK slot: a marked target
+// before an unmarked one, the earlier mark first, then the lower ID.
+func servedBefore(id protocol.PathID, t *appDataReceivedPacketTracker, otherID protocol.PathID, other *appDataReceivedPacketTracker) bool {
+	switch {
+	case t.passedOver != 0 && other.passedOver == 0:
+		return true
+	case t.passedOver == 0 && other.passedOver != 0:
+		return false
+	case t.passedOver != other.passedOver:
+		return t.passedOver < other.passedOver
+	default:
+		return id < otherID
+	}
 }
