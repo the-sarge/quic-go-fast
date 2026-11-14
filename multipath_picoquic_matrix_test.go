@@ -56,6 +56,22 @@ func matrixTransport(t *testing.T, lastIPByte byte, trace *matrixTrace) *Transpo
 	return tr
 }
 
+// matrixController is the quic-go endpoint's controller: Reno for the R17 matrix, or BBR
+// for B5's primary/backup revalidation of its useful-transfer, abandon/reopen and
+// same-ID migration scenarios (#1044).
+func matrixController(t *testing.T) string {
+	t.Helper()
+	switch controller := os.Getenv("QGF_MATRIX_CONTROLLER"); controller {
+	case "", "reno":
+		return "reno"
+	case "bbrv3":
+		return controller
+	default:
+		t.Fatalf("unknown QGF_MATRIX_CONTROLLER %q", controller)
+		return ""
+	}
+}
+
 func newMatrixSession(t *testing.T, role string, negotiated, cidReceipt bool) *matrixSession {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
@@ -73,6 +89,11 @@ func newMatrixSession(t *testing.T, role string, negotiated, cidReceipt bool) *m
 	s := &matrixSession{t: t, ctx: ctx, role: role, dir: dir, trace: trace, primary: matrixTransport(t, 1, trace)}
 	conf := &Config{Versions: []Version{Version1}, EnableDatagrams: true, MaxIdleTimeout: 10 * time.Second, Tracer: s.trace.tracer}
 	require.NoError(t, conf.ConfigureMultipathV1(true, 2, "primary-backup"))
+	controller := matrixController(t)
+	require.NoError(t, conf.SetCongestionControlV1(controller))
+	// B5's revalidation cells run BBR primary/backup through the evidence selection,
+	// before B6 publishes the combination (#1044).
+	conf.multipath.evidence = multipathEvidence{bbr: controller == "bbrv3"}
 	cert, key, ca := filepath.Join(dir, "cert.pem"), filepath.Join(dir, "key.pem"), filepath.Join(dir, "ca.pem")
 	mp := "1"
 	if !negotiated {
@@ -97,6 +118,7 @@ func newMatrixSession(t *testing.T, role string, negotiated, cidReceipt bool) *m
 		require.NoError(t, err)
 	}
 	t.Cleanup(func() { s.conn.CloseWithError(0, "matrix cleanup") })
+	require.Equal(t, controller, s.conn.CongestionControlV1())
 	ok, err := s.conn.MultipathNegotiatedV1()
 	require.NoError(t, err)
 	require.Equal(t, negotiated, ok)

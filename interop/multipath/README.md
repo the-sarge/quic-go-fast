@@ -90,3 +90,17 @@ python3 interop/multipath/native_qualification.py --candidate "$(git rev-parse H
 ```
 
 `EAGAIN-to-deadline`, `retry-fallback` and `queued-expiry` run under strace. Their timing is attributed separately and never compared to the 20 ms tolerance. The other three classes are uninstrumented and are compared to it. The GSO `EIO` in `retry-fallback` is simulated by a test wrapper, because this kernel gave no real trigger. Everything after it is native. See the [re-audit](../../docs/audits/2026-11-03-e6-native-qualification-reaudit.md) for the method and the receipt for the executed identities.
+
+## Aggregation comparison and BBR revalidation
+
+[B5 (#1044)](https://github.com/the-sarge/quic-go-fast/issues/1044) measures the [controller-matched aggregation arms](../../docs/adr/2026-10-24-multipath-bbr-plan.md#controller-matched-aggregation-arms) and revalidates BBR primary/backup. The transport integration suite owns these fixtures. They retire when B5's qualification decision is complete or the feature is removed. Every attempt charges the [program ledger](../../docs/adr/2026-10-24-multipath-reno-plan.md#program-qualification-ledger-and-sequencing).
+
+`aggregation_test.go` in the root package is the workload, under `//go:build aggregation && linux && amd64`, and `aggregation.py` is its driver. Each observation runs three processes on their own cores: a relay, a server and a client. The relay shapes each path's client-to-server direction with a rate-limited drop-tail queue and delays both directions. The client sends 1 MiB STREAM objects and a fixed-rate DATAGRAM flow, and the server counts what arrives. The server runs the public Reno primary/backup profile; since [B7 (#1357)](https://github.com/the-sarge/quic-go-fast/issues/1357), it returns each path's acknowledgments on that path. Arms D–F reach their controller and scheduler through the private evidence selection that [B6 (#1045)](https://github.com/the-sarge/quic-go-fast/issues/1045) removes.
+
+The campaign runs three topologies, six arms and three observations, each 60 seconds after a 10-second warmup: 54 instances. Each round rotates the arm order. Only a contaminated observation reruns, once, at most three times in the campaign. The judge reads only the fixed thresholds. A failed threshold is a completed negative result; a missing or misaccounted case makes the campaign invalid. `--smoke-topology` runs one short observation per arm, which is never campaign evidence.
+
+```sh
+python3 -B interop/multipath/aggregation.py --candidate "$(git rev-parse HEAD)" --binary aggregation.test --output /path/to/new/results --remaining-instances N --remaining-host-seconds S --timeout-seconds 120
+```
+
+The BBR revalidation reuses the existing fixtures with `--controller bbrv3`, which every connection runs. `run.py --matrix --controller bbrv3` runs only `useful-transfer`, `abandon-reopen-late-feedback` and `same-id-migration-rebinding`, and `run.py --validate-matrix --controller bbrv3` validates those six cases. `ordinary_cost.py --controller bbrv3` runs only the mixed-bulk and stateless-pressure cells, both profiles, three observations each: 12 instances under the R18 judge. The default controller keeps both fixtures' Reno inventories unchanged. `ordinary_cost.py --revalidate-cell CELL` reruns only the named cells of the controller's inventory, for an existing cell that a later source change affects; the run records its cause in the receipt and charges the reserve.

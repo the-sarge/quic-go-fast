@@ -78,7 +78,7 @@ func (c *Conn) enableMultipathCredit(capacity int, peerMax protocol.PathID, peer
 	if c.pathCredit != nil || (!c.handshakeConfirmed && !c.config.multipath.enabled) || c.version != protocol.Version1 || capacity < 1 || capacity > 2 || peerCIDLimit < 2 || c.connIDManager.closed || c.connIDManager.activeConnectionID.Len() == 0 || c.srcConnIDLen == 0 || c.connIDGenerator.generator.ConnectionIDLen() != c.srcConnIDLen || c.pathManager != nil || c.pathManagerOutgoing.Load() != nil || len(c.connIDManager.pathProbing) != 0 || uint64(len(c.connIDGenerator.activeSrcConnIDs)) > min(peerCIDLimit, 2) || len(c.connIDGenerator.activeSrcConnIDs)+len(c.connIDGenerator.connIDsToRetire) > maxPathCIDRecords {
 		return nil, fmt.Errorf("invalid multipath credit activation")
 	}
-	p := &pathCreditRegistry{conn: c, capacity: capacity, localMax: protocol.PathID(capacity - 1), peerMax: peerMax, nextID: 1, peerCIDLimit: peerCIDLimit, paths: map[protocol.PathID]bool{0: true}, terminals: make(map[protocol.PathID]*pathTerminal)}
+	p := &pathCreditRegistry{conn: c, capacity: capacity, localMax: protocol.PathID(capacity - 1), peerMax: peerMax, nextID: 1, peerCIDLimit: peerCIDLimit, paths: map[protocol.PathID]bool{0: true}, terminals: make(map[protocol.PathID]*pathTerminal), scheduler: c.config.multipath.evidence.scheduler}
 	c.pathCredit = p
 	p.enableAdmission()
 	if recorder, ok := c.qlogger.(*connRecorder); ok && p.hasAdmission() {

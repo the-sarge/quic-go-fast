@@ -96,5 +96,28 @@ class AccountingTests(unittest.TestCase):
                 runner.check_matrix(root)
 
 
+    def test_bbr_revalidation_requires_its_six_cases_on_bbr(self):
+        expected = runner.matrix_expected("bbrv3")
+        self.assertEqual(6, len(expected))
+        self.assertEqual({case.split("/")[1] for case in expected},
+                         {"useful-transfer", "abandon-reopen-late-feedback", "same-id-migration-rebinding"})
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for case in expected:
+                _, scenario, role = case.split("/")
+                directory = root / scenario / role
+                directory.mkdir(parents=True)
+                (directory / "go-test.jsonl").write_text(json.dumps({"Action": "pass", "Package": runner.SMOKE_PACKAGE, "Test": case}) + "\n")
+                (directory / "result.json").write_text(json.dumps({"status": "pass", "executed": [case], "controller": "bbrv3", "identity": {"candidate": "a" * 40}}))
+            result = runner.check_matrix(root, "bbrv3")
+            self.assertEqual((expected, "bbrv3"), (result["executed"], result["controller"]))
+            with self.assertRaisesRegex(ValueError, "missing"):
+                runner.check_matrix(root)
+            case = root / "useful-transfer" / "client"
+            (case / "result.json").write_text(json.dumps({"status": "pass", "executed": [expected[0]], "identity": {"candidate": "a" * 40}}))
+            with self.assertRaisesRegex(ValueError, "another controller"):
+                runner.check_matrix(root, "bbrv3")
+
+
 if __name__ == "__main__":
     unittest.main()

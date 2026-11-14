@@ -26,6 +26,9 @@ MATRIX_SCENARIOS = (
 )
 MATRIX_EXPECTED = [f"TestPicoquicMultipathMatrix/{scenario}/{role}"
                    for scenario in MATRIX_SCENARIOS for role in ("client", "server")]
+# B5's BBR primary/backup revalidation reruns three matrix scenarios in both roles (#1044).
+CONTROLLERS = ("reno", "bbrv3")
+BBR_SCENARIOS = ("useful-transfer", "abandon-reopen-late-feedback", "same-id-migration-rebinding")
 ZERO_EXPECTED = ["TestMultipathNegotiatedZeroVectors", "TestMultipathNegotiatedZeroControlledPeer"]
 
 
@@ -40,27 +43,39 @@ def matrix_invocation(scenario, role, test_binary=None):
     return command, [f"TestPicoquicMultipathMatrix/{scenario}/{role}"]
 
 
-def check_matrix(root):
+def matrix_expected(controller="reno"):
+    scenarios = MATRIX_SCENARIOS if controller == "reno" else BBR_SCENARIOS
+    return [f"TestPicoquicMultipathMatrix/{scenario}/{role}" for scenario in scenarios for role in ("client", "server")]
+
+
+def check_matrix(root, controller="reno"):
+    expected_cases = matrix_expected(controller)
     identity = None
     expected_paths = set()
     # Require every log before comparing metadata, so missing evidence wins.
-    for case in MATRIX_EXPECTED:
+    for case in expected_cases:
         _, scenario, role = case.split("/")
         expected_paths.add(root / scenario / role / "go-test.jsonl")
     actual_paths = set(root.glob("*/*/go-test.jsonl"))
     if actual_paths != expected_paths:
         raise ValueError(f"missing or unexpected matrix case logs: {actual_paths ^ expected_paths}")
-    for case in MATRIX_EXPECTED:
+    for case in expected_cases:
         _, scenario, role = case.split("/")
         directory = root / scenario / role
         check_cases((directory / "go-test.jsonl").read_text().splitlines(), SMOKE_PACKAGE, [case])
         result = json.loads((directory / "result.json").read_text())
         if result.get("status") != "pass" or result.get("executed") != [case] or not result.get("identity"):
             raise ValueError(f"invalid case receipt: {case}")
+        if result.get("controller", "reno") != controller:
+            raise ValueError(f"case ran another controller: {case}")
         if identity is None:
             identity = result["identity"]
         elif result["identity"] != identity:
             raise ValueError(f"matrix candidate/build/kernel identity changed: {case}")
+    if controller != "reno":
+        # The negotiated-zero evidence is controller-independent and stays with R17.
+        return {"status": "pass", "executed": expected_cases, "identity": identity, "controller": controller,
+                "guarantee": "example-level; fixed draft-21 QUIC v1 scenarios only"}
     zero = root / "negotiated-zero"
     if not (zero / "go-test.jsonl").is_file() or not (zero / "result.json").is_file():
         raise ValueError("missing negotiated-zero normative/controlled evidence")
@@ -126,9 +141,15 @@ def main():
     parser.add_argument("--scenario", choices=MATRIX_SCENARIOS)
     parser.add_argument("--role", choices=("client", "server"))
     parser.add_argument("--test-binary", type=Path)
+    parser.add_argument("--controller", choices=CONTROLLERS, default="reno",
+                        help="the quic-go endpoint's controller; bbrv3 runs B5's revalidation scenarios")
     args = parser.parse_args()
+    if args.controller != "reno" and not (args.matrix or args.validate_matrix):
+        parser.error("--controller bbrv3 requires --matrix or --validate-matrix")
+    if args.controller != "reno" and args.scenario and args.scenario not in BBR_SCENARIOS:
+        parser.error(f"--controller bbrv3 runs only {', '.join(BBR_SCENARIOS)}")
     if args.validate_matrix:
-        result = check_matrix(args.output)
+        result = check_matrix(args.output, args.controller)
         with (args.output / "matrix-result.json").open("x") as output:
             json.dump(result, output, indent=2)
             output.write("\n")
@@ -150,7 +171,8 @@ def main():
         raise ValueError(f"missing executable test binary: {args.test_binary}")
     identity = execution_identity(args.binary, args.test_binary) if args.matrix or args.zero_vectors else None
     args.output.mkdir(parents=True, exist_ok=False)
-    env = os.environ | {"PICOQUIC_BINARY": str(Path(args.binary).resolve()), "PICOQUIC_LOG_DIR": str(args.output.resolve())}
+    env = os.environ | {"PICOQUIC_BINARY": str(Path(args.binary).resolve()), "PICOQUIC_LOG_DIR": str(args.output.resolve()),
+                        "QGF_MATRIX_CONTROLLER": args.controller}
     command = ["go", "test", "-json", "-tags=picoquic", "-run=^TestPicoquicOrdinaryControl$", "-count=1", "-timeout=90s", "./integrationtests/self", "-version=1"]
     package, expected = PACKAGE, EXPECTED
     if args.smoke:
@@ -168,7 +190,7 @@ def main():
         package, expected = SMOKE_PACKAGE, ZERO_EXPECTED
     started = datetime.now(timezone.utc).isoformat()
     before = time.monotonic()
-    attempt = {"expected": expected, "identity": identity, "command": command, "started": started}
+    attempt = {"expected": expected, "identity": identity, "command": command, "started": started, "controller": args.controller}
     (args.output / "attempt.json").write_text(json.dumps(attempt, indent=2) + "\n")
     with (args.output / "go-test.jsonl").open("w") as log:
         process = subprocess.Popen(command, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
@@ -181,7 +203,7 @@ def main():
     if status != 0:
         raise ValueError(f"peer control exited {status}; see {args.output / 'go-test.jsonl'}")
     check_cases((args.output / "go-test.jsonl").read_text().splitlines(), package, expected)
-    result = {"executed": expected, "status": "pass", "identity": identity,
+    result = {"executed": expected, "status": "pass", "identity": identity, "controller": args.controller,
               "command": command, "started": started, "duration_seconds": time.monotonic() - before}
     (args.output / "result.json").write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps(result))

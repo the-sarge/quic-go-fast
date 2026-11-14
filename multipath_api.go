@@ -41,6 +41,17 @@ const (
 type multipathSelection struct {
 	enabled  bool
 	maxPaths uint32
+	// evidence is the B-track evidence fixture's private selection. Its zero value is
+	// the public profile. B6 removes it when it publishes the supported combinations.
+	evidence multipathEvidence
+}
+
+// multipathEvidence lets an in-package evidence fixture run the combinations it
+// measures before they are supported: BBR at the capability gate, and the
+// registry's scheduling policy. Nothing public reaches it.
+type multipathEvidence struct {
+	bbr       bool
+	scheduler pathScheduler
 }
 
 // ConfigureMultipathV1 selects multipath for the connections using this Config, before
@@ -115,7 +126,7 @@ func (t *Transport) admitMultipath(conf *Config) error {
 	if !multipathProfileSupported {
 		return errMultipathPlatform
 	}
-	if conf.CongestionControlV1() != "reno" {
+	if conf.CongestionControlV1() != "reno" && !conf.multipath.evidence.bbr {
 		return fmt.Errorf("%w: multipath requires reno", ErrMultipathUnsupportedV1)
 	}
 	if slices.ContainsFunc(conf.Versions, func(v Version) bool { return v != Version1 }) {
