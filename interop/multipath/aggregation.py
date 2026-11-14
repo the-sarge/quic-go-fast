@@ -86,10 +86,25 @@ def link(record, name):
     return links[0]
 
 
+BASELINE_ARMS = ("A", "B", "C")
+
+
 def check_observation(record, go_version, window_s=WINDOW_S):
+    """Raise on missing or misaccounted evidence; return the product outcomes that fail.
+
+    A baseline arm's failure invalidates its comparison. In a multipath arm, a close,
+    timeout, stream error, unused path, retired path or empty flow is a measured outcome,
+    which the judge counts against that arm's claim."""
     topology, arm = record["topology"], record["arm"]
     where = f"{topology}/{arm}"
     claim = ARM_CLAIMS[arm]
+    failures = []
+
+    def outcome(message):
+        if arm in BASELINE_ARMS:
+            raise ValueError(f"{where}: {message}; invalid comparator evidence")
+        failures.append(message)
+
     for role in ("relay", "server", "client"):
         if record[role]["result"]["go"] != go_version:
             raise ValueError(f"{where}: {role} toolchain {record[role]['result']['go']}")
@@ -98,44 +113,50 @@ def check_observation(record, go_version, window_s=WINDOW_S):
     server, client = record["server"]["result"], record["client"]["result"]
     if not server["granted"] or not server["joined"]:
         raise ValueError(f"{where}: server grant did not join")
-    if server["stream_errors"]:
-        raise ValueError(f"{where}: {server['stream_errors']} stream errors")
     competing = topology == "shared"
-    names = ["a", "b"] + (["competitor"] if competing else [])
+    names = ["a", "b"] + ([COMPETITOR] if competing else [])
     if sorted(item["name"] for item in record["relay"]["result"]["links"]) != sorted(names):
         raise ValueError(f"{where}: relay links do not match the topology")
     for name in names:
         if link(record, name)["forward"]["overflow"] or link(record, name)["reverse"]["overflow"]:
             raise ValueError(f"{where}: relay backlog overflowed on {name}")
     used = {name: link(record, name)["forward"]["window_bytes"] > 0 for name in ("a", "b")}
-    if used != {"a": "a" in claim["paths"], "b": "b" in claim["paths"]}:
+    if any(used[name] for name in ("a", "b") if name not in claim["paths"]):
         raise ValueError(f"{where}: relay path use {used} does not match the arm")
-    focal_labels = ["focal-a", "focal-b"] if arm == "C" else ["focal-a"]
+    for name in claim["paths"]:
+        if not used[name]:
+            outcome(f"path {name} carried nothing in the window")
+    focal_labels = list(FOCAL) if arm == "C" else [FOCAL[0]]
     labels = focal_labels + ([COMPETITOR] if competing else [])
     if sorted(flow["label"] for flow in client["flows"]) != sorted(labels):
         raise ValueError(f"{where}: client flows do not match the arm")
     for flow in client["flows"]:
-        if flow["timeout_close"] or flow["close_cause"]:
-            raise ValueError(f"{where}: {flow['label']} closed before the end: {flow['close_cause']}")
         expected = "reno" if flow["label"] == COMPETITOR else claim["controller"]
         if flow["controller"] != expected:
             raise ValueError(f"{where}: {flow['label']} ran {flow['controller']}")
         multipath = claim["multipath"] and flow["label"] != COMPETITOR
         if flow["multipath_negotiated"] != multipath:
             raise ValueError(f"{where}: {flow['label']} multipath negotiation does not match the arm")
-        if multipath:
-            if flow["scheduler"] != claim["scheduler"]:
-                raise ValueError(f"{where}: scheduler {flow['scheduler']}")
-            states = [(path["lifecycle"], path["local_use"]) for path in flow["paths"] or []]
-            if states != [("live", "active"), ("live", "active")]:
-                raise ValueError(f"{where}: paths {states} are not two live active paths")
         if flow["label"] != COMPETITOR and not flow["datagrams_offered"]:
             raise ValueError(f"{where}: {flow['label']} offered no DATAGRAMs")
+        if multipath and flow["scheduler"] != claim["scheduler"]:
+            raise ValueError(f"{where}: scheduler {flow['scheduler']}")
+        if flow["timeout_close"] or flow["close_cause"]:
+            outcome(f"{flow['label']} closed before the end: {flow['close_cause']}")
+        if multipath:
+            states = [(path["lifecycle"], path["local_use"]) for path in flow["paths"] or []]
+            if states != [("live", "active"), ("live", "active")]:
+                outcome(f"paths {states} are not two live active paths")
     if any(item["timeout_close"] for item in server["connections"]):
-        raise ValueError(f"{where}: a server connection timed out")
+        outcome("a server connection timed out")
+    if server["stream_errors"]:
+        outcome(f"{server['stream_errors']} stream errors")
     flows = server["flows"] or {}
-    if sorted(flows) != sorted(labels):
+    if not set(flows) <= set(labels):
         raise ValueError(f"{where}: server flows {sorted(flows)} do not match the arm")
+    for label in labels:
+        if label not in flows:
+            outcome(f"{label} delivered nothing")
     for label, flow in flows.items():
         series = flow["stream_series"]
         if len(series) != window_s or any(type(value) is not int or value < 0 for value in series):
@@ -143,7 +164,8 @@ def check_observation(record, go_version, window_s=WINDOW_S):
         if sum(series) != flow["stream_useful_bytes"]:
             raise ValueError(f"{where}: {label} useful bytes do not match its series")
         if flow["stream_useful_bytes"] <= 0:
-            raise ValueError(f"{where}: {label} delivered no STREAM bytes")
+            outcome(f"{label} delivered no STREAM bytes")
+    return failures
 
 
 def check_accounting(records, go_version):
@@ -154,7 +176,8 @@ def check_accounting(records, go_version):
     if actual != expected:
         raise ValueError(f"{len(actual)} instances do not match the {len(expected)} scheduled")
     for record in records:
-        check_observation(record, go_version)
+        if check_observation(record, go_version) != record.get("product_failures", []):
+            raise ValueError(f"{record['topology']}/{record['arm']}: recorded product outcomes do not match the evidence")
 
 
 def spread(values):
@@ -166,7 +189,7 @@ def useful_bytes(record):
 
 
 def competitor_bytes(record):
-    return server_flows(record, [COMPETITOR])[0]["stream_useful_bytes"]
+    return sum(flow["stream_useful_bytes"] for flow in server_flows(record, [COMPETITOR]))
 
 
 def observation_metrics(record):
@@ -210,7 +233,15 @@ def judge_topology(topology, keyed):
         for arm in ("D", "E", "F")
     }
     verdict["informational"]["E_vs_F"] = spread(ratios(keyed, "E", "F", useful_bytes))
+    verdict["product_failures"] = {
+        arm: {round_: keyed[(arm, round_)].get("product_failures", []) for round_ in range(ROUNDS)
+              if keyed[(arm, round_)].get("product_failures")}
+        for arm in ("D", "E", "F")}
     failures = []
+    if topology in ("balanced", "shared"):
+        # A failed E observation fails the claim it measures; it is a result, not missing evidence.
+        for round_, reasons in verdict["product_failures"]["E"].items():
+            failures.append(f"E round {round_} failed: {'; '.join(reasons)}")
     if topology == "balanced":
         gain = spread(ratios(keyed, "E", best, useful_bytes))
         independent = spread(ratios(keyed, "E", "C", useful_bytes))
@@ -392,7 +423,7 @@ def run_observation(binary, directory, topology, round_, arm, seed, go_version, 
         def reject_nonfinite(value):
             raise ValueError(f"{role}: nonfinite JSON number {value}")
         record[role] = json.loads((directory / f"{role}.json").read_text(), parse_constant=reject_nonfinite)
-    check_observation(record, go_version, window_s=window_s)
+    record["product_failures"] = check_observation(record, go_version, window_s=window_s)
     return record
 
 
@@ -476,7 +507,8 @@ def run_campaign(binary, output, candidate, go_version, log, ledger):
             record = ledger.observe(binary, output / topology / f"round{round_}" / f"attempt{attempt}" / arm,
                                     topology, round_, arm, seed, candidate, "campaign", go_version, attempt=attempt)
             record.update(quiet=quiet, load_before=load_before, load_after=os.getloadavg()[0])
-            log(f"{topology} round {round_} {arm} attempt {attempt}: foreign {record['foreign_cpu_s']} s, contaminated {record['contaminated']}")
+            log(f"{topology} round {round_} {arm} attempt {attempt}: foreign {record['foreign_cpu_s']} s, "
+                f"contaminated {record['contaminated']}, product failures {record['product_failures']}")
             if not rerun_due(record, attempt, reruns):
                 break
             record["rerun_cause"] = "foreign CPU over the limit"

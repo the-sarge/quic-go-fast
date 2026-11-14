@@ -127,13 +127,9 @@ class AccountingTest(unittest.TestCase):
             "toolchain": lambda r: r["server"]["result"].update(go="go1.26.11"),
             "ran reno": lambda r: r["client"]["result"]["flows"][0].update(controller="reno"),
             "scheduler": lambda r: r["client"]["result"]["flows"][0].update(scheduler="round-robin"),
-            "two live active": lambda r: r["client"]["result"]["flows"][0]["paths"][1].update(local_use="backup"),
             "multipath negotiation": lambda r: r["client"]["result"]["flows"][0].update(multipath_negotiated=False),
             "overflowed": lambda r: r["relay"]["result"]["links"][0]["forward"].update(overflow=1),
-            "path use": lambda r: r["relay"]["result"]["links"][1]["forward"].update(window_bytes=0),
-            "closed before the end": lambda r: r["client"]["result"]["flows"][0].update(close_cause="idle"),
             "series": lambda r: r["server"]["result"]["flows"]["focal-a"].update(stream_useful_bytes=1),
-            "stream errors": lambda r: r["server"]["result"].update(stream_errors=1),
             "did not join": lambda r: r["server"]["result"].update(joined=False),
             "another case": lambda r: r["relay"]["spec"].update(arm="F"),
         }
@@ -143,6 +139,33 @@ class AccountingTest(unittest.TestCase):
                 mutate(record)
                 with self.assertRaisesRegex(ValueError, message):
                     driver.check_observation(record, driver.GO_VERSION)
+
+    def test_product_outcomes_fail_a_multipath_arm_but_invalidate_a_baseline(self):
+        cases = {
+            "not two live active": lambda r, f: f["paths"][1].update(local_use="backup") if f["paths"] else f.update(close_cause="x"),
+            "carried nothing": lambda r, f: r["relay"]["result"]["links"][1]["forward"].update(window_bytes=0),
+            "closed before the end": lambda r, f: f.update(close_cause="idle"),
+            "stream errors": lambda r, f: r["server"]["result"].update(stream_errors=1),
+            "timed out": lambda r, f: r["server"]["result"]["connections"][0].update(timeout_close=True),
+            "delivered nothing": lambda r, f: r["server"]["result"]["flows"].pop("focal-a"),
+        }
+        for message, mutate in cases.items():
+            with self.subTest(message):
+                record = observation()
+                mutate(record, record["client"]["result"]["flows"][0])
+                failures = driver.check_observation(record, driver.GO_VERSION)
+                self.assertTrue(any(message in failure for failure in failures), failures)
+                baseline = observation(arm="C")
+                mutate(baseline, baseline["client"]["result"]["flows"][0])
+                with self.assertRaisesRegex(ValueError, "invalid comparator"):
+                    driver.check_observation(baseline, driver.GO_VERSION)
+        self.assertEqual([], driver.check_observation(observation(), driver.GO_VERSION))
+
+    def test_recorded_outcomes_must_match_the_evidence(self):
+        records = campaign()
+        records[0]["product_failures"] = ["invented"]
+        with self.assertRaisesRegex(ValueError, "recorded product outcomes"):
+            driver.check_accounting(records, driver.GO_VERSION)
 
     def test_single_path_arm_must_not_use_the_other_path(self):
         record = observation(arm="A")
@@ -188,6 +211,26 @@ class JudgeTest(unittest.TestCase):
         failing = driver.judge_topology("shared", keyed({}, "shared", competitor={"C": 1000, "E": 899}))
         self.assertFalse(failing["passed"])
         self.assertIn("competitor", failing["failures"][0])
+
+    def test_a_failed_E_observation_is_a_negative_result(self):
+        values = keyed({"A": 1000, "B": 900, "C": 1000, "E": 2000})
+        failed = values[("E", 1)]
+        failed["client"]["result"]["flows"][0]["close_cause"] = "idle timeout"
+        failed["product_failures"] = driver.check_observation(failed, driver.GO_VERSION)
+        verdict = driver.judge_topology("balanced", values)
+        self.assertFalse(verdict["passed"])
+        self.assertIn("E round 1 failed", verdict["failures"][0])
+        self.assertEqual({1: failed["product_failures"]}, verdict["product_failures"]["E"])
+
+    def test_competitor_starved_beside_E_is_measured_harm(self):
+        values = keyed({}, "shared")
+        for round_ in range(driver.ROUNDS):
+            record = values[("E", round_)]
+            record["server"]["result"]["flows"].pop(driver.COMPETITOR)
+            record["product_failures"] = driver.check_observation(record, driver.GO_VERSION)
+        verdict = driver.judge_topology("shared", values)
+        self.assertEqual(0.0, verdict["competitor_share_beside_E_vs_C"]["median"])
+        self.assertFalse(verdict["passed"])
 
     def test_unequal_topology_is_reported_without_a_threshold(self):
         verdict = driver.judge_topology("unequal", keyed({"E": 1}))

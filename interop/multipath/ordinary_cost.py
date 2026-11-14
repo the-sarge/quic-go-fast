@@ -538,7 +538,8 @@ def main(argv=None):
     parser.add_argument("--controller", choices=CONTROLLERS, default="reno",
                         help="every connection's controller; bbrv3 runs B5's revalidation cells")
     parser.add_argument("--revalidate-cell", action="append", choices=sorted(CELLS),
-                        help="campaign only: rerun just this affected cell of the controller's inventory; repeatable")
+                        help="campaign only: rerun just this affected cell of the Reno inventory; repeatable")
+    parser.add_argument("--cause", help="the concrete source change that affects each --revalidate-cell")
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument("--smoke-cell", choices=sorted(CELLS), help="one short diagnostic pair; never counted campaign evidence")
     modes.add_argument("--diagnostic-cell", choices=sorted(CELLS), help="one 10s/60s diagnostic pair; never counted campaign evidence")
@@ -549,8 +550,10 @@ def main(argv=None):
     cell_choice = args.smoke_cell or args.diagnostic_cell
     if args.revalidate_cell and cell_choice:
         parser.error("--revalidate-cell selects campaign cells")
-    if args.revalidate_cell and not set(args.revalidate_cell) <= set(schedule_cells(args.controller)):
-        parser.error(f"--controller {args.controller} runs only {', '.join(schedule_cells(args.controller))}")
+    if args.revalidate_cell and args.controller != "reno":
+        parser.error("--revalidate-cell reruns Reno cells; the BBR revalidation is its fixed inventory")
+    if bool(args.revalidate_cell) != bool(args.cause):
+        parser.error("--revalidate-cell and --cause go together")
     if cell_choice and cell_choice not in schedule_cells(args.controller):
         parser.error(f"--controller {args.controller} runs only {', '.join(schedule_cells(args.controller))}")
     binary = binary_identity(args.binary)
@@ -563,7 +566,7 @@ def main(argv=None):
         "kernel": platform.platform(), "uname": " ".join(platform.uname()), "go": GO_VERSION,
         "server_cpus": SERVER_CPUS, "client_cpus": CLIENT_CPUS, "fixture_cpus_and_siblings": FIXTURE_CPUS,
         "warmup_s": warmup, "window_s": WINDOW_S, "base_seed": BASE_SEED, "mode": mode, "controller": args.controller,
-        "cells": schedule_cells(args.controller, args.revalidate_cell),
+        "cells": schedule_cells(args.controller, args.revalidate_cell), "revalidation_cause": args.cause,
         "remaining_instances": args.remaining_instances, "remaining_host_seconds": args.remaining_host_seconds,
         "per_invocation_timeout_s": args.timeout_seconds, "metric_boundaries": METRIC_BOUNDARIES,
     }

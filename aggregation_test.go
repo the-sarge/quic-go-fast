@@ -43,6 +43,9 @@ const (
 	aggregationWriteBudget = 100 * time.Millisecond
 
 	aggregationObject          = 1 << 20
+	// aggregationObjectsInFlight is a flow's concurrent STREAM objects, split evenly
+	// across the arm's focal connections like the DATAGRAM load, so every arm offers
+	// the same load.
 	aggregationObjectsInFlight = 4
 	aggregationChunk           = 64 << 10
 	aggregationDatagram        = 1000
@@ -240,6 +243,7 @@ func aggregationTransport(t testing.TB, address string, granted bool) *Transport
 	require.NoError(t, err)
 	t.Cleanup(func() { socket.Close() })
 	tr := &Transport{Conn: socket, ConnectionIDLength: 4}
+	t.Cleanup(func() { tr.Close() })
 	if granted {
 		require.NoError(t, tr.ConfigureMultipathIOV1(aggregationWriteBudget))
 	}
@@ -764,6 +768,7 @@ type aggregationClientFlow struct {
 	conn     *Conn
 	label    byte
 	rate     int
+	inFlight int
 	started  atomic.Uint64
 	written  atomic.Uint64
 	offered  atomic.Uint64
@@ -891,22 +896,22 @@ func aggregationRunClient(t testing.TB, spec aggregationSpec) *aggregationClient
 		require.NoError(t, err)
 		// A newly validated path starts as backup, outside aggregation.
 		require.NoError(t, path.SetLocalUseV1("active"))
-		flows = append(flows, &aggregationClientFlow{conn: conn, label: aggregationFocalA, rate: aggregationDatagramRate})
+		flows = append(flows, &aggregationClientFlow{conn: conn, label: aggregationFocalA, rate: aggregationDatagramRate, inFlight: aggregationObjectsInFlight})
 	case arm.Paths == "ab":
 		flows = append(flows,
-			&aggregationClientFlow{conn: aggregationDial(t, ta, spec.FrontA, aggregationConfig(t, arm.Controller, false)), label: aggregationFocalA, rate: aggregationDatagramRate / 2},
-			&aggregationClientFlow{conn: aggregationDial(t, tb, spec.FrontB, aggregationConfig(t, arm.Controller, false)), label: aggregationFocalB, rate: aggregationDatagramRate / 2})
+			&aggregationClientFlow{conn: aggregationDial(t, ta, spec.FrontA, aggregationConfig(t, arm.Controller, false)), label: aggregationFocalA, rate: aggregationDatagramRate / 2, inFlight: aggregationObjectsInFlight / 2},
+			&aggregationClientFlow{conn: aggregationDial(t, tb, spec.FrontB, aggregationConfig(t, arm.Controller, false)), label: aggregationFocalB, rate: aggregationDatagramRate / 2, inFlight: aggregationObjectsInFlight / 2})
 	case arm.Paths == "a":
-		flows = append(flows, &aggregationClientFlow{conn: aggregationDial(t, ta, spec.FrontA, aggregationConfig(t, arm.Controller, false)), label: aggregationFocalA, rate: aggregationDatagramRate})
+		flows = append(flows, &aggregationClientFlow{conn: aggregationDial(t, ta, spec.FrontA, aggregationConfig(t, arm.Controller, false)), label: aggregationFocalA, rate: aggregationDatagramRate, inFlight: aggregationObjectsInFlight})
 	case arm.Paths == "b":
-		flows = append(flows, &aggregationClientFlow{conn: aggregationDial(t, tb, spec.FrontB, aggregationConfig(t, arm.Controller, false)), label: aggregationFocalA, rate: aggregationDatagramRate})
+		flows = append(flows, &aggregationClientFlow{conn: aggregationDial(t, tb, spec.FrontB, aggregationConfig(t, arm.Controller, false)), label: aggregationFocalA, rate: aggregationDatagramRate, inFlight: aggregationObjectsInFlight})
 	default:
 		t.Fatalf("arm %q has no paths", spec.Arm)
 	}
 	if topology.Competing {
 		tc := aggregationTransport(t, "127.0.0.1:0", false)
 		transports = append(transports, tc)
-		flows = append(flows, &aggregationClientFlow{conn: aggregationDial(t, tc, spec.FrontCompetitor, aggregationConfig(t, "reno", false)), label: aggregationCompetitor})
+		flows = append(flows, &aggregationClientFlow{conn: aggregationDial(t, tc, spec.FrontCompetitor, aggregationConfig(t, "reno", false)), label: aggregationCompetitor, inFlight: aggregationObjectsInFlight})
 	}
 	for _, f := range flows {
 		f.Label = aggregationLabelName(f.label)
@@ -925,7 +930,7 @@ func aggregationRunClient(t testing.TB, spec aggregationSpec) *aggregationClient
 	}
 	var wait sync.WaitGroup
 	for _, f := range flows {
-		for range aggregationObjectsInFlight {
+		for range f.inFlight {
 			wait.Add(1)
 			go func() {
 				defer wait.Done()
