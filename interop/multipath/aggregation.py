@@ -123,9 +123,10 @@ def check_observation(record, go_version, window_s=WINDOW_S):
     used = {name: link(record, name)["forward"]["window_bytes"] > 0 for name in ("a", "b")}
     if any(used[name] for name in ("a", "b") if name not in claim["paths"]):
         raise ValueError(f"{where}: relay path use {used} does not match the arm")
-    for name in claim["paths"]:
-        if not used[name]:
-            outcome(f"path {name} carried nothing in the window")
+    if arm in BASELINE_ARMS:
+        for name in claim["paths"]:
+            if not used[name]:
+                outcome(f"path {name} carried nothing in the window")
     focal_labels = list(FOCAL) if arm == "C" else [FOCAL[0]]
     labels = focal_labels + ([COMPETITOR] if competing else [])
     if sorted(flow["label"] for flow in client["flows"]) != sorted(labels):
@@ -181,6 +182,9 @@ def check_accounting(records, go_version):
 
 
 def spread(values):
+    """Median and range of paired rounds; undefined when any round's ratio is."""
+    if any(value is None for value in values):
+        return {"median": None, "range": None, "rounds": values, "undefined": "a round's denominator delivered nothing"}
     return {"median": statistics.median(values), "range": [min(values), max(values)], "rounds": values}
 
 
@@ -217,7 +221,13 @@ def observation_metrics(record):
 
 
 def ratios(keyed, numerator, denominator, value):
-    return [value(keyed[(numerator, round_)]) / value(keyed[(denominator, round_)]) for round_ in range(ROUNDS)]
+    """Round-paired ratios. A zero denominator, possible only for a multipath arm's
+    recorded failure, leaves that round's ratio undefined (None)."""
+    out = []
+    for round_ in range(ROUNDS):
+        below = value(keyed[(denominator, round_)])
+        out.append(value(keyed[(numerator, round_)]) / below if below else None)
+    return out
 
 
 def judge_topology(topology, keyed):
@@ -238,10 +248,10 @@ def judge_topology(topology, keyed):
               if keyed[(arm, round_)].get("product_failures")}
         for arm in ("D", "E", "F")}
     failures = []
-    if topology in ("balanced", "shared"):
-        # A failed E observation fails the claim it measures; it is a result, not missing evidence.
-        for round_, reasons in verdict["product_failures"]["E"].items():
-            failures.append(f"E round {round_} failed: {'; '.join(reasons)}")
+    # A failed E observation fails the support claim in every topology, the unequal
+    # one included; it is a result, not missing evidence.
+    for round_, reasons in verdict["product_failures"]["E"].items():
+        failures.append(f"E round {round_} failed: {'; '.join(reasons)}")
     if topology == "balanced":
         gain = spread(ratios(keyed, "E", best, useful_bytes))
         independent = spread(ratios(keyed, "E", "C", useful_bytes))

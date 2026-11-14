@@ -143,7 +143,6 @@ class AccountingTest(unittest.TestCase):
     def test_product_outcomes_fail_a_multipath_arm_but_invalidate_a_baseline(self):
         cases = {
             "not two live active": lambda r, f: f["paths"][1].update(local_use="backup") if f["paths"] else f.update(close_cause="x"),
-            "carried nothing": lambda r, f: r["relay"]["result"]["links"][1]["forward"].update(window_bytes=0),
             "closed before the end": lambda r, f: f.update(close_cause="idle"),
             "stream errors": lambda r, f: r["server"]["result"].update(stream_errors=1),
             "timed out": lambda r, f: r["server"]["result"]["connections"][0].update(timeout_close=True),
@@ -160,6 +159,16 @@ class AccountingTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "invalid comparator"):
                     driver.check_observation(baseline, driver.GO_VERSION)
         self.assertEqual([], driver.check_observation(observation(), driver.GO_VERSION))
+
+    def test_an_unused_path_is_reported_not_failed(self):
+        record = observation()
+        record["relay"]["result"]["links"][1]["forward"]["window_bytes"] = 0
+        self.assertEqual([], driver.check_observation(record, driver.GO_VERSION))
+        self.assertEqual({"a": 10, "b": 0}, driver.observation_metrics(record)["path_window_bytes"])
+        baseline = observation(arm="C")
+        baseline["relay"]["result"]["links"][1]["forward"]["window_bytes"] = 0
+        with self.assertRaisesRegex(ValueError, "carried nothing"):
+            driver.check_observation(baseline, driver.GO_VERSION)
 
     def test_recorded_outcomes_must_match_the_evidence(self):
         records = campaign()
@@ -231,6 +240,40 @@ class JudgeTest(unittest.TestCase):
         verdict = driver.judge_topology("shared", values)
         self.assertEqual(0.0, verdict["competitor_share_beside_E_vs_C"]["median"])
         self.assertFalse(verdict["passed"])
+
+    def test_unequal_E_failure_denies_support_without_a_threshold(self):
+        records = campaign()
+        for record in records:
+            if record["arm"] == "E" and record["topology"] == "balanced":
+                record["server"]["result"]["flows"]["focal-a"]["stream_series"] = [2000] * driver.WINDOW_S
+                record["server"]["result"]["flows"]["focal-a"]["stream_useful_bytes"] = 2000 * driver.WINDOW_S
+            if record["arm"] == "E" and record["topology"] == "unequal" and record["round"] == 2:
+                record["client"]["result"]["flows"][0]["timeout_close"] = True
+                record["server"]["result"]["flows"].pop("focal-a")
+            record["product_failures"] = driver.check_observation(record, driver.GO_VERSION)
+        summary = driver.summarize(records, driver.GO_VERSION)
+        self.assertEqual("negative", summary["support"])
+        self.assertEqual(["unequal"], summary["failed_topologies"])
+        unequal = summary["topologies"]["unequal"]
+        self.assertFalse(unequal["thresholded"])
+        self.assertIn("E round 2 failed", unequal["failures"][0])
+
+    def test_zero_delivery_F_leaves_its_ratios_undefined(self):
+        records = campaign()
+        for record in records:
+            if record["arm"] == "F" and record["topology"] == "balanced" and record["round"] == 1:
+                record["server"]["result"]["flows"].pop("focal-a")
+                record["client"]["result"]["flows"][0]["datagrams_offered"] = 1000
+            record["product_failures"] = driver.check_observation(record, driver.GO_VERSION)
+        summary = driver.summarize(records, driver.GO_VERSION)
+        balanced = summary["topologies"]["balanced"]
+        e_vs_f = balanced["informational"]["E_vs_F"]
+        self.assertIsNone(e_vs_f["median"])
+        self.assertIsNone(e_vs_f["rounds"][1])
+        self.assertEqual(3, len(e_vs_f["rounds"]))
+        self.assertEqual([1], list(balanced["product_failures"]["F"]))
+        self.assertEqual(1.0, balanced["share_of_independent"]["median"] * 2)
+        json.dumps(summary, allow_nan=False)
 
     def test_unequal_topology_is_reported_without_a_threshold(self):
         verdict = driver.judge_topology("unequal", keyed({"E": 1}))
