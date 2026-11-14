@@ -1,0 +1,6 @@
+{"scenario": "useful-transfer", "role": "client", "exit": 0, "occupied_s": 4.594620581}
+{"scenario": "useful-transfer", "role": "server", "exit": 0, "occupied_s": 2.067902261}
+{"scenario": "abandon-reopen-late-feedback", "role": "client", "exit": 0, "occupied_s": 2.221091367}
+{"scenario": "abandon-reopen-late-feedback", "role": "server", "exit": 0, "occupied_s": 2.279899481}
+{"scenario": "same-id-migration-rebinding", "role": "client", "exit": 0, "occupied_s": 2.161865188}
+{"scenario": "same-id-migration-rebinding", "role": "server", "exit": 0, "occupied_s": 2.110952148}

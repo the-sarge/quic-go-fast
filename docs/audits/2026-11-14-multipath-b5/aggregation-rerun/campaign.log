@@ -1,0 +1,33 @@
+04:44:46 balanced round 0 A attempt 0: foreign 0.3424821910000002 s, contaminated False, product failures []
+04:46:05 balanced round 0 B attempt 0: foreign 0.2153043849999996 s, contaminated False, product failures []
+04:47:24 balanced round 0 C attempt 0: foreign 0.21857193699999833 s, contaminated False, product failures []
+04:48:43 balanced round 0 D attempt 0: foreign 0.32755737899999815 s, contaminated False, product failures []
+04:50:02 balanced round 0 E attempt 0: foreign 34.22112381299999 s, contaminated True, product failures []
+04:50:04 host busy: named process True, fixture share 0.501
+04:50:19 host busy: named process True, fixture share 0.333
+04:50:34 host busy: named process True, fixture share 0.270
+04:50:49 host busy: named process True, fixture share 0.215
+04:51:04 host busy: named process True, fixture share 0.226
+04:51:19 host busy: named process True, fixture share 0.256
+04:51:34 host busy: named process True, fixture share 0.237
+04:51:49 host busy: named process True, fixture share 0.573
+04:52:04 host busy: named process True, fixture share 0.838
+04:52:19 host busy: named process True, fixture share 0.187
+04:52:34 host busy: named process True, fixture share 0.106
+04:52:49 host busy: named process True, fixture share 0.277
+04:53:04 host busy: named process True, fixture share 0.183
+04:53:19 host busy: named process True, fixture share 0.169
+04:53:34 host busy: named process True, fixture share 0.111
+04:53:49 host busy: named process True, fixture share 0.109
+04:54:04 host busy: named process True, fixture share 0.135
+04:54:19 host busy: named process True, fixture share 0.396
+04:54:34 host busy: named process True, fixture share 0.367
+04:54:49 host busy: named process True, fixture share 0.852
+04:55:04 host busy: named process True, fixture share 0.238
+04:55:19 host busy: named process True, fixture share 0.055
+04:55:34 host busy: named process True, fixture share 0.057
+04:55:49 host busy: named process True, fixture share 0.079
+04:56:04 host busy: named process True, fixture share 0.131
+04:56:19 host busy: named process True, fixture share 0.077
+04:57:51 balanced round 0 E attempt 1: foreign 36.579483577000005 s, contaminated True, product failures []
+04:57:51 done: mode campaign, support invalid, charged 6

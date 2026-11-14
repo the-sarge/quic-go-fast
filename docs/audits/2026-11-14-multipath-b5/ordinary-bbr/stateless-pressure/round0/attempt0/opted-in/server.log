@@ -1,0 +1,5 @@
+Kernel Version: 7.0
+
+=== RUN   TestOrdinaryCostRole
+--- PASS: TestOrdinaryCostRole (76.99s)
+PASS

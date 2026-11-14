@@ -1,0 +1,24 @@
+Waiting for packets.
+connection ready
+command E path 0
+path available 1
+command H path 1
+held path-one packet 55 bytes
+command E path 1
+command Q path 1
+command G path 2
+tuple gate armed replacement port 58367 capacity 64
+path deleted 1
+command g path 2
+tuple gate releasing 1 datagrams
+tuple gate drained 1 datagrams; API statuses zero
+path available 2
+command E path 2
+command R path 1
+replayed path-one packet 55 bytes
+command E path 2
+closed local 0 remote 0
+driver closed 1 failed 0 mtu-drops 0
+closed local 0 remote 0
+path deleted 2
+path deleted 0

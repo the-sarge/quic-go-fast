@@ -1,0 +1,5 @@
+Kernel Version: 7.0
+
+=== RUN   TestAggregationRole
+--- PASS: TestAggregationRole (75.99s)
+PASS

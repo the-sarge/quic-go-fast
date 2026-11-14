@@ -1,0 +1,1845 @@
+{
+  "instances_charged": 6,
+  "host_seconds_charged": 462.18378346879035,
+  "remaining_instances_supplied": 66,
+  "remaining_host_seconds_supplied": 25596.423430185143,
+  "per_invocation_timeout_s": 120.0,
+  "attempts": [
+    {
+      "topology": "balanced",
+      "round": 0,
+      "arm": "A",
+      "seed": 1044,
+      "candidate": "4e80d3cf4fa7454ffc3e2a46655afd5f81f86313",
+      "mode": "campaign",
+      "attempt": 0,
+      "status": "succeeded",
+      "occupied_s": 77.01534028444439,
+      "started_at_unix_ns": 1794628372017257271,
+      "process_cpu_s": {
+        "relay": 2.4168659999999997,
+        "server": 3.4221770000000005,
+        "client": 3.73896
+      },
+      "exit": {
+        "relay": 0,
+        "server": 0,
+        "client": 0
+      },
+      "foreign_cpu_s": 0.4172341149999994,
+      "contaminated": false,
+      "relay": {
+        "result": {
+          "go": "go1.27.4",
+          "topology": {
+            "queues": [
+              {
+                "rate_bps": 50000000,
+                "limit_bytes": 125000
+              },
+              {
+                "rate_bps": 50000000,
+                "limit_bytes": 125000
+              }
+            ],
+            "a": {
+              "queue": 0,
+              "delay_ns": 10000000
+            },
+            "b": {
+              "queue": 1,
+              "delay_ns": 10000000
+            },
+            "competitor": {
+              "queue": 0,
+              "delay_ns": 0
+            },
+            "competing": false
+          },
+          "links": [
+            {
+              "name": "a",
+              "forward": {
+                "received": 291202,
+                "dropped": 344,
+                "overflow": 0,
+                "delivered": 290858,
+                "delivered_bytes": 419032023,
+                "window_bytes": 359346099,
+                "send_errors": 0,
+                "late_over_1ms": 748,
+                "max_late_ms": 1.228564
+              },
+              "reverse": {
+                "received": 73869,
+                "dropped": 0,
+                "overflow": 0,
+                "delivered": 73869,
+                "delivered_bytes": 2396205,
+                "window_bytes": 2052794,
+                "send_errors": 0,
+                "late_over_1ms": 165,
+                "max_late_ms": 1.377913
+              }
+            },
+            {
+              "name": "b",
+              "forward": {
+                "received": 0,
+                "dropped": 0,
+                "overflow": 0,
+                "delivered": 0,
+                "delivered_bytes": 0,
+                "window_bytes": 0,
+                "send_errors": 0,
+                "late_over_1ms": 0,
+                "max_late_ms": 0
+              },
+              "reverse": {
+                "received": 0,
+                "dropped": 0,
+                "overflow": 0,
+                "delivered": 0,
+                "delivered_bytes": 0,
+                "window_bytes": 0,
+                "send_errors": 0,
+                "late_over_1ms": 0,
+                "max_late_ms": 0
+              }
+            }
+          ]
+        },
+        "role": "relay",
+        "spec": {
+          "role": "relay",
+          "topology": "balanced",
+          "arm": "A",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt0/A/relay.json",
+          "start_at_unix_ns": 1794628377018041743,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "server": {
+        "result": {
+          "go": "go1.27.4",
+          "granted": true,
+          "joined": true,
+          "flows": {
+            "focal-a": {
+              "stream_series": [
+                5730986,
+                5708667,
+                5722767,
+                5724727,
+                5755234,
+                5735971,
+                5751565,
+                5706876,
+                5723158,
+                5748469,
+                5039331,
+                5756473,
+                5732389,
+                5685116,
+                5716156,
+                5301339,
+                5459463,
+                5756682,
+                5731578,
+                5727675,
+                5665082,
+                5034053,
+                5754920,
+                5701919,
+                5718905,
+                5723303,
+                5030001,
+                5753617,
+                5747289,
+                5753655,
+                5724909,
+                5027391,
+                5755110,
+                5735104,
+                5727278,
+                5744522,
+                5022411,
+                5748073,
+                5748352,
+                5749813,
+                5719419,
+                5717512,
+                5661294,
+                5249425,
+                5461123,
+                5728847,
+                5677742,
+                5748851,
+                5746247,
+                5032492,
+                5595847,
+                5905702,
+                5737315,
+                5706153,
+                5047423,
+                5749469,
+                5679611,
+                5707652,
+                5753316,
+                5043371
+              ],
+              "stream_useful_bytes": 336749140,
+              "objects_completed": 320,
+              "object_completion": {
+                "count": 320,
+                "p50_ms": 748.787505,
+                "p99_ms": 887.904854,
+                "max_ms": 897.089712
+              },
+              "datagrams_useful": 14999,
+              "datagram_useful_bytes": 14999000,
+              "datagram_duplicates": 0,
+              "datagram_latency": {
+                "count": 14999,
+                "p50_ms": 12.200035,
+                "p99_ms": 29.685554,
+                "max_ms": 42.211481
+              }
+            }
+          },
+          "connections": [
+            {
+              "labels": [
+                "focal-a"
+              ],
+              "multipath_negotiated": false,
+              "close_cause": "Application error 0x0 (remote)",
+              "timeout_close": false
+            }
+          ],
+          "stream_errors": 0
+        },
+        "role": "server",
+        "spec": {
+          "role": "server",
+          "topology": "balanced",
+          "arm": "A",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt0/A/server.json",
+          "start_at_unix_ns": 1794628377018041743,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "client": {
+        "result": {
+          "go": "go1.27.4",
+          "flows": [
+            {
+              "label": "focal-a",
+              "controller": "bbrv3",
+              "multipath_negotiated": false,
+              "scheduler": "",
+              "paths": null,
+              "objects_started": 376,
+              "stream_bytes_written": 392679407,
+              "datagrams_offered": 15000,
+              "datagram_send_errors": 0,
+              "packets_sent": 291203,
+              "packets_lost": 0,
+              "close_cause": "",
+              "timeout_close": false
+            }
+          ]
+        },
+        "role": "client",
+        "spec": {
+          "role": "client",
+          "topology": "balanced",
+          "arm": "A",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt0/A/client.json",
+          "start_at_unix_ns": 1794628377018041743,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "product_failures": [],
+      "quiet": {
+        "waited_s": 0.0,
+        "fixture_busy_share": 0.000827981,
+        "named_process_present": false
+      },
+      "load_before": 3.0634765625,
+      "load_after": 0.8525390625
+    },
+    {
+      "topology": "balanced",
+      "round": 0,
+      "arm": "B",
+      "seed": 1044,
+      "candidate": "4e80d3cf4fa7454ffc3e2a46655afd5f81f86313",
+      "mode": "campaign",
+      "attempt": 0,
+      "status": "succeeded",
+      "occupied_s": 77.01678376086056,
+      "started_at_unix_ns": 1794628451045169162,
+      "process_cpu_s": {
+        "relay": 2.4234709999999993,
+        "server": 3.483058999999999,
+        "client": 3.7523979999999995
+      },
+      "exit": {
+        "relay": 0,
+        "server": 0,
+        "client": 0
+      },
+      "foreign_cpu_s": 0.34903671300000205,
+      "contaminated": false,
+      "relay": {
+        "result": {
+          "go": "go1.27.4",
+          "topology": {
+            "queues": [
+              {
+                "rate_bps": 50000000,
+                "limit_bytes": 125000
+              },
+              {
+                "rate_bps": 50000000,
+                "limit_bytes": 125000
+              }
+            ],
+            "a": {
+              "queue": 0,
+              "delay_ns": 10000000
+            },
+            "b": {
+              "queue": 1,
+              "delay_ns": 10000000
+            },
+            "competitor": {
+              "queue": 0,
+              "delay_ns": 0
+            },
+            "competing": false
+          },
+          "links": [
+            {
+              "name": "a",
+              "forward": {
+                "received": 0,
+                "dropped": 0,
+                "overflow": 0,
+                "delivered": 0,
+                "delivered_bytes": 0,
+                "window_bytes": 0,
+                "send_errors": 0,
+                "late_over_1ms": 0,
+                "max_late_ms": 0
+              },
+              "reverse": {
+                "received": 0,
+                "dropped": 0,
+                "overflow": 0,
+                "delivered": 0,
+                "delivered_bytes": 0,
+                "window_bytes": 0,
+                "send_errors": 0,
+                "late_over_1ms": 0,
+                "max_late_ms": 0
+              }
+            },
+            {
+              "name": "b",
+              "forward": {
+                "received": 291547,
+                "dropped": 319,
+                "overflow": 0,
+                "delivered": 291228,
+                "delivered_bytes": 419558575,
+                "window_bytes": 359733972,
+                "send_errors": 0,
+                "late_over_1ms": 646,
+                "max_late_ms": 1.082766
+              },
+              "reverse": {
+                "received": 74052,
+                "dropped": 0,
+                "overflow": 0,
+                "delivered": 74052,
+                "delivered_bytes": 2400255,
+                "window_bytes": 2055758,
+                "send_errors": 0,
+                "late_over_1ms": 192,
+                "max_late_ms": 1.096344
+              }
+            }
+          ]
+        },
+        "role": "relay",
+        "spec": {
+          "role": "relay",
+          "topology": "balanced",
+          "arm": "B",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt0/B/relay.json",
+          "start_at_unix_ns": 1794628456045958823,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "server": {
+        "result": {
+          "go": "go1.27.4",
+          "granted": true,
+          "joined": true,
+          "flows": {
+            "focal-a": {
+              "stream_series": [
+                5052962,
+                5754121,
+                5693586,
+                5692217,
+                5683866,
+                5037495,
+                5759043,
+                5739547,
+                5757484,
+                5742147,
+                5061054,
+                5741720,
+                5746717,
+                5753699,
+                5736196,
+                5535016,
+                5943978,
+                5742526,
+                5753499,
+                5741452,
+                5052672,
+                5752607,
+                5729968,
+                5714604,
+                5658953,
+                5035785,
+                5741265,
+                5735704,
+                5739849,
+                5653112,
+                4985843,
+                5752816,
+                5731751,
+                5695208,
+                5746106,
+                5747292,
+                5015209,
+                5742327,
+                5752747,
+                5745803,
+                5753239,
+                5046753,
+                5751971,
+                5741129,
+                5755919,
+                5731307,
+                5736432,
+                5689305,
+                5739622,
+                5754188,
+                5039126,
+                5752152,
+                5729976,
+                5733759,
+                5745623,
+                5041004,
+                5752221,
+                5745185,
+                5574066,
+                5919154
+              ],
+              "stream_useful_bytes": 337130077,
+              "objects_completed": 320,
+              "object_completion": {
+                "count": 320,
+                "p50_ms": 747.918395,
+                "p99_ms": 884.961041,
+                "max_ms": 892.590763
+              },
+              "datagrams_useful": 14999,
+              "datagram_useful_bytes": 14999000,
+              "datagram_duplicates": 0,
+              "datagram_latency": {
+                "count": 14999,
+                "p50_ms": 12.238056,
+                "p99_ms": 29.546353,
+                "max_ms": 36.790252
+              }
+            }
+          },
+          "connections": [
+            {
+              "labels": [
+                "focal-a"
+              ],
+              "multipath_negotiated": false,
+              "close_cause": "Application error 0x0 (remote)",
+              "timeout_close": false
+            }
+          ],
+          "stream_errors": 0
+        },
+        "role": "server",
+        "spec": {
+          "role": "server",
+          "topology": "balanced",
+          "arm": "B",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt0/B/server.json",
+          "start_at_unix_ns": 1794628456045958823,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "client": {
+        "result": {
+          "go": "go1.27.4",
+          "flows": [
+            {
+              "label": "focal-a",
+              "controller": "bbrv3",
+              "multipath_negotiated": false,
+              "scheduler": "",
+              "paths": null,
+              "objects_started": 376,
+              "stream_bytes_written": 393196132,
+              "datagrams_offered": 15000,
+              "datagram_send_errors": 0,
+              "packets_sent": 291548,
+              "packets_lost": 0,
+              "close_cause": "",
+              "timeout_close": false
+            }
+          ]
+        },
+        "role": "client",
+        "spec": {
+          "role": "client",
+          "topology": "balanced",
+          "arm": "B",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt0/B/client.json",
+          "start_at_unix_ns": 1794628456045958823,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "product_failures": [],
+      "quiet": {
+        "waited_s": 0.0,
+        "fixture_busy_share": 0.0003348255,
+        "named_process_present": false
+      },
+      "load_before": 0.8525390625,
+      "load_after": 0.330078125
+    },
+    {
+      "topology": "balanced",
+      "round": 0,
+      "arm": "C",
+      "seed": 1044,
+      "candidate": "4e80d3cf4fa7454ffc3e2a46655afd5f81f86313",
+      "mode": "campaign",
+      "attempt": 0,
+      "status": "succeeded",
+      "occupied_s": 77.01834294572473,
+      "started_at_unix_ns": 1794628530074454912,
+      "process_cpu_s": {
+        "relay": 3.8713630000000006,
+        "server": 5.102428999999995,
+        "client": 6.134573000000001
+      },
+      "exit": {
+        "relay": 0,
+        "server": 0,
+        "client": 0
+      },
+      "foreign_cpu_s": 1.3066821460000018,
+      "contaminated": false,
+      "relay": {
+        "result": {
+          "go": "go1.27.4",
+          "topology": {
+            "queues": [
+              {
+                "rate_bps": 50000000,
+                "limit_bytes": 125000
+              },
+              {
+                "rate_bps": 50000000,
+                "limit_bytes": 125000
+              }
+            ],
+            "a": {
+              "queue": 0,
+              "delay_ns": 10000000
+            },
+            "b": {
+              "queue": 1,
+              "delay_ns": 10000000
+            },
+            "competitor": {
+              "queue": 0,
+              "delay_ns": 0
+            },
+            "competing": false
+          },
+          "links": [
+            {
+              "name": "a",
+              "forward": {
+                "received": 294494,
+                "dropped": 417,
+                "overflow": 0,
+                "delivered": 294077,
+                "delivered_bytes": 423435846,
+                "window_bytes": 362762279,
+                "send_errors": 0,
+                "late_over_1ms": 115,
+                "max_late_ms": 3.352256
+              },
+              "reverse": {
+                "received": 76156,
+                "dropped": 0,
+                "overflow": 0,
+                "delivered": 76156,
+                "delivered_bytes": 2479884,
+                "window_bytes": 2126550,
+                "send_errors": 0,
+                "late_over_1ms": 43,
+                "max_late_ms": 2.918994
+              }
+            },
+            {
+              "name": "b",
+              "forward": {
+                "received": 293422,
+                "dropped": 395,
+                "overflow": 0,
+                "delivered": 293027,
+                "delivered_bytes": 421974031,
+                "window_bytes": 362104901,
+                "send_errors": 0,
+                "late_over_1ms": 115,
+                "max_late_ms": 3.63639
+              },
+              "reverse": {
+                "received": 75940,
+                "dropped": 0,
+                "overflow": 0,
+                "delivered": 75940,
+                "delivered_bytes": 2470625,
+                "window_bytes": 2119378,
+                "send_errors": 0,
+                "late_over_1ms": 53,
+                "max_late_ms": 3.090666
+              }
+            }
+          ]
+        },
+        "role": "relay",
+        "spec": {
+          "role": "relay",
+          "topology": "balanced",
+          "arm": "C",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt0/C/relay.json",
+          "start_at_unix_ns": 1794628535075350132,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "server": {
+        "result": {
+          "go": "go1.27.4",
+          "granted": true,
+          "joined": true,
+          "flows": {
+            "focal-a": {
+              "stream_series": [
+                5178631,
+                5877762,
+                5865966,
+                5862223,
+                5836646,
+                5832190,
+                5839610,
+                5879233,
+                5868622,
+                5205643,
+                5878324,
+                5871975,
+                5833582,
+                5856814,
+                5858440,
+                5843894,
+                5858349,
+                5873827,
+                5843198,
+                5855373,
+                5850787,
+                5852031,
+                5824965,
+                5707315,
+                5851348,
+                5854484,
+                5170596,
+                5876969,
+                5856602,
+                5832690,
+                5849684,
+                5865908,
+                5849339,
+                5851214,
+                5860684,
+                5829012,
+                5179523,
+                5878727,
+                5866124,
+                5860045,
+                5847089,
+                5860407,
+                5857287,
+                5822265,
+                5838801,
+                5847594,
+                5845613,
+                5841913,
+                5177250,
+                5882665,
+                5832404,
+                5729742,
+                5937003,
+                5852123,
+                5860370,
+                5851516,
+                5856637,
+                5851108,
+                5811796,
+                5821525
+              ],
+              "stream_useful_bytes": 347613457,
+              "objects_completed": 332,
+              "object_completion": {
+                "count": 332,
+                "p50_ms": 371.658271,
+                "p99_ms": 486.051041,
+                "max_ms": 501.813899
+              },
+              "datagrams_useful": 7500,
+              "datagram_useful_bytes": 7500000,
+              "datagram_duplicates": 0,
+              "datagram_latency": {
+                "count": 7500,
+                "p50_ms": 11.368074,
+                "p99_ms": 29.794699,
+                "max_ms": 35.830431
+              }
+            },
+            "focal-b": {
+              "stream_series": [
+                5835227,
+                5836364,
+                5836979,
+                5857256,
+                5848409,
+                5779194,
+                5264582,
+                5817634,
+                5874160,
+                5873618,
+                5863336,
+                5845098,
+                5836193,
+                5849676,
+                5840944,
+                5849199,
+                5176220,
+                5876468,
+                5858678,
+                5859555,
+                5838954,
+                5154579,
+                5854319,
+                5851407,
+                5766252,
+                5927628,
+                5842713,
+                5819808,
+                5835429,
+                5834258,
+                5833758,
+                5854031,
+                5848753,
+                5154111,
+                5877085,
+                5873726,
+                5873694,
+                5833042,
+                5823115,
+                5849895,
+                5851166,
+                5865690,
+                5848186,
+                5869155,
+                5874626,
+                5846114,
+                5851974,
+                5830256,
+                5199740,
+                5754215,
+                5928277,
+                5833641,
+                5852199,
+                5855906,
+                5860616,
+                5844524,
+                5857652,
+                5174875,
+                5877857,
+                5867951
+              ],
+              "stream_useful_bytes": 346969967,
+              "objects_completed": 330,
+              "object_completion": {
+                "count": 330,
+                "p50_ms": 372.236516,
+                "p99_ms": 487.51647,
+                "max_ms": 490.621935
+              },
+              "datagrams_useful": 7500,
+              "datagram_useful_bytes": 7500000,
+              "datagram_duplicates": 0,
+              "datagram_latency": {
+                "count": 7500,
+                "p50_ms": 11.316247,
+                "p99_ms": 29.807844,
+                "max_ms": 30.980493
+              }
+            }
+          },
+          "connections": [
+            {
+              "labels": [
+                "focal-a"
+              ],
+              "multipath_negotiated": false,
+              "close_cause": "Application error 0x0 (remote)",
+              "timeout_close": false
+            },
+            {
+              "labels": [
+                "focal-b"
+              ],
+              "multipath_negotiated": false,
+              "close_cause": "Application error 0x0 (remote)",
+              "timeout_close": false
+            }
+          ],
+          "stream_errors": 0
+        },
+        "role": "server",
+        "spec": {
+          "role": "server",
+          "topology": "balanced",
+          "arm": "C",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt0/C/server.json",
+          "start_at_unix_ns": 1794628535075350132,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "client": {
+        "result": {
+          "go": "go1.27.4",
+          "flows": [
+            {
+              "label": "focal-a",
+              "controller": "bbrv3",
+              "multipath_negotiated": false,
+              "scheduler": "",
+              "paths": null,
+              "objects_started": 388,
+              "stream_bytes_written": 405762677,
+              "datagrams_offered": 7500,
+              "datagram_send_errors": 0,
+              "packets_sent": 294495,
+              "packets_lost": 0,
+              "close_cause": "",
+              "timeout_close": false
+            },
+            {
+              "label": "focal-b",
+              "controller": "bbrv3",
+              "multipath_negotiated": false,
+              "scheduler": "",
+              "paths": null,
+              "objects_started": 386,
+              "stream_bytes_written": 404330458,
+              "datagrams_offered": 7500,
+              "datagram_send_errors": 0,
+              "packets_sent": 293423,
+              "packets_lost": 0,
+              "close_cause": "",
+              "timeout_close": false
+            }
+          ]
+        },
+        "role": "client",
+        "spec": {
+          "role": "client",
+          "topology": "balanced",
+          "arm": "C",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt0/C/client.json",
+          "start_at_unix_ns": 1794628535075350132,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "product_failures": [],
+      "quiet": {
+        "waited_s": 0.0,
+        "fixture_busy_share": 0.001585146,
+        "named_process_present": false
+      },
+      "load_before": 0.330078125,
+      "load_after": 0.23681640625
+    },
+    {
+      "topology": "balanced",
+      "round": 0,
+      "arm": "D",
+      "seed": 1044,
+      "candidate": "4e80d3cf4fa7454ffc3e2a46655afd5f81f86313",
+      "mode": "campaign",
+      "attempt": 0,
+      "status": "succeeded",
+      "occupied_s": 77.06241362169385,
+      "started_at_unix_ns": 1794628609105644371,
+      "process_cpu_s": {
+        "relay": 4.293436999999999,
+        "server": 6.700273000000003,
+        "client": 8.220955
+      },
+      "exit": {
+        "relay": 0,
+        "server": 0,
+        "client": 0
+      },
+      "foreign_cpu_s": 0.3635441629999967,
+      "contaminated": false,
+      "relay": {
+        "result": {
+          "go": "go1.27.4",
+          "topology": {
+            "queues": [
+              {
+                "rate_bps": 50000000,
+                "limit_bytes": 125000
+              },
+              {
+                "rate_bps": 50000000,
+                "limit_bytes": 125000
+              }
+            ],
+            "a": {
+              "queue": 0,
+              "delay_ns": 10000000
+            },
+            "b": {
+              "queue": 1,
+              "delay_ns": 10000000
+            },
+            "competitor": {
+              "queue": 0,
+              "delay_ns": 0
+            },
+            "competing": false
+          },
+          "links": [
+            {
+              "name": "a",
+              "forward": {
+                "received": 298042,
+                "dropped": 189,
+                "overflow": 0,
+                "delivered": 297853,
+                "delivered_bytes": 429091629,
+                "window_bytes": 367851937,
+                "send_errors": 0,
+                "late_over_1ms": 14638,
+                "max_late_ms": 1.441304
+              },
+              "reverse": {
+                "received": 62987,
+                "dropped": 0,
+                "overflow": 0,
+                "delivered": 62987,
+                "delivered_bytes": 2025296,
+                "window_bytes": 1731308,
+                "send_errors": 0,
+                "late_over_1ms": 116,
+                "max_late_ms": 3.266074
+              }
+            },
+            {
+              "name": "b",
+              "forward": {
+                "received": 299076,
+                "dropped": 317,
+                "overflow": 0,
+                "delivered": 298759,
+                "delivered_bytes": 428952825,
+                "window_bytes": 367826859,
+                "send_errors": 0,
+                "late_over_1ms": 14741,
+                "max_late_ms": 3.96466
+              },
+              "reverse": {
+                "received": 62255,
+                "dropped": 0,
+                "overflow": 0,
+                "delivered": 62255,
+                "delivered_bytes": 2062676,
+                "window_bytes": 1767929,
+                "send_errors": 0,
+                "late_over_1ms": 120,
+                "max_late_ms": 2.898906
+              }
+            }
+          ]
+        },
+        "role": "relay",
+        "spec": {
+          "role": "relay",
+          "topology": "balanced",
+          "arm": "D",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt0/D/relay.json",
+          "start_at_unix_ns": 1794628614106592469,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "server": {
+        "result": {
+          "go": "go1.27.4",
+          "granted": true,
+          "joined": true,
+          "flows": {
+            "focal-a": {
+              "stream_series": [
+                11719054,
+                11788738,
+                11736210,
+                11762974,
+                11738823,
+                11768999,
+                11738771,
+                11727021,
+                11790898,
+                11719001,
+                11785855,
+                11734058,
+                11780210,
+                11731288,
+                11757154,
+                11764082,
+                11752326,
+                11743185,
+                11725720,
+                11787238,
+                11720296,
+                11779513,
+                11737061,
+                11768869,
+                11739932,
+                11777963,
+                11676637,
+                11819994,
+                11751324,
+                11734023,
+                11771562,
+                11731814,
+                11773374,
+                11731685,
+                11774582,
+                11727236,
+                11772557,
+                11713057,
+                11795897,
+                11752544,
+                11736902,
+                11764373,
+                11752694,
+                11749701,
+                11751055,
+                11746806,
+                11759251,
+                11752638,
+                11690063,
+                11806763,
+                11750359,
+                11761208,
+                11746392,
+                11755721,
+                11758415,
+                11752743,
+                11758045,
+                11745679,
+                11755969,
+                11757461
+              ],
+              "stream_useful_bytes": 705153763,
+              "objects_completed": 674,
+              "object_completion": {
+                "count": 674,
+                "p50_ms": 384.423557,
+                "p99_ms": 393.000135,
+                "max_ms": 410.143993
+              },
+              "datagrams_useful": 15000,
+              "datagram_useful_bytes": 15000000,
+              "datagram_duplicates": 0,
+              "datagram_latency": {
+                "count": 15000,
+                "p50_ms": 24.030777,
+                "p99_ms": 29.776926,
+                "max_ms": 31.141385
+              }
+            }
+          },
+          "connections": [
+            {
+              "labels": [
+                "focal-a"
+              ],
+              "multipath_negotiated": true,
+              "close_cause": "Application error 0x0 (remote)",
+              "timeout_close": false
+            }
+          ],
+          "stream_errors": 0
+        },
+        "role": "server",
+        "spec": {
+          "role": "server",
+          "topology": "balanced",
+          "arm": "D",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt0/D/server.json",
+          "start_at_unix_ns": 1794628614106592469,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "client": {
+        "result": {
+          "go": "go1.27.4",
+          "flows": [
+            {
+              "label": "focal-a",
+              "controller": "reno",
+              "multipath_negotiated": true,
+              "scheduler": "aggregate",
+              "paths": [
+                {
+                  "wire_id": 0,
+                  "lifecycle": "live",
+                  "local_use": "active",
+                  "primary": true
+                },
+                {
+                  "wire_id": 1,
+                  "lifecycle": "live",
+                  "local_use": "active",
+                  "primary": false
+                }
+              ],
+              "objects_started": 788,
+              "stream_bytes_written": 822446441,
+              "datagrams_offered": 15000,
+              "datagram_send_errors": 0,
+              "packets_sent": 597118,
+              "packets_lost": 506,
+              "close_cause": "",
+              "timeout_close": false
+            }
+          ]
+        },
+        "role": "client",
+        "spec": {
+          "role": "client",
+          "topology": "balanced",
+          "arm": "D",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt0/D/client.json",
+          "start_at_unix_ns": 1794628614106592469,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "product_failures": [],
+      "quiet": {
+        "waited_s": 0.0,
+        "fixture_busy_share": 0.00032872,
+        "named_process_present": false
+      },
+      "load_before": 0.2177734375,
+      "load_after": 0.84619140625
+    },
+    {
+      "topology": "balanced",
+      "round": 0,
+      "arm": "E",
+      "seed": 1044,
+      "candidate": "4e80d3cf4fa7454ffc3e2a46655afd5f81f86313",
+      "mode": "campaign",
+      "attempt": 0,
+      "status": "succeeded",
+      "occupied_s": 77.01525075361133,
+      "started_at_unix_ns": 1794628688182412508,
+      "process_cpu_s": {
+        "relay": 3.988412999999994,
+        "server": 6.766127000000008,
+        "client": 12.457139000000005
+      },
+      "exit": {
+        "relay": 0,
+        "server": 0,
+        "client": 0
+      },
+      "foreign_cpu_s": 15.498999914999995,
+      "contaminated": true,
+      "relay": {
+        "result": {
+          "go": "go1.27.4",
+          "topology": {
+            "queues": [
+              {
+                "rate_bps": 50000000,
+                "limit_bytes": 125000
+              },
+              {
+                "rate_bps": 50000000,
+                "limit_bytes": 125000
+              }
+            ],
+            "a": {
+              "queue": 0,
+              "delay_ns": 10000000
+            },
+            "b": {
+              "queue": 1,
+              "delay_ns": 10000000
+            },
+            "competitor": {
+              "queue": 0,
+              "delay_ns": 0
+            },
+            "competing": false
+          },
+          "links": [
+            {
+              "name": "a",
+              "forward": {
+                "received": 291210,
+                "dropped": 247,
+                "overflow": 0,
+                "delivered": 290963,
+                "delivered_bytes": 419153037,
+                "window_bytes": 359421107,
+                "send_errors": 0,
+                "late_over_1ms": 468,
+                "max_late_ms": 3.781495
+              },
+              "reverse": {
+                "received": 74040,
+                "dropped": 0,
+                "overflow": 0,
+                "delivered": 74040,
+                "delivered_bytes": 2388444,
+                "window_bytes": 2045999,
+                "send_errors": 0,
+                "late_over_1ms": 105,
+                "max_late_ms": 3.81272
+              }
+            },
+            {
+              "name": "b",
+              "forward": {
+                "received": 230181,
+                "dropped": 99,
+                "overflow": 0,
+                "delivered": 230082,
+                "delivered_bytes": 330300044,
+                "window_bytes": 287952760,
+                "send_errors": 0,
+                "late_over_1ms": 409,
+                "max_late_ms": 3.799499
+              },
+              "reverse": {
+                "received": 58256,
+                "dropped": 0,
+                "overflow": 0,
+                "delivered": 58256,
+                "delivered_bytes": 1923290,
+                "window_bytes": 1681534,
+                "send_errors": 0,
+                "late_over_1ms": 84,
+                "max_late_ms": 3.376261
+              }
+            }
+          ]
+        },
+        "role": "relay",
+        "spec": {
+          "role": "relay",
+          "topology": "balanced",
+          "arm": "E",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt0/E/relay.json",
+          "start_at_unix_ns": 1794628693183312947,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "server": {
+        "result": {
+          "go": "go1.27.4",
+          "granted": true,
+          "joined": true,
+          "flows": {
+            "focal-a": {
+              "stream_series": [
+                6280836,
+                11573169,
+                10560674,
+                11759506,
+                11073616,
+                10765259,
+                11334616,
+                10371807,
+                11749022,
+                10799049,
+                11718739,
+                10950556,
+                11714270,
+                8678453,
+                11552182,
+                9629319,
+                11029551,
+                11760827,
+                11614482,
+                11579605,
+                11754020,
+                10289146,
+                11751966,
+                10376573,
+                11749788,
+                11508563,
+                10567326,
+                11130692,
+                10378971,
+                5749936,
+                10336421,
+                10462279,
+                8383304,
+                8477974,
+                11550125,
+                9211777,
+                11532985,
+                9736483,
+                5751183,
+                9477534,
+                6497576,
+                11055558,
+                10804917,
+                11699765,
+                10786467,
+                11703810,
+                10868883,
+                11635474,
+                10798779,
+                10396954,
+                11661223,
+                10993967,
+                11649998,
+                10601459,
+                10564288,
+                9908461,
+                11578887,
+                5748555,
+                6580373,
+                6422666
+              ],
+              "stream_useful_bytes": 618630644,
+              "objects_completed": 588,
+              "object_completion": {
+                "count": 588,
+                "p50_ms": 375.325851,
+                "p99_ms": 750.536375,
+                "max_ms": 760.114753
+              },
+              "datagrams_useful": 15000,
+              "datagram_useful_bytes": 15000000,
+              "datagram_duplicates": 0,
+              "datagram_latency": {
+                "count": 15000,
+                "p50_ms": 12.12252,
+                "p99_ms": 26.789973,
+                "max_ms": 31.014758
+              }
+            }
+          },
+          "connections": [
+            {
+              "labels": [
+                "focal-a"
+              ],
+              "multipath_negotiated": true,
+              "close_cause": "Application error 0x0 (remote)",
+              "timeout_close": false
+            }
+          ],
+          "stream_errors": 0
+        },
+        "role": "server",
+        "spec": {
+          "role": "server",
+          "topology": "balanced",
+          "arm": "E",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt0/E/server.json",
+          "start_at_unix_ns": 1794628693183312947,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "client": {
+        "result": {
+          "go": "go1.27.4",
+          "flows": [
+            {
+              "label": "focal-a",
+              "controller": "bbrv3",
+              "multipath_negotiated": true,
+              "scheduler": "aggregate",
+              "paths": [
+                {
+                  "wire_id": 0,
+                  "lifecycle": "live",
+                  "local_use": "active",
+                  "primary": true
+                },
+                {
+                  "wire_id": 1,
+                  "lifecycle": "live",
+                  "local_use": "active",
+                  "primary": false
+                }
+              ],
+              "objects_started": 684,
+              "stream_bytes_written": 716122427,
+              "datagrams_offered": 15000,
+              "datagram_send_errors": 0,
+              "packets_sent": 521391,
+              "packets_lost": 0,
+              "close_cause": "",
+              "timeout_close": false
+            }
+          ]
+        },
+        "role": "client",
+        "spec": {
+          "role": "client",
+          "topology": "balanced",
+          "arm": "E",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt0/E/client.json",
+          "start_at_unix_ns": 1794628693183312947,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "product_failures": [],
+      "quiet": {
+        "waited_s": 0.0,
+        "fixture_busy_share": 0.000182355,
+        "named_process_present": false
+      },
+      "load_before": 0.7783203125,
+      "load_after": 1.32763671875,
+      "rerun_cause": "foreign CPU over the limit"
+    },
+    {
+      "topology": "balanced",
+      "round": 0,
+      "arm": "E",
+      "seed": 1044,
+      "candidate": "4e80d3cf4fa7454ffc3e2a46655afd5f81f86313",
+      "mode": "campaign",
+      "attempt": 1,
+      "status": "succeeded",
+      "occupied_s": 77.0556521024555,
+      "started_at_unix_ns": 1794628827261357348,
+      "process_cpu_s": {
+        "relay": 4.217453000000003,
+        "server": 6.954106999999993,
+        "client": 12.933817999999995
+      },
+      "exit": {
+        "relay": 0,
+        "server": 0,
+        "client": 0
+      },
+      "foreign_cpu_s": 31.235010592000005,
+      "contaminated": true,
+      "relay": {
+        "result": {
+          "go": "go1.27.4",
+          "topology": {
+            "queues": [
+              {
+                "rate_bps": 50000000,
+                "limit_bytes": 125000
+              },
+              {
+                "rate_bps": 50000000,
+                "limit_bytes": 125000
+              }
+            ],
+            "a": {
+              "queue": 0,
+              "delay_ns": 10000000
+            },
+            "b": {
+              "queue": 1,
+              "delay_ns": 10000000
+            },
+            "competitor": {
+              "queue": 0,
+              "delay_ns": 0
+            },
+            "competing": false
+          },
+          "links": [
+            {
+              "name": "a",
+              "forward": {
+                "received": 292118,
+                "dropped": 271,
+                "overflow": 0,
+                "delivered": 291847,
+                "delivered_bytes": 420440504,
+                "window_bytes": 361115118,
+                "send_errors": 0,
+                "late_over_1ms": 1601,
+                "max_late_ms": 4.252286
+              },
+              "reverse": {
+                "received": 74192,
+                "dropped": 0,
+                "overflow": 0,
+                "delivered": 74192,
+                "delivered_bytes": 2396845,
+                "window_bytes": 2054993,
+                "send_errors": 0,
+                "late_over_1ms": 388,
+                "max_late_ms": 3.833779
+              }
+            },
+            {
+              "name": "b",
+              "forward": {
+                "received": 236187,
+                "dropped": 122,
+                "overflow": 0,
+                "delivered": 236065,
+                "delivered_bytes": 338884316,
+                "window_bytes": 283265883,
+                "send_errors": 0,
+                "late_over_1ms": 1270,
+                "max_late_ms": 4.450874
+              },
+              "reverse": {
+                "received": 60321,
+                "dropped": 0,
+                "overflow": 0,
+                "delivered": 60321,
+                "delivered_bytes": 1993264,
+                "window_bytes": 1671330,
+                "send_errors": 0,
+                "late_over_1ms": 368,
+                "max_late_ms": 3.953444
+              }
+            }
+          ]
+        },
+        "role": "relay",
+        "spec": {
+          "role": "relay",
+          "topology": "balanced",
+          "arm": "E",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt1/E/relay.json",
+          "start_at_unix_ns": 1794628832262244743,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "server": {
+        "result": {
+          "go": "go1.27.4",
+          "granted": true,
+          "joined": true,
+          "flows": {
+            "focal-a": {
+              "stream_series": [
+                9129237,
+                11725079,
+                10424011,
+                11564961,
+                8824446,
+                7125107,
+                11602167,
+                10992450,
+                11352601,
+                6943393,
+                11416565,
+                5693747,
+                6935485,
+                5751001,
+                9807684,
+                11696798,
+                11276941,
+                11419846,
+                11639192,
+                10320335,
+                11759646,
+                11458302,
+                11762366,
+                11282208,
+                10376573,
+                11743051,
+                11138446,
+                11759550,
+                11433315,
+                11055265,
+                11736617,
+                9831105,
+                11750225,
+                10533991,
+                11748392,
+                11167832,
+                11462431,
+                10537049,
+                11538614,
+                9396368,
+                7221937,
+                11742463,
+                11181844,
+                11040470,
+                10474193,
+                8052198,
+                11078082,
+                7416913,
+                11073889,
+                11133686,
+                7621828,
+                10843663,
+                11138368,
+                11069715,
+                11692822,
+                8042358,
+                11778481,
+                9658249,
+                5754976,
+                8644090
+              ],
+              "stream_useful_bytes": 615772617,
+              "objects_completed": 587,
+              "object_completion": {
+                "count": 587,
+                "p50_ms": 377.160242,
+                "p99_ms": 751.259743,
+                "max_ms": 767.503954
+              },
+              "datagrams_useful": 15000,
+              "datagram_useful_bytes": 15000000,
+              "datagram_duplicates": 0,
+              "datagram_latency": {
+                "count": 15000,
+                "p50_ms": 12.287408,
+                "p99_ms": 27.352307,
+                "max_ms": 31.104877
+              }
+            }
+          },
+          "connections": [
+            {
+              "labels": [
+                "focal-a"
+              ],
+              "multipath_negotiated": true,
+              "close_cause": "Application error 0x0 (remote)",
+              "timeout_close": false
+            }
+          ],
+          "stream_errors": 0
+        },
+        "role": "server",
+        "spec": {
+          "role": "server",
+          "topology": "balanced",
+          "arm": "E",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt1/E/server.json",
+          "start_at_unix_ns": 1794628832262244743,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "client": {
+        "result": {
+          "go": "go1.27.4",
+          "flows": [
+            {
+              "label": "focal-a",
+              "controller": "bbrv3",
+              "multipath_negotiated": true,
+              "scheduler": "aggregate",
+              "paths": [
+                {
+                  "wire_id": 0,
+                  "lifecycle": "live",
+                  "local_use": "active",
+                  "primary": true
+                },
+                {
+                  "wire_id": 1,
+                  "lifecycle": "live",
+                  "local_use": "active",
+                  "primary": false
+                }
+              ],
+              "objects_started": 695,
+              "stream_bytes_written": 725785786,
+              "datagrams_offered": 15000,
+              "datagram_send_errors": 0,
+              "packets_sent": 528305,
+              "packets_lost": 0,
+              "close_cause": "",
+              "timeout_close": false
+            }
+          ]
+        },
+        "role": "client",
+        "spec": {
+          "role": "client",
+          "topology": "balanced",
+          "arm": "E",
+          "seed": 1044,
+          "server": "127.0.0.1:47460",
+          "front_a": "127.0.0.1:47461",
+          "front_b": "127.0.0.1:47462",
+          "front_competitor": "127.0.0.1:47463",
+          "output": "/home/josh/b5-1044/campaign/aggregation/balanced/round0/attempt1/E/client.json",
+          "start_at_unix_ns": 1794628832262244743,
+          "warmup_ns": 10000000000,
+          "window_ns": 60000000000
+        }
+      },
+      "product_failures": [],
+      "quiet": {
+        "waited_s": 60.0,
+        "fixture_busy_share": 0.041133107,
+        "named_process_present": true
+      },
+      "load_before": 4.39892578125,
+      "load_after": 3.13134765625
+    }
+  ]
+}
