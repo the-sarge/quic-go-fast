@@ -594,7 +594,7 @@ def main(argv=None):
                                            args.controller, args.revalidate_cell)
             summary.update(summarize(records, args.controller, args.revalidate_cell), reruns=reruns,
                            campaign_complete=True, controller=args.controller,
-                           cells=schedule_cells(args.controller, args.revalidate_cell))
+                           selected_cells=schedule_cells(args.controller, args.revalidate_cell))
         else:
             cell = args.smoke_cell or args.diagnostic_cell
             ledger.require_capacity(2)

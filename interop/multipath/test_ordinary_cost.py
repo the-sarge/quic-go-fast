@@ -523,6 +523,21 @@ class ExecutionTests(unittest.TestCase):
                 self.assertEqual(summary["failed_cells"], ["mixed-bulk"])
                 self.assertEqual(summary["instances_charged"], 36)
                 self.assertTrue(summary["campaign_complete"])
+                self.assertEqual(sorted(driver.CELLS), sorted(summary["cells"]))
+                self.assertFalse(summary["cells"]["mixed-bulk"]["passed"])
+
+    def test_bbr_campaign_keeps_its_cell_verdicts(self):
+        def bbr(record):
+            record["controller"] = "bbrv3"
+            for item in record["client"]["flows"] + record["server"]["connections"]:
+                item["controller"] = "bbrv3"
+        with tempfile.TemporaryDirectory() as temporary:
+            code, summary, _ = self.invoke(Path(temporary), extra=("--controller", "bbrv3"), edit=bbr)
+            self.assertEqual(0, code, summary.get("error"))
+            self.assertEqual(12, summary["instances_charged"])
+            self.assertEqual(sorted(driver.BBR_CELLS), sorted(summary["cells"]))
+            self.assertIn("passed", summary["cells"]["mixed-bulk"])
+            self.assertEqual(list(driver.BBR_CELLS), summary["selected_cells"])
 
     def test_diagnostic_is_charged_and_cannot_complete_campaign(self):
         for option in ("--smoke-cell", "--diagnostic-cell"):

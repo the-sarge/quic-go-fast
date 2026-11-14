@@ -818,6 +818,10 @@ func (f *aggregationClientFlow) datagrams(line aggregationTimeline) {
 		return
 	}
 	period := time.Second / time.Duration(f.rate)
+	// Queue admission waits at most until the window ends, so a full queue can't hold
+	// the client past it; a refused message counts as a send error.
+	ctx, cancel := context.WithDeadline(context.Background(), line.end)
+	defer cancel()
 	b := make([]byte, aggregationDatagram)
 	b[0] = f.label
 	var seq uint64
@@ -827,7 +831,7 @@ func (f *aggregationClientFlow) datagrams(line aggregationTimeline) {
 		now := time.Now()
 		binary.BigEndian.PutUint64(b[1:], seq)
 		binary.BigEndian.PutUint64(b[9:], uint64(now.UnixNano()))
-		err := f.conn.SendDatagram(b)
+		err := f.conn.SendDatagramContext(ctx, b)
 		if line.inWindow(now) {
 			f.offered.Add(1)
 			if err != nil {

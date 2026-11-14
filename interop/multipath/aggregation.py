@@ -92,9 +92,10 @@ BASELINE_ARMS = ("A", "B", "C")
 def check_observation(record, go_version, window_s=WINDOW_S):
     """Raise on missing or misaccounted evidence; return the product outcomes that fail.
 
-    A baseline arm's failure invalidates its comparison. In a multipath arm, a close,
-    timeout, stream error, unused path, retired path or empty flow is a measured outcome,
-    which the judge counts against that arm's claim."""
+    A baseline arm's failure, including an unused path, invalidates its comparison. In a
+    multipath arm, a close, timeout, stream error, retired path or empty flow is a measured
+    outcome, which the judge counts against that arm's claim; its path use is reported in
+    path_window_bytes and is no criterion."""
     topology, arm = record["topology"], record["arm"]
     where = f"{topology}/{arm}"
     claim = ARM_CLAIMS[arm]
