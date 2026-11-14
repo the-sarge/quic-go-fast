@@ -4,6 +4,7 @@ package quic
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"slices"
 	"syscall"
@@ -474,6 +475,7 @@ func TestBBRPathAnnouncementPacing(t *testing.T) {
 // take no payload, whatever is queued. The backup's own count puts the periodic PING
 // on every twentieth turn, however much the primary sends between them.
 func TestBBRPathAckTurn(t *testing.T) {
+	noKeyUpdates(t)
 	nativeOrdinaryTest(t, func(t *testing.T) {
 		f := newBBRPathFixture(t, protocol.PerspectiveServer)
 		e := &f.c.emission
@@ -514,23 +516,27 @@ func TestBBRPathAckTurn(t *testing.T) {
 		f.drain(t) // the call after a turn runs none
 		f.c.peerParams.MaxDatagramFrameSize = wire.MaxDatagramSize
 		f.c.pathCredit.routeOf(1).numNonAckElicitingAcks = 0
-		for turn := 1; turn <= protocol.MaxNonAckElicitingAcks+2; turn++ {
+		// turn runs one ACK turn on path 1 with every kind of payload queued, then lets
+		// the primary send it, and reports whether the turn carried the PING.
+		turn := func(label string) bool {
+			t.Helper()
 			f.socket.writes = nil
 			f.peerSends(t, 1, 2)
 			f.c.retransmissionQueue.addAppData(&wire.MaxStreamsFrame{Type: protocol.StreamTypeUni, MaxStreamNum: 100})
 			f.queueDatagram(t, 100)
 			f.write(t, 100)
+			tokens := path.tokens
 			f.sendOnce(t)
+			require.Equal(t, tokens, path.tokens, "%s debits no pacing", label)
 			onOne := f.parseWrites(t, 1)
-			require.Len(t, onOne, 1, "turn %d", turn)
+			require.Len(t, onOne, 1, label)
 			require.Equal(t, 1, acksFor(onOne, 1))
 			require.Empty(t, onOne[0].streams)
 			require.Empty(t, onOne[0].datagrams)
-			if turn == protocol.MaxNonAckElicitingAcks+1 {
-				require.Len(t, onOne[0].frames, 1, "the twentieth turn carries the PING")
+			ping := len(onOne[0].frames) != 0
+			if ping {
+				require.Len(t, onOne[0].frames, 1, label)
 				require.IsType(t, &wire.PingFrame{}, onOne[0].frames[0])
-			} else {
-				require.Empty(t, onOne[0].frames, "turn %d isn't ack-eliciting", turn)
 			}
 			// The primary's data, retransmission and DATAGRAM leave between turns.
 			f.drain(t)
@@ -539,6 +545,29 @@ func TestBBRPathAckTurn(t *testing.T) {
 			require.NotEmpty(t, slices.DeleteFunc(slices.Clone(onZero), func(w reliableWrite) bool { return len(w.datagrams) == 0 }))
 			require.False(t, f.c.retransmissionQueue.HasData(protocol.Encryption1RTT))
 			f.ackPath(t, 0, 0, onZero)
+			return ping
+		}
+		const interval = protocol.MaxNonAckElicitingAcks + 1
+		for i := 1; i <= interval+5; i++ {
+			require.Equal(t, i == interval, turn(fmt.Sprintf("turn %d", i)), "only the twentieth turn carries the PING")
+		}
+
+		// Five turns after that PING, an ack-eliciting packet on path 1 resets its count:
+		// the unanswered PING's PTO sends bare PING probes there.
+		f.socket.writes = nil
+		f.expirePTO(t, 1)
+		f.drain(t)
+		probes := f.parseWrites(t, 1)
+		require.NotEmpty(t, probes)
+		for _, probe := range probes {
+			require.Empty(t, probe.streams)
+			require.Len(t, probe.frames, 1)
+			require.IsType(t, &wire.PingFrame{}, probe.frames[0])
+		}
+		f.ackPath(t, 1, 1, probes)
+		f.drain(t)
+		for i := 1; i <= interval; i++ {
+			require.Equal(t, i == interval, turn(fmt.Sprintf("turn %d after the probe", i)), "the next PING is twenty turns after the probe, not after the last PING")
 		}
 	})
 }

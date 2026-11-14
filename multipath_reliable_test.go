@@ -1475,6 +1475,15 @@ func TestPathAckAlarmDueTurnCarriesOwnDelay(t *testing.T) {
 	})
 }
 
+// noKeyUpdates keeps long runs in one key phase: the fixture's peer never updates
+// its keys, so it can't acknowledge packets sealed after an update.
+func noKeyUpdates(t *testing.T) {
+	first := handshake.FirstKeyUpdateInterval
+	handshake.FirstKeyUpdateInterval = math.MaxUint64
+	t.Cleanup(handshake.SetKeyUpdateInterval(math.MaxUint64))
+	t.Cleanup(func() { handshake.FirstKeyUpdateInterval = first })
+}
+
 // sustainedTurns exceeds the shared tracking ceiling.
 const sustainedTurns = protocol.MaxTrackedSentPackets + 100
 
@@ -1560,11 +1569,7 @@ func TestPathAckTurnAlternation(t *testing.T) {
 		})
 	})
 	t.Run("sustained turns stay bounded", func(t *testing.T) {
-		// The fixture's peer never updates its keys.
-		first := handshake.FirstKeyUpdateInterval
-		handshake.FirstKeyUpdateInterval = math.MaxUint64
-		t.Cleanup(handshake.SetKeyUpdateInterval(math.MaxUint64))
-		t.Cleanup(func() { handshake.FirstKeyUpdateInterval = first })
+		noKeyUpdates(t)
 		nativeOrdinaryTest(t, func(t *testing.T) {
 			f := newReliableFixture(t, protocol.PerspectiveServer)
 			var unacked []reliableWrite

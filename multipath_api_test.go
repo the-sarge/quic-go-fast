@@ -980,26 +980,33 @@ func TestMultipathSamePathAckCarriage(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
 	}
-	time.Sleep(100 * time.Millisecond) // the last acknowledgments
-
-	carried := map[uint64]int{}
-	for _, event := range sink.recorded()[from:] {
-		packet, ok := event.(qlog.PacketReceived)
-		if !ok || packet.Path == nil {
-			continue
-		}
-		for _, frame := range packet.Frames {
-			ack, ok := frame.Frame.(*qlog.AckFrame)
-			if !ok {
+	// Every acknowledgment received after the cutover arrives on its own path, and
+	// path 1's acknowledgments do arrive.
+	carried := func() (counts map[uint64]int, crossed []uint64) {
+		counts = map[uint64]int{}
+		for _, event := range sink.recorded()[from:] {
+			packet, ok := event.(qlog.PacketReceived)
+			if !ok || packet.Path == nil {
 				continue
 			}
-			var target uint64
-			if ack.HasPathID {
-				target = uint64(ack.PathID)
+			for _, frame := range packet.Frames {
+				ack, ok := frame.Frame.(*qlog.AckFrame)
+				if !ok {
+					continue
+				}
+				var target uint64
+				if ack.HasPathID {
+					target = uint64(ack.PathID)
+				}
+				if target != packet.Path.PathID {
+					crossed = append(crossed, target)
+				}
+				counts[target]++
 			}
-			require.Equal(t, target, packet.Path.PathID, "path %d's acknowledgment arrives on its own path", target)
-			carried[target]++
 		}
+		return counts, crossed
 	}
-	require.Positive(t, carried[1], "path 1's data was acknowledged on path 1")
+	require.Eventually(t, func() bool { counts, _ := carried(); return counts[1] > 0 }, 5*time.Second, 10*time.Millisecond, "path 1's data is acknowledged on path 1")
+	_, crossed := carried()
+	require.Empty(t, crossed, "these targets' acknowledgments arrived on another path")
 }
