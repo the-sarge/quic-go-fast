@@ -20,10 +20,11 @@ func (e *packetEmission) beginAckCarriage() {
 
 // endAckCarriage drops the call's carriage. A call that skipped its turn requests a
 // retry while a due home target still waits, since an ACK queued by threshold,
-// missing packets or ECN-CE arms no alarm. A queue-full call leaves that to the
-// capacity wakeup.
+// missing packets or ECN-CE arms no alarm. A call that ends with the queue full
+// leaves that to the capacity wakeup; a route's local credit block doesn't.
 func (e *packetEmission) endAckCarriage(now monotime.Time, result *emissionResult) {
-	if e.ackTurnSkip && result.err == nil && result.stop != emissionQueueFull && e.homeAckWaiting(now) {
+	queueFull := result.stop == emissionQueueFull && e.queue.WouldBlock()
+	if e.ackTurnSkip && result.err == nil && !queueFull && e.homeAckWaiting(now) {
 		result.retry = true
 	}
 	e.acks, e.ackTurnSkip = ackhandler.AckCarriage{}, false

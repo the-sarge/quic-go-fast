@@ -514,7 +514,20 @@ func TestBBRPathAckTurn(t *testing.T) {
 		require.Len(t, onOne, 1)
 		require.Equal(t, 1, acksFor(onOne, 1))
 
-		f.drain(t) // the call after a turn runs none
+		// The call after a turn runs none, even when the selected route's local credit
+		// blocks it. That isn't queue exhaustion, so a waiting home target still gets
+		// its retry.
+		f.peerSends(t, 1, 2)
+		held := e.bbr.credit.reserve(e.bbr.creditLimit(), e.bbr.creditLimit(), false, false)
+		require.NotNil(t, held)
+		f.socket.writes = nil
+		result = f.c.triggerSending(monotime.Now())
+		require.NoError(t, result.err)
+		require.Equal(t, emissionQueueFull, result.stop, "path zero's credit blocks the call")
+		require.True(t, result.retry, "the waiting home target is retried")
+		require.Empty(t, f.parseWrites(t, 1), "and waited out the skipped call")
+		held.completeLocal()
+		f.drain(t)
 		f.c.peerParams.MaxDatagramFrameSize = wire.MaxDatagramSize
 		f.c.pathCredit.routeOf(1).numNonAckElicitingAcks = 0
 		// turn runs one ACK turn on path 1 with every kind of payload queued, then lets
