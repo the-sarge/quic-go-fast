@@ -1,0 +1,14 @@
+03:30:10 mixed-bulk round 0 unregistered attempt 0: foreign 0.09 s, contaminated False
+03:31:29 mixed-bulk round 0 opted-in attempt 0: foreign 0.33 s, contaminated False
+03:32:48 mixed-bulk round 1 opted-in attempt 0: foreign 0.31 s, contaminated False
+03:34:08 mixed-bulk round 1 unregistered attempt 0: foreign 0.15 s, contaminated False
+03:35:27 mixed-bulk round 2 unregistered attempt 0: foreign 0.08 s, contaminated False
+03:36:46 mixed-bulk round 2 opted-in attempt 0: foreign 0.10 s, contaminated False
+03:38:05 stateless-pressure round 0 unregistered attempt 0: foreign 0.12 s, contaminated False
+03:39:24 stateless-pressure round 0 opted-in attempt 0: foreign 0.13 s, contaminated False
+03:40:43 stateless-pressure round 1 opted-in attempt 0: foreign 0.12 s, contaminated False
+03:40:45 host busy: named process False, fixture share 0.061
+03:42:17 stateless-pressure round 1 unregistered attempt 0: foreign 0.08 s, contaminated False
+03:43:36 stateless-pressure round 2 unregistered attempt 0: foreign 0.08 s, contaminated False
+03:44:55 stateless-pressure round 2 opted-in attempt 0: foreign 0.11 s, contaminated False
+03:44:55 done: mode campaign, passed False, charged 12

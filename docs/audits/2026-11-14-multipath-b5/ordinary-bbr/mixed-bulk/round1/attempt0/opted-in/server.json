@@ -1,0 +1,68 @@
+{
+  "go": "go1.27.4",
+  "granted": true,
+  "gso_capable": true,
+  "window_cpu_s": 98.013601,
+  "window_rusage": {
+    "start": {
+      "user_cpu_ns": 12966988000,
+      "system_cpu_ns": 3626162000,
+      "voluntary_context_switches": 811284,
+      "involuntary_context_switches": 3693
+    },
+    "end": {
+      "user_cpu_ns": 89724847000,
+      "system_cpu_ns": 24881904000,
+      "voluntary_context_switches": 5657113,
+      "involuntary_context_switches": 26791
+    },
+    "delta": {
+      "user_cpu_ns": 76757859000,
+      "system_cpu_ns": 21255742000,
+      "voluntary_context_switches": 4845829,
+      "involuntary_context_switches": 23098
+    }
+  },
+  "rss_kb_at_20s": 29380,
+  "rss_kb_end": 29852,
+  "heap_inuse_end": 11960320,
+  "write_errors": 0,
+  "joined": true,
+  "application_send_call": {
+    "background": {
+      "count": 38400,
+      "p50_us": 147.455,
+      "p99_us": 524.287,
+      "max_us": 3690.765
+    },
+    "ordinary": {
+      "count": 856337,
+      "p50_us": 65.535,
+      "p99_us": 212.991,
+      "max_us": 697.699
+    }
+  },
+  "application_send_call_boundary": "elapsed Stream.Write / SendDatagram call time; neither native return nor peer delivery",
+  "connections": [
+    {
+      "label": "ordinary",
+      "multipath_negotiated": false,
+      "packets_sent": 47147381,
+      "packets_lost": 0,
+      "bytes_sent": 67295030950,
+      "close_cause": "",
+      "timeout_close": false,
+      "controller": "bbrv3"
+    },
+    {
+      "label": "background",
+      "multipath_negotiated": true,
+      "packets_sent": 2105687,
+      "packets_lost": 0,
+      "bytes_sent": 3002496229,
+      "close_cause": "",
+      "timeout_close": false,
+      "controller": "bbrv3"
+    }
+  ]
+}

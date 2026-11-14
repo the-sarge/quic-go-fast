@@ -75,9 +75,19 @@ type ordinaryCostSpec struct {
 	StartAt  int64  `json:"start_at_unix_ns"`
 	WarmupNS int64  `json:"warmup_ns"`
 	WindowNS int64  `json:"window_ns"`
+	// Controller is every connection's controller: empty for R18's Reno cells, or
+	// "bbrv3" for B5's BBR primary/backup revalidation (#1044).
+	Controller string `json:"controller,omitempty"`
 }
 
 func (s ordinaryCostSpec) granted() bool { return s.Profile == "opted-in" }
+
+func (s ordinaryCostSpec) controller() string {
+	if s.Controller == "" {
+		return "reno"
+	}
+	return s.Controller
+}
 
 func (s ordinaryCostSpec) timeline() ordinaryCostTimeline {
 	start := time.Unix(0, s.StartAt)
@@ -260,7 +270,7 @@ func ordinaryCostHeapInuse() uint64 {
 	return stats.HeapInuse
 }
 
-func ordinaryCostConfig(t testing.TB, multipath bool) *Config {
+func ordinaryCostConfig(t testing.TB, controller string, multipath bool) *Config {
 	t.Helper()
 	conf := &Config{
 		EnableDatagrams:                true,
@@ -270,9 +280,11 @@ func ordinaryCostConfig(t testing.TB, multipath bool) *Config {
 		MaxConnectionReceiveWindow:     24 << 20,
 		MaxIdleTimeout:                 30 * time.Second,
 	}
-	require.NoError(t, conf.SetCongestionControlV1("reno"))
+	require.NoError(t, conf.SetCongestionControlV1(controller))
 	if multipath {
 		require.NoError(t, conf.ConfigureMultipathV1(true, 2, "primary-backup"))
+		// BBR primary/backup runs through the evidence selection until B6 publishes it.
+		conf.multipath.evidence = multipathEvidence{bbr: controller == "bbrv3"}
 	}
 	return conf
 }
@@ -473,6 +485,7 @@ type ordinaryCostServerConnResult struct {
 	BytesSent    uint64 `json:"bytes_sent"`
 	CloseCause   string `json:"close_cause"`
 	TimeoutClose bool   `json:"timeout_close"`
+	Controller   string `json:"controller"`
 }
 
 type ordinaryCostServerResult struct {
@@ -498,7 +511,7 @@ func ordinaryCostRunServer(t testing.TB, spec ordinaryCostSpec) *ordinaryCostSer
 	binary.BigEndian.PutUint64(key[:], spec.Seed)
 	tr := ordinaryCostTransport(t, spec.Address, spec.granted())
 	tr.StatelessResetKey = &key
-	listener, err := tr.Listen(ordinaryCostServerTLS(), ordinaryCostConfig(t, spec.granted()))
+	listener, err := tr.Listen(ordinaryCostServerTLS(), ordinaryCostConfig(t, spec.controller(), spec.granted()))
 	require.NoError(t, err)
 	s := &ordinaryCostServer{line: line, histograms: map[string]*ordinaryCostHistogram{}}
 	s.workers.Add(1)
@@ -548,7 +561,7 @@ func ordinaryCostRunServer(t testing.TB, spec ordinaryCostSpec) *ordinaryCostSer
 		result.Connections = append(result.Connections, ordinaryCostServerConnResult{
 			Label: label, Multipath: negotiated,
 			PacketsSent: stats.PacketsSent, PacketsLost: stats.PacketsLost, BytesSent: stats.BytesSent,
-			CloseCause: cause, TimeoutClose: timedOut,
+			CloseCause: cause, TimeoutClose: timedOut, Controller: entry.conn.CongestionControlV1(),
 		})
 	}
 	conns := len(s.conns)
@@ -585,6 +598,7 @@ type ordinaryCostFlowResult struct {
 	TimeoutClose bool                 `json:"timeout_close"`
 	Negotiated   bool                 `json:"multipath_negotiated"`
 	Paths        []string             `json:"paths"`
+	Controller   string               `json:"controller"`
 }
 
 type ordinaryCostFloodResult struct {
@@ -660,11 +674,11 @@ func (f *ordinaryCostFlow) runEcho(line ordinaryCostTimeline, str *Stream) {
 	}
 }
 
-func ordinaryCostDial(t testing.TB, tr *Transport, address *net.UDPAddr, multipath bool) *Conn {
+func ordinaryCostDial(t testing.TB, tr *Transport, address *net.UDPAddr, controller string, multipath bool) *Conn {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()
-	conn, err := tr.Dial(ctx, address, ordinaryCostClientTLS(), ordinaryCostConfig(t, multipath))
+	conn, err := tr.Dial(ctx, address, ordinaryCostClientTLS(), ordinaryCostConfig(t, controller, multipath))
 	require.NoError(t, err)
 	return conn
 }
@@ -734,7 +748,7 @@ func ordinaryCostRunClient(t testing.TB, spec ordinaryCostSpec) *ordinaryCostCli
 	dial := func(multipath, granted bool) (*Transport, *Conn) {
 		tr := ordinaryCostTransport(t, "127.0.0.1:0", granted)
 		transports = append(transports, tr)
-		return tr, ordinaryCostDial(t, tr, address, multipath)
+		return tr, ordinaryCostDial(t, tr, address, spec.controller(), multipath)
 	}
 
 	_, ordinaryConn := dial(false, false)
@@ -845,7 +859,7 @@ func ordinaryCostRunClient(t testing.TB, spec ordinaryCostSpec) *ordinaryCostCli
 		flow.result = &ordinaryCostFlowResult{
 			Label: flow.label, Series: series, UsefulBytes: useful,
 			Drops: flow.conn.DatagramReceiveDropsV1(), Unprocessed: flow.conn.UnprocessedPacketDropsV1(),
-			CloseCause: cause, TimeoutClose: timedOut,
+			CloseCause: cause, TimeoutClose: timedOut, Controller: flow.conn.CongestionControlV1(),
 		}
 		result.Flows = append(result.Flows, flow.result)
 		if flow.conn == multipathConn {

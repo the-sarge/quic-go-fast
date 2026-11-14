@@ -1,0 +1,7 @@
+03:46:14 mixed-bulk round 0 unregistered attempt 0: foreign 0.17 s, contaminated False
+03:47:33 mixed-bulk round 0 opted-in attempt 0: foreign 0.20 s, contaminated False
+03:48:52 mixed-bulk round 1 opted-in attempt 0: foreign 0.18 s, contaminated False
+03:50:11 mixed-bulk round 1 unregistered attempt 0: foreign 0.10 s, contaminated False
+03:51:30 mixed-bulk round 2 unregistered attempt 0: foreign 0.16 s, contaminated False
+03:52:49 mixed-bulk round 2 opted-in attempt 0: foreign 0.29 s, contaminated False
+03:52:49 done: mode campaign, passed False, charged 6

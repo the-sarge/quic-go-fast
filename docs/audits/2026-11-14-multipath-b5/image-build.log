@@ -1,0 +1,274 @@
+STEP 1/19: FROM golang:1.27.3-bookworm@sha256:d9b6a1beb9474adc2a1ce842573639b44b2a0dd49b6669f51d3821baf9ec37c9
+STEP 2/19: RUN test "$(dpkg --print-architecture)" = amd64 &&     curl --fail --silent --show-error --location https://go.dev/dl/go1.27.4.linux-amd64.tar.gz -o /tmp/go1274.tar.gz &&     printf '%s\n' '7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840  /tmp/go1274.tar.gz' | sha256sum -c - &&     rm -rf /usr/local/go && tar -C /usr/local -xzf /tmp/go1274.tar.gz &&     rm /tmp/go1274.tar.gz &&     test "$(GOTOOLCHAIN=local /usr/local/go/bin/go version)" = 'go version go1.27.4 linux/amd64'
+--> Using cache 83d086758e264c580c8f24f251ade52741a5ee7e7de6e0548010cce0b277c246
+--> 83d086758e26
+STEP 3/19: RUN rm -f /etc/apt/sources.list.d/debian.sources &&     printf '%s\n'       'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20261031T000000Z bookworm main'       'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20261031T000000Z bookworm-updates main'       'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian-security/20261031T000000Z bookworm-security main' > /etc/apt/sources.list &&     apt-get update && apt-get install -y --no-install-recommends cmake libssl-dev python3 &&     rm -rf /var/lib/apt/lists/*
+--> Using cache 04d7317422dddacd9ba994a1b323d91a6143c7ac04c75dcae0cc0a3a29c38cd2
+--> 04d7317422dd
+STEP 4/19: WORKDIR /src/picoquic
+--> Using cache bc18103a019f9c936a557f80fcf877dbc4e51454a4e6f60be56c354aa13545c1
+--> bc18103a019f
+STEP 5/19: COPY interop/multipath/peer.c /src/r17-peer.c
+--> b6e6cc740e96
+STEP 6/19: RUN git init -q && git remote add origin https://github.com/private-octopus/picoquic.git &&     git fetch -q --depth 1 origin fbd46d9a1f54ebf9397f2ee6355b5019ab379fb7 && git checkout -q FETCH_HEAD &&     test "$(git rev-parse HEAD)" = fbd46d9a1f54ebf9397f2ee6355b5019ab379fb7 &&     printf '%s\n' 'add_executable(qgf-r17-peer /src/r17-peer.c)'       'target_include_directories(qgf-r17-peer PRIVATE ${PTLS_INCLUDE_DIRS})'       'target_link_libraries(qgf-r17-peer PRIVATE picoquic-core)' >> CMakeLists.txt &&     cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPICOQUIC_FETCH_PTLS=ON       -DPICOQUIC_FETCH_PTLS_TAG=e446233b4100ebcdec60901c05bfb7f4cd369c5d -DBUILD_TESTING=OFF &&     test "$(git -C build/_deps/picotls-src rev-parse HEAD)" = e446233b4100ebcdec60901c05bfb7f4cd369c5d &&     cmake --build build --target picoquicdemo qgf-r17-peer -j 4 &&     cp build/picoquicdemo /usr/local/bin/picoquicdemo &&     cp build/qgf-r17-peer /usr/local/bin/qgf-r17-peer &&     dpkg-query -W > /src/build-packages.txt
+-- The C compiler identification is GNU 12.2.0
+-- The CXX compiler identification is GNU 12.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Initial CMAKE_C_FLAGS=
+-- Found PkgConfig: /usr/bin/pkg-config (found version "1.8.1") 
+-- Detecting USDT support
+-- Detecting USDT support - not found
+-- Detecting fusion support
+-- Performing Test CC_HAS_AESNI256
+-- Performing Test CC_HAS_AESNI256 - Success
+-- Can use fusion
+-- Checking for module 'libbrotlidec'
+--   Package 'libbrotlidec', required by 'virtual:world', not found
+-- Checking for module 'libbrotlienc'
+--   Package 'libbrotlienc', required by 'virtual:world', not found
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.22")  
+--   Enabling OpenSSL support
+-- picotls/include: /src/picoquic/build/_deps/picotls-src/include
+-- picotls libraries: picotls-core;picotls-openssl;picotls-minicrypto
+-- Only recommended PQC algorithms are enabled.
+-- root: 
+-- OpenSSL_VERSION: 3.0.22
+-- OpenSSL_INCLUDE_DIR: /usr/include
+-- OpenSSL_LIBRARIES: /usr/lib/x86_64-linux-gnu/libssl.so;/usr/lib/x86_64-linux-gnu/libcrypto.so
+-- CMAKE_C_FLAGS: 
+-- CMAKE_CXX_FLAGS: 
+-- Defining picoquic-core
+-- mbedtls/include: 
+-- Project version: 0.0.0-fbd46d9
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /src/picoquic/build
+[  0%] Building C object _deps/picotls-build/CMakeFiles/picotls-core.dir/lib/pembase64.c.o
+[  1%] Building C object _deps/picotls-build/CMakeFiles/picotls-core.dir/lib/picotls.c.o
+[  1%] Building C object _deps/picotls-build/CMakeFiles/picotls-core.dir/lib/hpke.c.o
+In file included from /src/picoquic/build/_deps/picotls-src/lib/picotls.c:47:
+/src/picoquic/build/_deps/picotls-src/lib/picotls.c: In function 'encode_client_hello':
+/src/picoquic/build/_deps/picotls-src/lib/picotls.c:2210:28: warning: unused variable 'ext_payload_from' [-Wunused-variable]
+ 2210 |                     size_t ext_payload_from = sendbuf->off;
+      |                            ^~~~~~~~~~~~~~~~
+/src/picoquic/build/_deps/picotls-src/include/picotls.h:1307:13: note: in definition of macro 'ptls_buffer_push_block'
+ 1307 |             block                                                                                                                  \
+      |             ^~~~~
+/src/picoquic/build/_deps/picotls-src/lib/picotls.c:2188:5: note: in expansion of macro 'ptls_buffer_push_message_body'
+ 2188 |     ptls_buffer_push_message_body(sendbuf, NULL, PTLS_HANDSHAKE_TYPE_CLIENT_HELLO, {
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/src/picoquic/build/_deps/picotls-src/lib/picotls.c:2207:9: note: in expansion of macro 'ptls_buffer_push_block'
+ 2207 |         ptls_buffer_push_block(sendbuf, 2, {
+      |         ^~~~~~~~~~~~~~~~~~~~~~
+/src/picoquic/build/_deps/picotls-src/lib/picotls.c:894:9: note: in expansion of macro 'ptls_buffer_push_block'
+  894 |         ptls_buffer_push_block((buf), 2, block);                                                                                   \
+      |         ^~~~~~~~~~~~~~~~~~~~~~
+/src/picoquic/build/_deps/picotls-src/lib/picotls.c:2209:17: note: in expansion of macro 'buffer_push_extension'
+ 2209 |                 buffer_push_extension(sendbuf, PTLS_EXTENSION_TYPE_ENCRYPTED_CLIENT_HELLO, {
+      |                 ^~~~~~~~~~~~~~~~~~~~~
+[  3%] Linking C static library libpicotls-core.a
+[  3%] Built target picotls-core
+[  4%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/deps/micro-ecc/uECC.c.o
+[  6%] Building C object _deps/picotls-build/CMakeFiles/picotls-openssl.dir/lib/openssl.c.o
+[  8%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/deps/cifra/src/blockwise.c.o
+[  8%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/deps/cifra/src/aes.c.o
+/src/picoquic/build/_deps/picotls-src/lib/openssl.c: In function 'cipher_do_init':
+/src/picoquic/build/_deps/picotls-src/lib/openssl.c:1254:9: warning: variable 'ret' set but not used [-Wunused-but-set-variable]
+ 1254 |     int ret;
+      |         ^~~
+/src/picoquic/build/_deps/picotls-src/lib/openssl.c: In function 'cipher_encrypt':
+/src/picoquic/build/_deps/picotls-src/lib/openssl.c:1289:26: warning: unused variable 'ret' [-Wunused-variable]
+ 1289 |     int len = (int)_len, ret = EVP_EncryptUpdate(ctx->evp, output, &len, input, len);
+      |                          ^~~
+/src/picoquic/build/_deps/picotls-src/lib/openssl.c: In function 'cipher_decrypt':
+/src/picoquic/build/_deps/picotls-src/lib/openssl.c:1297:26: warning: unused variable 'ret' [-Wunused-variable]
+ 1297 |     int len = (int)_len, ret = EVP_DecryptUpdate(ctx->evp, output, &len, input, len);
+      |                          ^~~
+/src/picoquic/build/_deps/picotls-src/lib/openssl.c: In function 'aead_do_encrypt_init':
+/src/picoquic/build/_deps/picotls-src/lib/openssl.c:1503:9: warning: variable 'ret' set but not used [-Wunused-but-set-variable]
+ 1503 |     int ret;
+      |         ^~~
+/src/picoquic/build/_deps/picotls-src/lib/openssl.c: In function 'aead_do_encrypt_update':
+/src/picoquic/build/_deps/picotls-src/lib/openssl.c:1519:19: warning: variable 'ret' set but not used [-Wunused-but-set-variable]
+ 1519 |     int blocklen, ret;
+      |                   ^~~
+/src/picoquic/build/_deps/picotls-src/lib/openssl.c: In function 'aead_do_encrypt_final':
+/src/picoquic/build/_deps/picotls-src/lib/openssl.c:1532:19: warning: variable 'ret' set but not used [-Wunused-but-set-variable]
+ 1532 |     int blocklen, ret;
+      |                   ^~~
+/src/picoquic/build/_deps/picotls-src/lib/openssl.c: In function 'aead_do_decrypt':
+/src/picoquic/build/_deps/picotls-src/lib/openssl.c:1550:19: warning: variable 'ret' set but not used [-Wunused-but-set-variable]
+ 1550 |     int blocklen, ret;
+      |                   ^~~
+[  8%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/deps/cifra/src/chacha20.c.o
+[  9%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/deps/cifra/src/chash.c.o
+[  9%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/deps/cifra/src/curve25519.c.o
+[ 11%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/deps/cifra/src/drbg.c.o
+[ 11%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/deps/cifra/src/hmac.c.o
+[ 12%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/deps/cifra/src/gcm.c.o
+[ 12%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/deps/cifra/src/gf128.c.o
+[ 14%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/deps/cifra/src/modes.c.o
+[ 14%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/deps/cifra/src/poly1305.c.o
+[ 14%] Linking C static library libpicotls-openssl.a
+[ 14%] Built target picotls-openssl
+[ 16%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/deps/cifra/src/sha256.c.o
+[ 16%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/deps/cifra/src/sha512.c.o
+[ 17%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/lib/cifra.c.o
+[ 17%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/lib/cifra/x25519.c.o
+[ 19%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/lib/cifra/chacha20.c.o
+[ 19%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/lib/cifra/aes128.c.o
+[ 20%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/lib/cifra/aes256.c.o
+[ 22%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/lib/cifra/random.c.o
+[ 22%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/lib/minicrypto-pem.c.o
+[ 24%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/lib/uecc.c.o
+[ 24%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/lib/asn1.c.o
+[ 25%] Building C object _deps/picotls-build/CMakeFiles/picotls-minicrypto.dir/lib/ffx.c.o
+[ 25%] Linking C static library libpicotls-minicrypto.a
+[ 25%] Built target picotls-minicrypto
+[ 25%] Building C object CMakeFiles/picoquic-core.dir/picoquic/bbr.c.o
+[ 27%] Building C object CMakeFiles/picoquic-core.dir/picoquic/cc_common.c.o
+[ 29%] Building C object CMakeFiles/picoquic-core.dir/picoquic/bbr1.c.o
+[ 29%] Building C object CMakeFiles/picoquic-core.dir/picoquic/bytestream.c.o
+[ 29%] Building C object CMakeFiles/picoquic-core.dir/picoquic/config.c.o
+[ 30%] Building C object CMakeFiles/picoquic-core.dir/picoquic/cubic.c.o
+[ 30%] Building C object CMakeFiles/picoquic-core.dir/picoquic/c4.c.o
+[ 32%] Building C object CMakeFiles/picoquic-core.dir/picoquic/dualq_aqm.c.o
+[ 32%] Building C object CMakeFiles/picoquic-core.dir/picoquic/ech.c.o
+[ 33%] Building C object CMakeFiles/picoquic-core.dir/picoquic/error_names.c.o
+[ 33%] Building C object CMakeFiles/picoquic-core.dir/picoquic/fastcc.c.o
+[ 35%] Building C object CMakeFiles/picoquic-core.dir/picoquic/frames.c.o
+[ 35%] Building C object CMakeFiles/picoquic-core.dir/picoquic/frame_names.c.o
+[ 37%] Building C object CMakeFiles/picoquic-core.dir/picoquic/intformat.c.o
+[ 37%] Building C object CMakeFiles/picoquic-core.dir/picoquic/logger.c.o
+[ 38%] Building C object CMakeFiles/picoquic-core.dir/picoquic/logwriter.c.o
+[ 40%] Building C object CMakeFiles/picoquic-core.dir/picoquic/loss_recovery.c.o
+[ 40%] Building C object CMakeFiles/picoquic-core.dir/picoquic/newreno.c.o
+[ 41%] Building C object CMakeFiles/picoquic-core.dir/picoquic/pacing.c.o
+[ 41%] Building C object CMakeFiles/picoquic-core.dir/picoquic/packet.c.o
+[ 43%] Building C object CMakeFiles/picoquic-core.dir/picoquic/packet_names.c.o
+[ 43%] Building C object CMakeFiles/picoquic-core.dir/picoquic/paths.c.o
+[ 45%] Building C object CMakeFiles/picoquic-core.dir/picoquic/performance_log.c.o
+[ 45%] Building C object CMakeFiles/picoquic-core.dir/picoquic/picohash.c.o
+[ 46%] Building C object CMakeFiles/picoquic-core.dir/picoquic/picoquic_lb.c.o
+[ 46%] Building C object CMakeFiles/picoquic-core.dir/picoquic/picoquic_ptls_minicrypto.c.o
+[ 48%] Building C object CMakeFiles/picoquic-core.dir/picoquic/picoquic_ptls_openssl.c.o
+[ 48%] Building C object CMakeFiles/picoquic-core.dir/picoquic/picoquic_mbedtls.c.o
+[ 50%] Building C object CMakeFiles/picoquic-core.dir/picoquic/picosocks.c.o
+[ 50%] Building C object CMakeFiles/picoquic-core.dir/picoquic/picosplay.c.o
+[ 51%] Building C object CMakeFiles/picoquic-core.dir/picoquic/port_blocking.c.o
+[ 51%] Building C object CMakeFiles/picoquic-core.dir/picoquic/prague.c.o
+[ 53%] Building C object CMakeFiles/picoquic-core.dir/picoquic/qmux.c.o
+[ 53%] Building C object CMakeFiles/picoquic-core.dir/picoquic/quicctx.c.o
+[ 54%] Building C object CMakeFiles/picoquic-core.dir/picoquic/register_all_cc_algorithms.c.o
+[ 56%] Building C object CMakeFiles/picoquic-core.dir/picoquic/sacks.c.o
+[ 56%] Building C object CMakeFiles/picoquic-core.dir/picoquic/scone.c.o
+[ 58%] Building C object CMakeFiles/picoquic-core.dir/picoquic/sender.c.o
+[ 58%] Building C object CMakeFiles/picoquic-core.dir/picoquic/sim_link.c.o
+[ 59%] Building C object CMakeFiles/picoquic-core.dir/picoquic/siphash.c.o
+[ 59%] Building C object CMakeFiles/picoquic-core.dir/picoquic/sockloop.c.o
+[ 61%] Building C object CMakeFiles/picoquic-core.dir/picoquic/picoquic_af_xdp.c.o
+[ 61%] Building C object CMakeFiles/picoquic-core.dir/picoquic/picoquic_l3tx.c.o
+[ 62%] Building C object CMakeFiles/picoquic-core.dir/picoquic/picoquic_neigh.c.o
+[ 62%] Building C object CMakeFiles/picoquic-core.dir/picoquic/spinbit.c.o
+[ 64%] Building C object CMakeFiles/picoquic-core.dir/picoquic/streams.c.o
+[ 64%] Building C object CMakeFiles/picoquic-core.dir/picoquic/ticket_store.c.o
+[ 66%] Building C object CMakeFiles/picoquic-core.dir/picoquic/timing.c.o
+[ 66%] Building C object CMakeFiles/picoquic-core.dir/picoquic/token_store.c.o
+[ 67%] Building C object CMakeFiles/picoquic-core.dir/picoquic/tls_api.c.o
+[ 67%] Building C object CMakeFiles/picoquic-core.dir/picoquic/tp_names.c.o
+[ 69%] Building C object CMakeFiles/picoquic-core.dir/picoquic/transport.c.o
+[ 69%] Building C object CMakeFiles/picoquic-core.dir/picoquic/unified_log.c.o
+[ 70%] Building C object CMakeFiles/picoquic-core.dir/picoquic/util.c.o
+[ 72%] Linking C static library libpicoquic-core.a
+[ 72%] Built target picoquic-core
+[ 72%] Building C object CMakeFiles/picoquic-log.dir/loglib/autoqlog.c.o
+[ 72%] Building C object CMakeFiles/picoquic-log.dir/loglib/csv.c.o
+[ 74%] Building C object CMakeFiles/picoquic-log.dir/loglib/cidset.c.o
+[ 75%] Building C object CMakeFiles/picoquic-log.dir/loglib/logconvert.c.o
+[ 75%] Building C object CMakeFiles/picoquic-log.dir/loglib/logreader.c.o
+[ 77%] Building C object CMakeFiles/picoquic-log.dir/loglib/memory_log.c.o
+[ 77%] Building C object CMakeFiles/picoquic-log.dir/loglib/qlog.c.o
+[ 79%] Building C object CMakeFiles/picoquic-log.dir/loglib/qlog_frames.c.o
+[ 79%] Building C object CMakeFiles/picoquic-log.dir/loglib/qlog_fns.c.o
+[ 80%] Building C object CMakeFiles/picoquic-log.dir/loglib/svg.c.o
+[ 80%] Linking C static library libpicoquic-log.a
+[ 80%] Built target picoquic-log
+[ 80%] Building C object CMakeFiles/picohttp-core.dir/picohttp/democlient.c.o
+[ 82%] Building C object CMakeFiles/picohttp-core.dir/picohttp/demoserver.c.o
+[ 83%] Building C object CMakeFiles/picohttp-core.dir/picohttp/h3zero_client.c.o
+[ 83%] Building C object CMakeFiles/picohttp-core.dir/picohttp/h3zero.c.o
+[ 83%] Building C object CMakeFiles/picohttp-core.dir/picohttp/h3zero_common.c.o
+[ 85%] Building C object CMakeFiles/picohttp-core.dir/picohttp/h3zero_server.c.o
+[ 85%] Building C object CMakeFiles/picohttp-core.dir/picohttp/h3zero_uri.c.o
+[ 87%] Building C object CMakeFiles/picohttp-core.dir/picohttp/h3zero_url_template.c.o
+[ 87%] Building C object CMakeFiles/picohttp-core.dir/picohttp/picomask.c.o
+[ 88%] Building C object CMakeFiles/picohttp-core.dir/picohttp/quicperf.c.o
+[ 88%] Building C object CMakeFiles/picohttp-core.dir/picohttp/picoquic_ns.c.o
+[ 90%] Building C object CMakeFiles/picohttp-core.dir/picohttp/webtransport.c.o
+[ 91%] Linking C static library libpicohttp-core.a
+[ 91%] Built target picohttp-core
+[ 93%] Building C object CMakeFiles/wt_baton.dir/picohttp/wt_baton.c.o
+[ 95%] Building C object CMakeFiles/wt_interop.dir/picohttp/wt_interop.c.o
+[ 95%] Linking C static library libwt_baton.a
+[ 95%] Built target wt_baton
+[ 96%] Linking C static library libwt_interop.a
+[ 96%] Built target wt_interop
+[ 98%] Building C object CMakeFiles/picoquicdemo.dir/picoquicfirst/picoquicdemo.c.o
+[ 98%] Building C object CMakeFiles/picoquicdemo.dir/picoquicfirst/getopt.c.o
+[100%] Linking C executable picoquicdemo
+[100%] Built target picoquicdemo
+[  4%] Built target picotls-core
+[  6%] Built target picotls-openssl
+[ 34%] Built target picotls-minicrypto
+[ 97%] Built target picoquic-core
+[ 97%] Building C object CMakeFiles/qgf-r17-peer.dir/src/r17-peer.c.o
+[100%] Linking C executable qgf-r17-peer
+[100%] Built target qgf-r17-peer
+--> 0f35a4fca7a6
+STEP 7/19: WORKDIR /repo
+--> 6f5d5a7e4470
+STEP 8/19: ARG QGF_SOURCE_COMMIT
+--> 13cd3629fd24
+STEP 9/19: ARG QGF_SOURCE_TREE
+--> e0ce62baec71
+STEP 10/19: ENV QGF_SOURCE_COMMIT=$QGF_SOURCE_COMMIT QGF_SOURCE_TREE=$QGF_SOURCE_TREE
+--> 42ef8d781323
+STEP 11/19: ENV GOTOOLCHAIN=local
+--> 22d8ea2ad2d9
+STEP 12/19: COPY go.mod go.sum ./
+--> de230391f566
+STEP 13/19: RUN go mod download
+--> d1201325c05f
+STEP 14/19: COPY . .
+--> 1abaf92d150d
+STEP 15/19: RUN go test -c -tags=picoquic -o /src/peer-control.test ./integrationtests/self
+--> acfb5ce0b73c
+STEP 16/19: RUN go test -c -tags=picoquic -o /src/peer-smoke.test .
+--> 3450afafa761
+STEP 17/19: RUN cp /src/peer-smoke.test /src/peer-matrix.test
+--> d3803f81930e
+STEP 18/19: RUN PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest discover -s interop/multipath -p test_run.py &&     go test -tags=picoquic -run='^TestPicoquicMatrix(AwaitsTraceConsumption|CIDReceipt|ReplayDispositions|MTUFinalLossObservation|MTUProgress)$' -count=1 .
+.........
+----------------------------------------------------------------------
+Ran 9 tests in 0.005s
+
+OK
+ok  	github.com/quic-go/quic-go	0.005s
+--> 61b80341ee04
+STEP 19/19: ENTRYPOINT ["python3", "interop/multipath/run.py", "--binary", "/usr/local/bin/picoquicdemo"]
+COMMIT qgf-b5
+--> f0e94d6b37a6
+Successfully tagged localhost/qgf-b5:latest
+f0e94d6b37a672059c2bcb2b53f7f7c71dc83ca8fe99e703a2135688b984fea8

@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/quic-go/quic-go/qlog"
@@ -429,6 +430,55 @@ func TestMultipathUnsupportedCombinations(t *testing.T) {
 		tr.ConnectionIDGenerator = &protocol.DefaultConnectionIDGenerator{ConnLen: 0}
 		require.ErrorIs(t, try(t, tr, multipathConfig(t)), ErrMultipathInvalidConfigV1)
 	})
+}
+
+// The evidence fixture's private selection admits BBR at the gate and gives the
+// registry its scheduling policy from activation on. Its zero value is the public
+// profile, which keeps refusing BBR (TestMultipathUnsupportedCombinations).
+func TestMultipathEvidenceSelection(t *testing.T) {
+	requireMultipathProfile(t)
+	for _, tc := range []struct {
+		name       string
+		controller string
+		evidence   multipathEvidence
+	}{
+		{"public", "reno", multipathEvidence{}},
+		{"BBR aggregate", "bbrv3", multipathEvidence{bbr: true, scheduler: scheduleAggregate}},
+		{"BBR round robin", "bbrv3", multipathEvidence{bbr: true, scheduler: scheduleRoundRobin}},
+		{"Reno aggregate", "reno", multipathEvidence{scheduler: scheduleAggregate}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			conf := multipathConfig(t)
+			require.NoError(t, conf.SetCongestionControlV1(tc.controller))
+			conf.multipath.evidence = tc.evidence
+			require.Equal(t, tc.evidence, conf.Clone().multipath.evidence, "Clone keeps the selection")
+			require.Equal(t, tc.evidence, populateConfig(conf).multipath.evidence, "the effective copy keeps it")
+
+			serverTr, clientTr := grantedTransport(t), grantedTransport(t)
+			ln, err := serverTr.Listen(nativeServerTLS(), multipathConfig(t))
+			require.NoError(t, err)
+			t.Cleanup(func() { ln.Close() })
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+			defer cancel()
+			client, err := clientTr.Dial(ctx, serverTr.Conn.LocalAddr(), nativeClientTLS(), conf)
+			require.NoError(t, err)
+			t.Cleanup(func() { client.CloseWithError(0, "") })
+			server, err := ln.Accept(ctx)
+			require.NoError(t, err)
+			t.Cleanup(func() { server.CloseWithError(0, "") })
+			negotiated, err := client.MultipathNegotiatedV1()
+			require.NoError(t, err)
+			require.True(t, negotiated)
+			require.Equal(t, tc.controller, client.CongestionControlV1())
+
+			var scheduler pathScheduler
+			require.NoError(t, client.runPathCommand(func(r *pathCreditRegistry, _ monotime.Time) error {
+				scheduler = r.scheduler
+				return nil
+			}))
+			require.Equal(t, tc.evidence.scheduler, scheduler)
+		})
+	}
 }
 
 func TestMultipathPeerZeroLengthCID(t *testing.T) {

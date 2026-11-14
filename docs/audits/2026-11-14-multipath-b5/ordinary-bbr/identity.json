@@ -1,0 +1,54 @@
+{
+  "candidate": "4e80d3cf4fa7454ffc3e2a46655afd5f81f86313",
+  "binary": {
+    "path": "/home/josh/b5-1044/campaign/ordinarycost.test",
+    "sha256": "bb631588082467e918c18489a769a4c72a45d700572773647354a153f95f0853",
+    "build_info": "/home/josh/b5-1044/campaign/ordinarycost.test: go1.27.4\n\tpath\tgithub.com/quic-go/quic-go.test\n\tmod\tgithub.com/quic-go/quic-go\t(devel)\t\n\tdep\tgithub.com/quic-go/go-ossfuzz-seeds\tv0.1.0\th1:APacT+iIaNF6fd8AGEiN3bT/Jtkd2jz4v4TzM7MFjy0=\n\tdep\tgithub.com/stretchr/testify\tv1.12.1\th1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=\n\tdep\tgo.uber.org/mock\tv0.6.0\th1:hyF9dfmbgIX5EfOdasqLsWD6xqpNZlXblLB/Dbnwv3Y=\n\tdep\tgo.yaml.in/yaml/v3\tv3.0.5\th1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=\n\tdep\tgolang.org/x/crypto\tv0.58.0\th1:COkYLr4k7nDI4r6QtMML2AfzeIswWHAJthLS6K/M/54=\n\tdep\tgolang.org/x/net\tv0.61.0\th1:RR+6j/BTBCrggOLugxa+66R8FvoN6MHlzDlZIbN9YFw=\n\tdep\tgolang.org/x/sys\tv0.49.0\th1:XbzkgYJHdqh/8m2Uu0W/dQv8nktxx4BFHp1M0gROTXA=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-tags=ordinarycost\n\tbuild\tDefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+  },
+  "comparator": {
+    "candidate": "4e80d3cf4fa7454ffc3e2a46655afd5f81f86313",
+    "binary_sha256": "bb631588082467e918c18489a769a4c72a45d700572773647354a153f95f0853",
+    "profile": "unregistered"
+  },
+  "kernel": "Linux-7.0.0-30-generic-x86_64-with-glibc2.43",
+  "uname": "Linux minimax 7.0.0-30-generic #30-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 31 18:22:54 UTC 2026 x86_64 ",
+  "go": "go1.27.4",
+  "server_cpus": "8-11",
+  "client_cpus": "12-15",
+  "fixture_cpus_and_siblings": [
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31
+  ],
+  "warmup_s": 10,
+  "window_s": 60,
+  "base_seed": 1038,
+  "mode": "campaign",
+  "controller": "bbrv3",
+  "cells": [
+    "mixed-bulk",
+    "stateless-pressure"
+  ],
+  "revalidation_cause": null,
+  "remaining_instances": 84,
+  "remaining_host_seconds": 26983.247637885,
+  "per_invocation_timeout_s": 135.0,
+  "metric_boundaries": {
+    "application_send_call": "elapsed Stream.Write / SendDatagram call time; neither native return nor peer delivery",
+    "control": "application echo round trip",
+    "useful_bytes": "receiver-counted application content within the measurement window"
+  }
+}

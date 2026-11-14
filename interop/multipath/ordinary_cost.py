@@ -32,6 +32,9 @@ CELLS = {
     "stateless-pressure": {"env": {}},
 }
 CONTROL, OPTED_IN = "unregistered", "opted-in"
+# B5's BBR primary/backup revalidation reruns two cells with every connection on BBR (#1044).
+CONTROLLERS = ("reno", "bbrv3")
+BBR_CELLS = ("mixed-bulk", "stateless-pressure")
 # Accepted product thresholds, section "Accepted product thresholds" of the Reno plan.
 GOODPUT_FLOOR = 0.95
 CPU_CEILING = 1.10
@@ -56,10 +59,24 @@ METRIC_BOUNDARIES = {
 }
 
 
-def schedule():
-    """The fixed (cell, round, profile, seed) instances. A pair shares its seed."""
+def schedule_cells(controller="reno", cells=None):
+    """The campaign's cells: the controller's inventory, or the named subset of it that an
+    affected-cell revalidation reruns."""
+    inventory = list(CELLS) if controller == "reno" else list(BBR_CELLS)
+    if cells is None:
+        return inventory
+    if not cells or any(cell not in inventory for cell in cells):
+        raise ValueError(f"revalidation cells {cells} are not in the {controller} inventory")
+    return [cell for cell in inventory if cell in cells]
+
+
+def schedule(controller="reno", cells=None):
+    """The fixed (cell, round, profile, seed) instances. A pair shares its seed, and a cell
+    keeps its seeds under either controller."""
     instances = []
     for index, cell in enumerate(CELLS):
+        if cell not in schedule_cells(controller, cells):
+            continue
         for round_ in range(ROUNDS):
             order = (CONTROL, OPTED_IN) if round_ % 2 == 0 else (OPTED_IN, CONTROL)
             seed = BASE_SEED + 100 * index + round_
@@ -120,6 +137,10 @@ def check_observation(record):
         raise ValueError(f"{cell}: unexpected background flow")
     if cell == "stateless-pressure" and not client["flood"]["sent"]:
         raise ValueError(f"{cell}: no pressure applied")
+    controller = record.get("controller", "reno")
+    for item in client["flows"] + server["connections"]:
+        if item.get("controller", "reno") != controller:
+            raise ValueError(f"{cell}: {item['label']} ran {item.get('controller', 'reno')}, not {controller}")
 
 
 def check_mixed(record):
@@ -132,10 +153,12 @@ def check_mixed(record):
         raise ValueError("mixed-bulk opted-in needs one negotiated two-path connection")
 
 
-def check_accounting(records):
+def check_accounting(records, controller="reno", cells=None):
     if any(record.get("mode") != "campaign" for record in records):
         raise ValueError("diagnostic/smoke records cannot satisfy campaign inventory")
-    expected = sorted(schedule())
+    if any(record.get("controller", "reno") != controller for record in records):
+        raise ValueError(f"records do not all run {controller}")
+    expected = sorted(schedule(controller, cells))
     actual = sorted((record["cell"], record["round"], record["profile"], record["seed"]) for record in records)
     if actual != expected:
         raise ValueError(f"{len(actual)} instances do not match the {len(expected)} scheduled")
@@ -243,19 +266,19 @@ def judge_cell(cell, rounds):
     }
 
 
-def summarize(records):
-    check_accounting(records)
+def summarize(records, controller="reno", cells=None):
+    check_accounting(records, controller, cells)
     keyed = {(record["cell"], record["round"], record["profile"]): record for record in records}
-    cells = {}
-    for cell in CELLS:
+    verdicts = {}
+    for cell in schedule_cells(controller, cells):
         rounds = [(keyed[(cell, round_, CONTROL)], keyed[(cell, round_, OPTED_IN)]) for round_ in range(ROUNDS)]
-        cells[cell] = judge_cell(cell, rounds)
-    failed = [cell for cell, verdict in cells.items() if not verdict["passed"]]
+        verdicts[cell] = judge_cell(cell, rounds)
+    failed = [cell for cell, verdict in verdicts.items() if not verdict["passed"]]
     contaminated = sum(1 for record in records if record["contaminated"])
     return {
         "passed": not failed and not contaminated,
         "failed_cells": failed,
-        "cells": cells,
+        "cells": verdicts,
         "contaminated_observations": contaminated,
     }
 
@@ -326,14 +349,14 @@ def check_role_log(role, output):
 
 
 def run_observation(binary, directory, cell, round_, profile, seed, warmup_s=WARMUP_S,
-                    window_s=WINDOW_S, timeout_s=135, record=None):
+                    window_s=WINDOW_S, timeout_s=135, record=None, controller="reno"):
     """One instance; every launched child is reaped, including a partial launch."""
     record = record if record is not None else {}
     directory.mkdir(parents=True, exist_ok=False)
     spec = {
         "cell": cell, "profile": profile, "seed": seed, "address": SERVER_ADDRESS,
         "start_at_unix_ns": time.time_ns() + SETUP_S * 10**9,
-        "warmup_ns": warmup_s * 10**9, "window_ns": window_s * 10**9,
+        "warmup_ns": warmup_s * 10**9, "window_ns": window_s * 10**9, "controller": controller,
     }
     env = {key: value for key, value in os.environ.items() if not key.startswith("QUIC_GO_")}
     env["GOMAXPROCS"] = "4"
@@ -376,7 +399,7 @@ def run_observation(binary, directory, cell, round_, profile, seed, warmup_s=WAR
             if process.returncode is None:
                 reap(role, process)
         occupied = time.monotonic() - begun
-        record.update(cell=cell, round=round_, profile=profile, seed=seed,
+        record.update(cell=cell, round=round_, profile=profile, seed=seed, controller=controller,
                       occupied_s=occupied, process_cpu_s=usage,
                       exit={role: process.returncode for role, process in processes.items()})
     running = schedstat_running_ns()
@@ -428,9 +451,9 @@ class AttemptLedger:
             raise ValueError("insufficient remaining instance/host-time allowance")
 
     def observe(self, binary, directory, cell, round_, profile, seed, candidate, mode,
-                attempt=0, warmup_s=WARMUP_S):
+                attempt=0, warmup_s=WARMUP_S, controller="reno"):
         self.require_capacity()
-        record = dict(cell=cell, round=round_, profile=profile, seed=seed, candidate=candidate,
+        record = dict(cell=cell, round=round_, profile=profile, seed=seed, candidate=candidate, controller=controller,
                       mode=mode, attempt=attempt, status="started", occupied_s=0,
                       started_at_unix_ns=time.time_ns())
         self.attempts.append(record)
@@ -438,7 +461,7 @@ class AttemptLedger:
         begun = time.monotonic()
         try:
             run_observation(binary, directory, cell, round_, profile, seed,
-                            warmup_s=warmup_s, timeout_s=self.timeout_s, record=record)
+                            warmup_s=warmup_s, timeout_s=self.timeout_s, record=record, controller=controller)
             record["status"] = "succeeded"
             return record
         except BaseException as error:
@@ -456,12 +479,12 @@ def check_prerequisites(system, machine, which):
         raise RuntimeError("taskset is required")
 
 
-def run_campaign(binary, output, candidate, log, ledger):
-    ledger.require_capacity(len(schedule()))
+def run_campaign(binary, output, candidate, log, ledger, controller="reno", cells=None):
+    ledger.require_capacity(len(schedule(controller, cells)))
     results = output / "observations.jsonl"
     superseded = output / "superseded.jsonl"
     keyed = {}
-    for instance in schedule():
+    for instance in schedule(controller, cells):
         keyed.setdefault(instance[:2], []).append(instance)
     records, reruns = [], 0
     for (cell, round_), pair in keyed.items():
@@ -472,7 +495,8 @@ def run_campaign(binary, output, candidate, log, ledger):
                 quiet = wait_quiet(log)
                 load_before = os.getloadavg()[0]
                 record = ledger.observe(binary, output / cell / f"round{round_}" / f"attempt{attempt}" / profile,
-                                        cell, round_, profile, seed, candidate, "campaign", attempt=attempt)
+                                        cell, round_, profile, seed, candidate, "campaign", attempt=attempt,
+                                        controller=controller)
                 record.update(attempt=attempt, candidate=candidate, quiet=quiet, load_before=load_before, load_after=os.getloadavg()[0])
                 observed.append(record)
                 log(f"{cell} round {round_} {profile} attempt {attempt}: foreign {record['foreign_cpu_s']:.2f} s, contaminated {record['contaminated']}")
@@ -511,6 +535,11 @@ def main(argv=None):
     parser.add_argument("--remaining-instances", required=True, type=int)
     parser.add_argument("--remaining-host-seconds", required=True, type=float)
     parser.add_argument("--timeout-seconds", required=True, type=float, help="maximum reserved duration per observation, including setup/cleanup")
+    parser.add_argument("--controller", choices=CONTROLLERS, default="reno",
+                        help="every connection's controller; bbrv3 runs B5's revalidation cells")
+    parser.add_argument("--revalidate-cell", action="append", choices=sorted(CELLS),
+                        help="campaign only: rerun just this affected cell of the Reno inventory; repeatable")
+    parser.add_argument("--cause", help="the concrete source change that affects each --revalidate-cell")
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument("--smoke-cell", choices=sorted(CELLS), help="one short diagnostic pair; never counted campaign evidence")
     modes.add_argument("--diagnostic-cell", choices=sorted(CELLS), help="one 10s/60s diagnostic pair; never counted campaign evidence")
@@ -518,6 +547,15 @@ def main(argv=None):
     check_prerequisites(platform.system(), platform.machine(), shutil.which)
     if len(args.candidate) != 40 or any(c not in "0123456789abcdef" for c in args.candidate):
         parser.error("--candidate must be a full lowercase commit SHA")
+    cell_choice = args.smoke_cell or args.diagnostic_cell
+    if args.revalidate_cell and cell_choice:
+        parser.error("--revalidate-cell selects campaign cells")
+    if args.revalidate_cell and args.controller != "reno":
+        parser.error("--revalidate-cell reruns Reno cells; the BBR revalidation is its fixed inventory")
+    if bool(args.revalidate_cell) != bool(args.cause):
+        parser.error("--revalidate-cell and --cause go together")
+    if cell_choice and cell_choice not in schedule_cells(args.controller):
+        parser.error(f"--controller {args.controller} runs only {', '.join(schedule_cells(args.controller))}")
     binary = binary_identity(args.binary)
     args.output.mkdir(parents=True, exist_ok=False)
     mode = "smoke" if args.smoke_cell else "diagnostic" if args.diagnostic_cell else "campaign"
@@ -527,7 +565,8 @@ def main(argv=None):
         "comparator": {"candidate": args.candidate, "binary_sha256": binary["sha256"], "profile": CONTROL},
         "kernel": platform.platform(), "uname": " ".join(platform.uname()), "go": GO_VERSION,
         "server_cpus": SERVER_CPUS, "client_cpus": CLIENT_CPUS, "fixture_cpus_and_siblings": FIXTURE_CPUS,
-        "warmup_s": warmup, "window_s": WINDOW_S, "base_seed": BASE_SEED, "mode": mode,
+        "warmup_s": warmup, "window_s": WINDOW_S, "base_seed": BASE_SEED, "mode": mode, "controller": args.controller,
+        "cells": schedule_cells(args.controller, args.revalidate_cell), "revalidation_cause": args.cause,
         "remaining_instances": args.remaining_instances, "remaining_host_seconds": args.remaining_host_seconds,
         "per_invocation_timeout_s": args.timeout_seconds, "metric_boundaries": METRIC_BOUNDARIES,
     }
@@ -551,8 +590,11 @@ def main(argv=None):
         if args.timeout_seconds < SETUP_S + warmup + WINDOW_S + 10:
             raise ValueError("timeout does not cover setup, warmup, window and fixture cleanup")
         if mode == "campaign":
-            records, reruns = run_campaign(binary["path"], args.output, args.candidate, log, ledger)
-            summary.update(summarize(records), reruns=reruns, campaign_complete=True)
+            records, reruns = run_campaign(binary["path"], args.output, args.candidate, log, ledger,
+                                           args.controller, args.revalidate_cell)
+            summary.update(summarize(records, args.controller, args.revalidate_cell), reruns=reruns,
+                           campaign_complete=True, controller=args.controller,
+                           selected_cells=schedule_cells(args.controller, args.revalidate_cell))
         else:
             cell = args.smoke_cell or args.diagnostic_cell
             ledger.require_capacity(2)
@@ -560,7 +602,8 @@ def main(argv=None):
             for profile in (CONTROL, OPTED_IN):
                 quiet = wait_quiet(log)
                 record = ledger.observe(binary["path"], args.output / cell / profile, cell, 0,
-                                        profile, BASE_SEED, args.candidate, mode, warmup_s=warmup)
+                                        profile, BASE_SEED, args.candidate, mode, warmup_s=warmup,
+                                        controller=args.controller)
                 record["quiet"] = quiet
                 records.append(record)
                 with (args.output / f"{mode}.jsonl").open("a") as file:

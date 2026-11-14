@@ -1,0 +1,2 @@
+# Raw campaign evidence: preserve bytes, including peer whitespace.
+* -whitespace

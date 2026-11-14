@@ -523,6 +523,21 @@ class ExecutionTests(unittest.TestCase):
                 self.assertEqual(summary["failed_cells"], ["mixed-bulk"])
                 self.assertEqual(summary["instances_charged"], 36)
                 self.assertTrue(summary["campaign_complete"])
+                self.assertEqual(sorted(driver.CELLS), sorted(summary["cells"]))
+                self.assertFalse(summary["cells"]["mixed-bulk"]["passed"])
+
+    def test_bbr_campaign_keeps_its_cell_verdicts(self):
+        def bbr(record):
+            record["controller"] = "bbrv3"
+            for item in record["client"]["flows"] + record["server"]["connections"]:
+                item["controller"] = "bbrv3"
+        with tempfile.TemporaryDirectory() as temporary:
+            code, summary, _ = self.invoke(Path(temporary), extra=("--controller", "bbrv3"), edit=bbr)
+            self.assertEqual(0, code, summary.get("error"))
+            self.assertEqual(12, summary["instances_charged"])
+            self.assertEqual(sorted(driver.BBR_CELLS), sorted(summary["cells"]))
+            self.assertIn("passed", summary["cells"]["mixed-bulk"])
+            self.assertEqual(list(driver.BBR_CELLS), summary["selected_cells"])
 
     def test_diagnostic_is_charged_and_cannot_complete_campaign(self):
         for option in ("--smoke-cell", "--diagnostic-cell"):
@@ -539,6 +554,54 @@ class ExecutionTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     driver.check_accounting(records)
 
+
+
+class BBRRevalidationTests(unittest.TestCase):
+    """B5's BBR primary/backup revalidation of two R18 cells (#1044)."""
+
+    def bbr_campaign(self):
+        records = []
+        for cell, round_, profile, _ in driver.schedule("bbrv3"):
+            record = observation(cell, profile, round_, controller="bbrv3")
+            for item in record["client"]["flows"] + record["server"]["connections"]:
+                item["controller"] = "bbrv3"
+            records.append(record)
+        return records
+
+    def test_twelve_instances_keep_their_cells_seeds(self):
+        instances = driver.schedule("bbrv3")
+        self.assertEqual(12, len(instances))
+        self.assertEqual({"mixed-bulk", "stateless-pressure"}, {cell for cell, _, _, _ in instances})
+        reno = {instance for instance in driver.schedule() if instance[0] in driver.BBR_CELLS}
+        self.assertEqual(reno, set(instances))
+
+    def test_complete_bbr_campaign_judges_its_two_cells(self):
+        summary = driver.summarize(self.bbr_campaign(), "bbrv3")
+        self.assertEqual(sorted(driver.BBR_CELLS), sorted(summary["cells"]))
+        self.assertTrue(summary["passed"])
+
+    def test_every_connection_must_run_the_campaign_controller(self):
+        records = self.bbr_campaign()
+        records[1]["server"]["connections"][0]["controller"] = "reno"
+        with self.assertRaisesRegex(ValueError, "ran reno, not bbrv3"):
+            driver.check_accounting(records, "bbrv3")
+        with self.assertRaisesRegex(ValueError, "do not all run"):
+            driver.check_accounting(self.bbr_campaign())
+        reno = observation("mixed-bulk", "opted-in", 0, controller="bbrv3")
+        with self.assertRaisesRegex(ValueError, "ran reno, not bbrv3"):
+            driver.check_observation(reno)
+
+    def test_affected_cell_revalidation_reruns_only_that_cell(self):
+        instances = driver.schedule("reno", ["mixed-bulk"])
+        self.assertEqual(6, len(instances))
+        self.assertEqual({"mixed-bulk"}, {cell for cell, _, _, _ in instances})
+        records = [observation(cell, profile, round_) for cell, round_, profile, _ in instances]
+        summary = driver.summarize(records, "reno", ["mixed-bulk"])
+        self.assertEqual(["mixed-bulk"], sorted(summary["cells"]))
+        with self.assertRaisesRegex(ValueError, "do not match"):
+            driver.check_accounting(records)
+        with self.assertRaisesRegex(ValueError, "not in the bbrv3 inventory"):
+            driver.schedule("bbrv3", ["stream-gso-on"])
 
 
 if __name__ == "__main__":

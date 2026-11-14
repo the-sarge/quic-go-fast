@@ -1,0 +1,11 @@
+03:54:09 balanced round 0 A attempt 0: foreign 0.4172341149999994 s, contaminated False, product failures []
+03:55:28 balanced round 0 B attempt 0: foreign 0.34903671300000205 s, contaminated False, product failures []
+03:56:47 balanced round 0 C attempt 0: foreign 1.3066821460000018 s, contaminated False, product failures []
+03:58:06 balanced round 0 D attempt 0: foreign 0.3635441629999967 s, contaminated False, product failures []
+03:59:25 balanced round 0 E attempt 0: foreign 15.498999914999995 s, contaminated True, product failures []
+03:59:27 host busy: named process True, fixture share 0.069
+03:59:42 host busy: named process True, fixture share 0.468
+03:59:57 host busy: named process True, fixture share 0.401
+04:00:12 host busy: named process True, fixture share 0.074
+04:01:44 balanced round 0 E attempt 1: foreign 31.235010592000005 s, contaminated True, product failures []
+04:01:44 done: mode campaign, support invalid, charged 6

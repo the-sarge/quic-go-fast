@@ -1,0 +1,9 @@
+Linux minimax 7.0.0-30-generic #30-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 31 18:22:54 UTC 2026 x86_64 GNU/Linux
+c0ea222a-3837-450f-8bbe-b1d45620cef8
+go version go1.27.4 linux/amd64
+5.7.0
+Python 3.14.4
+CPU(s):                                  32
+Model name:                              AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+Thread(s) per core:                      2
+CPU(s) scaling MHz:                      68%
