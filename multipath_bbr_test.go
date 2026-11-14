@@ -12,6 +12,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/congestion"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
@@ -568,6 +569,25 @@ func TestBBRPathAckTurn(t *testing.T) {
 		f.drain(t)
 		for i := 1; i <= interval; i++ {
 			require.Equal(t, i == interval, turn(fmt.Sprintf("turn %d after the probe", i)), "the next PING is twenty turns after the probe, not after the last PING")
+		}
+
+		// A PTO probe with nothing to carry is a PING, which resets its own carrier's
+		// count on every multipath carrier, path zero included, and no other. Packed
+		// last, since nothing registers it.
+		p := e.packer
+		route := f.c.pathCredit.routeOf(1)
+		for _, carrier := range []*pathRoute{route, nil} {
+			route.numNonAckElicitingAcks, p.numNonAckElicitingAcks = 5, 5
+			packet, err := p.packPTOProbePacket(carrier, ackhandler.AckCarriage{}, protocol.Encryption1RTT, 1200, true, monotime.Now(), protocol.Version1)
+			require.NoError(t, err)
+			require.True(t, packet.shortHdrPacket.IsAckEliciting())
+			packet.buffer.Release()
+			require.Zero(t, *p.pingCount(carrier), "the probe resets its carrier's count")
+			other := route
+			if carrier != nil {
+				other = nil
+			}
+			require.Equal(t, 5, *p.pingCount(other), "and leaves the other carrier's alone")
 		}
 	})
 }

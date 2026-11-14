@@ -149,6 +149,9 @@ type packetPacker struct {
 	// numNonAckElicitingAcks counts path zero's consecutive non-ack-eliciting
 	// packets; each nonzero route keeps its own count (see pingCount).
 	numNonAckElicitingAcks int
+	// multipath is set with path admission. Every carrier there counts its periodic
+	// PING by one rule, under which any ack-eliciting packet resets the count.
+	multipath bool
 }
 
 // pingCount is the periodic-PING count of the packet's carrier. Path zero, the
@@ -1046,6 +1049,10 @@ func (p *packetPacker) packPTOProbePacket1RTT(route *pathRoute, acks ackhandler.
 		ping := &wire.PingFrame{}
 		pl.frames = append(pl.frames, ackhandler.Frame{Frame: ping, Handler: emptyHandler{}})
 		pl.length += ping.Length(v)
+		// An ordinary connection keeps its inherited count here.
+		if route != nil || p.multipath {
+			*p.pingCount(route) = 0
+		}
 	}
 	buffer := getPacketBufferForCeiling(packetCeiling(maxPacketSize))
 	packet := &coalescedPacket{buffer: buffer}

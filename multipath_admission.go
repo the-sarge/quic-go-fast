@@ -171,7 +171,7 @@ func (p *pathCreditRegistry) enableAdmission() {
 	zero.livenessAt = monotime.Now()
 	zero.fences = []pathFence{{epoch: &zero.established.probeEpoch}}
 	p.members = map[protocol.PathID]*pathMember{0: zero}
-	p.conn.emission.packer.holdDatagrams = true
+	p.conn.emission.packer.holdDatagrams, p.conn.emission.packer.multipath = true, true
 	p.validated = []net.Addr{addr}
 	p.rtt = map[protocol.PathID]*utils.RTTStats{0: p.conn.rttStats}
 	p.attachments = map[*Transport]*pathAttachment{nil: {refs: 1, detached: make(chan struct{})}}
