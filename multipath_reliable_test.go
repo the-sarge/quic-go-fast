@@ -1366,6 +1366,7 @@ func (l *refusingLocal) useRoute(r *pathRoute) { l.route = r; l.localPacketSende
 func (l *refusingLocal) canConstruct(r *pathRoute) bool {
 	return (l.full || r != l.refused) && l.localPacketSender.canConstruct(r)
 }
+
 func (l *refusingLocal) WouldBlock() bool {
 	return l.all || (l.full && l.route == l.refused) || l.localPacketSender.WouldBlock()
 }
