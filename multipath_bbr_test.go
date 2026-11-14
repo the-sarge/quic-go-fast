@@ -468,3 +468,77 @@ func TestBBRPathAnnouncementPacing(t *testing.T) {
 		})
 	})
 }
+
+// A BBR receiver's ACK turn on a backup charges that route's local credit, but no
+// pacing, and is a signaling turn: path zero's supply state stays as it was. Turns
+// take no payload, whatever is queued. The backup's own count puts the periodic PING
+// on every twentieth turn, however much the primary sends between them.
+func TestBBRPathAckTurn(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newBBRPathFixture(t, protocol.PerspectiveServer)
+		e := &f.c.emission
+		f.peerSends(t, 1, 2)
+		f.write(t, 1000)
+		f.drain(t)
+		f.ackPath(t, 0, 0, f.parseWrites(t, 0))
+		f.drain(t)
+		f.socket.writes = nil
+		root := f.c.sentPacketHandler.(deliveryProbe)
+		require.Equal(t, congestion.SendApplicationLimited, e.bbr.supplyGap)
+		require.True(t, root.DeliveryStats().Idle)
+
+		path := f.bbrPath(1)
+		tokens := path.tokens
+		f.peerSends(t, 1, 2)
+		// Hold the write, so the turn's credit is still pending when it's read.
+		f.socket.hold = nativeProbeHoldAll
+		result := f.c.triggerSending(monotime.Now())
+		require.NoError(t, result.err)
+		require.True(t, result.retry, "a sent turn requests continuation")
+		synctest.Wait()
+		path.credit.mu.Lock()
+		charged := path.credit.pending
+		path.credit.mu.Unlock()
+		require.Positive(t, charged, "the turn holds its route's credit")
+		f.socket.hold = nil
+		f.socket.release()
+		synctest.Wait()
+		require.NoError(t, e.consumeLocal())
+		require.Equal(t, tokens, path.tokens, "and debits no pacing")
+		require.Equal(t, congestion.SendApplicationLimited, e.bbr.supplyGap, "path zero's gap stays")
+		require.True(t, root.DeliveryStats().Idle, "and so does its idle state")
+		onOne := f.parseWrites(t, 1)
+		require.Len(t, onOne, 1)
+		require.Equal(t, 1, acksFor(onOne, 1))
+
+		f.drain(t) // the call after a turn runs none
+		f.c.peerParams.MaxDatagramFrameSize = wire.MaxDatagramSize
+		f.c.pathCredit.routeOf(1).numNonAckElicitingAcks = 0
+		for turn := 1; turn <= protocol.MaxNonAckElicitingAcks+2; turn++ {
+			f.socket.writes = nil
+			f.peerSends(t, 1, 2)
+			f.c.retransmissionQueue.addAppData(&wire.MaxStreamsFrame{Type: protocol.StreamTypeUni, MaxStreamNum: 100})
+			f.queueDatagram(t, 100)
+			f.write(t, 100)
+			f.sendOnce(t)
+			onOne := f.parseWrites(t, 1)
+			require.Len(t, onOne, 1, "turn %d", turn)
+			require.Equal(t, 1, acksFor(onOne, 1))
+			require.Empty(t, onOne[0].streams)
+			require.Empty(t, onOne[0].datagrams)
+			if turn == protocol.MaxNonAckElicitingAcks+1 {
+				require.Len(t, onOne[0].frames, 1, "the twentieth turn carries the PING")
+				require.IsType(t, &wire.PingFrame{}, onOne[0].frames[0])
+			} else {
+				require.Empty(t, onOne[0].frames, "turn %d isn't ack-eliciting", turn)
+			}
+			// The primary's data, retransmission and DATAGRAM leave between turns.
+			f.drain(t)
+			onZero := f.parseWrites(t, 0)
+			require.Equal(t, 100, reliableBytes(onZero))
+			require.NotEmpty(t, slices.DeleteFunc(slices.Clone(onZero), func(w reliableWrite) bool { return len(w.datagrams) == 0 }))
+			require.False(t, f.c.retransmissionQueue.HasData(protocol.Encryption1RTT))
+			f.ackPath(t, 0, 0, onZero)
+		}
+	})
+}

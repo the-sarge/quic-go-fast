@@ -5,12 +5,14 @@ package quic
 import (
 	"bytes"
 	"context"
+	"math"
 	"slices"
 	"testing"
 	"testing/synctest"
 	"time"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
+	"github.com/quic-go/quic-go/internal/handshake"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/utils"
@@ -1204,5 +1206,466 @@ func (p *pathCreditRegistry) selectPrimaryPrivate(id protocol.PathID) {
 	}
 	if err := p.setLocalUsePrivate(id, false, now); err != nil {
 		panic(err)
+	}
+}
+
+// acksFor counts the acknowledgments of target among writes; ACK(0) has no path ID.
+func acksFor(writes []reliableWrite, target protocol.PathID) int {
+	n := 0
+	for _, write := range writes {
+		for _, ack := range write.acks {
+			if (ack.HasPathID && ack.PathID == target) || (!ack.HasPathID && target == 0) {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// peerSends delivers n ack-eliciting packets from the peer on path id's tuple.
+func (f *reliableFixture) peerSends(t *testing.T, id protocol.PathID, n int) {
+	t.Helper()
+	addr := f.c.RemoteAddr()
+	if id != 0 {
+		addr = f.c.pathCredit.members[id].addr
+	}
+	for range n {
+		require.True(t, f.receive(t, id, addr, 0, &wire.PingFrame{}))
+	}
+}
+
+// A primary/backup receiver returns a due backup-path PATH_ACK in an ACK-only turn
+// on the backup's own route. The primary's data packets don't carry it.
+func TestPathAckTurnOnBackup(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		require.True(t, f.c.pathCredit.members[1].backup)
+		f.peerSends(t, 1, 2) // the threshold queues path 1's ACK
+		f.write(t, 3000)
+		f.pass(t)
+
+		onZero, onOne := f.parseWrites(t, 0), f.parseWrites(t, 1)
+		require.Equal(t, 3000, reliableBytes(onZero))
+		require.Zero(t, acksFor(onZero, 1), "the primary's packets don't carry path 1's ACK")
+		require.Len(t, onOne, 1)
+		require.Equal(t, 1, acksFor(onOne, 1))
+		require.Empty(t, onOne[0].streams)
+		require.Empty(t, onOne[0].frames, "an ACK-only turn")
+		require.Equal(t, admissionTupleA.AddrPort().Port(), onOne[0].destination.Port())
+	})
+}
+
+// The carrier's own target still piggybacks on its data packets, while a home target
+// on another path that isn't due is withheld from them until its own rule fires.
+func TestPathAckOwnPiggybackWithholdsOtherHome(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		f.peerSends(t, 1, 2) // settle path 1's receive space, so it starts from no ACK owed
+		f.pass(t)
+		f.socket.writes = nil
+		f.peerSends(t, 0, 1)
+		f.peerSends(t, 1, 1) // one packet arms only path 1's max_ack_delay alarm
+		require.False(t, f.c.receivedPacketHandler.AckDueOnPath(1, monotime.Now()))
+		f.write(t, 3000)
+		f.pass(t)
+
+		onZero := f.parseWrites(t, 0)
+		require.Equal(t, 3000, reliableBytes(onZero))
+		require.Equal(t, 1, acksFor(onZero, 0), "path zero's own ACK piggybacks before it is due")
+		require.Zero(t, acksFor(onZero, 1), "path 1's undue ACK isn't put on path zero")
+		require.Empty(t, f.parseWrites(t, 1))
+		require.False(t, f.c.receivedPacketHandler.GetAlarmTimeout().IsZero(), "path 1's alarm still owns it")
+
+		f.socket.writes = nil
+		time.Sleep(protocol.MaxAckDelay)
+		f.pass(t)
+		onOne := f.parseWrites(t, 1)
+		require.Equal(t, 1, acksFor(onOne, 1), "it leaves on its own path once due")
+		require.Zero(t, acksFor(f.parseWrites(t, 0), 1))
+	})
+}
+
+// A path that can't carry its own acknowledgments isn't home, so they are released
+// to whichever carrier the call uses. That includes a suspect path zero.
+func TestPathAckNonHomeReleases(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		p := f.c.pathCredit
+		m := p.members[1]
+		homes := func() ackhandler.AckCarriage {
+			var acks ackhandler.AckCarriage
+			p.holdHomes(&acks)
+			return acks
+		}
+		require.True(t, homes().Holds(0))
+		require.True(t, homes().Holds(1), "a local backup is still home")
+		sender := f.c.emission.local.(*nativeOrdinarySender)
+		for _, state := range []struct {
+			name string
+			set  func() (restore func())
+		}{
+			{"validating", func() func() { m.live = false; return func() { m.live = true } }},
+			{"retiring", func() func() {
+				p.terminals[1] = &pathTerminal{}
+				return func() { delete(p.terminals, 1) }
+			}},
+			{"fencing", func() func() {
+				m.candidate = &pathCandidate{fencing: true}
+				return func() { m.candidate = nil }
+			}},
+			{"suspect", func() func() { m.suspect = true; return func() { m.suspect = false } }},
+			{"failed endpoint", func() func() {
+				origin := sender.origin
+				sender.origin = nil
+				return func() { sender.origin = origin }
+			}},
+			{"no destination CID", func() func() {
+				set := f.c.connIDManager.pathCIDs[1]
+				delete(f.c.connIDManager.pathCIDs, 1)
+				return func() { f.c.connIDManager.pathCIDs[1] = set }
+			}},
+		} {
+			require.Nil(t, m.candidate)
+			restore := state.set()
+			require.False(t, homes().Holds(1), state.name)
+			restore()
+			require.True(t, homes().Holds(1), state.name)
+		}
+
+		// A suspect path 1's due ACK rides path zero's packet.
+		f.peerSends(t, 1, 2)
+		m.suspect = true
+		f.pass(t)
+		require.Equal(t, 1, acksFor(f.parseWrites(t, 0), 1))
+		require.Zero(t, acksFor(f.parseWrites(t, 1), 1), "only its validation probe uses path 1")
+		m.suspect = false
+
+		// A suspect path zero isn't home, though zeroCarries ignores suspicion: its due
+		// ACK rides the held route, path 1.
+		f.socket.writes = nil
+		p.members[0].suspect = true
+		require.True(t, p.zeroCarries())
+		require.False(t, homes().Holds(0))
+		f.peerSends(t, 0, 2)
+		f.pass(t)
+		require.Equal(t, 1, acksFor(f.parseWrites(t, 1), 0))
+		require.Zero(t, acksFor(f.parseWrites(t, 0), 0))
+	})
+}
+
+// refusingLocal refuses path 1's ACK turn locally: with full set, the endpoint
+// queue blocks once the turn has switched to that route; otherwise its route has
+// no native construction capacity.
+type refusingLocal struct {
+	localPacketSender
+	refused, route *pathRoute
+	full, all      bool // all blocks the queue on every route
+}
+
+func (l *refusingLocal) useRoute(r *pathRoute) { l.route = r; l.localPacketSender.useRoute(r) }
+func (l *refusingLocal) canConstruct(r *pathRoute) bool {
+	return (l.full || r != l.refused) && l.localPacketSender.canConstruct(r)
+}
+func (l *refusingLocal) WouldBlock() bool {
+	return l.all || (l.full && l.route == l.refused) || l.localPacketSender.WouldBlock()
+}
+
+// Each owner that can refuse a home target's turn releases it into the same call,
+// where path zero's packet carries it, with no alarm left to wake for it.
+func TestPathAckTurnRefusalReleases(t *testing.T) {
+	for _, refusal := range []struct {
+		name, controller string
+		refuse           func(*reliableFixture) (restore func())
+	}{
+		{"queue full", "reno", func(f *reliableFixture) func() { return f.refuseLocally(true) }},
+		{"native construction capacity", "reno", func(f *reliableFixture) func() { return f.refuseLocally(false) }},
+		{"SendNone", "reno", func(f *reliableFixture) func() {
+			f.recovery(1).(interface{ CloseLocal(monotime.Time) }).CloseLocal(monotime.Now())
+			require.Equal(t, ackhandler.SendNone, f.recovery(1).SendMode(monotime.Now()))
+			return func() {}
+		}},
+		{"BBR credit", "bbrv3", func(f *reliableFixture) func() {
+			p := f.bbrPath(1)
+			held := p.credit.reserve(p.creditLimit(), p.creditLimit(), false, false)
+			require.NotNil(t, held)
+			return held.completeLocal
+		}},
+	} {
+		t.Run(refusal.name, func(t *testing.T) {
+			nativeOrdinaryTest(t, func(t *testing.T) {
+				f := newReliableFixtureFor(t, protocol.PerspectiveServer, nil, refusal.controller)
+				f.peerSends(t, 1, 2)
+				restore := refusal.refuse(f)
+				result := f.c.triggerSending(monotime.Now())
+				require.NoError(t, result.err)
+				synctest.Wait()
+				require.NoError(t, f.c.emission.consumeLocal())
+				restore()
+
+				require.Equal(t, 1, acksFor(f.parseWrites(t, 0), 1), "released into the same call")
+				require.Zero(t, acksFor(f.parseWrites(t, 1), 1))
+				require.False(t, f.c.receivedPacketHandler.AckDueOnPath(1, monotime.Now()))
+				require.True(t, f.c.receivedPacketHandler.GetAlarmTimeout().IsZero(), "no stale alarm")
+				require.False(t, f.c.emission.ackTurnSent)
+			})
+		})
+	}
+}
+
+func (f *reliableFixture) refuseLocally(full bool) (restore func()) {
+	e := &f.c.emission
+	inner := e.local
+	e.local = &refusingLocal{localPacketSender: inner, refused: f.c.pathCredit.routeOf(1), route: e.route, full: full}
+	e.queue = e.local
+	return func() { e.local, e.queue = inner, inner }
+}
+
+// After a same-ID migration, a turn leaves through the path's current tuple, and the
+// route keeps its periodic-PING count.
+func TestPathAckTurnAfterMigration(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveClient)
+		require.NoError(t, creditIngress(t, f.tc, monotime.Now(), &wire.PathNewConnectionIDFrame{PathID: 1, SequenceNumber: 1, ConnectionID: replacementPeerCID(1), StatelessResetToken: protocol.StatelessResetToken{0xab}}))
+		route := f.c.pathCredit.routeOf(1)
+		target, socket := migrationTarget(t, f.admissionFixture)
+		migrate(t, f.admissionFixture, 1, target, socket)
+		require.Same(t, route, f.c.pathCredit.routeOf(1))
+		route.numNonAckElicitingAcks = 7
+		f.c.pathCredit.refreshRoute(f.c.pathCredit.members[1])
+		require.Equal(t, 7, route.numNonAckElicitingAcks, "refreshing the route keeps its count")
+
+		origin := f.socket
+		origin.writes, socket.writes = nil, nil
+		f.peerSends(t, 1, 2)
+		f.pass(t)
+		f.socket = socket
+		onOne := f.parseWrites(t, 1)
+		require.Equal(t, 1, acksFor(onOne, 1), "the turn uses the new tuple")
+		require.Empty(t, onOne[0].streams)
+		require.Equal(t, 8, route.numNonAckElicitingAcks)
+		f.socket = origin
+		require.Zero(t, acksFor(f.parseWrites(t, 1), 1))
+		require.Zero(t, acksFor(f.parseWrites(t, 0), 1))
+	})
+}
+
+// An alarm-due acknowledgment leaves in its turn, with its own space's ACK Delay.
+func TestPathAckAlarmDueTurnCarriesOwnDelay(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		f.peerSends(t, 1, 2)
+		f.pass(t)
+		f.socket.writes = nil
+		f.peerSends(t, 1, 1)
+		time.Sleep(5 * time.Millisecond)
+		f.peerSends(t, 0, 1) // path zero's own, later alarm
+		f.pass(t)
+		require.Empty(t, f.parseWrites(t, 1), "not due before its alarm")
+
+		time.Sleep(protocol.MaxAckDelay - 5*time.Millisecond)
+		f.pass(t)
+		onOne := f.parseWrites(t, 1)
+		require.Equal(t, 1, acksFor(onOne, 1))
+		require.Zero(t, acksFor(onOne, 0), "path zero's ACK stays home")
+		var delay time.Duration
+		for _, ack := range onOne[0].acks {
+			delay = ack.DelayTime << protocol.AckDelayExponent // parseWrites decodes with exponent zero
+		}
+		require.InDelta(t, float64(protocol.MaxAckDelay), float64(delay), float64(100*time.Microsecond))
+	})
+}
+
+// sustainedTurns exceeds the shared tracking ceiling.
+const sustainedTurns = protocol.MaxTrackedSentPackets + 100
+
+// sendOnce runs one emission call, as one pass of the connection loop does.
+func (f *reliableFixture) sendOnce(t *testing.T) emissionResult {
+	t.Helper()
+	result := f.c.triggerSending(monotime.Now())
+	require.NoError(t, result.err)
+	synctest.Wait()
+	require.NoError(t, f.c.emission.consumeLocal())
+	return result
+}
+
+// Turns and other calls alternate at worst one to one, so recurring receives on a
+// backup can't starve the selected route, and the per-carrier PING keeps sustained
+// turns' history bounded.
+func TestPathAckTurnAlternation(t *testing.T) {
+	t.Run("selected route between turns", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newReliableFixture(t, protocol.PerspectiveServer)
+			f.peerSends(t, 0, 2)
+			f.c.framer.QueueControlFrame(&wire.MaxDataFrame{MaximumData: 1 << 30})
+			var zero []reliableWrite
+			for range 2 {
+				f.peerSends(t, 1, 2) // sustained receive on the backup
+				f.sendOnce(t)
+				zero = append(zero, f.parseWrites(t, 0)...)
+				f.socket.writes = nil
+			}
+			require.Equal(t, 1, acksFor(zero, 0), "the selected route's ACK leaves between turns")
+			var credit bool
+			for _, write := range zero {
+				for _, frame := range write.frames {
+					_, ok := frame.(*wire.MaxDataFrame)
+					credit = credit || ok
+				}
+			}
+			require.True(t, credit, "and so does its credit update")
+		})
+	})
+	for _, end := range []string{"queue full", "hard blocked"} {
+		t.Run("cleared when "+end, func(t *testing.T) {
+			nativeOrdinaryTest(t, func(t *testing.T) {
+				f := newReliableFixture(t, protocol.PerspectiveServer)
+				// Path zero waits for turns while path 1 holds the opportunity.
+				f.c.pathCredit.selectPrimaryPrivate(1)
+				f.peerSends(t, 0, 2)
+				f.sendOnce(t)
+				require.True(t, f.c.emission.ackTurnSent)
+				f.peerSends(t, 0, 2)
+				if end == "queue full" {
+					restore := f.refuseLocally(false)
+					f.c.emission.local.(*refusingLocal).all = true
+					result := f.sendOnce(t)
+					restore()
+					require.Equal(t, emissionQueueFull, result.stop)
+					require.False(t, result.retry, "the capacity wakeup continues instead")
+				} else {
+					f.recovery(1).(interface{ CloseLocal(monotime.Time) }).CloseLocal(monotime.Now())
+					result := f.sendOnce(t)
+					require.Equal(t, blockModeHardBlocked, result.blocked)
+					require.NotEqual(t, emissionQueueFull, result.stop)
+					require.True(t, result.retry, "a waiting home target asks for a retry")
+				}
+				require.False(t, f.c.emission.ackTurnSent)
+				require.False(t, f.c.emission.ackTurnSkip)
+			})
+		})
+	}
+	t.Run("retry sends a threshold-queued target", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newReliableFixture(t, protocol.PerspectiveServer)
+			f.peerSends(t, 1, 2)
+			f.sendOnce(t)
+			f.socket.writes = nil
+			f.peerSends(t, 1, 2) // queued by threshold, which arms no alarm
+			require.True(t, f.c.receivedPacketHandler.GetAlarmTimeout().IsZero())
+			result := f.sendOnce(t)
+			require.True(t, result.retry)
+			require.Empty(t, f.parseWrites(t, 1), "it waits one call")
+			f.sendOnce(t)
+			require.Equal(t, 1, acksFor(f.parseWrites(t, 1), 1), "the retry sends it")
+		})
+	})
+	t.Run("sustained turns stay bounded", func(t *testing.T) {
+		// The fixture's peer never updates its keys.
+		first := handshake.FirstKeyUpdateInterval
+		handshake.FirstKeyUpdateInterval = math.MaxUint64
+		t.Cleanup(handshake.SetKeyUpdateInterval(math.MaxUint64))
+		t.Cleanup(func() { handshake.FirstKeyUpdateInterval = first })
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newReliableFixture(t, protocol.PerspectiveServer)
+			var unacked []reliableWrite
+			pings := 0
+			for i := range sustainedTurns {
+				f.peerSends(t, 1, 2)
+				f.sendOnce(t)
+				f.sendOnce(t)
+				onOne := f.parseWrites(t, 1)
+				f.socket.writes = nil
+				if len(onOne) != 1 || acksFor(onOne, 1) != 1 {
+					t.Fatalf("turn %d: %d writes on path 1", i, len(onOne))
+				}
+				unacked = append(unacked, onOne...)
+				if len(onOne[0].frames) == 0 {
+					continue
+				}
+				require.IsType(t, &wire.PingFrame{}, onOne[0].frames[0])
+				require.Len(t, unacked, protocol.MaxNonAckElicitingAcks+1, "every twentieth turn carries the PING")
+				pings++
+				f.ackPath(t, 1, 1, unacked)
+				unacked = nil
+			}
+			require.GreaterOrEqual(t, pings, sustainedTurns/(protocol.MaxNonAckElicitingAcks+1)-1)
+			for _, id := range []protocol.PathID{0, 1} {
+				require.NotEqual(t, ackhandler.SendNone, f.recovery(id).SendMode(monotime.Now()), "path %d stays sendable", id)
+			}
+		})
+	})
+}
+
+// A Reno primary/backup transfer and its failover are unchanged. With the peer idle
+// on the backup throughout, B7 gives the backup no packet, PTO, suspicion or
+// liveness refresh.
+func TestPathAckIdleBackupUnchanged(t *testing.T) {
+	nativeOrdinaryTest(t, func(t *testing.T) {
+		f := newReliableFixture(t, protocol.PerspectiveServer)
+		p := f.c.pathCredit
+		backup := p.members[1]
+		// The setup's validation packets owe path 1 one acknowledgment.
+		time.Sleep(protocol.MaxAckDelay)
+		f.pass(t)
+		f.socket.writes = nil
+		liveness, count, alarm := backup.livenessAt, p.routeOf(1).numNonAckElicitingAcks, f.pathAlarm(1)
+		for range 4 {
+			f.write(t, 4000)
+			f.pass(t)
+			onZero := f.parseWrites(t, 0)
+			require.Equal(t, 4000, reliableBytes(onZero))
+			require.Empty(t, f.parseWrites(t, 1), "nothing leaves on the idle backup")
+			f.socket.writes = nil
+			time.Sleep(10 * time.Millisecond)
+			f.ackPath(t, 0, 0, onZero)
+			f.peerSends(t, 0, 2)
+			f.pass(t)
+			require.Empty(t, f.parseWrites(t, 1))
+			f.socket.writes = nil
+		}
+		require.Equal(t, alarm, f.pathAlarm(1), "no new PTO on the backup")
+		require.Zero(t, backup.attempts)
+		require.False(t, backup.suspect)
+		require.Equal(t, liveness, backup.livenessAt, "no liveness refresh")
+		require.Equal(t, count, p.routeOf(1).numNonAckElicitingAcks)
+
+		// Failover still promotes the backup, which carries the stranded work.
+		f.suspectAfterPTOs(t, 0)
+		require.Equal(t, protocol.PathID(1), p.primary)
+		require.Equal(t, 1000, reliableBytes(f.parseWrites(t, 1)))
+	})
+}
+
+// Once a home path's oldest outstanding record is older than one of its PTOs, its
+// turns stop and its acknowledgments fall back to the selected carrier. The record
+// can be our data on a path whose return direction failed, or the turn's own PING.
+func TestPathAckTurnHistoryRoom(t *testing.T) {
+	for _, record := range []string{"data", "turn PING"} {
+		t.Run(record, func(t *testing.T) {
+			nativeOrdinaryTest(t, func(t *testing.T) {
+				f := newReliableFixture(t, protocol.PerspectiveServer)
+				p := f.c.pathCredit
+				if record == "data" {
+					p.selectPrimaryPrivate(1)
+					f.write(t, 1000)
+					f.pass(t)
+					require.Equal(t, 1000, reliableBytes(f.parseWrites(t, 1)))
+					p.selectPrimaryPrivate(0)
+				} else {
+					f.pingTurn(t, 1)
+				}
+				f.socket.writes = nil
+				f.peerSends(t, 1, 2)
+				f.pass(t)
+				require.Equal(t, 1, acksFor(f.parseWrites(t, 1), 1), "within one PTO, turns continue")
+
+				f.socket.writes = nil
+				time.Sleep(p.rtt[1].PTO(true) + time.Millisecond)
+				f.peerSends(t, 1, 2)
+				f.pass(t)
+				require.Zero(t, acksFor(f.parseWrites(t, 1), 1), "turns stop")
+				require.Equal(t, 1, acksFor(f.parseWrites(t, 0), 1), "and the selected carrier takes it")
+			})
+		})
 	}
 }

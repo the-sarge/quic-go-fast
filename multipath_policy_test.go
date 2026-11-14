@@ -493,3 +493,165 @@ func TestPathPolicyPeerStatusIsAdvisory(t *testing.T) {
 		require.Equal(t, protocol.PathID(1), p.primary)
 	})
 }
+
+// pingTurn drives ACK turns on path id until one carries the periodic PING.
+func (f *reliableFixture) pingTurn(t *testing.T, id protocol.PathID) reliableWrite {
+	t.Helper()
+	for range protocol.MaxNonAckElicitingAcks + 2 {
+		f.socket.writes = nil
+		f.peerSends(t, id, 2)
+		f.pass(t)
+		for _, write := range f.parseWrites(t, id) {
+			if len(write.frames) != 0 {
+				require.IsType(t, &wire.PingFrame{}, write.frames[0])
+				return write
+			}
+		}
+	}
+	t.Fatalf("no turn on path %d carried a PING", id)
+	return reliableWrite{}
+}
+
+// queuePayload queues stream data, a retransmission and a DATAGRAM.
+func (f *reliableFixture) queuePayload(t *testing.T) {
+	t.Helper()
+	f.c.peerParams.MaxDatagramFrameSize = wire.MaxDatagramSize
+	f.c.retransmissionQueue.addAppData(&wire.MaxStreamsFrame{Type: protocol.StreamTypeUni, MaxStreamNum: 100})
+	f.queueDatagram(t, 100)
+	f.write(t, 500)
+}
+
+// A PTO off the designated primary on a path holding only PINGs and acknowledgments
+// sends both probes as bare PINGs, so queued payload stays for the primary. The
+// designated primary, and a path holding outstanding data, keep today's probes.
+func TestPathPolicyBarePingProbe(t *testing.T) {
+	t.Run("backup holding a turn PING", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newReliableFixture(t, protocol.PerspectiveServer)
+			f.pingTurn(t, 1)
+			f.socket.writes = nil
+			f.queuePayload(t)
+			f.expirePTO(t, 1)
+			f.sendOnce(t)
+
+			onOne := f.parseWrites(t, 1)
+			require.Len(t, onOne, 2, "both probes of the PTO leave on path 1")
+			for _, probe := range onOne {
+				require.Empty(t, probe.streams)
+				require.Empty(t, probe.datagrams)
+				require.Len(t, probe.frames, 1)
+				require.IsType(t, &wire.PingFrame{}, probe.frames[0])
+			}
+			onZero := f.parseWrites(t, 0)
+			require.Equal(t, 500, reliableBytes(onZero), "queued data leaves on the primary")
+			require.Equal(t, 1, len(slices.DeleteFunc(slices.Clone(onZero), func(w reliableWrite) bool { return len(w.datagrams) == 0 })))
+			require.False(t, f.c.retransmissionQueue.HasData(protocol.Encryption1RTT))
+		})
+	})
+	t.Run("designated primary holding only a PING", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newReliableFixture(t, protocol.PerspectiveServer)
+			f.c.pathCredit.selectPrimaryPrivate(1)
+			f.pingTurn(t, 0)
+			f.c.pathCredit.selectPrimaryPrivate(0)
+			f.socket.writes = nil
+			f.queuePayload(t)
+			f.expirePTO(t, 0)
+			f.sendOnce(t)
+			require.Positive(t, reliableBytes(f.parseWrites(t, 0)), "its probes may carry data")
+		})
+	})
+	t.Run("backup holding stream data", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newReliableFixture(t, protocol.PerspectiveServer)
+			f.c.pathCredit.selectPrimaryPrivate(1)
+			f.write(t, 1000)
+			f.pass(t)
+			require.Equal(t, 1000, reliableBytes(f.parseWrites(t, 1)))
+			f.c.pathCredit.selectPrimaryPrivate(0)
+			f.socket.writes = nil
+			f.expirePTO(t, 1)
+			f.sendOnce(t)
+			require.Positive(t, reliableBytes(f.parseWrites(t, 1)), "its probe retransmits that data")
+		})
+	})
+}
+
+// A turn's PING on a backup the peer sends on is ordinary current-tuple evidence
+// under the existing policy: its acknowledgment is liveness that keeps the backup
+// fresh for promotion, and its unanswered PTOs make the backup suspect.
+func TestPathPolicyBackupPingEvidence(t *testing.T) {
+	t.Run("acknowledged PING keeps the backup fresh", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newReliableFixture(t, protocol.PerspectiveServer)
+			p := f.c.pathCredit
+			m := p.members[1]
+			time.Sleep(9 * time.Second)
+			ping := f.pingTurn(t, 1)
+			m.attempts = 1
+			f.ackPath(t, 1, 1, []reliableWrite{ping})
+			require.Zero(t, m.attempts, "attempts clear")
+			require.Equal(t, monotime.Now(), m.livenessAt, "liveness refreshes")
+
+			// Long after activation, the backup is still fresh, so the primary's failure
+			// promotes it without revalidating it first.
+			time.Sleep(4 * time.Second)
+			f.socket.writes = nil
+			f.suspectAfterPTOs(t, 0)
+			require.Equal(t, protocol.PathID(1), p.primary)
+			require.Nil(t, m.candidate, "no revalidation")
+			require.Empty(t, policyChallenges(f.parseWrites(t, 1)))
+		})
+	})
+	t.Run("unacknowledged PINGs make the backup suspect", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newReliableFixture(t, protocol.PerspectiveServer)
+			p := f.c.pathCredit
+			m := p.members[1]
+			f.pingTurn(t, 1)
+			f.socket.writes = nil
+			for range suspectPTOAttempts {
+				require.False(t, m.suspect)
+				f.policyPTO(t, 1)
+			}
+			require.True(t, m.suspect)
+			require.Zero(t, p.primary, "the healthy primary stays")
+			require.NotNil(t, m.candidate, "revalidation starts")
+			for _, probe := range f.parseWrites(t, 1) {
+				require.Empty(t, probe.streams, "probes stay bare")
+			}
+			require.NotEmpty(t, policyChallenges(f.parseWrites(t, 1)))
+			var acks ackhandler.AckCarriage
+			p.holdHomes(&acks)
+			require.False(t, acks.Holds(1), "its targets are released")
+			challenges := f.socket.writes
+			f.socket.writes = nil
+			f.peerSends(t, 1, 2)
+			f.pass(t)
+			require.Equal(t, 1, acksFor(f.parseWrites(t, 0), 1))
+			require.Zero(t, acksFor(f.parseWrites(t, 1), 1))
+
+			f.socket.writes = challenges
+			f.answerChallenge(t, 1)
+			require.False(t, m.suspect)
+			require.True(t, m.backup, "it recovers as a backup")
+			require.Zero(t, p.primary)
+		})
+	})
+	t.Run("peer goes idle after a PING turn", func(t *testing.T) {
+		nativeOrdinaryTest(t, func(t *testing.T) {
+			f := newReliableFixture(t, protocol.PerspectiveServer)
+			m := f.c.pathCredit.members[1]
+			ping := f.pingTurn(t, 1)
+			f.socket.writes = nil
+			for range 3 {
+				time.Sleep(protocol.MaxAckDelay)
+				f.pass(t)
+			}
+			require.Empty(t, f.parseWrites(t, 1), "no further turn or PING")
+			time.Sleep(50 * time.Millisecond)
+			f.ackPath(t, 1, 1, []reliableWrite{ping})
+			require.Equal(t, monotime.Now(), m.livenessAt, "a late acknowledgment is liveness")
+		})
+	})
+}
