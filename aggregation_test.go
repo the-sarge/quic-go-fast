@@ -42,7 +42,7 @@ const (
 	// socket the library owns.
 	aggregationWriteBudget = 100 * time.Millisecond
 
-	aggregationObject          = 1 << 20
+	aggregationObject = 1 << 20
 	// aggregationObjectsInFlight is a flow's concurrent STREAM objects, split evenly
 	// across the arm's focal connections like the DATAGRAM load, so every arm offers
 	// the same load.
@@ -365,9 +365,11 @@ func newRelayLink(t testing.TB, name, front, server string, queue *relayQueue, d
 	require.NoError(t, err)
 	serverAddr, err := net.ResolveUDPAddr("udp4", server)
 	require.NoError(t, err)
-	l := &relayLink{name: name, queue: queue, delay: delay, line: line,
+	l := &relayLink{
+		name: name, queue: queue, delay: delay, line: line,
 		forward: make(chan relayPacket, relayBacklog), reverse: make(chan relayPacket, relayBacklog),
-		forwardDone: make(chan struct{}), reverseDone: make(chan struct{})}
+		forwardDone: make(chan struct{}), reverseDone: make(chan struct{}),
+	}
 	l.result.Name = name
 	l.front, err = net.ListenUDP("udp4", frontAddr)
 	require.NoError(t, err)
