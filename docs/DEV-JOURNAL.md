@@ -10764,3 +10764,59 @@ It acts on the owner decision of 2026-11-13 on #1356, [drop B8; bounded backup P
 - B7 #1357 needs its child issue reconciled to plan commit `8c0b1293816c815c9592e70c24045cf6ae6c9e3c` before dispatch. The orchestrator owns closing #1356 as not planned, closing PRs #1358 and #1360, and updating OmniFocus.
 - Draft PR #1350 (B5 scope) still needs a recheck against B7.
 - The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
+
+---
+
+## Same-path ACK carriage at the multipath receiver (#1357) - 2026-11-13 21:05 EST
+
+**Main:** `d26adc639550`
+**Actor:** Claude
+
+Merged [PR #1364](https://github.com/the-sarge/quic-go-fast/pull/1364) as `d26adc63955080c2a37b48374dc78a924140d012`, at certified head `97f566200`. It implements B7 #1357 for program #646, B track #1014, at plan commit `eb03ceef9`. A multipath receiver now carries each path's acknowledgment on that path while the path is home. There is no public API, configuration or wire change.
+
+**Completed:**
+- **Receive owner.**
+  - `AckCarriage` holds the call's home targets; every other target is released.
+  - `GetAckFrameOn`, `AckDueOnPath` and a carriage-aware `AppendPathAckFrames`.
+  - Bounded slot service: one `passedOver` mark per tracker, ordered by the handler's selection count.
+  - The due read and consumption share one `due()` predicate.
+- **Path recovery.** Two read-only facts: `AckTurnRoom`, against a strict 4,999-record share and one PTO of age, and `OnlyPingsOutstanding`.
+- **Packer.**
+  - The carrier and the carriage pass through.
+  - The periodic-PING count is per carrier: path zero keeps the field, and each `pathRoute` has its own.
+  - A PTO fallback PING resets its multipath carrier's count.
+- **Emission and registry.**
+  - Home targets come from `holdHomes`: selection eligibility, not fencing, and `zeroCarries` for path zero.
+  - One ACK turn per call, after the announcement and before the held opportunity.
+  - Refusals release the target into the same call: history room, native capacity, `SendNone`, BBR credit, or a full queue.
+  - One alternation fact, with a retry request; only a genuinely full queue defers continuation to the capacity wakeup.
+  - A PTO off the designated primary on a PING-only history sends a bare PING.
+- **Status.**
+  - The BBR plan is now 5/7.
+  - The program index now shows 46 of 48 slices complete.
+  - B5 #1044 is the frontier.
+
+**Decisions:**
+- **Scoped re-audit of TDD item 10:** [PR #1363](https://github.com/the-sarge/quic-go-fast/pull/1363), merged as `eb03ceef9`.
+  - The public gate refuses BBR multipath until B6, and B5 owns the private aggregate hook.
+  - So the two-connection test is a Reno pair on linux/amd64.
+  - The BBR sender half stays with B4's `TestAggregateBBRFallsBackUntilSampled`.
+  - Receipt: [#1357](https://github.com/the-sarge/quic-go-fast/issues/1357#issuecomment-6869227312).
+
+**Validation:**
+- **Tests:** 15 new deterministic tests, within the 16-test budget. Each fails when its mechanism is disabled.
+- **Code-review preparation pass:** [receipt](https://github.com/the-sarge/quic-go-fast/pull/1364#issuecomment-6869077988).
+- **RAS reviews:**
+  - Initial review `20261114T010827-f13f068af72fdc3208676686`: C-001 (program totals) and C-002 (fallback-PING count) were fixed and verified.
+  - Replacement review `20261114T012924-85a06c62ff78381786b5d715`: C-001 (a retry lost after a local credit block) was fixed. Verification was clear.
+  - Review `20261114T015558-4a0e46fb76d1946b38c52255` covered the gofumpt-only delta and was clean.
+- **Local checks:**
+  - Package tests on darwin.
+  - The focused race run.
+  - `go vet`, gofmt, gofumpt, golangci-lint and `go mod tidy -diff`.
+  - Linux/amd64 runs in Docker.
+- **Hosted checks:** all 18 passed on `97f566200`, including the post-ready `independent-peer` run [43543451316](https://github.com/the-sarge/quic-go-fast/actions/runs/43543451316).
+
+**Next:**
+- B5 #1044 is the frontier. Its draft PR #1350 and the ledger need a recheck against B7.
+- The live view is [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646).
